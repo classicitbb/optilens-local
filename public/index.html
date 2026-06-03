@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OptiLens Local</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/" aria-label="OptiLens Local home">
+      <span class="brand-mark">OL</span>
+      <span>
+        <strong>OptiLens Local</strong>
+        <small>Internal platform</small>
+      </span>
+    </a>
+    <nav class="top-nav" aria-label="Platform">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#modules">Modules</a>
+      <a href="#api">API</a>
+      <a href="#setup">Setup</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="dashboard">
+      <div class="hero-copy">
+        <p class="eyebrow">LAN dashboard · no login required</p>
+        <h1>One internal launch point for operations, exports, integrations, and future automation.</h1>
+        <p class="support">The Access delivery workflow is the first module. The platform core owns users, roles, APIs, audit history, and app-owned shipment state.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="/modules/delivery-export">Open first module</a>
+          <a class="button secondary" href="/api/health">API health</a>
+        </div>
+      </div>
+      <div class="status-board" aria-label="Platform status">
+        <div class="status-head">
+          <span class="pulse"></span>
+          <strong>OptiLens Local</strong>
+          <small id="clock">Loading</small>
+        </div>
+        <div class="metric-grid" id="metrics"></div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="section-head">
+        <p class="eyebrow">Platform core</p>
+        <h2>Shared foundation</h2>
+      </div>
+      <div class="capability-grid">
+        <article>
+          <span class="icon">A</span>
+          <h3>Authentication</h3>
+          <p>One login and permission model for every module that needs to change data.</p>
+        </article>
+        <article>
+          <span class="icon">M</span>
+          <h3>Module registry</h3>
+          <p>New tools get their own address and shortcut without becoming separate systems.</p>
+        </article>
+        <article>
+          <span class="icon">I</span>
+          <h3>Integration layer</h3>
+          <p>MSSQL, PSQL, Access imports, file shares, website feeds, and service APIs live behind controlled connectors.</p>
+        </article>
+        <article>
+          <span class="icon">L</span>
+          <h3>LLM-ready</h3>
+          <p>Local assistants can use audited tools later, with no direct write access to business databases.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="band" id="modules">
+      <div class="section-head">
+        <p class="eyebrow">Launch page</p>
+        <h2>Modules</h2>
+      </div>
+      <div class="module-grid" id="moduleGrid"></div>
+    </section>
+
+    <section class="band two-col" id="api">
+      <div>
+        <p class="eyebrow">Extensible API</p>
+        <h2>Service endpoints</h2>
+        <p class="section-copy">The first API endpoints are intentionally simple. They give the dashboard, other internal services, and later automation tools a stable place to connect.</p>
+      </div>
+      <div class="api-list">
+        <a href="/api/health">/api/health</a>
+        <a href="/api/dashboard">/api/dashboard</a>
+        <a href="/api/modules">/api/modules</a>
+      </div>
+    </section>
+
+    <section class="module-screen" id="deliveryModule" aria-label="Delivery and Export module">
+      <div class="section-head">
+        <p class="eyebrow">First module</p>
+        <h2>Delivery and Export Workbench</h2>
+      </div>
+      <div class="workbench">
+        <aside class="workbench-nav">
+          <button class="active" type="button">Shipment prep</button>
+          <button type="button">Commercial invoice</button>
+          <button type="button">Archive</button>
+          <button type="button">Source health</button>
+        </aside>
+        <div class="workbench-main">
+          <div class="form-grid">
+            <label>CustomerAccount<input value="ACC-EXPORT" aria-label="CustomerAccount"></label>
+            <label>Shipment ID<input value="Pending source lookup" aria-label="Shipment ID"></label>
+            <label>Dispatcher<select aria-label="Dispatcher"><option>Select dispatcher</option></select></label>
+            <label>Scan invoice<input placeholder="Scan or type invoice number" aria-label="Scan invoice"></label>
+          </div>
+          <div class="shipment-strip">
+            <span>Source shipped flag: <strong>0 open / 1 shipped</strong></span>
+            <span>App close state: <strong>stored privately</strong></span>
+            <span>Write-back: <strong>disabled</strong></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Patient</th>
+                  <th>Price</th>
+                  <th>State</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Preload from ShipmentItems</td>
+                  <td>Visual confirm</td>
+                  <td>From source invoice</td>
+                  <td><span class="badge open">Prep</span></td>
+                  <td><button class="text-button" type="button">Remove</button></td>
+                </tr>
+                <tr>
+                  <td>Manual invoice scan</td>
+                  <td>Loaded on scan</td>
+                  <td>Shown before close</td>
+                  <td><span class="badge">Editable</span></td>
+                  <td><button class="text-button" type="button">Audit</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="setup">
+      <div class="section-head">
+        <p class="eyebrow">Next setup</p>
+        <h2>Database and service setup</h2>
+      </div>
+      <div class="setup-grid" id="healthList"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "optilens-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal OptiLens Local platform with shared launch page, dashboard, APIs, and delivery/export module shell.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
