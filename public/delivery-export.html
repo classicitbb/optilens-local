@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delivery and Export - OptiLens Local</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="module-body">
+  <header class="top">
+    <a class="brand" href="/" aria-label="OptiLens Local home">
+      <span class="brand-mark">OL</span>
+      <span>
+        <strong>Delivery and Export</strong>
+        <small>OptiLens Local module</small>
+      </span>
+    </a>
+    <nav class="top-nav" aria-label="Module">
+      <a href="/">Launch</a>
+      <a href="/api/health">Health</a>
+    </nav>
+  </header>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <p class="eyebrow">Export workflow</p>
+        <h1>Delivery and Export Workbench</h1>
+      </div>
+
+      <nav class="workflow-tabs" aria-label="Delivery workflow tabs">
+        <button class="active" type="button" data-tab="shipmentPrep">Shipment prep</button>
+        <button type="button" data-tab="commercialInvoice">Commercial invoice</button>
+        <button type="button" data-tab="archive">Archive</button>
+        <button type="button" data-tab="sourceHealth">Source health</button>
+      </nav>
+
+      <section class="workflow-panel active" id="shipmentPrep">
+        <div class="access-toolbar">
+          <label>CustomerAccount<select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading export customers</option></select></label>
+          <label>Shipment ID<input id="shipmentIdInput" placeholder="Source ShipmentID" aria-label="Shipment ID"></label>
+          <label>Dispatcher<select id="dispatcherInput" aria-label="Dispatcher"><option value="">Loading dispatchers</option></select></label>
+          <label>Scan invoice<input id="invoiceScanInput" placeholder="Scan or type invoice number" aria-label="Scan invoice"></label>
+        </div>
+
+        <div class="command-row">
+          <button class="button primary" id="startShipmentBtn" type="button">Start</button>
+          <button class="button secondary" id="preloadItemsBtn" type="button">Preload shipment items</button>
+          <button class="button secondary" id="refreshShipmentsBtn" type="button">Refresh</button>
+        </div>
+
+        <div class="shipment-strip">
+          <span>Source shipped flag: <strong>0 open / 1 shipped</strong></span>
+          <span>App state: <strong>private close/reopen</strong></span>
+          <span>Write-back: <strong>disabled</strong></span>
+        </div>
+
+        <div class="split-workflow">
+          <section class="workflow-block">
+            <div class="section-head tight">
+              <h2>Source shipment items</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Shipment item</th>
+                    <th>Order</th>
+                    <th>Invoice</th>
+                    <th>Patient</th>
+                    <th>Price</th>
+                    <th>Source shipped</th>
+                  </tr>
+                </thead>
+                <tbody id="sourceShipmentItemsRows">
+                  <tr><td colspan="6">Choose a customer and shipment, then preload source items.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="workflow-block">
+            <div class="section-head tight">
+              <h2>App shipment sessions</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>CustomerAccount</th>
+                    <th>Shipment ID</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="shipmentSessionsRows">
+                  <tr><td colspan="5">Loading shipment sessions</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="commercialInvoice">
+        <div class="access-toolbar">
+          <label>Carrier<input placeholder="Carrier"></label>
+          <label>Air waybill<input placeholder="Tracking or AWB"></label>
+          <label>No. of boxes<input type="number" min="0"></label>
+          <label>Gross weight<input type="number" min="0" step="0.001"></label>
+        </div>
+        <div class="placeholder-pane">Commercial invoice fields will be wired after shipment prep source loading is validated.</div>
+      </section>
+
+      <section class="workflow-panel" id="archive">
+        <div class="access-toolbar">
+          <label>Search archive<input placeholder="Delivery no, invoice, patient, customer"></label>
+          <label>From date<input type="date"></label>
+          <label>To date<input type="date"></label>
+        </div>
+        <div class="placeholder-pane">Archive search will use older-than-12-month records and source/import audit keys.</div>
+      </section>
+
+      <section class="workflow-panel" id="sourceHealth">
+        <div class="setup-grid" id="healthList"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/delivery-export.js"></script>
+</body>
+</html>

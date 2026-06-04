@@ -59,6 +59,35 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'delivery.dispatchers', N'U') IS NULL
+BEGIN
+    CREATE TABLE delivery.dispatchers (
+        dispatcher_id uniqueidentifier NOT NULL CONSTRAINT DF_delivery_dispatchers_id DEFAULT NEWID(),
+        legacy_dispatcher_id int NULL,
+        dispatcher_name nvarchar(200) NOT NULL,
+        is_active bit NOT NULL CONSTRAINT DF_delivery_dispatchers_active DEFAULT 1,
+        created_at datetime2(0) NOT NULL CONSTRAINT DF_delivery_dispatchers_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_delivery_dispatchers PRIMARY KEY (dispatcher_id)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'delivery.customer_branches', N'U') IS NULL
+BEGIN
+    CREATE TABLE delivery.customer_branches (
+        customer_branch_id uniqueidentifier NOT NULL CONSTRAINT DF_delivery_customer_branches_id DEFAULT NEWID(),
+        legacy_branch_id int NULL,
+        customer_account nvarchar(120) NULL,
+        branch_name nvarchar(300) NULL,
+        customer_id nvarchar(120) NULL,
+        show_price_in_delivery bit NULL,
+        raw_json nvarchar(max) NULL,
+        created_at datetime2(0) NOT NULL CONSTRAINT DF_delivery_customer_branches_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_delivery_customer_branches PRIMARY KEY (customer_branch_id)
+    );
+END;
+GO
+
 IF OBJECT_ID(N'delivery.access_import_map', N'U') IS NULL
 BEGIN
     CREATE TABLE delivery.access_import_map (

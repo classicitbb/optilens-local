@@ -1,0 +1,486 @@
+{
+  "generated_at": "2026-06-03T17:24:35.323459+00:00",
+  "source": "C:\\Users\\cvre\\OneDrive\\OPTICINFO\\CV Accounts BE DB\\CV_Accounts_be.accdb",
+  "mode": "read-only dry run",
+  "retention_rule": "last 12 months active by ship date; older records routed to archive path",
+  "tables": [
+    {
+      "table": "Deliveries",
+      "exists": true,
+      "row_count": 6370,
+      "columns": [
+        {
+          "name": "DeliveryNo",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DeliveryDate",
+          "type": "DATETIME",
+          "nullable": true
+        },
+        {
+          "name": "Dispatcher",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Courier",
+          "type": "INTEGER",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "operational/import-last-12-months-plus-archive"
+    },
+    {
+      "table": "DeliveryItems",
+      "exists": true,
+      "row_count": 64544,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DeliveryNo",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "RxInvoiceNo",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Comments",
+          "type": "LONGCHAR",
+          "nullable": true
+        },
+        {
+          "name": "CustomerBranchID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Patient",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Total",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "CustomerID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Description",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "CustomerPO",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "RxNumber",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "operational/import-last-12-months-plus-archive"
+    },
+    {
+      "table": "DeliveryExtras",
+      "exists": true,
+      "row_count": 4163,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DeliveryNo",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "CustomerBranchID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "CollectCheque",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "Comments",
+          "type": "LONGCHAR",
+          "nullable": true
+        },
+        {
+          "name": "CustomerID",
+          "type": "INTEGER",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "operational/import-last-12-months-plus-archive"
+    },
+    {
+      "table": "Commercial Invoice",
+      "exists": true,
+      "row_count": 2333,
+      "columns": [
+        {
+          "name": "INVID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DeliveryID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Carrier",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Air waybill#",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "NoOfBoxes",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "GrossWeight",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Cubic Mtrs",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Declaration",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "DescriptionOfGoods",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Packing",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "Freight",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "OtherCost",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "Insurance",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "PONumbers",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "operational/import-last-12-months-plus-archive"
+    },
+    {
+      "table": "Customer Branches",
+      "exists": true,
+      "row_count": 69,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "Customer ID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Account #",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Credit Limit",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "Opening Balance",
+          "type": "CURRENCY",
+          "nullable": true
+        },
+        {
+          "name": "Location",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Contact Name",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "BranchName",
+          "type": "LONGCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Branch Tel",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Branch Fax",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Category",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "ShowInPhoneList",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "ShowPriceInDelivery",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "ShowInDeliverySummary",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "Mobile No",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Overseas",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "Terms Of Payment",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "Country",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "NotInDeliveryList",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "Alias",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "CustomerCategory",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "Couriers",
+      "exists": true,
+      "row_count": 62,
+      "columns": [
+        {
+          "name": "CourierID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "CourierName",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "OverseaCourier",
+          "type": "BIT",
+          "nullable": false
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "CIDeclarations",
+      "exists": true,
+      "row_count": 31,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "Declarations",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "CIDescripOfGoods",
+      "exists": true,
+      "row_count": 31,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DescriptionOfGoods",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "Dispatchers",
+      "exists": true,
+      "row_count": 7,
+      "columns": [
+        {
+          "name": "DispatcherID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "DispatcherName",
+          "type": "VARCHAR",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "Company",
+      "exists": true,
+      "row_count": 1,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "CompanyName",
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        {
+          "name": "NoChargeAmount",
+          "type": "CURRENCY",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "reference/import-full"
+    },
+    {
+      "table": "WhiteBoard",
+      "exists": true,
+      "row_count": 0,
+      "columns": [
+        {
+          "name": "ID",
+          "type": "COUNTER",
+          "nullable": false
+        },
+        {
+          "name": "Notes",
+          "type": "LONGCHAR",
+          "nullable": true
+        },
+        {
+          "name": "DueDate",
+          "type": "DATETIME",
+          "nullable": true
+        },
+        {
+          "name": "inProcess",
+          "type": "BIT",
+          "nullable": false
+        },
+        {
+          "name": "DevNo",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Employee",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "CustomerID",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "Branch",
+          "type": "INTEGER",
+          "nullable": true
+        },
+        {
+          "name": "DeliveryExtraID",
+          "type": "INTEGER",
+          "nullable": true
+        }
+      ],
+      "migration_treatment": "review-before-import"
+    }
+  ],
+  "notes": [
+    "This dry run does not write to Access or MSSQL.",
+    "Operational retention filters require ship-date mapping before import execution.",
+    "Lookup/reference tables should be imported in full unless business owner says otherwise."
+  ]
+}

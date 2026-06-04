@@ -108,10 +108,15 @@
         </aside>
         <div class="workbench-main">
           <div class="form-grid">
-            <label>CustomerAccount<input value="ACC-EXPORT" aria-label="CustomerAccount"></label>
-            <label>Shipment ID<input value="Pending source lookup" aria-label="Shipment ID"></label>
-            <label>Dispatcher<select aria-label="Dispatcher"><option>Select dispatcher</option></select></label>
+            <label>CustomerAccount<select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading export customers</option></select></label>
+            <label>Shipment ID<input id="shipmentIdInput" placeholder="Source ShipmentID" aria-label="Shipment ID"></label>
+            <label>Dispatcher<select id="dispatcherInput" aria-label="Dispatcher"><option value="">Loading dispatchers</option></select></label>
             <label>Scan invoice<input placeholder="Scan or type invoice number" aria-label="Scan invoice"></label>
+          </div>
+          <div class="hero-actions compact">
+            <button class="button primary" id="startShipmentBtn" type="button">Start app shipment</button>
+            <button class="button secondary" id="preloadItemsBtn" type="button">Preload source items</button>
+            <button class="button secondary" id="refreshShipmentsBtn" type="button">Refresh sessions</button>
           </div>
           <div class="shipment-strip">
             <span>Source shipped flag: <strong>0 open / 1 shipped</strong></span>
@@ -147,7 +152,47 @@
               </tbody>
             </table>
           </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Shipment item</th>
+                  <th>Order</th>
+                  <th>Invoice</th>
+                  <th>Patient</th>
+                  <th>Price</th>
+                  <th>Source shipped</th>
+                </tr>
+              </thead>
+              <tbody id="sourceShipmentItemsRows">
+                <tr><td colspan="6">Choose a customer and shipment, then preload source items.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="section-head">
+        <p class="eyebrow">App-owned workflow</p>
+        <h2>Shipment sessions</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>CustomerAccount</th>
+              <th>Shipment ID</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="shipmentSessionsRows">
+            <tr><td colspan="5">Loading shipment sessions</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -157,6 +202,27 @@
         <h2>Database and service setup</h2>
       </div>
       <div class="setup-grid" id="healthList"></div>
+    </section>
+
+    <section class="band">
+      <div class="section-head">
+        <p class="eyebrow">Access backend</p>
+        <h2>Import dry run</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Table</th>
+              <th>Rows</th>
+              <th>Treatment</th>
+            </tr>
+          </thead>
+          <tbody id="accessImportRows">
+            <tr><td colspan="3">Loading import dry run</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
 

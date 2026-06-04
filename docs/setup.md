@@ -26,6 +26,59 @@ Then open:
 http://192.168.254.9:8080/
 ```
 
+For a background run that survives the current PowerShell window:
+
+```powershell
+O:\scripts\start-app.ps1
+```
+
+To restart after code changes:
+
+```powershell
+O:\scripts\restart-app.ps1
+```
+
+To install a Windows Scheduled Task that starts the app at boot and checks it every minute:
+
+```powershell
+O:\scripts\install-app-watchdog-task.ps1
+```
+
+The watchdog calls `O:\scripts\ensure-app-running.ps1`, which checks `http://127.0.0.1:8080/api/health` and restarts the Node process if it is not responding.
+
+If Windows reports `listen EACCES` on port `8080`, check whether the port is reserved:
+
+```powershell
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+Remove only the `8080` exclusion from an elevated PowerShell window:
+
+```powershell
+netsh interface ipv4 delete excludedportrange protocol=tcp startport=8080 numberofports=1
+```
+
+Until that elevated fix is available, the scripts can run the app on an unreserved temporary port:
+
+```powershell
+O:\scripts\start-app.ps1 -Port 8090
+O:\scripts\install-app-watchdog-task.ps1 -Port 8090
+```
+
+## LAN Name And Alias URLs
+
+The app listens on `0.0.0.0:8080`, so the machine name should work on the LAN when name resolution is available:
+
+```text
+http://MSSQL-SVR:8080/
+```
+
+For a friendlier alias such as `http://optilens:8080/`, add a DNS `A` record for `optilens` pointing to `192.168.254.9`. For a quick single-machine test, add this line to that client PC's `C:\Windows\System32\drivers\etc\hosts` file:
+
+```text
+192.168.254.9 optilens
+```
+
 Current verification note:
 
 - The Node app is running successfully from this session at `http://127.0.0.1:8080/` and `http://192.168.254.1:8080/`.
@@ -87,6 +140,32 @@ The login template:
 - Grants it owner rights on `optilens_local`.
 - Leaves source `Innovations` read-only grant commented out until approved.
 
+## Save App DB Credentials Without Editing Code
+
+After the SQL login exists, run this in PowerShell:
+
+```powershell
+O:\scripts\set-app-db-env.ps1 -Server "MSSQL-SVR" -Database "optilens_local" -User "optilens_app"
+```
+
+It prompts for the password and saves the app database settings as Windows user environment variables. The password is not written to the repository.
+
+Then restart the app:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 | Select-Object -ExpandProperty OwningProcess | Sort-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force }
+cd O:\
+npm start
+```
+
+Check:
+
+```text
+http://127.0.0.1:8080/api/health
+```
+
+When credentials are correct, `appDatabase.state` should be `online`.
+
 ## Run Database Setup From CLI
 
 If you have a SQL admin login:
@@ -113,3 +192,17 @@ O:\scripts\run-db-setup-with-windows-auth.ps1 -Server "MSSQL-SVR"
 8. Add read-only source lookup for `ShipmentItems` by `CustomerAccount` and `ShipmentID`.
 9. Add authentication for change-capable module screens.
 10. Keep the dashboard route unauthenticated for LAN display.
+
+## Access Import Dry Run
+
+The current dry-run command is:
+
+```powershell
+python O:\scripts\access-import-dry-run.py --source "C:\Users\cvre\OneDrive\OPTICINFO\CV Accounts BE DB\CV_Accounts_be.accdb" --output "O:\docs\access-import-dry-run.json"
+```
+
+The result is also available through:
+
+```text
+http://127.0.0.1:8080/api/access-import/dry-run
+```

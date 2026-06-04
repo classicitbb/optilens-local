@@ -2,9 +2,25 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
+const { getConfig } = require("./lib/config");
+const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
+const { runMigrations } = require("./lib/migrations");
+const {
+  createShipmentSession,
+  deleteTestShipmentSessions,
+  listShipmentEvents,
+  listShipmentSessions,
+  updateShipmentStatus
+} = require("./lib/delivery");
+const {
+  listDispatchers,
+  listExportCustomers,
+  listShipmentItems
+} = require("./lib/source-innovations");
 
-const host = process.env.OPTILENS_HOST || "0.0.0.0";
-const port = Number(process.env.OPTILENS_PORT || 8080);
+const config = getConfig();
+const host = config.host;
+const port = config.port;
 const publicDir = path.join(__dirname, "public");
 
 const modules = [
@@ -31,23 +47,6 @@ const modules = [
   }
 ];
 
-const dashboard = {
-  updatedAt: new Date().toISOString(),
-  launchUrl: "http://192.168.254.9:8080/",
-  metrics: [
-    { label: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0" },
-    { label: "App-owned closures", value: "Pending DB", detail: "Stored in optilens_local first" },
-    { label: "Access import source", value: "CV_Accounts_be", detail: "Last 12 months active plus archive" },
-    { label: "Write-back", value: "Off", detail: "Future approved workflow only" }
-  ],
-  integrationHealth: [
-    { name: "Private app MSSQL", state: "setup-needed", detail: "Create optilens_local" },
-    { name: "Source MSSQL Innovations", state: "credentials-needed", detail: "Integrated auth failed in this session" },
-    { name: "PSQL Innovations", state: "discovered", detail: "Shipments and ShipmentItems identified" },
-    { name: "Access backend", state: "ready-for-import", detail: "CV_Accounts_be.accdb is first historic source" }
-  ]
-};
-
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -57,17 +56,21 @@ const mimeTypes = {
   ".ico": "image/x-icon"
 };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   if (url.pathname === "/api/health") {
+    const appDbHealth = await checkAppDatabase();
+    const sourceDbHealth = await checkSourceDatabase();
     return sendJson(res, {
-      ok: true,
+      ok: appDbHealth.state === "online" && sourceDbHealth.state === "online",
       service: "optilens-local",
       time: new Date().toISOString(),
-      database: process.env.OPTILENS_DB_NAME || "optilens_local",
+      database: config.appDb.database,
       sourceMode: "read-only",
-      writeBack: "disabled"
+      writeBack: config.writeBackEnabled ? "enabled" : "disabled",
+      appDatabase: appDbHealth,
+      sourceDatabase: sourceDbHealth
     });
   }
 
@@ -76,7 +79,61 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === "/api/dashboard") {
-    return sendJson(res, { ...dashboard, updatedAt: new Date().toISOString() });
+    return sendJson(res, await buildDashboard());
+  }
+
+  if (url.pathname === "/api/access-import/dry-run" || url.pathname.startsWith("/api/access-import/")) {
+    return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-dry-run.json"), {
+      error: "Access import dry-run has not been generated yet."
+    }));
+  }
+
+  if (url.pathname === "/api/admin/migrate" && req.method === "POST") {
+    return handleApi(res, async () => runMigrations());
+  }
+
+  if (url.pathname === "/api/admin/cleanup-test-shipments" && req.method === "POST") {
+    return handleApi(res, async () => deleteTestShipmentSessions());
+  }
+
+  if (url.pathname === "/api/delivery/shipments" && req.method === "GET") {
+    return handleApi(res, async () => ({ sessions: await listShipmentSessions() }));
+  }
+
+  if (url.pathname === "/api/source/dispatchers" && req.method === "GET") {
+    return handleApi(res, async () => ({ dispatchers: await listDispatchers() }));
+  }
+
+  if (url.pathname === "/api/source/export-customers" && req.method === "GET") {
+    return handleApi(res, async () => ({ customers: await listExportCustomers(url.searchParams.get("q") || "") }));
+  }
+
+  if (url.pathname === "/api/source/shipment-items" && req.method === "GET") {
+    return handleApi(res, async () => ({
+      items: await listShipmentItems({
+        customerAccount: url.searchParams.get("customerAccount") || "",
+        shipmentId: url.searchParams.get("shipmentId") || ""
+      })
+    }));
+  }
+
+  if (url.pathname === "/api/delivery/shipments" && req.method === "POST") {
+    return handleApi(res, async () => ({ session: await createShipmentSession(await readJsonBody(req)) }), 201);
+  }
+
+  const closeMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/close$/);
+  if (closeMatch && req.method === "POST") {
+    return handleApi(res, async () => ({ session: await updateShipmentStatus(closeMatch[1], "closed") }));
+  }
+
+  const reopenMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/reopen$/);
+  if (reopenMatch && req.method === "POST") {
+    return handleApi(res, async () => ({ session: await updateShipmentStatus(reopenMatch[1], "prep") }));
+  }
+
+  const eventsMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/events$/);
+  if (eventsMatch && req.method === "GET") {
+    return handleApi(res, async () => ({ events: await listShipmentEvents(eventsMatch[1]) }));
   }
 
   if (url.pathname.startsWith("/api/")) {
@@ -111,6 +168,10 @@ function resolveStaticPath(requestPath) {
   }
 
   if (route.startsWith("/modules/")) {
+    if (route === "/modules/delivery-export") {
+      return path.join(publicDir, "delivery-export.html");
+    }
+
     return path.join(publicDir, "index.html");
   }
 
@@ -133,6 +194,57 @@ function sendText(res, text, status = 200) {
   res.end(text);
 }
 
+async function handleApi(res, action, status = 200) {
+  try {
+    return sendJson(res, await action(), status);
+  } catch (error) {
+    return sendJson(res, {
+      error: error.message || "Server error"
+    }, error.statusCode || 500);
+  }
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw) return {};
+  return JSON.parse(raw);
+}
+
+function readJsonFile(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
 });
+
+async function buildDashboard() {
+  const appDbHealth = await checkAppDatabase();
+  const sourceDbHealth = await checkSourceDatabase();
+
+  return {
+    updatedAt: new Date().toISOString(),
+    launchUrl: "http://192.168.254.9:8080/",
+    metrics: [
+      { label: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0" },
+      { label: "App-owned closures", value: appDbHealth.state === "online" ? "Ready" : "Setup", detail: `Stored in ${config.appDb.database} first` },
+      { label: "Access import source", value: "CV_Accounts_be", detail: "Last 12 months active plus archive" },
+      { label: "Write-back", value: config.writeBackEnabled ? "On" : "Off", detail: "Future approved workflow only" }
+    ],
+    integrationHealth: [
+      appDbHealth,
+      sourceDbHealth,
+      { name: "PSQL Innovations", state: "discovered", detail: "Shipments and ShipmentItems identified" },
+      { name: "Access backend", state: "ready-for-import", detail: "CV_Accounts_be.accdb is first historic source" }
+    ]
+  };
+}
