@@ -226,6 +226,32 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
+.dashboard-tools {
+  display: inline-flex;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+}
+
+.icon-button,
+.tile-icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--navy);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.icon-button[aria-pressed="true"] {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
 .pulse {
   width: 10px;
   height: 10px;
@@ -257,11 +283,19 @@ h3 {
 }
 
 .metric {
+  display: grid;
+  align-content: start;
+  min-height: 138px;
   padding: 16px;
 }
 
+.metric.wide {
+  grid-column: span 2;
+}
+
 .metric span,
-.metric small {
+.metric small,
+.metric em {
   display: block;
 }
 
@@ -269,6 +303,49 @@ h3 {
   display: block;
   margin: 5px 0;
   font-size: 26px;
+}
+
+.metric em {
+  margin-top: 8px;
+  color: var(--amber);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.metric.hidden-tile {
+  border-style: dashed;
+  opacity: .68;
+}
+
+.metric-grid.editing {
+  grid-template-columns: 1fr;
+}
+
+.metric-grid.editing .metric {
+  cursor: grab;
+}
+
+.metric-toolbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.tile-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+
+.tile-icon {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
 }
 
 .band,

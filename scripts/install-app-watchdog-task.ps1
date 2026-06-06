@@ -31,7 +31,7 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger @($startupTrigger, $minuteTrigger) `
     -Settings $settings `
-    -Description "Keeps the OptiLens Local Node app running on port 8080." `
+    -Description "Keeps the OptiLens Local Node app running on port $Port." `
     -Force | Out-Null
 
 Start-ScheduledTask -TaskName $TaskName

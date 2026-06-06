@@ -1,14 +1,21 @@
 const state = {
   modules: [],
-  dashboard: null
+  dashboard: null,
+  dashboardEditMode: false,
+  dashboardSaving: false,
+  deviceId: ""
 };
 
 const fallbackDashboard = {
-  metrics: [
-    { label: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0" },
-    { label: "App-owned closures", value: "Pending DB", detail: "Stored in optilens_local first" },
-    { label: "Access import source", value: "CV_Accounts_be", detail: "Last 12 months active plus archive" },
-    { label: "Write-back", value: "Off", detail: "Future approved workflow only" }
+  tiles: [
+    { key: "open-source-shipments", title: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0", state: "discovered", isVisible: true, sortOrder: 10, size: "normal" },
+    { key: "app-owned-closures", title: "App-owned closures", value: "Pending DB", detail: "Stored in optilens_local first", state: "credentials-needed", isVisible: true, sortOrder: 30, size: "normal" },
+    { key: "access-archive-import-status", title: "Access archive/import status", value: "CV_Accounts_be", detail: "Last 12 months active plus archive", state: "ready-for-import", isVisible: true, sortOrder: 70, size: "normal" },
+    { key: "write-back-status", title: "Write-back status", value: "Off", detail: "Future approved workflow only", state: "disabled", isVisible: true, sortOrder: 80, size: "normal" }
+  ],
+  hiddenTiles: [
+    { key: "source-mssql-health", title: "Source MSSQL health", value: "Credentials", detail: "Set source MSSQL credentials", state: "credentials-needed", isVisible: false, sortOrder: 50, size: "normal" },
+    { key: "private-app-db-health", title: "Private app DB health", value: "Setup", detail: "Create optilens_local", state: "setup-needed", isVisible: false, sortOrder: 60, size: "normal" }
   ],
   integrationHealth: [
     { name: "Private app MSSQL", state: "setup-needed", detail: "Create optilens_local" },
@@ -45,9 +52,10 @@ const fallbackModules = [
 async function init() {
   tickClock();
   setInterval(tickClock, 1000);
+  state.deviceId = await getDashboardDeviceId();
 
   const [dashboard, modules] = await Promise.all([
-    getJson("/api/dashboard", fallbackDashboard),
+    getJson(`/api/dashboard?deviceId=${encodeURIComponent(state.deviceId)}`, fallbackDashboard),
     getJson("/api/modules", { modules: fallbackModules })
   ]);
 
@@ -65,6 +73,7 @@ async function init() {
   renderSourceSelectors();
   renderAccessImport();
   renderShipmentSessions();
+  wireDashboardActions();
   wireDeliveryActions();
   revealModuleFromPath();
 }
@@ -92,13 +101,167 @@ function tickClock() {
 
 function renderMetrics() {
   const target = document.querySelector("#metrics");
-  target.innerHTML = state.dashboard.metrics.map(metric => `
-    <article class="metric">
-      <span>${escapeHtml(metric.label)}</span>
-      <strong>${escapeHtml(metric.value)}</strong>
-      <small>${escapeHtml(metric.detail)}</small>
+  if (!target) return;
+
+  const visibleTiles = normalizeDashboardTiles(state.dashboard.tiles || state.dashboard.metrics || []);
+  const hiddenTiles = normalizeDashboardTiles(state.dashboard.hiddenTiles || []);
+  const tiles = state.dashboardEditMode ? visibleTiles.concat(hiddenTiles) : visibleTiles;
+
+  target.classList.toggle("editing", state.dashboardEditMode);
+  target.innerHTML = tiles.map((tile, index) => `
+    <article
+      class="metric ${tile.isVisible ? "" : "hidden-tile"} ${tile.size === "wide" ? "wide" : ""}"
+      draggable="${state.dashboardEditMode ? "true" : "false"}"
+      data-tile-key="${escapeHtml(tile.key)}"
+    >
+      <div class="metric-toolbar">
+        <span>${escapeHtml(tile.title || tile.label)}</span>
+        ${state.dashboardEditMode ? `
+          <div class="tile-actions">
+            <button class="tile-icon" type="button" data-move="up" data-index="${index}" aria-label="Move ${escapeHtml(tile.title || tile.label)} up">&#8593;</button>
+            <button class="tile-icon" type="button" data-move="down" data-index="${index}" aria-label="Move ${escapeHtml(tile.title || tile.label)} down">&#8595;</button>
+            <button class="tile-icon" type="button" data-toggle-visible="${escapeHtml(tile.key)}" aria-label="${tile.isVisible ? "Hide" : "Show"} ${escapeHtml(tile.title || tile.label)}">${tile.isVisible ? "Hide" : "Show"}</button>
+          </div>
+        ` : ""}
+      </div>
+      <strong>${escapeHtml(tile.value)}</strong>
+      <small>${escapeHtml(tile.detail || tile.description || "")}</small>
+      ${state.dashboardEditMode && !tile.isVisible ? `<em>Hidden in locked mode</em>` : ""}
     </article>
   `).join("");
+
+  renderDashboardSaveState();
+}
+
+function wireDashboardActions() {
+  document.querySelector("#dashboardEditToggle")?.addEventListener("click", () => {
+    state.dashboardEditMode = !state.dashboardEditMode;
+    const toggle = document.querySelector("#dashboardEditToggle");
+    if (toggle) {
+      toggle.setAttribute("aria-pressed", String(state.dashboardEditMode));
+      toggle.setAttribute("aria-label", state.dashboardEditMode ? "Lock dashboard layout" : "Unlock dashboard layout");
+      toggle.setAttribute("title", state.dashboardEditMode ? "Lock dashboard layout" : "Unlock dashboard layout");
+      toggle.innerHTML = state.dashboardEditMode ? "&#128275;" : "&#128274;";
+    }
+    renderMetrics();
+  });
+
+  const grid = document.querySelector("#metrics");
+  grid?.addEventListener("click", async (event) => {
+    const toggleKey = event.target.dataset.toggleVisible;
+    const move = event.target.dataset.move;
+    if (toggleKey) {
+      setTileVisibility(toggleKey, !findDashboardTile(toggleKey).isVisible);
+      renderMetrics();
+      await saveDashboardLayout();
+    }
+    if (move) {
+      moveTile(Number(event.target.dataset.index), move === "up" ? -1 : 1);
+      renderMetrics();
+      await saveDashboardLayout();
+    }
+  });
+
+  grid?.addEventListener("dragstart", (event) => {
+    if (!state.dashboardEditMode) return;
+    event.dataTransfer.setData("text/plain", event.target.closest("[data-tile-key]")?.dataset.tileKey || "");
+    event.dataTransfer.effectAllowed = "move";
+  });
+
+  grid?.addEventListener("dragover", (event) => {
+    if (state.dashboardEditMode && event.target.closest("[data-tile-key]")) {
+      event.preventDefault();
+    }
+  });
+
+  grid?.addEventListener("drop", async (event) => {
+    if (!state.dashboardEditMode) return;
+    event.preventDefault();
+    const fromKey = event.dataTransfer.getData("text/plain");
+    const toKey = event.target.closest("[data-tile-key]")?.dataset.tileKey;
+    if (fromKey && toKey && fromKey !== toKey) {
+      reorderTileByKey(fromKey, toKey);
+      renderMetrics();
+      await saveDashboardLayout();
+    }
+  });
+}
+
+function normalizeDashboardTiles(tiles) {
+  return tiles.map((tile, index) => ({
+    ...tile,
+    key: tile.key || tile.tileKey || `tile-${index}`,
+    title: tile.title || tile.label || "",
+    isVisible: tile.isVisible !== false,
+    sortOrder: Number(tile.sortOrder ?? index + 1),
+    size: tile.size || "normal"
+  })).sort((a, b) => (a.sortOrder - b.sortOrder) || a.title.localeCompare(b.title));
+}
+
+function allDashboardTiles() {
+  return normalizeDashboardTiles(state.dashboard.tiles || state.dashboard.metrics || [])
+    .concat(normalizeDashboardTiles(state.dashboard.hiddenTiles || []));
+}
+
+function replaceDashboardTiles(tiles) {
+  const normalized = tiles.map((tile, index) => ({ ...tile, sortOrder: index + 1 }));
+  state.dashboard.tiles = normalized.filter(tile => tile.isVisible);
+  state.dashboard.hiddenTiles = normalized.filter(tile => !tile.isVisible);
+}
+
+function findDashboardTile(key) {
+  return allDashboardTiles().find(tile => tile.key === key) || {};
+}
+
+function setTileVisibility(key, isVisible) {
+  replaceDashboardTiles(allDashboardTiles().map(tile => tile.key === key ? { ...tile, isVisible } : tile));
+}
+
+function moveTile(index, direction) {
+  const tiles = allDashboardTiles();
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= tiles.length) return;
+  const [tile] = tiles.splice(index, 1);
+  tiles.splice(nextIndex, 0, tile);
+  replaceDashboardTiles(tiles);
+}
+
+function reorderTileByKey(fromKey, toKey) {
+  const tiles = allDashboardTiles();
+  const fromIndex = tiles.findIndex(tile => tile.key === fromKey);
+  const toIndex = tiles.findIndex(tile => tile.key === toKey);
+  if (fromIndex < 0 || toIndex < 0) return;
+  const [tile] = tiles.splice(fromIndex, 1);
+  tiles.splice(toIndex, 0, tile);
+  replaceDashboardTiles(tiles);
+}
+
+async function saveDashboardLayout() {
+  state.dashboardSaving = true;
+  renderDashboardSaveState("Saving");
+  try {
+    const saved = await putJson("/api/dashboard/tiles", {
+      deviceId: state.deviceId,
+      tiles: allDashboardTiles().map((tile, index) => ({
+        key: tile.key,
+        isVisible: tile.isVisible,
+        sortOrder: index + 1,
+        size: tile.size || "normal"
+      }))
+    });
+    state.dashboard = saved;
+    renderDashboardSaveState("Saved");
+  } catch (error) {
+    renderDashboardSaveState(error.message || "Save failed");
+  } finally {
+    state.dashboardSaving = false;
+  }
+}
+
+function renderDashboardSaveState(message) {
+  const target = document.querySelector("#dashboardSaveState");
+  if (!target) return;
+  target.textContent = message || (state.dashboardEditMode ? "Edit mode" : "");
 }
 
 function renderModules() {
@@ -241,9 +404,35 @@ async function refreshShipmentSessions() {
   renderShipmentSessions();
 }
 
+async function getDashboardDeviceId() {
+  const storageKey = "optilens.dashboard.deviceId";
+  const existing = localStorage.getItem(storageKey);
+  if (existing) return existing;
+
+  const generated = crypto.randomUUID ? crypto.randomUUID() : `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const registration = await postJson("/api/dashboard/device", { deviceId: generated }).catch(() => ({ deviceId: generated }));
+  localStorage.setItem(storageKey, registration.deviceId || generated);
+  return localStorage.getItem(storageKey);
+}
+
 async function postJson(url, body) {
   const response = await fetch(url, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(data.error || "Request failed");
+  }
+
+  return response.json();
+}
+
+async function putJson(url, body) {
+  const response = await fetch(url, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });

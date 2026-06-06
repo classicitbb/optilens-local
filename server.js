@@ -4,10 +4,17 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const { getConfig } = require("./lib/config");
 const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
+const {
+  buildDashboard,
+  createDeviceRegistration,
+  defaultModules,
+  saveDashboardTiles
+} = require("./lib/dashboard");
 const { runMigrations } = require("./lib/migrations");
 const {
   createShipmentSession,
   deleteTestShipmentSessions,
+  getShipmentSession,
   listShipmentEvents,
   listShipmentSessions,
   updateShipmentStatus
@@ -22,30 +29,6 @@ const config = getConfig();
 const host = config.host;
 const port = config.port;
 const publicDir = path.join(__dirname, "public");
-
-const modules = [
-  {
-    id: "delivery-export",
-    name: "Delivery and Export",
-    status: "first-build",
-    href: "/modules/delivery-export",
-    summary: "Access delivery, shipment prep, commercial invoice, and archive workflows."
-  },
-  {
-    id: "integrations",
-    name: "Integrations",
-    status: "planned",
-    href: "/modules/integrations",
-    summary: "MSSQL, PSQL, Access import, website updates, file-share checks, and future service APIs."
-  },
-  {
-    id: "automation",
-    name: "Automation",
-    status: "planned",
-    href: "/modules/automation",
-    summary: "Local LLM and rule-based automation tools routed through audited platform APIs."
-  }
-];
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -75,11 +58,19 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/modules") {
-    return sendJson(res, { modules });
+    return sendJson(res, { modules: defaultModules });
   }
 
-  if (url.pathname === "/api/dashboard") {
-    return sendJson(res, await buildDashboard());
+  if (url.pathname === "/api/dashboard" && req.method === "GET") {
+    return sendJson(res, await buildDashboard(url.searchParams.get("deviceId")));
+  }
+
+  if (url.pathname === "/api/dashboard/tiles" && req.method === "PUT") {
+    return handleApi(res, async () => saveDashboardTiles(await readJsonBody(req)));
+  }
+
+  if (url.pathname === "/api/dashboard/device" && req.method === "POST") {
+    return sendJson(res, createDeviceRegistration((await readJsonBody(req)).deviceId), 201);
   }
 
   if (url.pathname === "/api/access-import/dry-run" || url.pathname.startsWith("/api/access-import/")) {
@@ -119,6 +110,11 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/delivery/shipments" && req.method === "POST") {
     return handleApi(res, async () => ({ session: await createShipmentSession(await readJsonBody(req)) }), 201);
+  }
+
+  const sessionGetMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)$/);
+  if (sessionGetMatch && req.method === "GET") {
+    return handleApi(res, async () => ({ session: await getShipmentSession(sessionGetMatch[1]) }));
   }
 
   const closeMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/close$/);
@@ -212,7 +208,13 @@ async function readJsonBody(req) {
 
   const raw = Buffer.concat(chunks).toString("utf8").trim();
   if (!raw) return {};
-  return JSON.parse(raw);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const err = new Error("Invalid JSON in request body.");
+    err.statusCode = 400;
+    throw err;
+  }
 }
 
 function readJsonFile(filePath, fallback) {
@@ -226,25 +228,3 @@ function readJsonFile(filePath, fallback) {
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
 });
-
-async function buildDashboard() {
-  const appDbHealth = await checkAppDatabase();
-  const sourceDbHealth = await checkSourceDatabase();
-
-  return {
-    updatedAt: new Date().toISOString(),
-    launchUrl: "http://192.168.254.9:8080/",
-    metrics: [
-      { label: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0" },
-      { label: "App-owned closures", value: appDbHealth.state === "online" ? "Ready" : "Setup", detail: `Stored in ${config.appDb.database} first` },
-      { label: "Access import source", value: "CV_Accounts_be", detail: "Last 12 months active plus archive" },
-      { label: "Write-back", value: config.writeBackEnabled ? "On" : "Off", detail: "Future approved workflow only" }
-    ],
-    integrationHealth: [
-      appDbHealth,
-      sourceDbHealth,
-      { name: "PSQL Innovations", state: "discovered", detail: "Shipments and ShipmentItems identified" },
-      { name: "Access backend", state: "ready-for-import", detail: "CV_Accounts_be.accdb is first historic source" }
-    ]
-  };
-}

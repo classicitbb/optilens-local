@@ -118,6 +118,58 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'core.dashboard_tiles', N'U') IS NULL
+BEGIN
+    CREATE TABLE core.dashboard_tiles (
+        dashboard_tile_id uniqueidentifier NOT NULL CONSTRAINT DF_core_dashboard_tiles_id DEFAULT NEWID(),
+        tile_key nvarchar(120) NOT NULL,
+        title nvarchar(200) NOT NULL,
+        description nvarchar(500) NULL,
+        module_code nvarchar(100) NULL,
+        tile_type nvarchar(60) NOT NULL,
+        default_size nvarchar(40) NOT NULL CONSTRAINT DF_core_dashboard_tiles_size DEFAULT N'normal',
+        default_sort int NOT NULL,
+        is_default_visible bit NOT NULL CONSTRAINT DF_core_dashboard_tiles_visible DEFAULT 1,
+        is_active bit NOT NULL CONSTRAINT DF_core_dashboard_tiles_active DEFAULT 1,
+        created_at datetime2(0) NOT NULL CONSTRAINT DF_core_dashboard_tiles_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_core_dashboard_tiles PRIMARY KEY (dashboard_tile_id),
+        CONSTRAINT UQ_core_dashboard_tiles_key UNIQUE (tile_key),
+        CONSTRAINT FK_core_dashboard_tiles_module FOREIGN KEY (module_code) REFERENCES core.modules(module_code)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'core.user_dashboard_tiles', N'U') IS NULL
+BEGIN
+    CREATE TABLE core.user_dashboard_tiles (
+        user_id uniqueidentifier NOT NULL,
+        dashboard_tile_id uniqueidentifier NOT NULL,
+        is_visible bit NOT NULL,
+        settings_json nvarchar(max) NULL,
+        updated_at datetime2(0) NOT NULL CONSTRAINT DF_core_user_dashboard_tiles_updated DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_core_user_dashboard_tiles PRIMARY KEY (user_id, dashboard_tile_id),
+        CONSTRAINT FK_core_user_dashboard_tiles_user FOREIGN KEY (user_id) REFERENCES core.users(user_id),
+        CONSTRAINT FK_core_user_dashboard_tiles_tile FOREIGN KEY (dashboard_tile_id) REFERENCES core.dashboard_tiles(dashboard_tile_id)
+    );
+END;
+GO
+
+IF OBJECT_ID(N'core.user_device_dashboard_tiles', N'U') IS NULL
+BEGIN
+    CREATE TABLE core.user_device_dashboard_tiles (
+        user_id uniqueidentifier NOT NULL,
+        device_id nvarchar(120) NOT NULL,
+        dashboard_tile_id uniqueidentifier NOT NULL,
+        sort_order int NOT NULL,
+        size nvarchar(40) NOT NULL,
+        updated_at datetime2(0) NOT NULL CONSTRAINT DF_core_user_device_dashboard_tiles_updated DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_core_user_device_dashboard_tiles PRIMARY KEY (user_id, device_id, dashboard_tile_id),
+        CONSTRAINT FK_core_user_device_dashboard_tiles_user FOREIGN KEY (user_id) REFERENCES core.users(user_id),
+        CONSTRAINT FK_core_user_device_dashboard_tiles_tile FOREIGN KEY (dashboard_tile_id) REFERENCES core.dashboard_tiles(dashboard_tile_id)
+    );
+END;
+GO
+
 IF OBJECT_ID(N'integration.connections', N'U') IS NULL
 BEGIN
     CREATE TABLE integration.connections (

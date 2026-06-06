@@ -1,0 +1,9 @@
+
+# 2026-06-05 23:36:57.053629
++Do exactly two things and nothing else:
++
++1. In lib/delivery.js: add a new exported async function getShipmentSession(id) that queries delivery.shipment_sessions WHERE shipment_session_id = @id, returns the single record, and throws a 404 error (error.statusCode = 404) if not found. Export it in the module.exports block.
++
++2. In server.js:
++   a. Import getShipmentSession from ./lib/delivery alongside the existing imports.
++   b. Wrap the JSON.parse call inside readJsonBody in a try/catch that throws an error with message Invalid

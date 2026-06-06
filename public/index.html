@@ -38,7 +38,11 @@
         <div class="status-head">
           <span class="pulse"></span>
           <strong>OptiLens Local</strong>
-          <small id="clock">Loading</small>
+          <div class="dashboard-tools">
+            <small id="dashboardSaveState" aria-live="polite"></small>
+            <button class="icon-button" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Unlock dashboard layout" title="Unlock dashboard layout">&#128274;</button>
+            <small id="clock">Loading</small>
+          </div>
         </div>
         <div class="metric-grid" id="metrics"></div>
       </div>

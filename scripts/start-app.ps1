@@ -9,8 +9,24 @@ if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent $PSScriptRoot
 }
 
-$existingOwners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique
+function Get-ListeningPortOwners {
+    param([int] $TargetPort)
+
+    $owners = Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+
+    if ($owners) {
+        return $owners
+    }
+
+    $pattern = ":$TargetPort\s+.*LISTENING\s+(\d+)"
+    return netstat -ano |
+        Select-String -Pattern $pattern |
+        ForEach-Object { [regex]::Match($_.Line, $pattern).Groups[1].Value } |
+        Sort-Object -Unique
+}
+
+$existingOwners = Get-ListeningPortOwners -TargetPort $Port
 
 if ($existingOwners) {
     Write-Host "OptiLens Local already has a listener on port $Port. PID(s): $($existingOwners -join ', ')"
@@ -22,13 +38,12 @@ $stdout = Join-Path $ProjectRoot "server.out.log"
 $stderr = Join-Path $ProjectRoot "server.err.log"
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-$startInfo.FileName = $node
-$startInfo.Arguments = "server.js"
+$command = "cd /d `"$ProjectRoot`" && `"$node`" server.js >> `"$stdout`" 2>> `"$stderr`""
+$startInfo.FileName = $env:ComSpec
+$startInfo.Arguments = "/c $command"
 $startInfo.WorkingDirectory = $ProjectRoot
 $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $startInfo.UseShellExecute = $false
-$startInfo.RedirectStandardOutput = $true
-$startInfo.RedirectStandardError = $true
 $process = New-Object System.Diagnostics.Process
 $process.StartInfo = $startInfo
 $previousPort = $env:OPTILENS_PORT
@@ -47,8 +62,7 @@ try {
 $started = $false
 for ($attempt = 1; $attempt -le 10; $attempt++) {
     Start-Sleep -Milliseconds 500
-    $owners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Select-Object -ExpandProperty OwningProcess -Unique
+    $owners = Get-ListeningPortOwners -TargetPort $Port
     if ($owners) {
         Write-Host "Started OptiLens Local on port $Port. PID(s): $($owners -join ', ')"
         $started = $true
