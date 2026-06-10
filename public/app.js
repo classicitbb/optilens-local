@@ -476,4 +476,33 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function applyTheme() {
+  const saved = localStorage.getItem("optilens.theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const theme = saved || (prefersDark ? "dark" : "light");
+  document.documentElement.dataset.theme = theme;
+  const btn = document.querySelector("#themeToggle");
+  if (btn) {
+    btn.setAttribute("aria-pressed", String(theme === "dark"));
+    btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+    btn.setAttribute("title", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+    btn.textContent = theme === "dark" ? "☼" : "☽";
+  }
+}
+
+function wireThemeToggle() {
+  document.querySelector("#themeToggle")?.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const next = current === "dark" ? "light" : "dark";
+    localStorage.setItem("optilens.theme", next);
+    applyTheme();
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (!localStorage.getItem("optilens.theme")) applyTheme();
+  });
+}
+
+applyTheme();
+wireThemeToggle();
+
 init();
