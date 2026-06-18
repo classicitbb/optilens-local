@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102033">
+  <title>Pricing Automation - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="module-body">
+  <header class="top">
+    <a class="brand" href="/" aria-label="OptiLens Local home">
+      <span class="brand-mark">OL</span>
+      <span>
+        <strong>Pricing Automation</strong>
+        <small>OptiLens Local module</small>
+      </span>
+    </a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">Dark</button>
+    <nav class="top-nav" aria-label="Module">
+      <a href="/">Launch</a>
+      <a href="/api/health">Health</a>
+    </nav>
+  </header>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Automation module</p>
+          <h1>Pricing Automation</h1>
+        </div>
+        <span class="badge open">Private DB writes</span>
+      </div>
+
+      <nav class="workflow-tabs" aria-label="Pricing workflow tabs">
+        <button class="active" type="button" data-tab="calculator">Calculator</button>
+        <button type="button" data-tab="rules">Rules</button>
+        <button type="button" data-tab="history">History</button>
+      </nav>
+
+      <section class="workflow-panel active" id="calculator">
+        <div class="access-toolbar pricing-toolbar">
+          <label>CustomerAccount<input id="calcCustomerAccount" placeholder="Optional account"></label>
+          <label>Product code<input id="calcProductCode" placeholder="Optional product"></label>
+          <label>Source reference<input id="calcSourceReference" placeholder="Invoice, item, or job"></label>
+          <label>Input price<input id="calcInputPrice" type="number" min="0" step="0.01" placeholder="0.00"></label>
+        </div>
+        <div class="command-row">
+          <button class="button primary" id="calculatePriceBtn" type="button">Calculate and save</button>
+          <button class="button secondary" id="refreshPricingBtn" type="button">Refresh</button>
+        </div>
+        <div class="pricing-result" id="pricingResult">
+          <strong>No calculation yet</strong>
+          <span>Run a calculation to save pricing history and audit output in the app database.</span>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="rules">
+        <div class="access-toolbar pricing-rule-toolbar">
+          <label>Rule name<input id="ruleNameInput" placeholder="Standard export markup"></label>
+          <label>CustomerAccount<input id="ruleCustomerInput" placeholder="Optional account"></label>
+          <label>Product code<input id="ruleProductInput" placeholder="Optional product"></label>
+          <label>Base price<input id="ruleBasePriceInput" type="number" min="0" step="0.01"></label>
+          <label>Markup %<input id="ruleMarkupInput" type="number" step="0.0001" value="0"></label>
+          <label>Fixed adjustment<input id="ruleAdjustmentInput" type="number" step="0.01" value="0"></label>
+          <label>Minimum<input id="ruleMinInput" type="number" min="0" step="0.01"></label>
+          <label>Round to<input id="ruleRoundInput" type="number" min="0.01" step="0.01" value="0.01"></label>
+        </div>
+        <div class="command-row">
+          <button class="button primary" id="saveRuleBtn" type="button">Save rule</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rule</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Base</th>
+                <th>Markup</th>
+                <th>Adjustment</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody id="pricingRulesRows">
+              <tr><td colspan="7">Loading pricing rules</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="history">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Rule</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Reference</th>
+                <th>Input</th>
+                <th>Calculated</th>
+              </tr>
+            </thead>
+            <tbody id="pricingHistoryRows">
+              <tr><td colspan="7">Loading pricing history</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/pricing-automation.js"></script>
+  <script src="/pwa.js"></script>
+</body>
+</html>

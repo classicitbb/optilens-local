@@ -24,6 +24,12 @@ const {
   listExportCustomers,
   listShipmentItems
 } = require("./lib/source-innovations");
+const {
+  calculatePrice,
+  createPricingRule,
+  listPriceCalculations,
+  listPricingRules
+} = require("./lib/pricing");
 
 const config = getConfig();
 const host = config.host;
@@ -35,6 +41,7 @@ const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml; charset=utf-8",
   ".ico": "image/x-icon"
 };
@@ -112,6 +119,22 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => ({ session: await createShipmentSession(await readJsonBody(req)) }), 201);
   }
 
+  if (url.pathname === "/api/pricing/rules" && req.method === "GET") {
+    return handleApi(res, async () => ({ rules: await listPricingRules() }));
+  }
+
+  if (url.pathname === "/api/pricing/rules" && req.method === "POST") {
+    return handleApi(res, async () => ({ rule: await createPricingRule(await readJsonBody(req)) }), 201);
+  }
+
+  if (url.pathname === "/api/pricing/calculate" && req.method === "POST") {
+    return handleApi(res, async () => await calculatePrice(await readJsonBody(req)), 201);
+  }
+
+  if (url.pathname === "/api/pricing/calculations" && req.method === "GET") {
+    return handleApi(res, async () => ({ calculations: await listPriceCalculations() }));
+  }
+
   const sessionGetMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)$/);
   if (sessionGetMatch && req.method === "GET") {
     return handleApi(res, async () => ({ session: await getShipmentSession(sessionGetMatch[1]) }));
@@ -166,6 +189,10 @@ function resolveStaticPath(requestPath) {
   if (route.startsWith("/modules/")) {
     if (route === "/modules/delivery-export") {
       return path.join(publicDir, "delivery-export.html");
+    }
+
+    if (route === "/modules/pricing-automation") {
+      return path.join(publicDir, "pricing-automation.html");
     }
 
     return path.join(publicDir, "index.html");

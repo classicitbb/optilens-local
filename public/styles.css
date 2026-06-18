@@ -751,6 +751,33 @@ th {
   margin-bottom: 12px;
 }
 
+.pricing-toolbar {
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, .8fr) minmax(220px, 1fr) minmax(160px, .7fr);
+}
+
+.pricing-rule-toolbar {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.pricing-result {
+  display: grid;
+  gap: 6px;
+  max-width: 520px;
+  min-height: 86px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-elevated);
+}
+
+.pricing-result strong {
+  font-size: 30px;
+}
+
+.pricing-result span {
+  color: var(--muted);
+}
+
 .command-row {
   display: flex;
   flex-wrap: wrap;
@@ -793,6 +820,8 @@ th {
 
 @media (max-width: 1100px) {
   .access-toolbar,
+  .pricing-toolbar,
+  .pricing-rule-toolbar,
   .split-workflow {
     grid-template-columns: 1fr;
   }

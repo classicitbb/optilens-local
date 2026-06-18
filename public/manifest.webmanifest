@@ -1,0 +1,33 @@
+{
+  "name": "OptiLens Local",
+  "short_name": "OptiLens",
+  "description": "Internal OptiLens Local platform for LAN operations modules.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#102033",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/optilens.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Delivery and Export",
+      "short_name": "Delivery",
+      "url": "/modules/delivery-export",
+      "description": "Open shipment prep and export workflows."
+    },
+    {
+      "name": "Pricing Automation",
+      "short_name": "Pricing",
+      "url": "/modules/pricing-automation",
+      "description": "Open pricing rules and calculator."
+    }
+  ]
+}

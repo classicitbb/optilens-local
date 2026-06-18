@@ -8,9 +8,11 @@ The project has been reset from the old static page into a platform starter.
 - Platform database recommendation: `optilens_local`
 - Display name: OptiLens Local
 - First module: Delivery and Export
+- Additional module starter: Pricing Automation
 - First historic source: `CV_Accounts_be.accdb`
 - First release write behavior: app-owned shipment close/reopen/edit only
 - Source write-back: disabled until explicitly designed and approved
+- PWA install: available from the browser install option at the LAN URL
 
 ## Run The Web App
 
@@ -114,6 +116,7 @@ In SQL Server Management Studio:
    - `O:\database\001-create-database.sql`
    - `O:\database\002-core-schema.sql`
    - `O:\database\003-delivery-module-schema.sql`
+   - `O:\database\006-pricing-module-schema.sql`
    - `O:\database\004-seed-platform.sql`
 
 This creates:
@@ -121,9 +124,26 @@ This creates:
 - `optilens_local`
 - `core` schema
 - `delivery` schema
+- `pricing` schema
 - `integration` schema
 - `archive` schema
 - Platform seed records
+
+## Desktop Shortcut / PWA Install
+
+Open the LAN URL in Microsoft Edge or Chrome:
+
+```text
+http://192.168.254.9:8080/
+```
+
+Use the browser install option to install OptiLens Local as an app. The installed app uses the PWA manifest and can be launched from a Start menu or desktop shortcut. API write actions still go through the Node service and private app database.
+
+Browser PWA service workers require a secure origin. `localhost` works for testing, but a LAN IP over plain HTTP may need HTTPS before the browser offers a full PWA install. Until HTTPS is configured, deploy a normal Windows URL shortcut:
+
+```powershell
+O:\scripts\create-desktop-shortcut.ps1 -Url "http://192.168.254.9:8080/" -PublicDesktop
+```
 
 ## Create A SQL Login For The App
 

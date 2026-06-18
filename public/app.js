@@ -46,6 +46,13 @@ const fallbackModules = [
     status: "planned",
     href: "/modules/automation",
     summary: "Local LLM and rule-based automation tools routed through audited platform APIs."
+  },
+  {
+    id: "pricing-automation",
+    name: "Pricing Automation",
+    status: "first-build",
+    href: "/modules/pricing-automation",
+    summary: "Rule-based pricing calculator with app-owned write history and audit events."
   }
 ];
 

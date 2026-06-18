@@ -29,6 +29,13 @@ BEGIN
 END;
 GO
 
+IF NOT EXISTS (SELECT 1 FROM core.modules WHERE module_code = N'pricing-automation')
+BEGIN
+    INSERT INTO core.modules (module_code, module_name, route_path, status)
+    VALUES (N'pricing-automation', N'Pricing Automation', N'/modules/pricing-automation', N'first-build');
+END;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM core.users WHERE username = N'local-dashboard')
 BEGIN
     INSERT INTO core.users (tenant_id, username, display_name)
@@ -98,7 +105,9 @@ USING (VALUES
     (N'access-archive-import-status', N'Access archive/import status', N'Historic CV_Accounts_be import and archive readiness.', N'delivery-export', N'kpi', N'normal', 70, 1),
     (N'write-back-status', N'Write-back status', N'Source write-back remains disabled until explicitly approved.', NULL, N'kpi', N'normal', 80, 1),
     (N'integration-readiness', N'Integration readiness', N'Integration module setup and connector readiness.', N'integrations', N'kpi', N'normal', 90, 1),
-    (N'automation-readiness', N'Automation readiness', N'Local LLM and automation readiness.', N'automation', N'kpi', N'normal', 100, 1)
+    (N'automation-readiness', N'Automation readiness', N'Local LLM and automation readiness.', N'automation', N'kpi', N'normal', 100, 1),
+    (N'pricing-rule-count', N'Pricing rules', N'Active pricing automation rules in the private app database.', N'pricing-automation', N'kpi', N'normal', 110, 1),
+    (N'pricing-calculation-count', N'Pricing calculations', N'App-owned pricing calculation history.', N'pricing-automation', N'kpi', N'normal', 120, 1)
 ) AS source (tile_key, title, description, module_code, tile_type, default_size, default_sort, is_default_visible)
 ON target.tile_key = source.tile_key
 WHEN MATCHED THEN
