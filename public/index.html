@@ -3,59 +3,123 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102033">
+  <meta name="theme-color" content="#0B1E35">
   <title>OptiLens Local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <!-- ─── Launcher overlay ─── -->
+  <div class="launcher-overlay" id="launcherOverlay" hidden aria-modal="true" role="dialog" aria-label="App launcher">
+    <div class="launcher-panel">
+      <div class="launcher-head">
+        <h2>Applications <span style="opacity:.4">&#9432;</span></h2>
+        <button class="launcher-close" id="launcherClose" type="button" aria-label="Close launcher">&#x2715;</button>
+      </div>
+      <div class="launcher-grid" id="launcherGrid"></div>
+      <div class="launcher-foot">
+        <button type="button" onclick="history.back()">&#8592; Back to Site</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Search / command palette ─── -->
+  <div class="search-overlay" id="searchOverlay" hidden aria-modal="true" role="dialog" aria-label="Search">
+    <div class="search-palette">
+      <div class="search-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search modules, settings, endpoints…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <!-- ─── Header ─── -->
   <header class="top">
-    <a class="brand" href="/" aria-label="OptiLens Local home">
-      <span class="brand-mark">OL</span>
-      <span>
+    <div class="top-left">
+      <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="0" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
         <strong>OptiLens Local</strong>
-        <small>Internal platform</small>
-      </span>
-    </a>
-    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">☽</button>
-    <nav class="top-nav" aria-label="Platform">
-      <a href="#dashboard">Dashboard</a>
-      <a href="#modules">Modules</a>
-      <a href="#api">API</a>
-      <a href="#setup">Setup</a>
-    </nav>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">Launch Pad</span>
+      </a>
+    </div>
+
+    <div class="top-center">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="sb-text">Search modules, wiki, settings…</span>
+        <kbd>Ctrl+K</kbd>
+      </button>
+    </div>
+
+    <div class="top-right">
+      <button class="top-action-btn" id="notifBtn" type="button" aria-label="Notifications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5A4.5 4.5 0 003 6v3l-1 1.5h11L12 9V6a4.5 4.5 0 00-4.5-4.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 12a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="notif-count" id="notifCount" hidden>0</span>
+      </button>
+      <button class="top-action-btn" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Edit dashboard">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M10 2l2 2-8 8H2v-2l8-8z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="top-action-btn" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5a1.5 1.5 0 113 0c0 1-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".75" fill="currentColor"/></svg>
+      </button>
+      <button class="top-action-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☽</button>
+      <button class="user-chip" type="button" aria-label="User">
+        <span class="user-avatar">RH</span>
+        <span class="user-name">Russell H.</span>
+      </button>
+    </div>
   </header>
 
   <main>
-    <section class="hero" id="dashboard">
-      <div class="hero-copy">
+
+    <!-- Welcome banner -->
+    <section class="welcome-banner">
+      <div class="welcome-copy">
         <p class="eyebrow">LAN dashboard · no login required</p>
-        <h1>One internal launch point for operations, exports, integrations, and future automation.</h1>
-        <p class="support">The Access delivery workflow is the first module. The platform core owns users, roles, APIs, audit history, and app-owned shipment state.</p>
-        <div class="hero-actions">
-          <a class="button primary" href="/modules/delivery-export">Open first module</a>
-          <a class="button secondary" href="/api/health">API health</a>
-        </div>
+        <h1>OptiLens Local</h1>
+        <p>Your internal operations hub for export deliveries, pricing automation, integrations, and future workflows — all in one place.</p>
       </div>
-      <div class="status-board" aria-label="Platform status">
-        <div class="status-head">
-          <span class="pulse"></span>
-          <strong>OptiLens Local</strong>
-          <div class="dashboard-tools">
-            <small id="dashboardSaveState" aria-live="polite"></small>
-            <button class="icon-button" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Unlock dashboard layout" title="Unlock dashboard layout">&#128274;</button>
-            <small id="clock">Loading</small>
-          </div>
-        </div>
-        <div class="metric-grid" id="metrics"></div>
+      <div class="welcome-action">
+        <a class="button primary" href="/modules/delivery-export">Launch Pad Home</a>
       </div>
     </section>
 
-    <section class="band">
+    <!-- Platform status (analytics-style) -->
+    <div class="analytics-band">
+      <div class="analytics-head is-open" id="analyticsHead" role="button" tabindex="0" aria-expanded="true">
+        <span class="analytics-head-icon">&#9783;</span>
+        <h2>Platform Status</h2>
+        <span class="analytics-chevron" aria-hidden="true">&#9650;</span>
+      </div>
+      <div class="analytics-body" id="analyticsBody">
+        <div class="analytics-row" id="metrics"></div>
+      </div>
+    </div>
+
+    <!-- Platform capabilities -->
+    <section class="band" style="margin-top:18px">
       <div class="section-head">
-        <p class="eyebrow">Platform core</p>
-        <h2>Shared foundation</h2>
+        <div>
+          <p class="eyebrow">Platform core</p>
+          <h2>Shared foundation</h2>
+        </div>
       </div>
       <div class="capability-grid">
         <article>
@@ -81,159 +145,20 @@
       </div>
     </section>
 
+    <!-- Modules -->
     <section class="band" id="modules">
       <div class="section-head">
-        <p class="eyebrow">Launch page</p>
-        <h2>Modules</h2>
+        <div>
+          <p class="eyebrow">Launch page</p>
+          <h2>Modules</h2>
+        </div>
       </div>
       <div class="module-grid" id="moduleGrid"></div>
     </section>
 
-    <section class="band two-col" id="api">
-      <div>
-        <p class="eyebrow">Extensible API</p>
-        <h2>Service endpoints</h2>
-        <p class="section-copy">The first API endpoints are intentionally simple. They give the dashboard, other internal services, and later automation tools a stable place to connect.</p>
-      </div>
-      <div class="api-list">
-        <a href="/api/health">/api/health</a>
-        <a href="/api/dashboard">/api/dashboard</a>
-        <a href="/api/modules">/api/modules</a>
-      </div>
-    </section>
-
-    <section class="module-screen" id="deliveryModule" aria-label="Delivery and Export module">
-      <div class="section-head">
-        <p class="eyebrow">First module</p>
-        <h2>Delivery and Export Workbench</h2>
-      </div>
-      <div class="workbench">
-        <aside class="workbench-nav">
-          <button class="active" type="button">Shipment prep</button>
-          <button type="button">Commercial invoice</button>
-          <button type="button">Archive</button>
-          <button type="button">Source health</button>
-        </aside>
-        <div class="workbench-main">
-          <div class="form-grid">
-            <label>CustomerAccount<select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading export customers</option></select></label>
-            <label>Shipment ID<input id="shipmentIdInput" placeholder="Source ShipmentID" aria-label="Shipment ID"></label>
-            <label>Dispatcher<select id="dispatcherInput" aria-label="Dispatcher"><option value="">Loading dispatchers</option></select></label>
-            <label>Scan invoice<input placeholder="Scan or type invoice number" aria-label="Scan invoice"></label>
-          </div>
-          <div class="hero-actions compact">
-            <button class="button primary" id="startShipmentBtn" type="button">Start app shipment</button>
-            <button class="button secondary" id="preloadItemsBtn" type="button">Preload source items</button>
-            <button class="button secondary" id="refreshShipmentsBtn" type="button">Refresh sessions</button>
-          </div>
-          <div class="shipment-strip">
-            <span>Source shipped flag: <strong>0 open / 1 shipped</strong></span>
-            <span>App close state: <strong>stored privately</strong></span>
-            <span>Write-back: <strong>disabled</strong></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Patient</th>
-                  <th>Price</th>
-                  <th>State</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Preload from ShipmentItems</td>
-                  <td>Visual confirm</td>
-                  <td>From source invoice</td>
-                  <td><span class="badge open">Prep</span></td>
-                  <td><button class="text-button" type="button">Remove</button></td>
-                </tr>
-                <tr>
-                  <td>Manual invoice scan</td>
-                  <td>Loaded on scan</td>
-                  <td>Shown before close</td>
-                  <td><span class="badge">Editable</span></td>
-                  <td><button class="text-button" type="button">Audit</button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Shipment item</th>
-                  <th>Order</th>
-                  <th>Invoice</th>
-                  <th>Patient</th>
-                  <th>Price</th>
-                  <th>Source shipped</th>
-                </tr>
-              </thead>
-              <tbody id="sourceShipmentItemsRows">
-                <tr><td colspan="6">Choose a customer and shipment, then preload source items.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="band">
-      <div class="section-head">
-        <p class="eyebrow">App-owned workflow</p>
-        <h2>Shipment sessions</h2>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>CustomerAccount</th>
-              <th>Shipment ID</th>
-              <th>Status</th>
-              <th>Started</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="shipmentSessionsRows">
-            <tr><td colspan="5">Loading shipment sessions</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="band" id="setup">
-      <div class="section-head">
-        <p class="eyebrow">Next setup</p>
-        <h2>Database and service setup</h2>
-      </div>
-      <div class="setup-grid" id="healthList"></div>
-    </section>
-
-    <section class="band">
-      <div class="section-head">
-        <p class="eyebrow">Access backend</p>
-        <h2>Import dry run</h2>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Table</th>
-              <th>Rows</th>
-              <th>Treatment</th>
-            </tr>
-          </thead>
-          <tbody id="accessImportRows">
-            <tr><td colspan="3">Loading import dry run</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
   </main>
 
+  <script src="/shared.js"></script>
   <script src="app.js"></script>
   <script src="/pwa.js"></script>
 </body>

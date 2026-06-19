@@ -186,15 +186,22 @@ function resolveStaticPath(requestPath) {
     return null;
   }
 
+  // Named page routes
+  const pageRoutes = {
+    "/settings":                    "settings.html",
+    "/credentials":                 "credentials.html",
+    "/modules/delivery-export":     "delivery-export.html",
+    "/modules/pricing-automation":  "pricing-automation.html",
+    "/modules/integrations":        "integrations.html",
+    "/modules/automation":          "automation.html",
+    "/modules/doc-studio":          "doc-studio.html",
+    "/modules/business-metrics":    "business-metrics.html"
+  };
+  if (pageRoutes[route]) {
+    return path.join(publicDir, pageRoutes[route]);
+  }
+
   if (route.startsWith("/modules/")) {
-    if (route === "/modules/delivery-export") {
-      return path.join(publicDir, "delivery-export.html");
-    }
-
-    if (route === "/modules/pricing-automation") {
-      return path.join(publicDir, "pricing-automation.html");
-    }
-
     return path.join(publicDir, "index.html");
   }
 

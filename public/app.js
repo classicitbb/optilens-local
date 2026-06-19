@@ -31,29 +31,54 @@ const fallbackModules = [
     name: "Delivery and Export",
     status: "first-build",
     href: "/modules/delivery-export",
-    summary: "Access delivery, shipment prep, commercial invoice, and archive workflows."
-  },
-  {
-    id: "integrations",
-    name: "Integrations",
-    status: "planned",
-    href: "/modules/integrations",
-    summary: "MSSQL, PSQL, Access import, website updates, file-share checks, and future service APIs."
-  },
-  {
-    id: "automation",
-    name: "Automation",
-    status: "planned",
-    href: "/modules/automation",
-    summary: "Local LLM and rule-based automation tools routed through audited platform APIs."
+    summary: "Access delivery, shipment prep, commercial invoice, and archive workflows.",
+    icon: "📦"
   },
   {
     id: "pricing-automation",
     name: "Pricing Automation",
     status: "first-build",
     href: "/modules/pricing-automation",
-    summary: "Rule-based pricing calculator with app-owned write history and audit events."
+    summary: "Rule-based pricing calculator with app-owned write history and audit events.",
+    icon: "💲"
+  },
+  {
+    id: "integrations",
+    name: "Integrations",
+    status: "planned",
+    href: "/modules/integrations",
+    summary: "MSSQL, PSQL, Access import, website updates, file-share checks, and future service APIs.",
+    icon: "🔗"
+  },
+  {
+    id: "automation",
+    name: "Automation",
+    status: "planned",
+    href: "/modules/automation",
+    summary: "Local LLM and rule-based automation tools routed through audited platform APIs.",
+    icon: "⚡"
   }
+];
+
+const launcherApps = [
+  { label: "Launch Pad", icon: "🏠", href: "/", color: "#1A8A9C" },
+  { label: "Delivery & Export", icon: "📦", href: "/modules/delivery-export", color: "#C89130" },
+  { label: "Pricing", icon: "💲", href: "/modules/pricing-automation", color: "#389457" },
+  { label: "Integrations", icon: "🔗", href: "/modules/integrations", color: "#0B1E35" },
+  { label: "Automation", icon: "⚡", href: "/modules/automation", color: "#7c3aed" },
+  { label: "Settings", icon: "⚙", href: "/settings", color: "#64748b" }
+];
+
+const searchIndex = [
+  { label: "Dashboard", meta: "Home", icon: "🏠", color: "#1A8A9C", href: "/" },
+  { label: "Delivery & Export", meta: "Module", icon: "📦", color: "#C89130", href: "/modules/delivery-export" },
+  { label: "Pricing Automation", meta: "Module", icon: "💲", color: "#389457", href: "/modules/pricing-automation" },
+  { label: "Integrations", meta: "Module", icon: "🔗", color: "#0B1E35", href: "/modules/integrations" },
+  { label: "Automation", meta: "Module", icon: "⚡", color: "#7c3aed", href: "/modules/automation" },
+  { label: "Settings", meta: "Page", icon: "⚙", color: "#64748b", href: "/settings" },
+  { label: "API Health", meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health" },
+  { label: "Platform Dashboard API", meta: "Endpoint", icon: "📊", color: "#1A8A9C", href: "/api/dashboard" },
+  { label: "Modules API", meta: "Endpoint", icon: "📋", color: "#1A8A9C", href: "/api/modules" }
 ];
 
 async function init() {
@@ -68,21 +93,11 @@ async function init() {
 
   state.dashboard = dashboard;
   state.modules = modules.modules || fallbackModules;
-  state.accessImport = await getJson("/api/access-import/dry-run", { tables: [] });
-  state.shipmentSessions = await getJson("/api/delivery/shipments", { sessions: [] });
-  state.dispatchers = await getJson("/api/source/dispatchers", { dispatchers: [] });
-  state.exportCustomers = await getJson("/api/source/export-customers", { customers: [] });
-  state.sourceShipmentItems = { items: [] };
 
   renderMetrics();
   renderModules();
-  renderHealth();
-  renderSourceSelectors();
-  renderAccessImport();
-  renderShipmentSessions();
   wireDashboardActions();
-  wireDeliveryActions();
-  revealModuleFromPath();
+  wireHeaderActions();  // analytics section collapse (home-page specific)
 }
 
 async function getJson(url, fallback) {
@@ -114,27 +129,21 @@ function renderMetrics() {
   const hiddenTiles = normalizeDashboardTiles(state.dashboard.hiddenTiles || []);
   const tiles = state.dashboardEditMode ? visibleTiles.concat(hiddenTiles) : visibleTiles;
 
-  target.classList.toggle("editing", state.dashboardEditMode);
-  target.innerHTML = tiles.map((tile, index) => `
-    <article
-      class="metric ${tile.isVisible ? "" : "hidden-tile"} ${tile.size === "wide" ? "wide" : ""}"
-      draggable="${state.dashboardEditMode ? "true" : "false"}"
-      data-tile-key="${escapeHtml(tile.key)}"
-    >
-      <div class="metric-toolbar">
-        <span>${escapeHtml(tile.title || tile.label)}</span>
-        ${state.dashboardEditMode ? `
-          <div class="tile-actions">
-            <button class="tile-icon" type="button" data-move="up" data-index="${index}" aria-label="Move ${escapeHtml(tile.title || tile.label)} up">&#8593;</button>
-            <button class="tile-icon" type="button" data-move="down" data-index="${index}" aria-label="Move ${escapeHtml(tile.title || tile.label)} down">&#8595;</button>
-            <button class="tile-icon" type="button" data-toggle-visible="${escapeHtml(tile.key)}" aria-label="${tile.isVisible ? "Hide" : "Show"} ${escapeHtml(tile.title || tile.label)}">${tile.isVisible ? "Hide" : "Show"}</button>
-          </div>
-        ` : ""}
-      </div>
-      <strong>${escapeHtml(tile.value)}</strong>
-      <small>${escapeHtml(tile.detail || tile.description || "")}</small>
-      ${state.dashboardEditMode && !tile.isVisible ? `<em>Hidden in locked mode</em>` : ""}
-    </article>
+  const stateClass = {
+    "discovered": "",
+    "ready-for-import": "",
+    "credentials-needed": "warn",
+    "setup-needed": "warn",
+    "disabled": "muted",
+    "planned": "info"
+  };
+
+  target.innerHTML = tiles.map(tile => `
+    <div class="analytics-metric ${tile.isVisible ? "" : "hidden-tile"}" data-tile-key="${escapeHtml(tile.key)}">
+      <div class="a-label">${escapeHtml(tile.title || tile.label)}</div>
+      <strong class="a-value">${escapeHtml(tile.value)}</strong>
+      <span class="a-detail ${stateClass[tile.state] || "muted"}">${escapeHtml(tile.detail || tile.description || "")}</span>
+    </div>
   `).join("");
 
   renderDashboardSaveState();
@@ -146,52 +155,86 @@ function wireDashboardActions() {
     const toggle = document.querySelector("#dashboardEditToggle");
     if (toggle) {
       toggle.setAttribute("aria-pressed", String(state.dashboardEditMode));
-      toggle.setAttribute("aria-label", state.dashboardEditMode ? "Lock dashboard layout" : "Unlock dashboard layout");
-      toggle.setAttribute("title", state.dashboardEditMode ? "Lock dashboard layout" : "Unlock dashboard layout");
-      toggle.innerHTML = state.dashboardEditMode ? "&#128275;" : "&#128274;";
+      toggle.setAttribute("aria-label", state.dashboardEditMode ? "Lock dashboard" : "Edit dashboard");
     }
     renderMetrics();
   });
+}
 
-  const grid = document.querySelector("#metrics");
-  grid?.addEventListener("click", async (event) => {
-    const toggleKey = event.target.dataset.toggleVisible;
-    const move = event.target.dataset.move;
-    if (toggleKey) {
-      setTileVisibility(toggleKey, !findDashboardTile(toggleKey).isVisible);
-      renderMetrics();
-      await saveDashboardLayout();
-    }
-    if (move) {
-      moveTile(Number(event.target.dataset.index), move === "up" ? -1 : 1);
-      renderMetrics();
-      await saveDashboardLayout();
-    }
-  });
+function wireLauncher() {
+  const btn = document.querySelector("#launcherBtn");
+  const overlay = document.querySelector("#launcherOverlay");
+  const closeBtn = document.querySelector("#launcherClose");
+  const grid = document.querySelector("#launcherGrid");
+  if (!overlay) return;
 
-  grid?.addEventListener("dragstart", (event) => {
-    if (!state.dashboardEditMode) return;
-    event.dataTransfer.setData("text/plain", event.target.closest("[data-tile-key]")?.dataset.tileKey || "");
-    event.dataTransfer.effectAllowed = "move";
-  });
+  if (grid) {
+    grid.innerHTML = launcherApps.map(app => `
+      <a class="launcher-tile" href="${escapeHtml(app.href)}">
+        <span class="launcher-icon" style="background:${escapeHtml(app.color)}">${app.icon}</span>
+        <span>${escapeHtml(app.label)}</span>
+      </a>
+    `).join("");
+  }
 
-  grid?.addEventListener("dragover", (event) => {
-    if (state.dashboardEditMode && event.target.closest("[data-tile-key]")) {
-      event.preventDefault();
-    }
-  });
+  function openLauncher() { overlay.hidden = false; document.body.style.overflow = "hidden"; }
+  function closeLauncher() { overlay.hidden = true; document.body.style.overflow = ""; }
 
-  grid?.addEventListener("drop", async (event) => {
-    if (!state.dashboardEditMode) return;
-    event.preventDefault();
-    const fromKey = event.dataTransfer.getData("text/plain");
-    const toKey = event.target.closest("[data-tile-key]")?.dataset.tileKey;
-    if (fromKey && toKey && fromKey !== toKey) {
-      reorderTileByKey(fromKey, toKey);
-      renderMetrics();
-      await saveDashboardLayout();
-    }
+  btn?.addEventListener("click", openLauncher);
+  closeBtn?.addEventListener("click", closeLauncher);
+  overlay?.addEventListener("click", (e) => { if (e.target === overlay) closeLauncher(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !overlay.hidden) closeLauncher(); });
+}
+
+function wireSearch() {
+  const trigger = document.querySelector("#searchTrigger");
+  const overlay = document.querySelector("#searchOverlay");
+  const input = document.querySelector("#searchInput");
+  const results = document.querySelector("#searchResults");
+  if (!overlay) return;
+
+  function openSearch() { overlay.hidden = false; input?.focus(); renderSearchResults(""); document.body.style.overflow = "hidden"; }
+  function closeSearch() { overlay.hidden = true; document.body.style.overflow = ""; if (input) input.value = ""; }
+
+  trigger?.addEventListener("click", openSearch);
+  overlay?.addEventListener("click", (e) => { if (e.target === overlay) closeSearch(); });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); openSearch(); }
+    if (e.key === "Escape" && !overlay?.hidden) closeSearch();
   });
+  input?.addEventListener("input", () => renderSearchResults(input.value));
+
+  function renderSearchResults(query) {
+    if (!results) return;
+    const q = query.trim().toLowerCase();
+    const filtered = q ? searchIndex.filter(item => item.label.toLowerCase().includes(q) || item.meta.toLowerCase().includes(q)) : searchIndex;
+    if (!filtered.length) {
+      results.innerHTML = `<div class="search-empty">No results for "${escapeHtml(query)}"</div>`;
+      return;
+    }
+    results.innerHTML = filtered.map(item => `
+      <a class="search-result-item" href="${escapeHtml(item.href)}">
+        <span class="search-result-icon" style="background:${escapeHtml(item.color)}">${item.icon}</span>
+        ${escapeHtml(item.label)}
+        <span class="search-result-meta">${escapeHtml(item.meta)}</span>
+      </a>
+    `).join("");
+    results.querySelectorAll("a").forEach(a => a.addEventListener("click", closeSearch));
+  }
+}
+
+function wireHeaderActions() {
+  // Analytics section collapse
+  const head = document.querySelector("#analyticsHead");
+  const body = document.querySelector("#analyticsBody");
+  head?.addEventListener("click", () => {
+    const isOpen = !body.hidden;
+    body.hidden = isOpen;
+    head.classList.toggle("is-open", !isOpen);
+    head.setAttribute("aria-expanded", String(!isOpen));
+    head.querySelector(".analytics-chevron").innerHTML = isOpen ? "&#9660;" : "&#9650;";
+  });
+  head?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); head.click(); } });
 }
 
 function normalizeDashboardTiles(tiles) {
@@ -282,134 +325,6 @@ function renderModules() {
   `).join("");
 }
 
-function renderHealth() {
-  const target = document.querySelector("#healthList");
-  target.innerHTML = state.dashboard.integrationHealth.map(item => `
-    <article class="setup-card">
-      <span class="badge ${escapeHtml(item.state)}">${escapeHtml(item.state)}</span>
-      <h3>${escapeHtml(item.name)}</h3>
-      <p>${escapeHtml(item.detail)}</p>
-    </article>
-  `).join("");
-}
-
-function renderAccessImport() {
-  const target = document.querySelector("#accessImportRows");
-  if (!target) return;
-
-  const tables = state.accessImport.tables || [];
-  target.innerHTML = tables.map(table => `
-    <tr>
-      <td>${escapeHtml(table.table)}</td>
-      <td>${table.row_count === null || table.row_count === undefined ? "-" : Number(table.row_count).toLocaleString()}</td>
-      <td><span class="badge">${escapeHtml(table.migration_treatment || "review")}</span></td>
-    </tr>
-  `).join("") || `<tr><td colspan="3">Run the Access import dry-run script to populate this section.</td></tr>`;
-}
-
-function renderShipmentSessions() {
-  const target = document.querySelector("#shipmentSessionsRows");
-  if (!target) return;
-
-  const sessions = state.shipmentSessions.sessions || [];
-  target.innerHTML = sessions.map(session => `
-    <tr>
-      <td>${escapeHtml(session.customer_account || "")}</td>
-      <td>${escapeHtml(session.source_shipment_id || "")}</td>
-      <td><span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status)}</span></td>
-      <td>${formatDate(session.started_at)}</td>
-      <td>
-        ${session.app_status === "closed"
-          ? `<button class="text-button" type="button" data-reopen="${escapeHtml(session.shipment_session_id)}">Reopen</button>`
-          : `<button class="text-button" type="button" data-close="${escapeHtml(session.shipment_session_id)}">Close</button>`}
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="5">No app-owned shipment sessions yet.</td></tr>`;
-}
-
-function renderSourceSelectors() {
-  const customerSelect = document.querySelector("#customerAccountInput");
-  const dispatcherSelect = document.querySelector("#dispatcherInput");
-
-  if (customerSelect) {
-    customerSelect.innerHTML = `<option value="">Select export customer</option>` + (state.exportCustomers.customers || []).map(customer => `
-      <option value="${escapeHtml(customer.customerAccount)}">${escapeHtml(customer.customerAccount)} - ${escapeHtml(customer.customerName)}</option>
-    `).join("");
-  }
-
-  if (dispatcherSelect) {
-    dispatcherSelect.innerHTML = `<option value="">Select dispatcher</option>` + (state.dispatchers.dispatchers || []).map(dispatcher => `
-      <option value="${escapeHtml(dispatcher.dispatcherId)}">${escapeHtml(dispatcher.dispatcherName)}${dispatcher.jobTitle ? ` - ${escapeHtml(dispatcher.jobTitle)}` : ""}</option>
-    `).join("");
-  }
-}
-
-function renderSourceShipmentItems() {
-  const target = document.querySelector("#sourceShipmentItemsRows");
-  if (!target) return;
-
-  const items = state.sourceShipmentItems.items || [];
-  target.innerHTML = items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.shipmentItemId)}</td>
-      <td>${escapeHtml(item.orderId || "")}</td>
-      <td>${escapeHtml(item.invoiceNumber || "")}</td>
-      <td>${escapeHtml(item.patientName || "")}</td>
-      <td>${formatMoney(item.price)}</td>
-      <td><span class="badge ${Number(item.sourceShipped) === 1 ? "" : "open"}">${Number(item.sourceShipped) === 1 ? "shipped" : "open"}</span></td>
-    </tr>
-  `).join("") || `<tr><td colspan="6">No source shipment items found for this customer/shipment.</td></tr>`;
-}
-
-function wireDeliveryActions() {
-  document.querySelector("#startShipmentBtn")?.addEventListener("click", startShipmentSession);
-  document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", refreshShipmentSessions);
-  document.querySelector("#preloadItemsBtn")?.addEventListener("click", preloadSourceShipmentItems);
-  document.querySelector("#shipmentSessionsRows")?.addEventListener("click", async (event) => {
-    const closeId = event.target.dataset.close;
-    const reopenId = event.target.dataset.reopen;
-
-    if (closeId) {
-      await postJson(`/api/delivery/shipments/${closeId}/close`, {});
-      await refreshShipmentSessions();
-    }
-
-    if (reopenId) {
-      await postJson(`/api/delivery/shipments/${reopenId}/reopen`, {});
-      await refreshShipmentSessions();
-    }
-  });
-}
-
-async function startShipmentSession() {
-  const customerAccount = document.querySelector("#customerAccountInput").value.trim();
-  const sourceShipmentId = document.querySelector("#shipmentIdInput").value.trim();
-  const dispatcherId = document.querySelector("#dispatcherInput").value.trim();
-
-  await postJson("/api/delivery/shipments", {
-    sourceSystem: "mssql",
-    customerAccount,
-    sourceShipmentId,
-    dispatcherId,
-    sourceShipped: false
-  });
-
-  await refreshShipmentSessions();
-}
-
-async function preloadSourceShipmentItems() {
-  const customerAccount = document.querySelector("#customerAccountInput").value.trim();
-  const shipmentId = document.querySelector("#shipmentIdInput").value.trim();
-  const query = new URLSearchParams({ customerAccount, shipmentId });
-
-  state.sourceShipmentItems = await getJson(`/api/source/shipment-items?${query.toString()}`, { items: [] });
-  renderSourceShipmentItems();
-}
-
-async function refreshShipmentSessions() {
-  state.shipmentSessions = await getJson("/api/delivery/shipments", { sessions: [] });
-  renderShipmentSessions();
-}
 
 async function getDashboardDeviceId() {
   const storageKey = "optilens.dashboard.deviceId";
@@ -468,11 +383,6 @@ function formatMoney(value) {
   }).format(Number(value));
 }
 
-function revealModuleFromPath() {
-  if (location.pathname.startsWith("/modules/delivery-export")) {
-    document.querySelector("#deliveryModule")?.scrollIntoView();
-  }
-}
 
 function escapeHtml(value) {
   return String(value)
@@ -509,7 +419,6 @@ function wireThemeToggle() {
   });
 }
 
-applyTheme();
-wireThemeToggle();
+// Theme and launcher/search wired by shared.js (loaded before app.js in index.html)
 
 init();

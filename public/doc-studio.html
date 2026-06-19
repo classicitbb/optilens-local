@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Doc Studio - OptiLens Local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="module-body">
+
+  <header class="top">
+    <div class="top-left">
+      <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="0" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
+        <strong>OptiLens Local</strong>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">Doc Studio</span>
+      </a>
+    </div>
+    <div class="top-center">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="sb-text">Search modules, wiki, settings…</span>
+        <kbd>Ctrl+K</kbd>
+      </button>
+    </div>
+    <div class="top-right">
+      <button class="top-action-btn" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5a1.5 1.5 0 113 0c0 1-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".75" fill="currentColor"/></svg>
+      </button>
+      <button class="top-action-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☽</button>
+      <button class="user-chip" type="button" aria-label="User">
+        <span class="user-avatar">RH</span>
+        <span class="user-name">Russell H.</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Branded documents</p>
+          <h1>Doc Studio</h1>
+        </div>
+        <span class="badge planned">Planned</span>
+      </div>
+
+      <nav class="workflow-tabs" aria-label="Doc Studio tabs">
+        <button class="active" type="button" data-tab="templates">Templates</button>
+        <button type="button" data-tab="pricelists">Price lists</button>
+        <button type="button" data-tab="letters">Letters &amp; emails</button>
+        <button type="button" data-tab="archive">Archive</button>
+      </nav>
+
+      <section class="workflow-panel active" id="templates">
+        <div class="capability-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 4px;">
+          <article>
+            <span class="icon" style="background:#1A8A9C">📄</span>
+            <h3>Price list</h3>
+            <p>Branded price lists generated from live pricing data. ClassicVisions design system applied automatically.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+          <article>
+            <span class="icon" style="background:#C89130">📃</span>
+            <h3>Commercial invoice</h3>
+            <p>Export-ready commercial invoice template pre-filled from the Delivery and Export workbench.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+          <article>
+            <span class="icon" style="background:#389457">📋</span>
+            <h3>Certificate of origin</h3>
+            <p>CO template with country, HS codes, and shipment metadata pulled from the export workflow.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+          <article>
+            <span class="icon" style="background:#7c3aed">✉</span>
+            <h3>Post-call email</h3>
+            <p>Branded follow-up email generator for sales calls — includes invite, price list, and bank info bundles.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+          <article>
+            <span class="icon" style="background:#0B1E35">🏷</span>
+            <h3>Shipping label</h3>
+            <p>Courier-ready shipping labels generated from validated shipment data.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+          <article>
+            <span class="icon" style="background:#b45309">📊</span>
+            <h3>Customer statement</h3>
+            <p>Account summary document for customer-facing communication, branded with ClassicVisions guidelines.</p>
+            <span class="badge planned">Planned</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="pricelists">
+        <div class="placeholder-pane">Price list generation will connect to the Pricing Automation module and apply ClassicVisions branding. Output formats: PDF, DOCX, XLSX.</div>
+      </section>
+
+      <section class="workflow-panel" id="letters">
+        <div class="placeholder-pane">Letter and email templates with merge fields populated from customer and shipment records. Connects to the post-call email generator project.</div>
+      </section>
+
+      <section class="workflow-panel" id="archive">
+        <div class="placeholder-pane">Previously generated documents stored by customer folder. Searchable by date, type, and customer account.</div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script>
+    document.querySelectorAll(".workflow-tabs button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
+        document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
+      });
+    });
+  </script>
+</body>
+</html>
