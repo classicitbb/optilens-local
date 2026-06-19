@@ -3,6 +3,23 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
 const { getConfig } = require("./lib/config");
+
+// ─── Vault file storage ───────────────────────────────────────────────────────
+
+const dataDir  = path.join(__dirname, "data");
+const vaultFile = path.join(dataDir, "vault.json");
+
+function readVault() {
+  try {
+    if (!fs.existsSync(vaultFile)) return { pinHash: null, blob: null };
+    return JSON.parse(fs.readFileSync(vaultFile, "utf8"));
+  } catch { return { pinHash: null, blob: null }; }
+}
+
+function writeVault(data) {
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(vaultFile, JSON.stringify(data, null, 2));
+}
 const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
 const {
   buildDashboard,
@@ -48,6 +65,44 @@ const mimeTypes = {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // ── Vault API ──────────────────────────────────────────────────────────────
+
+  if (url.pathname === "/api/vault/state" && req.method === "GET") {
+    const v = readVault();
+    return sendJson(res, { hasPin: !!v.pinHash, pinHash: v.pinHash, blob: v.blob });
+  }
+
+  if (url.pathname === "/api/vault/setup" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const { pinHash, blob } = await readJsonBody(req);
+      if (!pinHash || !blob) throw Object.assign(new Error("pinHash and blob are required"), { statusCode: 400 });
+      const existing = readVault();
+      if (existing.pinHash) throw Object.assign(new Error("Vault already initialised. Reset first."), { statusCode: 409 });
+      writeVault({ pinHash, blob });
+      return { ok: true };
+    }, 201);
+  }
+
+  if (url.pathname === "/api/vault/data" && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const { blob } = await readJsonBody(req);
+      if (!blob) throw Object.assign(new Error("blob is required"), { statusCode: 400 });
+      const v = readVault();
+      if (!v.pinHash) throw Object.assign(new Error("Vault not initialised"), { statusCode: 404 });
+      writeVault({ pinHash: v.pinHash, blob });
+      return { ok: true };
+    });
+  }
+
+  if (url.pathname === "/api/vault/reset" && req.method === "POST") {
+    return handleApi(res, async () => {
+      writeVault({ pinHash: null, blob: null });
+      return { ok: true };
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/health") {
     const appDbHealth = await checkAppDatabase();
