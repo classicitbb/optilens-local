@@ -132,14 +132,21 @@
             <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body content</span>
             <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
           </div>
-          <div style="display:flex;gap:5px;margin-bottom:8px">
+          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
             <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
             <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
             <button onClick="{{ fmtH2 }}" style="width: 58px; padding: 0 9px; height: 29px">H2</button>
             <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
             <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
+            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
+            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
+            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
+            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
+            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
+            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
           </div>
-          <div ref="{{ setEmailEditor }}" contentEditable="true" data-ph="Paste your blog post or type here — it picks up the house style automatically." onInput="{{ onEmailInput }}" onPaste="{{ onEmailPaste }}" class="cv-scroll" style="min-height:210px;max-height:330px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
+          <div ref="{{ setEmailEditor }}" contentEditable="true" data-ph="Paste your blog post or type here — it picks up the house style automatically." onInput="{{ onEmailInput }}" onPaste="{{ onEmailPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:210px;max-height:330px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
         </div>
 
         <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
@@ -256,14 +263,21 @@
             <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body</span>
             <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
           </div>
-          <div style="display:flex;gap:5px;margin-bottom:8px">
+          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
             <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
             <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
             <button onClick="{{ fmtH2 }}" style="{{ toolBtn }};width:auto;padding:0 9px">H2</button>
             <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
             <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
+            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
+            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
+            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
+            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
+            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
+            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
           </div>
-          <div ref="{{ setLetterEditor }}" contentEditable="true" data-ph="Write or paste the letter body here…" onInput="{{ onLetterInput }}" onPaste="{{ onLetterPaste }}" class="cv-scroll" style="min-height:200px;max-height:320px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div ref="{{ setLetterEditor }}" contentEditable="true" data-ph="Write or paste the letter body here…" onInput="{{ onLetterInput }}" onPaste="{{ onLetterPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:200px;max-height:320px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         </div>
 
         <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
@@ -375,7 +389,35 @@
         <div>
           <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Headline</div>
           <textarea class="cv-in" value="{{ smHeadlineV }}" onChange="{{ smHeadlineOn }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:700 14px/1.45 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea>
+          <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
+            <button onClick="{{ smHeadlineItalicToggle }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ smHeadlineLeft }}" style="{{ toolBtn }};width:auto;padding:0 9px">Left</button>
+            <button onClick="{{ smHeadlineCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
+            <button onClick="{{ smHeadlineRight }}" style="{{ toolBtn }};width:auto;padding:0 9px">Right</button>
+          </div>
           <div style="margin-top:5px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#a7a596">Keep it short — 3 to 7 words works best.</div>
+        </div>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body content</span>
+            <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
+            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
+            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
+            <button onClick="{{ fmtH2 }}" style="width: 58px; padding: 0 9px; height: 29px">H2</button>
+            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
+            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
+            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
+            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
+            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
+            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
+            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
+            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
+          </div>
+          <div ref="{{ setSocialEditor }}" contentEditable="true" data-ph="Add the supporting post copy here." onInput="{{ onSocialInput }}" onPaste="{{ onSocialPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:150px;max-height:260px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
         </div>
 
         <div>
@@ -585,7 +627,7 @@ class Component extends DCLogic {
     sgPhone: '+1 246 433-4928', sgEmail: 'email@classicvisions.net',
     sgWeb: 'www.classicvisions.net', sgTagline: '', sgLogo: true,
     emailLib: [], letterLib: [], sigLib: [], snippets: [],
-    smFormat: 'instagram', smStyle: 'navy', smHeadline: 'Vision starts here.', smSub: '', smHandle: '@classicvisions', smPostLib: [],
+    smFormat: 'instagram', smStyle: 'navy', smHeadline: 'Vision starts here.', smHeadlineAlign: 'left', smHeadlineItalic: false, smBody: '', smSub: '', smHandle: '@classicvisions', smPostLib: [],
     copied: '',
     // Price list
     plCustomer: '', plAttn: '', plDate: '', plValidity: '30 days', plCurrency: 'BBD', plNote: '',
@@ -605,8 +647,9 @@ class Component extends DCLogic {
       if (raw) {
         const s = JSON.parse(raw);
         this.setState(s, () => {
-          if (this.emailEditor) this.emailEditor.innerHTML = this.state.emBody || '';
-          if (this.letterEditor) this.letterEditor.innerHTML = this.state.ltBody || '';
+          if (this.emailEditor) { this.emailEditor.innerHTML = this.state.emBody || ''; this.styleEditorImages(this.emailEditor); }
+          if (this.letterEditor) { this.letterEditor.innerHTML = this.state.ltBody || ''; this.styleEditorImages(this.letterEditor); }
+          if (this.socialEditor) { this.socialEditor.innerHTML = this.state.smBody || ''; this.styleEditorImages(this.socialEditor); }
         });
       }
     } catch (e) {}
@@ -655,18 +698,28 @@ class Component extends DCLogic {
   });
 
   // ---------- editors ----------
-  setEmailEditor = (el) => { if (el) { this.emailEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.emBody || ''; } } };
-  setLetterEditor = (el) => { if (el) { this.letterEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.ltBody || ''; } } };
+  setEmailEditor = (el) => { if (el) { this.emailEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.emBody || ''; this.styleEditorImages(el); } } };
+  setLetterEditor = (el) => { if (el) { this.letterEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.ltBody || ''; this.styleEditorImages(el); } } };
+  setSocialEditor = (el) => { if (el) { this.socialEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.smBody || ''; this.styleEditorImages(el); } } };
   onEmailInput = (e) => { this.setState({ emBody: e.currentTarget.innerHTML }); this.persistSoon(); };
   onLetterInput = (e) => { this.setState({ ltBody: e.currentTarget.innerHTML }); this.persistSoon(); };
-  activeEditor = () => this.state.tab === 'letter' ? this.letterEditor : this.emailEditor;
-  syncActive = () => { const ed = this.activeEditor(); if (!ed) return; if (this.state.tab === 'letter') this.setState({ ltBody: ed.innerHTML }); else this.setState({ emBody: ed.innerHTML }); this.persistSoon(); };
+  onSocialInput = (e) => { this.setState({ smBody: e.currentTarget.innerHTML }); this.persistSoon(); };
+  activeEditor = () => this.state.tab === 'letter' ? this.letterEditor : this.state.tab === 'social' ? this.socialEditor : this.emailEditor;
+  syncActive = () => { const ed = this.activeEditor(); if (!ed) return; if (this.state.tab === 'letter') this.setState({ ltBody: ed.innerHTML }); else if (this.state.tab === 'social') this.setState({ smBody: ed.innerHTML }); else this.setState({ emBody: ed.innerHTML }); this.persistSoon(); };
 
   onEmailPaste = (e) => this.handlePaste(e);
   onLetterPaste = (e) => this.handlePaste(e);
+  onSocialPaste = (e) => this.handlePaste(e);
   handlePaste = (e) => {
     e.preventDefault();
     const cb = e.clipboardData; if (!cb) return;
+    const imageFile = [...(cb.files || [])].find(f => /^image\//.test(f.type));
+    if (imageFile) {
+      const reader = new FileReader();
+      reader.onload = () => { this.insertImage(reader.result); };
+      reader.readAsDataURL(imageFile);
+      return;
+    }
     let html = cb.getData('text/html');
     if (html) { html = this.sanitize(html); }
     else {
@@ -674,51 +727,206 @@ class Component extends DCLogic {
       html = t.split(/\n{2,}/).filter(Boolean).map(p => '<p>' + this.esc(p).replace(/\n/g, '<br>') + '</p>').join('');
     }
     try { document.execCommand('insertHTML', false, html); } catch (er) { const ed = this.activeEditor(); if (ed) ed.innerHTML += html; }
+    this.styleEditorImages(this.activeEditor());
     this.syncActive();
   };
 
   fmt = (cmd, val) => { const ed = this.activeEditor(); if (ed) { ed.focus(); try { document.execCommand(cmd, false, val); } catch (e) {} } this.syncActive(); };
   fmtBold = () => this.fmt('bold');
   fmtItalic = () => this.fmt('italic');
+  fmtP = () => this.fmt('formatBlock', 'P');
   fmtH2 = () => this.fmt('formatBlock', 'H2');
   fmtUL = () => this.fmt('insertUnorderedList');
+  fmtCenter = () => this.fmt('justifyCenter');
+  fmtJustify = () => this.fmt('justifyFull');
   fmtLink = () => { const u = prompt('Link URL (https://…)'); if (u) this.fmt('createLink', u); };
+  onEditorClick = (e) => {
+    if (e.target && e.target.tagName === 'IMG') this.selectImage(e.target);
+  };
+  selectImage = (img) => {
+    if (this.activeImage && this.activeImage !== img) this.activeImage.style.outline = '';
+    this.activeImage = img;
+    img.style.outline = '2px solid #1A8A9C';
+    img.style.outlineOffset = '2px';
+  };
+  styleEditorImages = (ed) => {
+    if (!ed) return;
+    ed.querySelectorAll('img').forEach(img => {
+      img.dataset.imgWidth = String(Math.max(20, Math.min(100, parseInt(img.dataset.imgWidth || img.getAttribute('width') || '100', 10) || 100)));
+      img.dataset.imgRadius = img.dataset.imgRadius === '18' ? '18' : '0';
+      img.dataset.imgShadow = img.dataset.imgShadow === '1' ? '1' : '0';
+      img.dataset.imgAlign = ['left', 'right', 'center'].includes(img.dataset.imgAlign) ? img.dataset.imgAlign : 'center';
+      img.setAttribute('style', this.imgStyle(img, { editor: true }));
+    });
+  };
+  imageHtml = (src) => `<p><img src="${this.esc(src)}" alt="" data-img-width="100" data-img-radius="0" data-img-shadow="0" data-img-align="center" style="${this.imgStyle({ dataset: { imgWidth:'100', imgRadius:'0', imgShadow:'0', imgAlign:'center' } }, { editor: true })}"></p>`;
+  insertImage = (src) => {
+    if (!/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(src || '') && !/^https?:\/\//i.test(src || '')) return;
+    const html = this.imageHtml(src);
+    const ed = this.activeEditor();
+    if (ed) ed.focus();
+    try { document.execCommand('insertHTML', false, html); } catch (e) { if (ed) ed.innerHTML += html; }
+    this.syncActive();
+  };
+  activeEditorImage = () => {
+    const ed = this.activeEditor();
+    if (this.activeImage && ed && ed.contains(this.activeImage)) return this.activeImage;
+    return ed ? ed.querySelector('img') : null;
+  };
+  restyleEditorImage = (img) => {
+    img.setAttribute('style', this.imgStyle(img, { editor: true }));
+    this.selectImage(img);
+    this.syncActive();
+  };
+  fmtImgLarger = () => {
+    const img = this.activeEditorImage(); if (!img) { this.toast('Click an image first'); return; }
+    img.dataset.imgWidth = String(Math.min(100, (parseInt(img.dataset.imgWidth || '100', 10) || 100) + 10));
+    this.restyleEditorImage(img);
+  };
+  fmtImgSmaller = () => {
+    const img = this.activeEditorImage(); if (!img) { this.toast('Click an image first'); return; }
+    img.dataset.imgWidth = String(Math.max(20, (parseInt(img.dataset.imgWidth || '100', 10) || 100) - 10));
+    this.restyleEditorImage(img);
+  };
+  fmtImgRound = () => {
+    const img = this.activeEditorImage(); if (!img) { this.toast('Click an image first'); return; }
+    img.dataset.imgRadius = img.dataset.imgRadius === '18' ? '0' : '18';
+    this.restyleEditorImage(img);
+  };
+  fmtImgShadow = () => {
+    const img = this.activeEditorImage(); if (!img) { this.toast('Click an image first'); return; }
+    img.dataset.imgShadow = img.dataset.imgShadow === '1' ? '0' : '1';
+    this.restyleEditorImage(img);
+  };
+  smHeadlineItalicToggle = () => this.set('smHeadlineItalic', !this.state.smHeadlineItalic);
+  smHeadlineLeft = () => this.set('smHeadlineAlign', 'left');
+  smHeadlineCenter = () => this.set('smHeadlineAlign', 'center');
+  smHeadlineRight = () => this.set('smHeadlineAlign', 'right');
 
   switchTab = (k) => { this.syncActive(); this.set('tab', k); };
 
   // ---------- sanitize / theme ----------
   sanitize = (html) => {
     const d = document.createElement('div'); d.innerHTML = html || '';
-    d.querySelectorAll('script,style,meta,link,img,svg,iframe,table,thead,tbody,tr,td,th,figure,figcaption,header,footer,nav').forEach(n => n.remove());
+    d.querySelectorAll('script,style,meta,link,svg,iframe,table,thead,tbody,tr,td,th,figure,figcaption,header,footer,nav').forEach(n => n.remove());
     const ren = (sel, tag) => d.querySelectorAll(sel).forEach(n => { const e = document.createElement(tag); while (n.firstChild) e.appendChild(n.firstChild); n.replaceWith(e); });
     ren('b,strong', 'strong'); ren('i,em', 'em'); ren('h1', 'h2'); ren('h4,h5,h6', 'h3'); ren('div,section,article,p', 'p');
-    d.querySelectorAll('*').forEach(n => { [...n.attributes].forEach(a => { if (!(n.tagName === 'A' && a.name === 'href')) n.removeAttribute(a.name); }); });
-    const ok = new Set(['H2', 'H3', 'P', 'UL', 'OL', 'LI', 'A', 'STRONG', 'EM', 'BR', 'BLOCKQUOTE', 'HR']);
+    d.querySelectorAll('img').forEach(img => {
+      const src = img.getAttribute('src') || '';
+      if (!/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(src) && !/^https?:\/\//i.test(src)) { img.remove(); return; }
+      img.setAttribute('src', src);
+      img.setAttribute('alt', img.getAttribute('alt') || '');
+      img.dataset.imgWidth = String(Math.max(20, Math.min(100, parseInt(img.dataset.imgWidth || img.getAttribute('width') || '100', 10) || 100)));
+      img.dataset.imgRadius = img.dataset.imgRadius === '18' ? '18' : '0';
+      img.dataset.imgShadow = img.dataset.imgShadow === '1' ? '1' : '0';
+      img.dataset.imgAlign = ['left', 'right', 'center'].includes(img.dataset.imgAlign) ? img.dataset.imgAlign : 'center';
+    });
+    d.querySelectorAll('p,h2,h3,li,blockquote').forEach(n => {
+      const align = String(n.style.textAlign || n.getAttribute('align') || n.dataset.textAlign || '').toLowerCase();
+      if (['left', 'center', 'right', 'justify'].includes(align)) n.dataset.textAlign = align;
+    });
+    d.querySelectorAll('*').forEach(n => { [...n.attributes].forEach(a => {
+      const keepLink = n.tagName === 'A' && a.name === 'href';
+      const keepImg = n.tagName === 'IMG' && ['src', 'alt', 'data-img-width', 'data-img-radius', 'data-img-shadow', 'data-img-align'].includes(a.name);
+      const keepTextAlign = ['P', 'H2', 'H3', 'LI', 'BLOCKQUOTE'].includes(n.tagName) && a.name === 'data-text-align';
+      if (!keepLink && !keepImg && !keepTextAlign) n.removeAttribute(a.name);
+    }); });
+    const ok = new Set(['H2', 'H3', 'P', 'UL', 'OL', 'LI', 'A', 'STRONG', 'EM', 'BR', 'BLOCKQUOTE', 'HR', 'IMG']);
     let pass = 0;
     while (pass++ < 6) {
       let changed = false;
       d.querySelectorAll('*').forEach(n => { if (!ok.has(n.tagName)) { const p = n.parentNode; if (!p) return; while (n.firstChild) p.insertBefore(n.firstChild, n); p.removeChild(n); changed = true; } });
       if (!changed) break;
     }
-    d.querySelectorAll('p').forEach(p => { if (!p.textContent.trim() && !p.querySelector('br,a')) p.remove(); });
+    d.querySelectorAll('p').forEach(p => { if (!p.textContent.trim() && !p.querySelector('br,a,img')) p.remove(); });
     return d.innerHTML;
   };
 
+  imgStyle = (img, opts) => {
+    opts = opts || {};
+    const w = Math.max(20, Math.min(100, parseInt(img.dataset.imgWidth || '100', 10) || 100));
+    const r = img.dataset.imgRadius === '18' ? 18 : 0;
+    const shadow = img.dataset.imgShadow === '1';
+    const align = ['left', 'right', 'center'].includes(img.dataset.imgAlign) ? img.dataset.imgAlign : 'center';
+    const margin = align === 'left' ? '10px auto 14px 0' : align === 'right' ? '10px 0 14px auto' : '10px auto 14px';
+    const box = shadow ? '0 14px 34px -16px rgba(11,30,53,.45)' : 'none';
+    return `display:block;width:${w}%;max-width:100%;height:auto;border:0;border-radius:${r}px;box-shadow:${box};margin:${margin};outline:${opts.editor ? 'none' : '0'}`;
+  };
+  textAlignStyle = (n) => {
+    const align = n && ['left', 'center', 'right', 'justify'].includes(n.dataset.textAlign) ? n.dataset.textAlign : '';
+    return align ? `;text-align:${align}` : '';
+  };
+  textOnly = (html) => {
+    const d = document.createElement('div'); d.innerHTML = html || '';
+    return (d.textContent || '').replace(/\s+/g, ' ').trim();
+  };
+  fitScale = (text, capacity, min) => {
+    const len = Math.max(1, this.textOnly(text).length);
+    const raw = Math.sqrt(Math.max(1, capacity) / len);
+    return Math.max(min || .55, Math.min(1, raw));
+  };
+  socialFit = (fmt, headline, bodyHtml, sub) => {
+    const textLen = this.textOnly(bodyHtml).length + this.textOnly(sub).length;
+    const bodyBlocks = (String(bodyHtml || '').match(/<(p|li|h2|h3|blockquote|img)\b/gi) || []).length;
+    const imgCount = (String(bodyHtml || '').match(/<img\b/gi) || []).length;
+    const cap = fmt === 'whatsapp_status' ? 900 : fmt === 'outdoor' ? 520 : fmt === 'instagram' ? 620 : 420;
+    const bodyScale = Math.max(.42, Math.min(1, Math.sqrt(cap / Math.max(1, textLen + bodyBlocks * 42 + imgCount * 90))));
+    const headCap = fmt === 'outdoor' ? 32 : fmt === 'whatsapp_status' ? 42 : fmt === 'instagram' ? 34 : 28;
+    const headScale = Math.max(.44, Math.min(1, Math.sqrt(headCap / Math.max(1, this.textOnly(headline).length))));
+    return { body: bodyScale, head: headScale };
+  };
+  fitFont = (base, scale, min) => Math.max(min || 8, Math.round(base * scale));
+  clampTextStyle = () => 'overflow-wrap:anywhere;word-break:normal;hyphens:auto';
+
   styleBody = (html) => {
+    const fit = this.fitScale(html, 1700, .72);
+    const p = this.fitFont(15, fit, 10), h2 = this.fitFont(17, fit, 12), h3 = this.fitFont(14.5, fit, 11), li = this.fitFont(15, fit, 10);
     const map = {
-      H1: "font:800 21px/1.2 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin:26px 0 10px",
-      H2: "font:700 17px/1.3 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.01em;color:#0B1E35;margin:24px 0 8px",
-      H3: "font:700 14.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin:20px 0 6px",
-      P: "font:400 15px/1.72 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 16px",
-      UL: "margin:0 0 16px;padding-left:22px", OL: "margin:0 0 16px;padding-left:22px",
-      LI: "font:400 15px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 7px",
+      H1: `font:800 ${this.fitFont(21, fit, 13)}px/1.2 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin:${Math.round(26*fit)}px 0 ${Math.round(10*fit)}px;${this.clampTextStyle()}`,
+      H2: `font:700 ${h2}px/1.3 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.01em;color:#0B1E35;margin:${Math.round(24*fit)}px 0 ${Math.round(8*fit)}px;${this.clampTextStyle()}`,
+      H3: `font:700 ${h3}px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin:${Math.round(20*fit)}px 0 ${Math.round(6*fit)}px;${this.clampTextStyle()}`,
+      P: `font:400 ${p}px/1.62 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 ${Math.round(14*fit)}px;${this.clampTextStyle()}`,
+      UL: `margin:0 0 ${Math.round(14*fit)}px;padding-left:${Math.round(22*fit)}px`, OL: `margin:0 0 ${Math.round(14*fit)}px;padding-left:${Math.round(22*fit)}px`,
+      LI: `font:400 ${li}px/1.55 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 ${Math.round(6*fit)}px;${this.clampTextStyle()}`,
       A: "color:#1A8A9C;text-decoration:underline",
       STRONG: "font-weight:700;color:#0B1E35", EM: "font-style:italic",
       BLOCKQUOTE: "margin:0 0 16px;padding:4px 0 4px 18px;border-left:3px solid #C89130;color:#5b6b7c;font-style:italic",
       HR: "border:0;border-top:1px solid #e7e4db;margin:22px 0"
     };
     const d = document.createElement('div'); d.innerHTML = html || '';
-    d.querySelectorAll('*').forEach(n => { const s = map[n.tagName]; if (s) n.setAttribute('style', s); });
+    d.querySelectorAll('*').forEach(n => { const s = n.tagName === 'IMG' ? this.imgStyle(n) : map[n.tagName]; if (s) n.setAttribute('style', s + this.textAlignStyle(n)); });
+    return d.innerHTML;
+  };
+
+  styleSocialBody = (html, opts) => {
+    const safe = this.sanitize(html || '');
+    if (!safe) return '';
+    opts = opts || {};
+    const color = opts.color || '#5b6b7c';
+    const strong = opts.strong || color;
+    const accent = opts.accent || '#1A8A9C';
+    const scale = opts.scale || 1;
+    const base = Math.max(8, Math.round((opts.base || 22) * scale));
+    const h2 = Math.round(base * 1.18);
+    const li = Math.max(8, Math.round(base * 0.9));
+    const d = document.createElement('div'); d.innerHTML = safe;
+    d.querySelectorAll('*').forEach(n => {
+      const map = {
+        H2: `font:800 ${h2}px/1.12 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.015em;color:${strong};margin:${Math.round(base*.65)}px 0 ${Math.round(base*.28)}px;${this.clampTextStyle()}`,
+        H3: `font:700 ${base}px/1.2 'Plus Jakarta Sans',Arial,sans-serif;color:${strong};margin:${Math.round(base*.6)}px 0 ${Math.round(base*.25)}px;${this.clampTextStyle()}`,
+        P: `font:400 ${base}px/1.42 'Plus Jakarta Sans',Arial,sans-serif;color:${color};margin:0 0 ${Math.round(base*.42)}px;${this.clampTextStyle()}`,
+        UL: `margin:0 0 ${Math.round(base*.55)}px;padding-left:${Math.round(base*1.05)}px`,
+        OL: `margin:0 0 ${Math.round(base*.55)}px;padding-left:${Math.round(base*1.05)}px`,
+        LI: `font:400 ${li}px/1.38 'Plus Jakarta Sans',Arial,sans-serif;color:${color};margin:0 0 ${Math.round(base*.22)}px;${this.clampTextStyle()}`,
+        A: `color:${accent};text-decoration:none;font-weight:700`,
+        STRONG: `font-weight:800;color:${strong}`,
+        EM: 'font-style:italic',
+        BLOCKQUOTE: `margin:0 0 ${Math.round(base*.55)}px;padding:2px 0 2px ${Math.round(base*.65)}px;border-left:3px solid ${accent};color:${color};font-style:italic`,
+        HR: `border:0;border-top:1px solid ${accent};opacity:.45;margin:${base}px 0`
+      };
+      const style = n.tagName === 'IMG' ? this.imgStyle(n) : map[n.tagName];
+      if (style) n.setAttribute('style', style + this.textAlignStyle(n));
+    });
     return d.innerHTML;
   };
 
@@ -830,19 +1038,21 @@ class Component extends DCLogic {
   // ---------- SIGNATURE ----------
   buildSignature = () => {
     const d = this.state, esc = this.esc;
+    const fit = this.fitScale([d.sgName, d.sgTitle, d.sgPhone, d.sgEmail, d.sgWeb, d.sgTagline].join(' '), 160, .68);
+    const nameSz = this.fitFont(16, fit, 11), bodySz = this.fitFont(12, fit, 9), labelSz = this.fitFont(10, fit, 8);
     const mono = d.sgLogo ? `<td style="vertical-align:top;padding-right:18px"><img src="${this.logoSrc('navy')}" width="56" height="56" alt="Classic Visions" style="display:block;width:56px;height:56px;border:0"></td>` : '';
-    return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Plus Jakarta Sans',Arial,sans-serif"><tr>
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:520px;table-layout:fixed"><tr>
       ${mono}
-      <td style="vertical-align:top;border-left:2px solid #C89130;padding-left:18px">
-        <div style="font:800 16px/1.2 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.sgName)}</div>
-        <div style="font:600 12px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#1A8A9C;margin-top:2px">${esc(d.sgTitle)}</div>
-        <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#0B1E35;margin:10px 0">CLASSIC VISIONS</div>
-        <div style="font:400 12px/1.75 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f">
+      <td style="vertical-align:top;border-left:2px solid #C89130;padding-left:18px;max-width:430px">
+        <div style="font:800 ${nameSz}px/1.16 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${esc(d.sgName)}</div>
+        <div style="font:600 ${bodySz}px/1.25 'Plus Jakarta Sans',Arial,sans-serif;color:#1A8A9C;margin-top:2px;${this.clampTextStyle()}">${esc(d.sgTitle)}</div>
+        <div style="font:700 ${labelSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#0B1E35;margin:${Math.round(10*fit)}px 0">CLASSIC VISIONS</div>
+        <div style="font:400 ${bodySz}px/1.55 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;${this.clampTextStyle()}">
           ${d.sgPhone ? `${esc(d.sgPhone)}<br>` : ''}
           ${d.sgEmail ? `<a href="mailto:${esc(d.sgEmail)}" style="color:#1A8A9C;text-decoration:none">${esc(d.sgEmail)}</a><br>` : ''}
           ${d.sgWeb ? `<a href="https://${esc(d.sgWeb)}" style="color:#1A8A9C;text-decoration:none">${esc(d.sgWeb)}</a>` : ''}
         </div>
-        ${d.sgTagline ? `<div style="font:italic 400 11px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:9px">${esc(d.sgTagline)}</div>` : ''}
+        ${d.sgTagline ? `<div style="font:italic 400 ${this.fitFont(11, fit, 8)}px/1.35 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:${Math.round(9*fit)}px;${this.clampTextStyle()}">${esc(d.sgTagline)}</div>` : ''}
       </td>
     </tr></table>`;
   };
@@ -901,12 +1111,12 @@ class Component extends DCLogic {
     this.setState(s => ({ snippets: [...s.snippets, { id: Date.now() + '', label, html }] }), this.persist);
     this.toast('Snippet saved');
   };
-  insertSnippet = (html) => { const ed = this.activeEditor(); if (!ed) return; ed.focus(); try { document.execCommand('insertHTML', false, html); } catch (e) { ed.innerHTML += html; } this.syncActive(); };
+  insertSnippet = (html) => { const ed = this.activeEditor(); if (!ed) return; ed.focus(); try { document.execCommand('insertHTML', false, html); } catch (e) { ed.innerHTML += html; } this.styleEditorImages(ed); this.syncActive(); };
 
   // ---------- libraries ----------
   delLib = (key, id) => { this.setState(s => ({ [key]: s[key].filter(x => x.id !== id) }), this.persist); };
-  loadEmail = (it) => { this.setState({ ...it.fields }, () => { if (this.emailEditor) this.emailEditor.innerHTML = this.state.emBody || ''; this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
-  loadLetter = (it) => { this.setState({ ...it.fields }, () => { if (this.letterEditor) this.letterEditor.innerHTML = this.state.ltBody || ''; this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadEmail = (it) => { this.setState({ ...it.fields }, () => { if (this.emailEditor) { this.emailEditor.innerHTML = this.state.emBody || ''; this.styleEditorImages(this.emailEditor); } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadLetter = (it) => { this.setState({ ...it.fields }, () => { if (this.letterEditor) { this.letterEditor.innerHTML = this.state.ltBody || ''; this.styleEditorImages(this.letterEditor); } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
   loadSig = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
   saveEmail = () => {
     const name = prompt('Name this email template:'); if (!name) return;
@@ -950,29 +1160,36 @@ class Component extends DCLogic {
     const d = this.state, fk = d.smFormat||'instagram', sk = d.smStyle||'navy';
     const f = this.SM_FMTS[fk], s = this.SM_PAL[sk], esc = this.esc;
     const w = f.w, h = f.h;
-    const headline = esc(d.smHeadline||'Vision starts here.');
+    const headline = esc(d.smHeadline||'Vision starts here.').replace(/\n/g, '<br>');
+    const hAlign = ['left', 'center', 'right'].includes(d.smHeadlineAlign) ? d.smHeadlineAlign : 'left';
+    const headlineExtra = `text-align:${hAlign};font-style:${d.smHeadlineItalic ? 'italic' : 'normal'}`;
     const sub = esc(d.smSub||''), handle = esc(d.smHandle||'');
     const web = esc(this.brand().web);
     const logo = (this.logos&&this.logos[s.logo]) ? this.logos[s.logo] : `assets/logo_${s.logo}.svg`;
     const FF = "'Plus Jakarta Sans',Arial,sans-serif";
     const root = `width:${w}px;height:${h}px;position:relative;overflow:hidden;background:${s.bg};font-family:${FF};box-sizing:border-box`;
+    const fit = this.socialFit(fk, d.smHeadline || '', d.smBody || '', d.smSub || '');
     if (fk === 'outdoor') {
-      const lW = Math.round(w*0.335), hlSz = Math.round(h*0.115), subSz = Math.round(h*0.036);
-      return `<div style="${root}"><div style="position:absolute;top:0;left:0;width:${lW}px;bottom:0;background:#0B1E35;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px"><img src="${logo}" width="80" height="80" alt="" style="display:block;width:80px;height:80px"><div style="text-align:center"><div style="font:800 19px/1 ${FF};letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 9.5px/1 ${FF};letter-spacing:.26em;color:#C89130;margin-top:7px">OPTICAL · BARBADOS</div></div><div style="font:400 12px/1 ${FF};letter-spacing:.09em;color:rgba(244,242,237,.45)">${web}</div></div><div style="position:absolute;top:0;left:${lW}px;width:5px;bottom:0;background:#C89130"></div><div style="position:absolute;top:0;left:${lW+5}px;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:0 ${Math.round(w*0.065)}px"><div style="width:60px;height:4px;background:${s.acc};margin-bottom:${Math.round(h*0.047)}px"></div><div style="font:800 ${hlSz}px/0.95 ${FF};letter-spacing:-.03em;color:${s.txt}">${headline}</div>${sub?`<div style="margin-top:${Math.round(h*0.04)}px;font:400 ${subSz}px/1.5 ${FF};color:${s.sub}">${sub}</div>`:''} ${handle?`<div style="margin-top:${Math.round(h*0.05)}px;font:600 ${Math.round(h*0.018)}px/1 ${FF};letter-spacing:.05em;color:${s.sub}">${handle}</div>`:''}</div><div style="position:absolute;top:0;left:0;right:0;height:5px;background:#C89130"></div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:#C89130"></div></div>`;
+      const lW = Math.round(w*0.335), hlSz = this.fitFont(Math.round(h*0.115), fit.head, 34), subSz = this.fitFont(Math.round(h*0.036), fit.body, 13);
+      const body = this.styleSocialBody(d.smBody, { base: Math.round(h*0.028), scale: fit.body, color: s.sub, strong: s.txt, accent: s.acc });
+      return `<div style="${root}"><div style="position:absolute;top:0;left:0;width:${lW}px;bottom:0;background:#0B1E35;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px"><img src="${logo}" width="80" height="80" alt="" style="display:block;width:80px;height:80px"><div style="text-align:center"><div style="font:800 19px/1 ${FF};letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 9.5px/1 ${FF};letter-spacing:.26em;color:#C89130;margin-top:7px">OPTICAL · BARBADOS</div></div><div style="font:400 12px/1 ${FF};letter-spacing:.09em;color:rgba(244,242,237,.45)">${web}</div></div><div style="position:absolute;top:0;left:${lW}px;width:5px;bottom:0;background:#C89130"></div><div style="position:absolute;top:0;left:${lW+5}px;right:0;bottom:0;display:flex;flex-direction:column;justify-content:flex-start;padding:${Math.round(h*0.11)}px ${Math.round(w*0.065)}px 0;box-sizing:border-box"><div style="width:60px;height:4px;background:${s.acc};margin-bottom:${Math.round(h*0.035*fit.body)}px"></div><div style="font:800 ${hlSz}px/0.95 ${FF};letter-spacing:-.03em;color:${s.txt};${headlineExtra};${this.clampTextStyle()}">${headline}</div>${body?`<div style="margin-top:${Math.round(h*0.026*fit.body)}px">${body}</div>`:''}${sub?`<div style="margin-top:${Math.round(h*0.028*fit.body)}px;font:400 ${subSz}px/1.35 ${FF};color:${s.sub};${this.clampTextStyle()}">${sub}</div>`:''} ${handle?`<div style="margin-top:${Math.round(h*0.035*fit.body)}px;font:600 ${Math.max(8, Math.round(h*0.018*fit.body))}px/1 ${FF};letter-spacing:.05em;color:${s.sub};${this.clampTextStyle()}">${handle}</div>`:''}</div><div style="position:absolute;top:0;left:0;right:0;height:5px;background:#C89130"></div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:#C89130"></div></div>`;
     }
     if (fk === 'whatsapp_status') {
-      const pad = 70, hlSz = Math.min(114, Math.round(w*0.102));
-      return `<div style="${root}"><div style="position:absolute;top:0;left:0;right:0;height:5px;background:${s.acc}"></div><div style="position:absolute;top:${pad}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:14px"><img src="${logo}" width="64" height="64" alt="" style="display:block;width:64px;height:64px"><div style="text-align:center"><div style="font:800 17px/1 ${FF};letter-spacing:.05em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 9px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:6px">OPTICAL · BARBADOS</div></div><div style="width:36px;height:2px;background:${s.acc};margin-top:6px"></div></div><div style="position:absolute;top:0;left:${pad}px;right:${pad}px;bottom:${Math.round(h*0.14)}px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font:800 ${hlSz}px/0.96 ${FF};letter-spacing:-.03em;color:${s.txt};text-align:center">${headline}</div>${sub?`<div style="margin-top:28px;font:400 26px/1.55 ${FF};color:${s.sub};text-align:center">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;padding:0 ${pad}px ${pad}px"><div style="height:1px;background:${s.sep};margin-bottom:24px"></div><div style="text-align:center;font:600 15px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="margin-top:12px;text-align:center;font:600 17px/1 ${FF};color:${s.sub}">${handle}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:${s.acc}"></div></div>`;
+      const pad = 70, hlSz = this.fitFont(Math.min(114, Math.round(w*0.102)), fit.head, 36);
+      const body = this.styleSocialBody(d.smBody, { base: 26, scale: fit.body, color: s.sub, strong: s.txt, accent: s.acc });
+      const subSz = this.fitFont(26, fit.body, 12);
+      return `<div style="${root}"><div style="position:absolute;top:0;left:0;right:0;height:5px;background:${s.acc}"></div><div style="position:absolute;top:${pad}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:14px"><img src="${logo}" width="64" height="64" alt="" style="display:block;width:64px;height:64px"><div style="text-align:center"><div style="font:800 17px/1 ${FF};letter-spacing:.05em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 9px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:6px">OPTICAL · BARBADOS</div></div><div style="width:36px;height:2px;background:${s.acc};margin-top:6px"></div></div><div style="position:absolute;top:${Math.round(h*0.22)}px;left:${pad}px;right:${pad}px;bottom:${Math.round(h*0.13)}px;display:flex;flex-direction:column;align-items:${hAlign==='left'?'flex-start':hAlign==='right'?'flex-end':'center'};justify-content:flex-start"><div style="font:800 ${hlSz}px/0.96 ${FF};letter-spacing:-.03em;color:${s.txt};${headlineExtra};${this.clampTextStyle()}">${headline}</div>${body?`<div style="margin-top:${Math.round(24*fit.body)}px;text-align:${hAlign}">${body}</div>`:''}${sub?`<div style="margin-top:${Math.round(24*fit.body)}px;font:400 ${subSz}px/1.35 ${FF};color:${s.sub};text-align:${hAlign};${this.clampTextStyle()}">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;padding:0 ${pad}px ${pad}px"><div style="height:1px;background:${s.sep};margin-bottom:24px"></div><div style="text-align:center;font:600 15px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="margin-top:12px;text-align:center;font:600 17px/1 ${FF};color:${s.sub};${this.clampTextStyle()}">${handle}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:${s.acc}"></div></div>`;
     }
     const pad=56, logoSz=46, topH=106, botH=70;
-    const hlSz = fk==='instagram' ? Math.min(90,Math.round(w*0.083)) : Math.min(68,Math.round(h*0.108));
-    const subSz = fk==='instagram' ? 21 : Math.round(h*0.033);
+    const hlSz = this.fitFont(fk==='instagram' ? Math.min(90,Math.round(w*0.083)) : Math.min(68,Math.round(h*0.108)), fit.head, fk==='instagram' ? 30 : 22);
+    const subSz = this.fitFont(fk==='instagram' ? 21 : Math.round(h*0.033), fit.body, 9);
     const isInsta = fk==='instagram';
     const leftPad = isInsta ? pad : pad+10;
     const leftAccent = isInsta ? '' : `<div style="position:absolute;top:0;left:0;width:6px;bottom:0;background:${s.acc}"></div>`;
     const topBar = isInsta ? `<div style="position:absolute;top:0;left:0;right:0;height:5px;background:${s.acc}"></div>` : '';
     const botBar = isInsta ? '' : `<div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:${s.acc}"></div>`;
-    return `<div style="${root}">${leftAccent}${topBar}<div style="position:absolute;top:0;left:${leftPad}px;right:${pad}px;height:${topH}px;display:flex;align-items:center"><div style="display:flex;align-items:center;gap:12px"><img src="${logo}" width="${logoSz}" height="${logoSz}" alt="" style="display:block;width:${logoSz}px;height:${logoSz}px;flex:none"><div><div style="font:800 16px/1 ${FF};letter-spacing:.04em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 8.5px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:5px">OPTICAL · BARBADOS</div></div></div></div><div style="position:absolute;top:${topH}px;left:${leftPad}px;right:${pad}px;height:2px;background:${s.acc}"></div><div style="position:absolute;top:${topH+2}px;left:${leftPad}px;right:${pad}px;bottom:${botH}px;display:flex;flex-direction:column;justify-content:center"><div style="font:800 ${hlSz}px/${hlSz>60?'0.96':'1.08'} ${FF};letter-spacing:-.03em;color:${s.txt}">${headline}</div>${sub?`<div style="margin-top:${Math.round(h*0.028)}px;font:400 ${subSz}px/1.55 ${FF};color:${s.sub}">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:${leftPad}px;right:${pad}px;height:${botH}px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid ${s.sep}"><div style="font:600 11.5px/1 ${FF};letter-spacing:.12em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="font:600 14px/1 ${FF};color:${s.sub}">${handle}</div>`:''}</div>${botBar}</div>`;
+    const body = this.styleSocialBody(d.smBody, { base: subSz, scale: 1, color: s.sub, strong: s.txt, accent: s.acc });
+    return `<div style="${root}">${leftAccent}${topBar}<div style="position:absolute;top:0;left:${leftPad}px;right:${pad}px;height:${topH}px;display:flex;align-items:center"><div style="display:flex;align-items:center;gap:12px"><img src="${logo}" width="${logoSz}" height="${logoSz}" alt="" style="display:block;width:${logoSz}px;height:${logoSz}px;flex:none"><div><div style="font:800 16px/1 ${FF};letter-spacing:.04em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 8.5px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:5px">OPTICAL · BARBADOS</div></div></div></div><div style="position:absolute;top:${topH}px;left:${leftPad}px;right:${pad}px;height:2px;background:${s.acc}"></div><div style="position:absolute;top:${topH+2}px;left:${leftPad}px;right:${pad}px;bottom:${botH}px;display:flex;flex-direction:column;justify-content:flex-start;padding-top:${Math.round(h*0.09)}px;box-sizing:border-box"><div style="font:800 ${hlSz}px/${hlSz>60?'0.96':'1.08'} ${FF};letter-spacing:-.03em;color:${s.txt};${headlineExtra};${this.clampTextStyle()}">${headline}</div>${body?`<div style="margin-top:${Math.round(h*0.02*fit.body)}px">${body}</div>`:''}${sub?`<div style="margin-top:${Math.round(h*0.022*fit.body)}px;font:400 ${subSz}px/1.35 ${FF};color:${s.sub};text-align:${hAlign};${this.clampTextStyle()}">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:${leftPad}px;right:${pad}px;height:${botH}px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid ${s.sep}"><div style="font:600 11.5px/1 ${FF};letter-spacing:.12em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="font:600 14px/1 ${FF};color:${s.sub};${this.clampTextStyle()}">${handle}</div>`:''}</div>${botBar}</div>`;
   };
   openSmFull = () => {
     const d = this.state, f = this.SM_FMTS[d.smFormat||'instagram'];
@@ -986,11 +1203,13 @@ class Component extends DCLogic {
   };
   savePost = () => {
     const name = prompt('Name this post:'); if (!name) return;
-    const fields = {}; ['smFormat','smStyle','smHeadline','smSub','smHandle'].forEach(x => { fields[x] = this.state[x]; });
+    this.syncActive();
+    const fields = { smBody: this.socialEditor ? this.socialEditor.innerHTML : this.state.smBody };
+    ['smFormat','smStyle','smHeadline','smHeadlineAlign','smHeadlineItalic','smSub','smHandle'].forEach(x => { fields[x] = this.state[x]; });
     this.setState(s => ({ smPostLib: [...(s.smPostLib||[]), { id: Date.now()+'', name, fields }] }), this.persist);
     this.toast('Post saved');
   };
-  loadPost = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded "' + it.name + '"'); };
+  loadPost = (it) => { this.setState({ smBody: '', ...it.fields }, () => { if (this.socialEditor) { this.socialEditor.innerHTML = this.state.smBody || ''; this.styleEditorImages(this.socialEditor); } this.persist(); }); this.toast('Loaded "' + it.name + '"'); };
 
   // ---------- view helpers ----------
   tabStyle = (active) => `padding:7px 16px;border:0;border-radius:7px;cursor:pointer;font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;background:${active ? '#F4F2ED' : 'transparent'};color:${active ? '#0B1E35' : '#cdd8e4'};transition:.15s`;
@@ -1049,30 +1268,33 @@ class Component extends DCLogic {
   // ---------- SHIPPING LABEL build ----------
   buildShippingLabel = () => {
     const d = this.state, esc = this.esc;
-    const box = (label, val) => val ? `<div style="margin-bottom:4px"><span style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C">${label}: </span><span style="font:400 13px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(val)}</span></div>` : '';
-    return `<div style="width:432px;font-family:'Plus Jakarta Sans',Arial,sans-serif;background:#fff;border:2px solid #0B1E35;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px -8px rgba(11,30,53,.25)">
-      <div style="background:#0B1E35;padding:14px 20px;display:flex;align-items:center;gap:12px">
+    const total = [d.slFromName,d.slFromAddr,d.slFromPhone,d.slToName,d.slToCompany,d.slToAddr,d.slToPhone,d.slCarrier,d.slService,d.slTracking,d.slWeight,d.slDims,d.slNote].join(' ');
+    const fit = this.fitScale(total, 520, .58);
+    const labelSz = this.fitFont(9, fit, 7), bodySz = this.fitFont(12, fit, 8), nameSz = this.fitFont(14, fit, 9), pad = this.fitFont(16, fit, 9);
+    const box = (label, val) => val ? `<div style="margin-bottom:${Math.max(2, Math.round(4*fit))}px"><span style="font:700 ${labelSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C">${label}: </span><span style="font:400 ${bodySz}px/1.38 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${esc(val)}</span></div>` : '';
+    return `<div style="width:432px;max-width:432px;font-family:'Plus Jakarta Sans',Arial,sans-serif;background:#fff;border:2px solid #0B1E35;border-radius:10px;overflow:visible;box-shadow:0 6px 24px -8px rgba(11,30,53,.25);box-sizing:border-box">
+      <div style="background:#0B1E35;padding:${Math.round(14*fit)}px 20px;display:flex;align-items:center;gap:12px">
         <img src="/ds/assets/logo_linen.svg" width="36" height="36" alt="" style="display:block;width:36px;height:36px">
-        <div><div style="font:800 13px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 8px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.26em;color:#C89130;margin-top:4px">OPTICAL · BARBADOS</div></div>
-        ${d.slCarrier || d.slService ? `<div style="margin-left:auto;text-align:right"><div style="font:700 13px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#F4F2ED">${esc(d.slCarrier)}</div><div style="font:400 11px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#8fa3b8">${esc(d.slService)}</div></div>` : ''}
+        <div><div style="font:800 ${this.fitFont(13, fit, 9)}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 ${this.fitFont(8, fit, 6)}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.22em;color:#C89130;margin-top:4px">OPTICAL · BARBADOS</div></div>
+        ${d.slCarrier || d.slService ? `<div style="margin-left:auto;text-align:right;max-width:145px"><div style="font:700 ${this.fitFont(13, fit, 8)}px/1.1 'Plus Jakarta Sans',Arial,sans-serif;color:#F4F2ED;${this.clampTextStyle()}">${esc(d.slCarrier)}</div><div style="font:400 ${this.fitFont(11, fit, 7)}px/1.25 'Plus Jakarta Sans',Arial,sans-serif;color:#8fa3b8;${this.clampTextStyle()}">${esc(d.slService)}</div></div>` : ''}
       </div>
       <div style="display:flex">
-        <div style="flex:1;padding:16px 20px;border-right:1px solid #e7e4db">
-          <div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">From</div>
-          <div style="font:600 13px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.slFromName)}</div>
-          <div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap">${esc(d.slFromAddr)}</div>
+        <div style="flex:1;min-width:0;padding:${pad}px 20px;border-right:1px solid #e7e4db">
+          <div style="font:700 ${labelSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:${Math.round(8*fit)}px">From</div>
+          <div style="font:600 ${this.fitFont(13, fit, 8)}px/1.35 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${esc(d.slFromName)}</div>
+          <div style="font:400 ${bodySz}px/1.38 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap;${this.clampTextStyle()}">${esc(d.slFromAddr)}</div>
           ${box('Tel', d.slFromPhone)}
         </div>
-        <div style="flex:1;padding:16px 20px">
-          <div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#0B1E35;margin-bottom:8px">Ship to</div>
-          <div style="font:700 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.slToName)}</div>
-          ${d.slToCompany ? `<div style="font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f">${esc(d.slToCompany)}</div>` : ''}
-          <div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap">${esc(d.slToAddr)}</div>
+        <div style="flex:1;min-width:0;padding:${pad}px 20px">
+          <div style="font:700 ${labelSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#0B1E35;margin-bottom:${Math.round(8*fit)}px">Ship to</div>
+          <div style="font:700 ${nameSz}px/1.25 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${esc(d.slToName)}</div>
+          ${d.slToCompany ? `<div style="font:600 ${this.fitFont(12.5, fit, 8)}px/1.25 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;${this.clampTextStyle()}">${esc(d.slToCompany)}</div>` : ''}
+          <div style="font:400 ${bodySz}px/1.38 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap;${this.clampTextStyle()}">${esc(d.slToAddr)}</div>
           ${box('Tel', d.slToPhone)}
         </div>
       </div>
-      ${d.slTracking ? `<div style="padding:10px 20px;background:#f7f5ef;border-top:1px solid #e7e4db;display:flex;align-items:center;gap:12px"><div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C">Tracking</div><div style="font:700 14px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;letter-spacing:.04em">${esc(d.slTracking)}</div></div>` : ''}
-      ${d.slWeight || d.slDims || d.slNote ? `<div style="padding:10px 20px;border-top:1px solid #e7e4db;display:flex;gap:20px;align-items:center">${box('Weight', d.slWeight)}${box('Dims', d.slDims)}${d.slNote?`<div style="margin-left:auto;font:600 11px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#C89130;font-style:italic">${esc(d.slNote)}</div>`:''}</div>` : ''}
+      ${d.slTracking ? `<div style="padding:${Math.round(10*fit)}px 20px;background:#f7f5ef;border-top:1px solid #e7e4db;display:flex;align-items:center;gap:12px"><div style="font:700 ${labelSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C">Tracking</div><div style="font:700 ${this.fitFont(14, fit, 9)}px/1.15 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;letter-spacing:.03em;${this.clampTextStyle()}">${esc(d.slTracking)}</div></div>` : ''}
+      ${d.slWeight || d.slDims || d.slNote ? `<div style="padding:${Math.round(10*fit)}px 20px;border-top:1px solid #e7e4db;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">${box('Weight', d.slWeight)}${box('Dims', d.slDims)}${d.slNote?`<div style="margin-left:auto;max-width:100%;font:600 ${this.fitFont(11, fit, 7)}px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#C89130;font-style:italic;${this.clampTextStyle()}">${esc(d.slNote)}</div>`:''}</div>` : ''}
     </div>`;
   };
 
@@ -1081,37 +1303,39 @@ class Component extends DCLogic {
     const d = this.state, b = this.brand(), esc = this.esc;
     const cur = d.stCurrency || 'BBD';
     const rows = d.stRows || [];
+    const fit = Math.max(.55, Math.min(1, this.fitScale([d.stCustomer,d.stAccount,d.stAddr,d.stFrom,d.stTo,d.stNote].join(' '), 520, .72) * Math.sqrt(12 / Math.max(6, rows.length || 1))));
+    const cellSz = this.fitFont(12.5, fit, 8), headSz = this.fitFont(10, fit, 7), padY = Math.max(5, Math.round(9 * fit)), padX = Math.max(8, Math.round(16 * fit));
     let bal = parseFloat(d.stOpenBal) || 0;
-    let rowsHtml = `<tr style="background:#f7f5ef"><td colspan="4" style="padding:10px 16px;font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Opening balance</td><td style="padding:10px 16px;font:700 13px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right">${cur} ${bal.toFixed(2)}</td></tr>`;
+    let rowsHtml = `<tr style="background:#f7f5ef"><td colspan="4" style="padding:${padY}px ${padX}px;font:600 ${cellSz}px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;${this.clampTextStyle()}">Opening balance</td><td style="padding:${padY}px ${padX}px;font:700 ${this.fitFont(13, fit, 8)}px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;${this.clampTextStyle()}">${cur} ${bal.toFixed(2)}</td></tr>`;
     rows.forEach((r, i) => {
       const debit = parseFloat(r.debit) || 0;
       const credit = parseFloat(r.credit) || 0;
       bal += debit - credit;
-      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}"><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;border-bottom:1px solid #f0ede6">${esc(r.date)}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.desc)}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${r.debit?'#c0392b':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6">${r.debit?cur+' '+parseFloat(r.debit).toFixed(2):''}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${r.credit?'#389457':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6">${r.credit?cur+' '+parseFloat(r.credit).toFixed(2):''}</td><td style="padding:9px 16px;font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6">${cur} ${bal.toFixed(2)}</td></tr>`;
+      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}"><td style="padding:${padY}px ${padX}px;font:400 ${cellSz}px/1.28 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;border-bottom:1px solid #f0ede6;${this.clampTextStyle()}">${esc(r.date)}</td><td style="padding:${padY}px ${padX}px;font:400 ${cellSz}px/1.28 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;border-bottom:1px solid #f0ede6;${this.clampTextStyle()}">${esc(r.desc)}</td><td style="padding:${padY}px ${padX}px;font:400 ${cellSz}px/1.28 'Plus Jakarta Sans',Arial,sans-serif;color:${r.debit?'#c0392b':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;${this.clampTextStyle()}">${r.debit?cur+' '+parseFloat(r.debit).toFixed(2):''}</td><td style="padding:${padY}px ${padX}px;font:400 ${cellSz}px/1.28 'Plus Jakarta Sans',Arial,sans-serif;color:${r.credit?'#389457':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;${this.clampTextStyle()}">${r.credit?cur+' '+parseFloat(r.credit).toFixed(2):''}</td><td style="padding:${padY}px ${padX}px;font:600 ${cellSz}px/1.28 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6;${this.clampTextStyle()}">${cur} ${bal.toFixed(2)}</td></tr>`;
     });
     return `<div style="width:700px;max-width:700px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif">
-      <div style="padding:44px 52px 0">
+      <div style="padding:${Math.round(44*fit)}px 52px 0">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
           <td style="vertical-align:top">${this.lockup('light',{big:true})}</td>
           <td style="vertical-align:top;text-align:right">
-            <div style="font:800 18px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">CUSTOMER STATEMENT</div>
-            <div style="font:400 12px/1.8 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:6px">${d.stFrom && d.stTo ? esc(d.stFrom)+' – '+esc(d.stTo) : esc(d.stFrom||d.stTo)}</div>
+            <div style="font:800 ${this.fitFont(18, fit, 11)}px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">CUSTOMER STATEMENT</div>
+            <div style="font:400 ${this.fitFont(12, fit, 8)}px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:6px;${this.clampTextStyle()}">${d.stFrom && d.stTo ? esc(d.stFrom)+' - '+esc(d.stTo) : esc(d.stFrom||d.stTo)}</div>
           </td>
         </tr></table>
         <div style="height:2px;background:#C89130;margin:20px 0 0"></div>
       </div>
-      <div style="padding:20px 52px 0;display:flex;gap:40px">
-        <div><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account</div><div style="font:600 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.stCustomer)}</div>${d.stAccount?`<div style="font:400 12px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Acct: ${esc(d.stAccount)}</div>`:''}<div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap">${esc(d.stAddr)}</div></div>
-        <div style="margin-left:auto;text-align:right"><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Balance due</div><div style="font:800 26px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${cur} ${bal.toFixed(2)}</div></div>
+      <div style="padding:${Math.round(20*fit)}px 52px 0;display:flex;gap:40px">
+        <div style="min-width:0;max-width:430px"><div style="font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account</div><div style="font:600 ${this.fitFont(14, fit, 9)}px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${esc(d.stCustomer)}</div>${d.stAccount?`<div style="font:400 ${this.fitFont(12, fit, 8)}px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;${this.clampTextStyle()}">Acct: ${esc(d.stAccount)}</div>`:''}<div style="font:400 ${this.fitFont(12, fit, 8)}px/1.38 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap;${this.clampTextStyle()}">${esc(d.stAddr)}</div></div>
+        <div style="margin-left:auto;text-align:right;min-width:150px"><div style="font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Balance due</div><div style="font:800 ${this.fitFont(26, fit, 15)}px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;${this.clampTextStyle()}">${cur} ${bal.toFixed(2)}</div></div>
       </div>
       <div style="padding:22px 52px 0">
         <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:10px;overflow:hidden">
-          <thead><tr style="background:#0B1E35"><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Date</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c0392b;text-align:right">Debit</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#C89130;text-align:right">Credit</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:right">Balance</th></tr></thead>
+          <thead><tr style="background:#0B1E35"><th style="padding:${Math.round(10*fit)}px ${padX}px;font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Date</th><th style="padding:${Math.round(10*fit)}px ${padX}px;font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th><th style="padding:${Math.round(10*fit)}px ${padX}px;font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c0392b;text-align:right">Debit</th><th style="padding:${Math.round(10*fit)}px ${padX}px;font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Credit</th><th style="padding:${Math.round(10*fit)}px ${padX}px;font:700 ${headSz}px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:right">Balance</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>
-      ${d.stNote?`<div style="padding:14px 52px 0;font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;font-style:italic">${esc(d.stNote)}</div>`:''}
-      <div style="padding:34px 52px 44px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
+      ${d.stNote?`<div style="padding:${Math.round(14*fit)}px 52px 0;font:400 ${this.fitFont(12, fit, 8)}px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;font-style:italic;${this.clampTextStyle()}">${esc(d.stNote)}</div>`:''}
+      <div style="padding:${Math.round(34*fit)}px 52px ${Math.round(44*fit)}px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 ${this.fitFont(11, fit, 7)}px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;${this.clampTextStyle()}">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
     </div>`;
   };
 
@@ -1177,16 +1401,20 @@ class Component extends DCLogic {
       hasSigLib: sigLib.length > 0, noSigLib: sigLib.length === 0,
       hasSnippets: snippetItems.length > 0,
       sgLogo: d.sgLogo, toggleLogo: this.toggleLogo,
-      setEmailEditor: this.setEmailEditor, setLetterEditor: this.setLetterEditor,
-      onEmailInput: this.onEmailInput, onLetterInput: this.onLetterInput,
-      onEmailPaste: this.onEmailPaste, onLetterPaste: this.onLetterPaste,
-      fmtBold: this.fmtBold, fmtItalic: this.fmtItalic, fmtH2: this.fmtH2, fmtUL: this.fmtUL, fmtLink: this.fmtLink,
+      setEmailEditor: this.setEmailEditor, setLetterEditor: this.setLetterEditor, setSocialEditor: this.setSocialEditor,
+      onEmailInput: this.onEmailInput, onLetterInput: this.onLetterInput, onSocialInput: this.onSocialInput,
+      onEmailPaste: this.onEmailPaste, onLetterPaste: this.onLetterPaste, onSocialPaste: this.onSocialPaste,
+      fmtBold: this.fmtBold, fmtItalic: this.fmtItalic, fmtP: this.fmtP, fmtH2: this.fmtH2, fmtUL: this.fmtUL, fmtLink: this.fmtLink,
+      fmtCenter: this.fmtCenter, fmtJustify: this.fmtJustify,
+      fmtImgSmaller: this.fmtImgSmaller, fmtImgLarger: this.fmtImgLarger, fmtImgRound: this.fmtImgRound, fmtImgShadow: this.fmtImgShadow,
+      onEditorClick: this.onEditorClick,
       saveSnippet: this.saveSnippet, saveEmail: this.saveEmail, saveLetter: this.saveLetter, saveSig: this.saveSig,
       toolBtn: "width:32px;height:30px;border:1px solid #d9d7cf;border-radius:6px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer",
       smFormatOpts, smStyleOpts, smPostLib, savePost: this.savePost, openSmFull: this.openSmFull,
       hasSmPostLib: smPostLib.length > 0, noSmPostLib: smPostLib.length === 0,
       smHeadlineV: d.smHeadline ?? '', smSubV: d.smSub ?? '', smHandleV: d.smHandle ?? '',
       smHeadlineOn: (e) => this.set('smHeadline', e.target.value), smSubOn: (e) => this.set('smSub', e.target.value), smHandleOn: (e) => this.set('smHandle', e.target.value),
+      smHeadlineItalicToggle: this.smHeadlineItalicToggle, smHeadlineLeft: this.smHeadlineLeft, smHeadlineCenter: this.smHeadlineCenter, smHeadlineRight: this.smHeadlineRight,
       plCurrencyOpts: this.seg('plCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
       plRowViews: (d.plRows || []).map((r, i) => ({
         code: r.code, desc: r.desc, price: r.price,
