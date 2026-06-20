@@ -117,7 +117,7 @@ async function boot() {
     fetch('/api/v2/overrides').then(r => r.json()).catch(() => ({ combos: [], suppliers: {} })),
     fetch('/api/v2/sources').then(r => r.json()).catch(() => ({ sources: [], live: [] })),
   ]);
-  combos = cb;
+  combos = Array.isArray(cb) ? cb : [];
   comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
   customers = Array.isArray(cs) ? cs : [];
   overrides = ov && ov.combos ? ov : { combos: [], suppliers: {} };

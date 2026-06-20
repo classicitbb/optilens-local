@@ -11,8 +11,7 @@
   <script src="react.production.min.js"></script>
   <script src="react-dom.production.min.js"></script>
   <script src="support.js"></script>
-  <style>
-    <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
+  <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
   <style>
     html,body{margin:0;height:100%;background:#e9e5da;font-family:'Plus Jakarta Sans',sans-serif}
     [contenteditable]:empty:before{content:attr(data-ph);color:#a7aeb6}
@@ -20,13 +19,15 @@
     .cv-in:focus{border-color:#1A8A9C !important;box-shadow:0 0 0 3px rgba(26,138,156,.12)}
     .cv-scroll::-webkit-scrollbar{width:10px;height:10px}
     .cv-scroll::-webkit-scrollbar-thumb{background:#cdc8ba;border-radius:8px;border:3px solid transparent;background-clip:content-box}
-  </style>
     /* Embedded mode: fill the iframe, no outer shell */
     body.embedded { margin:0; height:100vh; overflow:hidden; background:#e9e5da; }
     body.embedded #dc-root, body.embedded #dc-root>.sc-host { height:100% !important; }
     /* Tab bar for the 7-tab layout */
     .ds-topbar { display:none }
     body:not(.embedded) .ds-topbar { display:flex }
+    /* In embedded mode the runtime re-renders the compact tab bar with an inline
+       display:none, so force it visible here (overrides inline style). */
+    body.embedded #embedded-tabbar { display:flex !important; }
   </style>
 </head>
 <body>
@@ -188,7 +189,7 @@
           </div>
           <div>
             <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Disclaimer / privacy notice</div>
-            <textarea class="cv-in" onChange="{{ f.emDisclaimer.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 12.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical;transition:.15s">{{ f.emDisclaimer.v }}</textarea>
+            <textarea class="cv-in" value="{{ f.emDisclaimer.v }}" onChange="{{ f.emDisclaimer.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 12.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical;transition:.15s"></textarea>
           </div>
         </div>
 
@@ -239,7 +240,7 @@
         </sc-if>
 
         <sc-if value="{{ isBizColl }}" hint-placeholder-val="{{ false }}">
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Recipient</div><textarea class="cv-in" onChange="{{ f.ltRecipient.on }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.ltRecipient.v }}</textarea></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Recipient</div><textarea class="cv-in" value="{{ f.ltRecipient.v }}" onChange="{{ f.ltRecipient.on }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
         </sc-if>
 
         <sc-if value="{{ showSubject }}" hint-placeholder-val="{{ false }}">
@@ -373,7 +374,7 @@
 
         <div>
           <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Headline</div>
-          <textarea class="cv-in" onChange="{{ smHeadlineOn }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:700 14px/1.45 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ smHeadlineV }}</textarea>
+          <textarea class="cv-in" value="{{ smHeadlineV }}" onChange="{{ smHeadlineOn }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:700 14px/1.45 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea>
           <div style="margin-top:5px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#a7a596">Keep it short — 3 to 7 words works best.</div>
         </div>
 
@@ -439,7 +440,7 @@
           </sc-for>
           <button onClick="{{ addPlRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add item</button>
         </div>
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note — optional</div><textarea class="cv-in" onChange="{{ f.plNote.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.plNote.v }}</textarea></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note — optional</div><textarea class="cv-in" value="{{ f.plNote.v }}" onChange="{{ f.plNote.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
       </div>
       </sc-if>
 
@@ -448,12 +449,12 @@
       <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:16px">
         <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">From</div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Name</div><input class="cv-in" value="{{ f.slFromName.v }}" onChange="{{ f.slFromName.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
-        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" onChange="{{ f.slFromAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.slFromAddr.v }}</textarea></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" value="{{ f.slFromAddr.v }}" onChange="{{ f.slFromAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Phone</div><input class="cv-in" value="{{ f.slFromPhone.v }}" onChange="{{ f.slFromPhone.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Ship to</div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Recipient name</div><input class="cv-in" value="{{ f.slToName.v }}" onChange="{{ f.slToName.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Company</div><input class="cv-in" value="{{ f.slToCompany.v }}" onChange="{{ f.slToCompany.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
-        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" onChange="{{ f.slToAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.slToAddr.v }}</textarea></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" value="{{ f.slToAddr.v }}" onChange="{{ f.slToAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Phone</div><input class="cv-in" value="{{ f.slToPhone.v }}" onChange="{{ f.slToPhone.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Courier</div>
         <div style="display:flex;gap:11px">
@@ -477,7 +478,7 @@
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account #</div><input class="cv-in" value="{{ f.stAccount.v }}" onChange="{{ f.stAccount.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div><div style="display:flex;gap:7px"><sc-for list="{{ stCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div>
         </div>
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer address</div><textarea class="cv-in" onChange="{{ f.stAddr.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.stAddr.v }}</textarea></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer address</div><textarea class="cv-in" value="{{ f.stAddr.v }}" onChange="{{ f.stAddr.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
         <div style="display:flex;gap:11px">
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period from</div><input class="cv-in" value="{{ f.stFrom.v }}" onChange="{{ f.stFrom.on }}" placeholder="1 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period to</div><input class="cv-in" value="{{ f.stTo.v }}" onChange="{{ f.stTo.on }}" placeholder="30 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
@@ -535,13 +536,6 @@
     </div>
 
   </div>
-
-  <sc-if value="{{ copied }}" hint-placeholder-val="">
-    <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0B1E35;color:#F4F2ED;padding:12px 22px;border-radius:11px;font:600 13px/1 'Plus Jakarta Sans',sans-serif;box-shadow:0 12px 34px rgba(11,30,53,.35);z-index:60">{{ copied }}</div>
-  </sc-if>
-
-</div>
-</x-dc>
 
   <sc-if value="{{ copied }}" hint-placeholder-val="">
     <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0B1E35;color:#F4F2ED;padding:12px 22px;border-radius:11px;font:600 13px/1 'Plus Jakarta Sans',sans-serif;box-shadow:0 12px 34px rgba(11,30,53,.35);z-index:60">{{ copied }}</div>

@@ -769,7 +769,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    writeSecurityHeaders(res);
+    writeSecurityHeaders(res, url.pathname);
     res.writeHead(200, {
       "Content-Type": mimeTypes[ext] || "application/octet-stream",
       "Cache-Control": "no-store"
@@ -971,14 +971,21 @@ function isSecureRequest(req) {
   return req.headers["x-forwarded-proto"] === "https" || req.socket.encrypted;
 }
 
-function writeSecurityHeaders(res) {
+function writeSecurityHeaders(res, pathname = "") {
+  // CSP scoped per-path: /ds/ assets get 'unsafe-eval' for the Doc Studio runtime.
   res.setHeader("X-Content-Type-Options", "nosniff");
   // SAMEORIGIN allows the doc-studio iframe (/ds/studio.html) to load within the same origin
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "no-referrer");
+  // The embedded Doc Studio runtime (/ds/support.js) compiles component logic classes
+  // with new Function(), which requires 'unsafe-eval'. Scope that relaxation to /ds/
+  // assets only so the rest of the platform keeps the stricter policy.
+  const scriptSrc = pathname.startsWith("/ds/")
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'";
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'self'"
+    `default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ${scriptSrc}; base-uri 'self'; frame-ancestors 'self'`
   );
 }
 
