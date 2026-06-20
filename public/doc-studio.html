@@ -11,6 +11,11 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    body.module-body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .module-main { flex:1; min-height:0; padding:0 !important; display:flex; flex-direction:column; }
+    .ds-frame { flex:1; border:none; width:100%; min-height:0; display:block; }
+  </style>
 </head>
 <body class="module-body">
 
@@ -53,86 +58,15 @@
   </header>
 
   <main class="module-main">
-    <section class="module-workspace">
-      <div class="module-title">
-        <div>
-          <p class="eyebrow">Branded documents</p>
-          <h1>Doc Studio</h1>
-        </div>
-        <span class="badge planned">Planned</span>
-      </div>
-
-      <nav class="workflow-tabs" aria-label="Doc Studio tabs">
-        <button class="active" type="button" data-tab="templates">Templates</button>
-        <button type="button" data-tab="pricelists">Price lists</button>
-        <button type="button" data-tab="letters">Letters &amp; emails</button>
-        <button type="button" data-tab="archive">Archive</button>
-      </nav>
-
-      <section class="workflow-panel active" id="templates">
-        <div class="capability-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 4px;">
-          <article>
-            <span class="icon" style="background:#1A8A9C">📄</span>
-            <h3>Price list</h3>
-            <p>Branded price lists generated from live pricing data. ClassicVisions design system applied automatically.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#C89130">📃</span>
-            <h3>Commercial invoice</h3>
-            <p>Export-ready commercial invoice template pre-filled from the Delivery and Export workbench.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#389457">📋</span>
-            <h3>Certificate of origin</h3>
-            <p>CO template with country, HS codes, and shipment metadata pulled from the export workflow.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#7c3aed">✉</span>
-            <h3>Post-call email</h3>
-            <p>Branded follow-up email generator for sales calls — includes invite, price list, and bank info bundles.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#0B1E35">🏷</span>
-            <h3>Shipping label</h3>
-            <p>Courier-ready shipping labels generated from validated shipment data.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#b45309">📊</span>
-            <h3>Customer statement</h3>
-            <p>Account summary document for customer-facing communication, branded with ClassicVisions guidelines.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-        </div>
-      </section>
-
-      <section class="workflow-panel" id="pricelists">
-        <div class="placeholder-pane">Price list generation will connect to the Pricing Automation module and apply ClassicVisions branding. Output formats: PDF, DOCX, XLSX.</div>
-      </section>
-
-      <section class="workflow-panel" id="letters">
-        <div class="placeholder-pane">Letter and email templates with merge fields populated from customer and shipment records. Connects to the post-call email generator project.</div>
-      </section>
-
-      <section class="workflow-panel" id="archive">
-        <div class="placeholder-pane">Previously generated documents stored by customer folder. Searchable by date, type, and customer account.</div>
-      </section>
-    </section>
+    <iframe
+      class="ds-frame"
+      src="/ds/studio.html?embedded=1"
+      title="Doc Studio"
+      allow="clipboard-write"
+    ></iframe>
   </main>
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
-  <script>
-    document.querySelectorAll(".workflow-tabs button").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
-        document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
-      });
-    });
-  </script>
 </body>
 </html>

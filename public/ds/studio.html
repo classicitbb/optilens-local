@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Doc Studio — Classic Visions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
+  <script src="react.production.min.js"></script>
+  <script src="react-dom.production.min.js"></script>
+  <script src="support.js"></script>
+  <style>
+    <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
+  <style>
+    html,body{margin:0;height:100%;background:#e9e5da;font-family:'Plus Jakarta Sans',sans-serif}
+    [contenteditable]:empty:before{content:attr(data-ph);color:#a7aeb6}
+    [contenteditable]:focus{border-color:#1A8A9C !important}
+    .cv-in:focus{border-color:#1A8A9C !important;box-shadow:0 0 0 3px rgba(26,138,156,.12)}
+    .cv-scroll::-webkit-scrollbar{width:10px;height:10px}
+    .cv-scroll::-webkit-scrollbar-thumb{background:#cdc8ba;border-radius:8px;border:3px solid transparent;background-clip:content-box}
+  </style>
+    /* Embedded mode: fill the iframe, no outer shell */
+    body.embedded { margin:0; height:100vh; overflow:hidden; background:#e9e5da; }
+    body.embedded #dc-root, body.embedded #dc-root>.sc-host { height:100% !important; }
+    /* Tab bar for the 7-tab layout */
+    .ds-topbar { display:none }
+    body:not(.embedded) .ds-topbar { display:flex }
+  </style>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;height:100vh;background:#e9e5da">
+
+  <!-- TOP BAR (hidden when embedded) -->
+  <div class="ds-topbar" style="height:58px;flex:none;align-items:center;justify-content:space-between;padding:0 22px;box-shadow:0 2px 14px rgba(11,30,53,.3);position:relative;z-index:6;background-color:#173d6bcf">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="assets/logo_linen.svg" alt="Classic Visions" style="width:34px;height:34px">
+      <div>
+        <div style="font:800 14px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.05em;color:#F4F2ED">CLASSIC VISIONS</div>
+        <div style="font:700 8.5px/1.4 'Plus Jakarta Sans',sans-serif;letter-spacing:.28em;color:#C89130;margin-top:3px">DOCUMENT STUDIO</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;background:rgba(255,255,255,.07);padding:5px;border-radius:11px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;justify-content:flex-end">
+      <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cdd8e4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+
+    <sc-if value="{{ brandOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toggleBrand }}" style="position:fixed;inset:0;z-index:30"></div>
+      <div style="position:absolute;top:52px;right:14px;width:300px;z-index:40;background:linear-gradient(155deg,#fdfcf9 0%,#f1ebdd 100%);border:1px solid #e2dccc;border-radius:16px;box-shadow:0 24px 60px -16px rgba(11,30,53,.45);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px">
+          <span style="font:800 15px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Brand details</span>
+          <button onClick="{{ toggleBrand }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
+        </div>
+        <div class="cv-scroll" style="padding:0 18px 18px;display:flex;flex-direction:column;gap:13px;max-height:calc(100vh - 120px);overflow:auto">
+          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="5">
+            <div>
+              <div style="font:600 12px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:6px">{{ bf.label }}</div>
+              <input class="cv-in" value="{{ bf.v }}" onChange="{{ bf.on }}" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d9d7cf;border-radius:9px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- EMBEDDED TAB BAR (only when iframe, shown via JS) -->
+  <div id="embedded-tabbar" style="display:none;height:48px;flex:none;align-items:center;background:#0B1E35;padding:0 16px;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cdd8e4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+
+    <sc-if value="{{ brandOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toggleBrand }}" style="position:fixed;inset:0;z-index:30"></div>
+      <div style="position:absolute;top:52px;right:14px;width:300px;z-index:40;background:linear-gradient(155deg,#fdfcf9 0%,#f1ebdd 100%);border:1px solid #e2dccc;border-radius:16px;box-shadow:0 24px 60px -16px rgba(11,30,53,.45);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px">
+          <span style="font:800 15px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Brand details</span>
+          <button onClick="{{ toggleBrand }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
+        </div>
+        <div class="cv-scroll" style="padding:0 18px 18px;display:flex;flex-direction:column;gap:13px;max-height:calc(100vh - 120px);overflow:auto">
+          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="5">
+            <div>
+              <div style="font:600 12px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:6px">{{ bf.label }}</div>
+              <input class="cv-in" value="{{ bf.v }}" onChange="{{ bf.on }}" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d9d7cf;border-radius:9px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ===== WORKSPACE ===== -->
+  <div style="flex:1;min-height:0;display:flex">
+
+    <!-- ====== LEFT: CONTROLS ====== -->
+    <div class="cv-scroll" style="width:396px;flex:none;background:#fff;border-right:1px solid #e7e4db;overflow:auto">
+
+      <!-- ---------- EMAIL ---------- -->
+      <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:20px">
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Header style</div>
+          <div style="display:flex;gap:7px">
+            <sc-for list="{{ emHeaderOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Eyebrow</div>
+            <input class="cv-in" value="{{ f.emEyebrow.v }}" onChange="{{ f.emEyebrow.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Headline</div>
+            <input class="cv-in" value="{{ f.emHeading.v }}" onChange="{{ f.emHeading.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 14px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body content</span>
+            <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:8px">
+            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
+            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ fmtH2 }}" style="width: 58px; padding: 0 9px; height: 29px">H2</button>
+            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
+            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
+          </div>
+          <div ref="{{ setEmailEditor }}" contentEditable="true" data-ph="Paste your blog post or type here — it picks up the house style automatically." onInput="{{ onEmailInput }}" onPaste="{{ onEmailPaste }}" class="cv-scroll" style="min-height:210px;max-height:330px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
+        </div>
+
+        <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Saved snippets</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ snippetItems }}" as="s" hint-placeholder-count="0">
+              <span style="display:inline-flex;align-items:center;background:#f3f1ea;border:1px solid #e3e0d6;border-radius:999px;padding:3px 5px 3px 11px">
+                <button onClick="{{ s.insert }}" style="background:none;border:0;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ s.label }}</button>
+                <button onClick="{{ s.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:13px;padding:2px 5px;line-height:1">×</button>
+              </span>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <div style="display:flex;gap:11px">
+          <div style="flex:1.4">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Button label</div>
+            <input class="cv-in" value="{{ f.emCta.v }}" onChange="{{ f.emCta.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+          <div style="flex:1">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Link</div>
+            <input class="cv-in" value="{{ f.emCtaUrl.v }}" onChange="{{ f.emCtaUrl.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Hero image URL — optional</div>
+          <input class="cv-in" value="{{ f.emHeroUrl.v }}" onChange="{{ f.emHeroUrl.on }}" placeholder="https://…" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px;display:flex;flex-direction:column;gap:13px">
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Footer style</div>
+            <div style="display:flex;gap:7px">
+              <sc-for list="{{ emFooterOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for>
+            </div>
+          </div>
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Preview text (inbox preheader)</div>
+            <input class="cv-in" value="{{ f.emPreheader.v }}" onChange="{{ f.emPreheader.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer tagline</div>
+            <input class="cv-in" value="{{ f.emTagline.v }}" onChange="{{ f.emTagline.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
+          </div>
+          <div>
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Disclaimer / privacy notice</div>
+            <textarea class="cv-in" onChange="{{ f.emDisclaimer.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 12.5px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical;transition:.15s">{{ f.emDisclaimer.v }}</textarea>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved templates</span>
+            <button onClick="{{ saveEmail }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save current</button>
+          </div>
+          <sc-if value="{{ hasEmailLib }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ emailLib }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:4px 4px 4px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;text-align:left;background:none;border:0;font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ it.name }}</button>
+                  <button onClick="{{ it.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noEmailLib }}" hint-placeholder-val="{{ false }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved templates yet.</div></sc-if>
+        </div>
+
+      </div>
+      </sc-if>
+
+      <!-- ---------- LETTERHEAD ---------- -->
+      <sc-if value="{{ isLetter }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:20px">
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Document type</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ docTypeOpts }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ isMemo }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div style="display:flex;gap:11px">
+            <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">To</div><input class="cv-in" value="{{ f.ltTo.v }}" onChange="{{ f.ltTo.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">From</div><input class="cv-in" value="{{ f.ltFrom.v }}" onChange="{{ f.ltFrom.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+          <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Re</div><input class="cv-in" value="{{ f.ltRe.v }}" onChange="{{ f.ltRe.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isAnnounce }}" hint-placeholder-val="{{ false }}">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Eyebrow</div><input class="cv-in" value="{{ f.ltEyebrow.v }}" onChange="{{ f.ltEyebrow.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </sc-if>
+
+        <sc-if value="{{ isBizColl }}" hint-placeholder-val="{{ false }}">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Recipient</div><textarea class="cv-in" onChange="{{ f.ltRecipient.on }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.ltRecipient.v }}</textarea></div>
+        </sc-if>
+
+        <sc-if value="{{ showSubject }}" hint-placeholder-val="{{ false }}">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">{{ subjectLabel }}</div><input class="cv-in" value="{{ f.ltSubject.v }}" onChange="{{ f.ltSubject.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </sc-if>
+
+        <sc-if value="{{ isCollection }}" hint-placeholder-val="{{ false }}">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Amount due</div><input class="cv-in" value="{{ f.ltAmount.v }}" onChange="{{ f.ltAmount.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </sc-if>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body</span>
+            <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:8px">
+            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
+            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
+            <button onClick="{{ fmtH2 }}" style="{{ toolBtn }};width:auto;padding:0 9px">H2</button>
+            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
+            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
+          </div>
+          <div ref="{{ setLetterEditor }}" contentEditable="true" data-ph="Write or paste the letter body here…" onInput="{{ onLetterInput }}" onPaste="{{ onLetterPaste }}" class="cv-scroll" style="min-height:200px;max-height:320px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+
+        <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Saved snippets</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ snippetItems }}" as="s" hint-placeholder-count="0">
+              <span style="display:inline-flex;align-items:center;background:#f3f1ea;border:1px solid #e3e0d6;border-radius:999px;padding:3px 5px 3px 11px">
+                <button onClick="{{ s.insert }}" style="background:none;border:0;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ s.label }}</button>
+                <button onClick="{{ s.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:13px;padding:2px 5px;line-height:1">×</button>
+              </span>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ notMemo }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Sign-off name</div><input class="cv-in" value="{{ f.ltSignName.v }}" onChange="{{ f.ltSignName.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Title</div><input class="cv-in" value="{{ f.ltSignTitle.v }}" onChange="{{ f.ltSignTitle.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        </sc-if>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Date</div>
+          <input class="cv-in" value="{{ f.ltDate.v }}" onChange="{{ f.ltDate.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved letterheads</span>
+            <button onClick="{{ saveLetter }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save current</button>
+          </div>
+          <sc-if value="{{ hasLetterLib }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ letterLib }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:4px 4px 4px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;text-align:left;background:none;border:0;font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ it.name }}</button>
+                  <button onClick="{{ it.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noLetterLib }}" hint-placeholder-val="{{ false }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved letterheads yet.</div></sc-if>
+        </div>
+
+      </div>
+      </sc-if>
+
+      <!-- ---------- SIGNATURE ---------- -->
+      <sc-if value="{{ isSig }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Full name</div><input class="cv-in" value="{{ f.sgName.v }}" onChange="{{ f.sgName.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 14px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Position / title</div><input class="cv-in" value="{{ f.sgTitle.v }}" onChange="{{ f.sgTitle.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Phone / mobile</div><input class="cv-in" value="{{ f.sgPhone.v }}" onChange="{{ f.sgPhone.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Email</div><input class="cv-in" value="{{ f.sgEmail.v }}" onChange="{{ f.sgEmail.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Website</div><input class="cv-in" value="{{ f.sgWeb.v }}" onChange="{{ f.sgWeb.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Tagline / hours line — optional</div><input class="cv-in" value="{{ f.sgTagline.v }}" onChange="{{ f.sgTagline.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin-top:2px">
+          <input type="checkbox" checked="{{ sgLogo }}" onChange="{{ toggleLogo }}" style="width:16px;height:16px;accent-color:#1A8A9C">
+          <span style="font:600 13px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Show logo</span>
+        </label>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved signatures</span>
+            <button onClick="{{ saveSig }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save person</button>
+          </div>
+          <sc-if value="{{ hasSigLib }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ sigLib }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:4px 4px 4px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;text-align:left;background:none;border:0;font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ it.name }}</button>
+                  <button onClick="{{ it.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noSigLib }}" hint-placeholder-val="{{ false }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved signatures yet.</div></sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ---------- SOCIAL ---------- -->
+      <sc-if value="{{ isSocial }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:20px">
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Format</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <sc-for list="{{ smFormatOpts }}" as="o" hint-placeholder-count="5">
+              <button onClick="{{ o.onClick }}" style="{{ o.style }}">
+                <span style="font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;flex:1;text-align:left">{{ o.label }}</span>
+                <span style="font:400 11px/1 'Plus Jakarta Sans',sans-serif;opacity:.5">{{ o.sz }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Colour scheme</div>
+          <div style="display:flex;gap:7px">
+            <sc-for list="{{ smStyleOpts }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Headline</div>
+          <textarea class="cv-in" onChange="{{ smHeadlineOn }}" rows="3" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:700 14px/1.45 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ smHeadlineV }}</textarea>
+          <div style="margin-top:5px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#a7a596">Keep it short — 3 to 7 words works best.</div>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Sub-copy — optional</div>
+          <input class="cv-in" value="{{ smSubV }}" onChange="{{ smSubOn }}" placeholder="A short supporting line…" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Handle / hashtag — optional</div>
+          <input class="cv-in" value="{{ smHandleV }}" onChange="{{ smHandleOn }}" placeholder="@classicvisions" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved posts</span>
+            <button onClick="{{ savePost }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save current</button>
+          </div>
+          <sc-if value="{{ hasSmPostLib }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ smPostLib }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:4px 4px 4px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;text-align:left;background:none;border:0;font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">{{ it.name }}</button>
+                  <button onClick="{{ it.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noSmPostLib }}" hint-placeholder-val="{{ false }}">
+            <div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved posts yet.</div>
+          </sc-if>
+        </div>
+
+      </div>
+      </sc-if>
+
+    </div>
+
+
+      <!-- ---------- PRICE LIST ---------- -->
+      <sc-if value="{{ isPricelist }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer / addressee</div><input class="cv-in" value="{{ f.plCustomer.v }}" onChange="{{ f.plCustomer.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Attention</div><input class="cv-in" value="{{ f.plAttn.v }}" onChange="{{ f.plAttn.on }}" placeholder="Buyer / contact name" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Date</div><input class="cv-in" value="{{ f.plDate.v }}" onChange="{{ f.plDate.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Valid for</div><input class="cv-in" value="{{ f.plValidity.v }}" onChange="{{ f.plValidity.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div><div style="display:flex;gap:7px"><sc-for list="{{ plCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div>
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Line items</div>
+          <sc-for list="{{ plRowViews }}" as="r" hint-placeholder-count="1">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0ede6">
+              <div style="display:flex;gap:7px">
+                <input class="cv-in" value="{{ r.code }}" onChange="{{ r.onCode }}" placeholder="Code" style="width:72px;flex:none;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+                <input class="cv-in" value="{{ r.desc }}" onChange="{{ r.onDesc }}" placeholder="Description" style="flex:1;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+              </div>
+              <div style="display:flex;gap:7px;align-items:center">
+                <input class="cv-in" value="{{ r.price }}" onChange="{{ r.onPrice }}" placeholder="Price" style="width:90px;flex:none;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+                <button onClick="{{ r.del }}" style="background:none;border:1px solid #e0ddd6;border-radius:6px;color:#b3aa9a;cursor:pointer;padding:5px 9px;font-size:13px;line-height:1">×</button>
+              </div>
+            </div>
+          </sc-for>
+          <button onClick="{{ addPlRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add item</button>
+        </div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note — optional</div><textarea class="cv-in" onChange="{{ f.plNote.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.plNote.v }}</textarea></div>
+      </div>
+      </sc-if>
+
+      <!-- ---------- SHIPPING LABEL ---------- -->
+      <sc-if value="{{ isShiplabel }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:16px">
+        <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">From</div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Name</div><input class="cv-in" value="{{ f.slFromName.v }}" onChange="{{ f.slFromName.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" onChange="{{ f.slFromAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.slFromAddr.v }}</textarea></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Phone</div><input class="cv-in" value="{{ f.slFromPhone.v }}" onChange="{{ f.slFromPhone.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Ship to</div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Recipient name</div><input class="cv-in" value="{{ f.slToName.v }}" onChange="{{ f.slToName.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Company</div><input class="cv-in" value="{{ f.slToCompany.v }}" onChange="{{ f.slToCompany.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" onChange="{{ f.slToAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.slToAddr.v }}</textarea></div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Phone</div><input class="cv-in" value="{{ f.slToPhone.v }}" onChange="{{ f.slToPhone.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Courier</div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Carrier</div><input class="cv-in" value="{{ f.slCarrier.v }}" onChange="{{ f.slCarrier.on }}" placeholder="e.g. FedEx" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Service</div><input class="cv-in" value="{{ f.slService.v }}" onChange="{{ f.slService.on }}" placeholder="e.g. Express" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Tracking number</div><input class="cv-in" value="{{ f.slTracking.v }}" onChange="{{ f.slTracking.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Weight</div><input class="cv-in" value="{{ f.slWeight.v }}" onChange="{{ f.slWeight.on }}" placeholder="e.g. 2.3 kg" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Dims (L×W×H)</div><input class="cv-in" value="{{ f.slDims.v }}" onChange="{{ f.slDims.on }}" placeholder="e.g. 30×20×10 cm" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Special instructions</div><input class="cv-in" value="{{ f.slNote.v }}" onChange="{{ f.slNote.on }}" placeholder="e.g. Fragile — handle with care" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+      </div>
+      </sc-if>
+
+      <!-- ---------- CUSTOMER STATEMENT ---------- -->
+      <sc-if value="{{ isStatement }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer name</div><input class="cv-in" value="{{ f.stCustomer.v }}" onChange="{{ f.stCustomer.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account #</div><input class="cv-in" value="{{ f.stAccount.v }}" onChange="{{ f.stAccount.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div><div style="display:flex;gap:7px"><sc-for list="{{ stCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div>
+        </div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer address</div><textarea class="cv-in" onChange="{{ f.stAddr.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical">{{ f.stAddr.v }}</textarea></div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period from</div><input class="cv-in" value="{{ f.stFrom.v }}" onChange="{{ f.stFrom.on }}" placeholder="1 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period to</div><input class="cv-in" value="{{ f.stTo.v }}" onChange="{{ f.stTo.on }}" placeholder="30 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Opening balance</div><input class="cv-in" value="{{ f.stOpenBal.v }}" onChange="{{ f.stOpenBal.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Transactions</div>
+          <sc-for list="{{ stRowViews }}" as="r" hint-placeholder-count="1">
+            <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr auto;gap:5px;margin-bottom:7px;align-items:center">
+              <input class="cv-in" value="{{ r.date }}" onChange="{{ r.onDate }}" placeholder="Date" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.desc }}" onChange="{{ r.onDesc }}" placeholder="Description" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.debit }}" onChange="{{ r.onDebit }}" placeholder="Debit" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.credit }}" onChange="{{ r.onCredit }}" placeholder="Credit" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <button onClick="{{ r.del }}" style="background:none;border:1px solid #e0ddd6;border-radius:6px;color:#b3aa9a;cursor:pointer;padding:5px 8px;font-size:13px;line-height:1">×</button>
+            </div>
+          </sc-for>
+          <button onClick="{{ addStRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add transaction</button>
+        </div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note — optional</div><input class="cv-in" value="{{ f.stNote.v }}" onChange="{{ f.stNote.on }}" placeholder="Payment due within 30 days…" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+      </div>
+      </sc-if>
+
+        <!-- ====== RIGHT: PREVIEW ====== -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#e9e5da">
+      <div style="height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#f4f2ed;border-bottom:1px solid #ded9cd">
+        <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#5b6b7c">{{ previewTitle }}</div>
+        <div style="display:flex;gap:9px">
+          <sc-if value="{{ isLetter }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ printLetter }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Print / PDF</button>
+          </sc-if>
+          <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ true }}">
+            <div style="position:relative">
+              <button onClick="{{ toggleDl }}" style="height:38px;padding:0 15px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px">Download <span style="font-size:8px;opacity:.55;transform:translateY(1px)">▼</span></button>
+              <sc-if value="{{ dlOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ toggleDl }}" style="position:fixed;inset:0;z-index:45"></div>
+                <div style="position:absolute;top:46px;right:0;z-index:46;width:252px;background:#fff;border:1px solid #e7e4db;border-radius:13px;box-shadow:0 20px 48px -12px rgba(11,30,53,.42);overflow:hidden">
+                  <button onClick="{{ dlHtml }}" style-hover="background:#f7f5ef" style="display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #f1eee6;padding:13px 16px;cursor:pointer;transition:.12s">
+                    <div style="font:700 13px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">HTML file &nbsp;<span style="color:#1A8A9C">.html</span></div>
+                    <div style="font:400 11.5px/1.45 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">Pixel-perfect. Open in a browser or upload to Mailchimp, etc.</div>
+                  </button>
+                  <button onClick="{{ dlEml }}" style-hover="background:#f7f5ef" style="display:block;width:100%;text-align:left;background:none;border:0;padding:13px 16px;cursor:pointer;transition:.12s">
+                    <div style="font:700 13px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Email message &nbsp;<span style="color:#1A8A9C">.eml</span></div>
+                    <div style="font:400 11.5px/1.45 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">Opens in Outlook / Apple Mail as a ready-to-send draft.</div>
+                  </button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <button onClick="{{ copyNow }}" style="height:38px;padding:0 20px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">{{ copyLabel }}</button>
+        </div>
+      </div>
+      <div class="cv-scroll" style="flex:1;min-height:0;overflow:auto;padding:34px 28px">
+        {{ previewNode }}
+      </div>
+    </div>
+
+  </div>
+
+  <sc-if value="{{ copied }}" hint-placeholder-val="">
+    <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0B1E35;color:#F4F2ED;padding:12px 22px;border-radius:11px;font:600 13px/1 'Plus Jakarta Sans',sans-serif;box-shadow:0 12px 34px rgba(11,30,53,.35);z-index:60">{{ copied }}</div>
+  </sc-if>
+
+</div>
+</x-dc>
+
+  <sc-if value="{{ copied }}" hint-placeholder-val="">
+    <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0B1E35;color:#F4F2ED;padding:12px 22px;border-radius:11px;font:600 13px/1 'Plus Jakarta Sans',sans-serif;box-shadow:0 12px 34px rgba(11,30,53,.35);z-index:60">{{ copied }}</div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{\"$preview\":{\"width\":\"100%\",\"height\":\"100%\"}}">
+class Component extends DCLogic {
+  KEY = 'cv_doc_studio_v1';
+
+  logos = null;
+  logoSrc = (key) => (this.logos && this.logos[key]) ? this.logos[key] : `assets/logo_${key}.svg`;
+  loadLogos = async () => {
+    try {
+      const base = '/ds/';
+      const raw = await (await fetch(base + 'assets/logo.svg')).text();
+      const mk = (c) => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(raw.replace(/fill="#[0-9A-Fa-f]{6}"/, `fill="${c}"`))));
+      this.logos = { navy: mk('#0B1E35'), linen: mk('#F4F2ED'), gold: mk('#C89130'), teal: mk('#1A8A9C') };
+      this.forceUpdate();
+    } catch (e) {}
+  };
+
+  esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  state = {
+    tab: 'email',
+    bCompany: 'Classic Visions', bWebsite: 'www.classicvisions.net', bEmail: 'info@classicvisions.net',
+    bPhone: '+1 246 433-4928', bPhone2: '+1 (246) 243-9703', brandOpen: false, dlOpen: false,
+    emHeader: 'navy', emFooter: 'navy',
+    emEyebrow: 'Company Update',
+    emPreheader: 'A quick note from the team at Classic Visions.',
+    emHeading: 'Clearer vision, delivered wholesale.',
+    emBody: `<p>Hi there,</p><p>We're writing with a quick update from the team at <strong>Classic Visions</strong>. Paste your blog post or announcement right here — every heading, list and link picks up the house style automatically.</p><h2>What's new this month</h2><ul><li>New polarized lens range, now shipping island-wide.</li><li>Faster turnaround on bulk frame orders.</li></ul><p>Questions? Just reply to this email and we'll take care of you.</p>`,
+    emCta: 'Read the full update', emCtaUrl: 'https://www.classicvisions.net',
+    emHeroUrl: '',
+    emTagline: 'Classic Visions — wholesale optical supply, Barbados.',
+    emDisclaimer: 'You are receiving this email as a valued Classic Visions trade partner. This message and any attachments are confidential.',
+    docType: 'business',
+    ltDate: '',
+    ltRecipient: 'Mr. David Brathwaite\nBrathwaite Optical\nBridgetown, Barbados',
+    ltSubject: 'Your June wholesale order',
+    ltSignName: 'First Name Last Name', ltSignTitle: 'Position',
+    ltEyebrow: 'Announcement', ltAmount: 'BBD $2,480.00',
+    ltTo: 'All Staff', ltFrom: 'Management', ltRe: 'Holiday opening hours',
+    ltBody: `<p>Thank you for your continued partnership with Classic Visions. We are pleased to confirm the details below and remain at your service for anything you need.</p><p>Please do not hesitate to reach out should any questions arise. We value your business and look forward to continuing to serve you.</p>`,
+    sgName: 'First Name Last Name', sgTitle: 'Position',
+    sgPhone: '+1 246 433-4928', sgEmail: 'email@classicvisions.net',
+    sgWeb: 'www.classicvisions.net', sgTagline: '', sgLogo: true,
+    emailLib: [], letterLib: [], sigLib: [], snippets: [],
+    smFormat: 'instagram', smStyle: 'navy', smHeadline: 'Vision starts here.', smSub: '', smHandle: '@classicvisions', smPostLib: [],
+    copied: '',
+    // Price list
+    plCustomer: '', plAttn: '', plDate: '', plValidity: '30 days', plCurrency: 'BBD', plNote: '',
+    plRows: [{ id: '1', code: '', desc: '', price: '' }],
+    // Shipping label
+    slFromName: 'Classic Visions', slFromAddr: 'Worthing, Christ Church\nBarbados', slFromPhone: '+1 246 433-4928',
+    slToName: '', slToCompany: '', slToAddr: '', slToPhone: '', slCarrier: '', slService: '', slTracking: '', slWeight: '', slDims: '', slNote: '',
+    // Customer statement
+    stCustomer: '', stAccount: '', stAddr: '', stFrom: '', stTo: '', stCurrency: 'BBD', stOpenBal: '0.00',
+    stRows: [{ id: '1', date: '', desc: '', debit: '', credit: '' }], stNote: ''
+  };
+
+  componentDidMount() {
+    this.loadLogos();
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        this.setState(s, () => {
+          if (this.emailEditor) this.emailEditor.innerHTML = this.state.emBody || '';
+          if (this.letterEditor) this.letterEditor.innerHTML = this.state.ltBody || '';
+        });
+      }
+    } catch (e) {}
+    if (!this.state.ltDate) {
+      const dt = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      this.set('ltDate', dt);
+    }
+  }
+
+  // ---------- persistence ----------
+  persist = () => { try { const { copied, brandOpen, dlOpen, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
+  persistSoon = () => { clearTimeout(this._pt); this._pt = setTimeout(this.persist, 350); };
+  set = (k, v) => { this.setState({ [k]: v }, this.persistSoon); };
+  toast = (m) => { this.setState({ copied: m }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ copied: '' }), 2200); };
+
+  toggleBrand = () => this.setState(s => ({ brandOpen: !s.brandOpen }));
+  toggleDl = () => this.setState(s => ({ dlOpen: !s.dlOpen }));
+
+  slug = (s) => (String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 44)) || 'classic-visions-email';
+  downloadFile = (name, content, mime) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+  emailDocHtml = () => {
+    const esc = this.esc, d = this.state;
+    const subject = d.emHeading || d.emEyebrow || this.brand().name;
+    return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><title>${esc(subject)}</title>\n<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">\n<style>body{margin:0;padding:0;background:#F4F2ED;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}img{border:0;line-height:100%;outline:none;text-decoration:none}table{border-collapse:collapse}</style></head>\n<body style="margin:0;padding:0;background:#F4F2ED">\n${this.buildEmail()}\n</body></html>`;
+  };
+  dlHtml = () => { this.setState({ dlOpen: false }); this.downloadFile(this.slug(this.state.emHeading) + '.html', this.emailDocHtml(), 'text/html;charset=utf-8'); this.toast('Downloaded HTML email'); };
+  dlEml = () => {
+    this.setState({ dlOpen: false });
+    const subject = (this.state.emHeading || this.state.emEyebrow || this.brand().name).replace(/[\r\n]+/g, ' ');
+    const eml = ['X-Unsent: 1', 'To: ', 'Subject: ' + subject, 'MIME-Version: 1.0', 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: 8bit', '', this.emailDocHtml()].join('\r\n');
+    this.downloadFile(this.slug(this.state.emHeading) + '.eml', eml, 'message/rfc822');
+    this.toast('Downloaded .eml — open it to send');
+  };
+
+  brand = () => ({
+    name: this.state.bCompany || 'Classic Visions',
+    email: this.state.bEmail || 'info@classicvisions.net',
+    web: this.state.bWebsite || 'www.classicvisions.net',
+    phone: this.state.bPhone || '+1 246 433-4928',
+    phone2: this.state.bPhone2 || '+1 (246) 243-9703'
+  });
+
+  // ---------- editors ----------
+  setEmailEditor = (el) => { if (el) { this.emailEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.emBody || ''; } } };
+  setLetterEditor = (el) => { if (el) { this.letterEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.ltBody || ''; } } };
+  onEmailInput = (e) => { this.setState({ emBody: e.currentTarget.innerHTML }); this.persistSoon(); };
+  onLetterInput = (e) => { this.setState({ ltBody: e.currentTarget.innerHTML }); this.persistSoon(); };
+  activeEditor = () => this.state.tab === 'letter' ? this.letterEditor : this.emailEditor;
+  syncActive = () => { const ed = this.activeEditor(); if (!ed) return; if (this.state.tab === 'letter') this.setState({ ltBody: ed.innerHTML }); else this.setState({ emBody: ed.innerHTML }); this.persistSoon(); };
+
+  onEmailPaste = (e) => this.handlePaste(e);
+  onLetterPaste = (e) => this.handlePaste(e);
+  handlePaste = (e) => {
+    e.preventDefault();
+    const cb = e.clipboardData; if (!cb) return;
+    let html = cb.getData('text/html');
+    if (html) { html = this.sanitize(html); }
+    else {
+      const t = cb.getData('text/plain') || '';
+      html = t.split(/\n{2,}/).filter(Boolean).map(p => '<p>' + this.esc(p).replace(/\n/g, '<br>') + '</p>').join('');
+    }
+    try { document.execCommand('insertHTML', false, html); } catch (er) { const ed = this.activeEditor(); if (ed) ed.innerHTML += html; }
+    this.syncActive();
+  };
+
+  fmt = (cmd, val) => { const ed = this.activeEditor(); if (ed) { ed.focus(); try { document.execCommand(cmd, false, val); } catch (e) {} } this.syncActive(); };
+  fmtBold = () => this.fmt('bold');
+  fmtItalic = () => this.fmt('italic');
+  fmtH2 = () => this.fmt('formatBlock', 'H2');
+  fmtUL = () => this.fmt('insertUnorderedList');
+  fmtLink = () => { const u = prompt('Link URL (https://…)'); if (u) this.fmt('createLink', u); };
+
+  switchTab = (k) => { this.syncActive(); this.set('tab', k); };
+
+  // ---------- sanitize / theme ----------
+  sanitize = (html) => {
+    const d = document.createElement('div'); d.innerHTML = html || '';
+    d.querySelectorAll('script,style,meta,link,img,svg,iframe,table,thead,tbody,tr,td,th,figure,figcaption,header,footer,nav').forEach(n => n.remove());
+    const ren = (sel, tag) => d.querySelectorAll(sel).forEach(n => { const e = document.createElement(tag); while (n.firstChild) e.appendChild(n.firstChild); n.replaceWith(e); });
+    ren('b,strong', 'strong'); ren('i,em', 'em'); ren('h1', 'h2'); ren('h4,h5,h6', 'h3'); ren('div,section,article,p', 'p');
+    d.querySelectorAll('*').forEach(n => { [...n.attributes].forEach(a => { if (!(n.tagName === 'A' && a.name === 'href')) n.removeAttribute(a.name); }); });
+    const ok = new Set(['H2', 'H3', 'P', 'UL', 'OL', 'LI', 'A', 'STRONG', 'EM', 'BR', 'BLOCKQUOTE', 'HR']);
+    let pass = 0;
+    while (pass++ < 6) {
+      let changed = false;
+      d.querySelectorAll('*').forEach(n => { if (!ok.has(n.tagName)) { const p = n.parentNode; if (!p) return; while (n.firstChild) p.insertBefore(n.firstChild, n); p.removeChild(n); changed = true; } });
+      if (!changed) break;
+    }
+    d.querySelectorAll('p').forEach(p => { if (!p.textContent.trim() && !p.querySelector('br,a')) p.remove(); });
+    return d.innerHTML;
+  };
+
+  styleBody = (html) => {
+    const map = {
+      H1: "font:800 21px/1.2 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin:26px 0 10px",
+      H2: "font:700 17px/1.3 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.01em;color:#0B1E35;margin:24px 0 8px",
+      H3: "font:700 14.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin:20px 0 6px",
+      P: "font:400 15px/1.72 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 16px",
+      UL: "margin:0 0 16px;padding-left:22px", OL: "margin:0 0 16px;padding-left:22px",
+      LI: "font:400 15px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#3d4a57;margin:0 0 7px",
+      A: "color:#1A8A9C;text-decoration:underline",
+      STRONG: "font-weight:700;color:#0B1E35", EM: "font-style:italic",
+      BLOCKQUOTE: "margin:0 0 16px;padding:4px 0 4px 18px;border-left:3px solid #C89130;color:#5b6b7c;font-style:italic",
+      HR: "border:0;border-top:1px solid #e7e4db;margin:22px 0"
+    };
+    const d = document.createElement('div'); d.innerHTML = html || '';
+    d.querySelectorAll('*').forEach(n => { const s = map[n.tagName]; if (s) n.setAttribute('style', s); });
+    return d.innerHTML;
+  };
+
+  // ---------- brand lockup ----------
+  lockup = (scheme, opts) => {
+    opts = opts || {};
+    const big = opts.big;
+    const txt = scheme === 'dark' ? '#F4F2ED' : '#0B1E35';
+    const sub = scheme === 'dark' ? '#C89130' : '#1A8A9C';
+    const size = big ? 58 : 48; const word = big ? '21px' : '18px';
+    const src = this.logoSrc(scheme === 'dark' ? 'linen' : 'navy');
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-block;vertical-align:middle;border-collapse:collapse"><tr><td style="vertical-align:middle"><img src="${src}" width="${size}" height="${size}" alt="Classic Visions" style="display:block;width:${size}px;height:${size}px;border:0"></td><td style="vertical-align:middle;padding-left:13px;text-align:left"><div style="font:800 ${word}/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.04em;color:${txt}">CLASSIC VISIONS</div><div style="font:700 8.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.3em;color:${sub};margin-top:6px">OPTICAL · BARBADOS</div></td></tr></table>`;
+  };
+
+  // ---------- EMAIL ----------
+  emailHeader = (style) => {
+    if (style === 'minimal') return `<tr><td style="background:#ffffff;padding:28px 44px 20px;border-bottom:2px solid #C89130">${this.lockup('light', { align: 'left' })}</td></tr>`;
+    if (style === 'teal') return `<tr><td style="height:6px;background:#1A8A9C;font-size:0;line-height:0">&nbsp;</td></tr><tr><td style="background:#ffffff;padding:24px 44px 18px;border-bottom:1px solid #ece9e0">${this.lockup('light', { align: 'left' })}</td></tr>`;
+    return `<tr><td align="center" style="background:#0B1E35;padding:30px 40px">${this.lockup('dark', { align: 'center' })}</td></tr><tr><td style="height:3px;background:#C89130;font-size:0;line-height:0">&nbsp;</td></tr>`;
+  };
+
+  emailFooter = (style) => {
+    const b = this.brand(), d = this.state, esc = this.esc;
+    if (style === 'linen') return `<tr><td style="background:#F4F2ED;padding:28px 44px 32px;border-top:1px solid #e1ddd0">
+      <div style="font:800 13px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.05em;color:#0B1E35;margin-bottom:12px">CLASSIC VISIONS</div>
+      <div style="font:400 12.5px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.phone2)}<br><a href="mailto:${esc(b.email)}" style="color:#1A8A9C;text-decoration:none">${esc(b.email)}</a> &nbsp;·&nbsp; <a href="https://${esc(b.web)}" style="color:#1A8A9C;text-decoration:none">${esc(b.web)}</a></div>
+      <div style="height:1px;background:#ddd8ca;margin:16px 0"></div>
+      <div style="font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(d.emTagline)}<br>${esc(d.emDisclaimer)}</div>
+      <div style="margin-top:9px;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0"><a href="#" style="color:#5b6b7c">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#5b6b7c">View in browser</a></div>
+    </td></tr>`;
+    return `<tr><td style="background:#0B1E35;padding:30px 44px 34px">
+      <div style="font:800 13px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.05em;color:#F4F2ED;margin-bottom:12px">CLASSIC VISIONS</div>
+      <div style="font:400 12.5px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#9fb0c4">${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.phone2)}<br><a href="mailto:${esc(b.email)}" style="color:#3fb5c6;text-decoration:none">${esc(b.email)}</a> &nbsp;·&nbsp; <a href="https://${esc(b.web)}" style="color:#3fb5c6;text-decoration:none">${esc(b.web)}</a></div>
+      <div style="height:1px;background:rgba(255,255,255,.13);margin:16px 0"></div>
+      <div style="font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#718498">${esc(d.emTagline)}<br>${esc(d.emDisclaimer)}</div>
+      <div style="margin-top:9px;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#718498"><a href="#" style="color:#9fb0c4">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#9fb0c4">View in browser</a></div>
+    </td></tr>`;
+  };
+
+  buildEmail = () => {
+    const d = this.state, esc = this.esc;
+    const body = this.styleBody(d.emBody || '');
+    const hero = d.emHeroUrl ? `<tr><td style="padding:0"><img src="${esc(d.emHeroUrl)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0"></td></tr>` : '';
+    const eyebrow = d.emEyebrow ? `<div style="font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C;margin:0 0 14px">${esc(d.emEyebrow)}</div>` : '';
+    const cta = d.emCta ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:10px 0 2px"><tr><td style="border-radius:8px;background:#C89130"><a href="${esc(d.emCtaUrl || '#')}" style="display:inline-block;padding:13px 28px;font:700 14px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-decoration:none">${esc(d.emCta)}</a></td></tr></table>` : '';
+    const pre = d.emPreheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F4F2ED">${esc(d.emPreheader)}</div>` : '';
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#F4F2ED" style="background:#F4F2ED;margin:0;padding:0;border-collapse:collapse">
+ <tr><td align="center" style="padding:8px 14px">
+  ${pre}
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #ece9e0;border-radius:14px;overflow:hidden;border-collapse:collapse;box-shadow:0 10px 40px -10px rgba(11,30,53,.18)">
+   ${this.emailHeader(d.emHeader)}
+   ${hero}
+   <tr><td style="padding:38px 44px 30px">
+     ${eyebrow}
+     <h1 style="font:800 27px/1.12 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin:0 0 14px">${esc(d.emHeading)}</h1>
+     <div style="width:44px;height:3px;background:#C89130;margin:0 0 22px;font-size:0;line-height:0">&nbsp;</div>
+     ${body}
+     ${cta}
+   </td></tr>
+   ${this.emailFooter(d.emFooter)}
+  </table>
+ </td></tr>
+</table>`;
+  };
+
+  // ---------- LETTER ----------
+  buildLetter = () => {
+    const d = this.state, b = this.brand(), esc = this.esc;
+    const head = `<div style="padding:46px 60px 0">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+        <td style="vertical-align:middle">${this.lockup('light', { big: true })}</td>
+        <td style="vertical-align:middle;text-align:right;font:400 11.5px/1.75 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">${esc(b.phone)}<br>${esc(b.email)}<br>${esc(b.web)}</td>
+      </tr></table>
+      <div style="height:2px;background:#C89130;margin:22px 0 0;font-size:0;line-height:0">&nbsp;</div>
+    </div>`;
+    let inner = '';
+    if (d.docType === 'memo') {
+      const row = (l, v) => `<tr><td style="font:700 11px/1.9 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:20px;vertical-align:top">${l}</td><td style="font:400 13.5px/1.8 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(v)}</td></tr>`;
+      inner = `<div style="padding:32px 60px 8px">
+        <div style="font:800 23px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin-bottom:22px">MEMORANDUM</div>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${row('To', d.ltTo)}${row('From', d.ltFrom)}${row('Date', d.ltDate)}${row('Re', d.ltRe)}</table>
+        <div style="height:1px;background:#ece9e0;margin:20px 0 4px"></div>
+      </div>`;
+    } else if (d.docType === 'announcement') {
+      inner = `<div style="padding:36px 60px 0;text-align:center">
+        <div style="font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#1A8A9C;margin-bottom:14px">${esc(d.ltEyebrow)}</div>
+        <h1 style="font:800 28px/1.14 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.02em;color:#0B1E35;margin:0 0 8px">${esc(d.ltSubject)}</h1>
+        <div style="font:400 12px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(d.ltDate)}</div>
+        <div style="width:44px;height:3px;background:#C89130;margin:20px auto 0;font-size:0;line-height:0">&nbsp;</div>
+      </div>`;
+    } else {
+      inner = `<div style="padding:32px 60px 0">
+        <div style="font:400 13px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-bottom:20px">${esc(d.ltDate)}</div>
+        <div style="font:400 13.5px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin-bottom:18px">${(d.ltRecipient || '').split('\n').map(esc).join('<br>')}</div>
+        ${d.ltSubject ? `<div style="font:700 13.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin-bottom:6px">Re: ${esc(d.ltSubject)}</div>` : ''}
+      </div>`;
+    }
+    const amount = (d.docType === 'collection' && d.ltAmount) ? `<div style="margin:6px 60px 2px;border:1px solid #C89130;border-radius:8px;padding:14px 20px;background:#fbf6ec"><div style="font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#1A8A9C">Amount due</div><div style="font:800 24px/1.1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;margin-top:6px">${esc(d.ltAmount)}</div></div>` : '';
+    const bodyHtml = `<div style="padding:16px 60px 0">${this.styleBody(d.ltBody)}</div>`;
+    const sign = d.docType === 'memo' ? '' : `<div style="padding:10px 60px 0">
+      <p style="font:400 14px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#1c2b3a;margin:0 0 40px">Sincerely,</p>
+      <div style="font:700 14px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.ltSignName)}</div>
+      <div style="font:600 12.5px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#1A8A9C">${esc(d.ltSignTitle)}</div>
+    </div>`;
+    const foot = `<div style="padding:34px 60px 42px"><div style="height:1px;background:#ece9e0;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>`;
+    return `<div style="width:680px;max-width:680px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif;box-shadow:0 10px 40px -10px rgba(11,30,53,.18)">${head}${inner}${amount}${bodyHtml}${sign}${foot}</div>`;
+  };
+
+  // ---------- SIGNATURE ----------
+  buildSignature = () => {
+    const d = this.state, esc = this.esc;
+    const mono = d.sgLogo ? `<td style="vertical-align:top;padding-right:18px"><img src="${this.logoSrc('navy')}" width="56" height="56" alt="Classic Visions" style="display:block;width:56px;height:56px;border:0"></td>` : '';
+    return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Plus Jakarta Sans',Arial,sans-serif"><tr>
+      ${mono}
+      <td style="vertical-align:top;border-left:2px solid #C89130;padding-left:18px">
+        <div style="font:800 16px/1.2 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.sgName)}</div>
+        <div style="font:600 12px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#1A8A9C;margin-top:2px">${esc(d.sgTitle)}</div>
+        <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#0B1E35;margin:10px 0">CLASSIC VISIONS</div>
+        <div style="font:400 12px/1.75 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f">
+          ${d.sgPhone ? `${esc(d.sgPhone)}<br>` : ''}
+          ${d.sgEmail ? `<a href="mailto:${esc(d.sgEmail)}" style="color:#1A8A9C;text-decoration:none">${esc(d.sgEmail)}</a><br>` : ''}
+          ${d.sgWeb ? `<a href="https://${esc(d.sgWeb)}" style="color:#1A8A9C;text-decoration:none">${esc(d.sgWeb)}</a>` : ''}
+        </div>
+        ${d.sgTagline ? `<div style="font:italic 400 11px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:9px">${esc(d.sgTagline)}</div>` : ''}
+      </td>
+    </tr></table>`;
+  };
+  buildSignatureBoard = () => `<div style="background:#fff;border:1px solid #e7e4db;border-radius:12px;padding:36px 40px;box-shadow:0 10px 40px -10px rgba(11,30,53,.12)">${this.buildSignature()}</div>`;
+
+  // ---------- copy / print ----------
+  copyRich = async (html) => {
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()], { type: 'text/plain' })
+        })]);
+      } else throw new Error('no-clip');
+    } catch (e) {
+      const tmp = document.createElement('div');
+      tmp.style.cssText = 'position:fixed;left:-9999px;top:0;white-space:normal';
+      tmp.innerHTML = html; document.body.appendChild(tmp);
+      const r = document.createRange(); r.selectNode(tmp);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      try { document.execCommand('copy'); } catch (er) {}
+      sel.removeAllRanges(); tmp.remove();
+    }
+    this.toast('Copied — paste into your email or doc');
+  };
+  copyNow = () => {
+    const t = this.state.tab;
+    if (t === 'social') { this.openSmFull(); return; }
+    if (t === 'pricelist') { this.printDoc(this.buildPricelist(), 'Price List'); return; }
+    if (t === 'shiplabel') { this.printDoc(this.buildShippingLabel(), 'Shipping Label'); return; }
+    if (t === 'statement') { this.printDoc(this.buildStatement(), 'Customer Statement'); return; }
+    this.copyRich(t === 'email' ? this.buildEmail() : t === 'letter' ? this.buildLetter() : this.buildSignature());
+  };
+  printLetter = () => {
+    const w = window.open('', '_blank', 'width=820,height=1040');
+    if (!w) { this.toast('Allow pop-ups to print'); return; }
+    const base = '/ds/';
+    const doc = this.buildLetter().replace(/box-shadow:0 10px 40px -10px rgba\(11,30,53,\.18\)/, 'box-shadow:none');
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${this.esc(this.brand().name)}</title><link rel="stylesheet" href="${base}_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css"><style>@page{size:letter;margin:0}body{margin:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>${doc}</body></html>`);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 500);
+  };
+
+  // ---------- snippets ----------
+  saveSnippet = () => {
+    const ed = this.activeEditor();
+    let html = '';
+    const sel = window.getSelection && window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed && ed && ed.contains(sel.anchorNode)) {
+      const c = document.createElement('div'); c.appendChild(sel.getRangeAt(0).cloneContents()); html = this.sanitize(c.innerHTML);
+    }
+    let label;
+    if (html) { label = prompt('Name this snippet:'); }
+    else { const t = prompt('No text selected. Type the snippet text to save:'); if (t) { html = '<p>' + this.esc(t) + '</p>'; label = prompt('Name this snippet:') || t.slice(0, 22); } }
+    if (!label || !html) return;
+    this.setState(s => ({ snippets: [...s.snippets, { id: Date.now() + '', label, html }] }), this.persist);
+    this.toast('Snippet saved');
+  };
+  insertSnippet = (html) => { const ed = this.activeEditor(); if (!ed) return; ed.focus(); try { document.execCommand('insertHTML', false, html); } catch (e) { ed.innerHTML += html; } this.syncActive(); };
+
+  // ---------- libraries ----------
+  delLib = (key, id) => { this.setState(s => ({ [key]: s[key].filter(x => x.id !== id) }), this.persist); };
+  loadEmail = (it) => { this.setState({ ...it.fields }, () => { if (this.emailEditor) this.emailEditor.innerHTML = this.state.emBody || ''; this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadLetter = (it) => { this.setState({ ...it.fields }, () => { if (this.letterEditor) this.letterEditor.innerHTML = this.state.ltBody || ''; this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadSig = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
+  saveEmail = () => {
+    const name = prompt('Name this email template:'); if (!name) return;
+    const emBody = this.emailEditor ? this.emailEditor.innerHTML : this.state.emBody;
+    const k = ['emHeader', 'emFooter', 'emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer'];
+    const fields = { emBody }; k.forEach(x => fields[x] = this.state[x]);
+    this.setState(s => ({ emailLib: [...s.emailLib, { id: Date.now() + '', name, fields }] }), this.persist);
+    this.toast('Template saved');
+  };
+  saveLetter = () => {
+    const name = prompt('Name this letterhead template:'); if (!name) return;
+    const ltBody = this.letterEditor ? this.letterEditor.innerHTML : this.state.ltBody;
+    const k = ['docType', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltEyebrow', 'ltAmount', 'ltTo', 'ltFrom', 'ltRe'];
+    const fields = { ltBody }; k.forEach(x => fields[x] = this.state[x]);
+    this.setState(s => ({ letterLib: [...s.letterLib, { id: Date.now() + '', name, fields }] }), this.persist);
+    this.toast('Template saved');
+  };
+  saveSig = () => {
+    const name = prompt('Save signature as (e.g. person name):', this.state.sgName); if (!name) return;
+    const k = ['sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'sgLogo'];
+    const fields = {}; k.forEach(x => fields[x] = this.state[x]);
+    this.setState(s => ({ sigLib: [...s.sigLib, { id: Date.now() + '', name, fields }] }), this.persist);
+    this.toast('Signature saved');
+  };
+  toggleLogo = (e) => this.set('sgLogo', e.target.checked);
+
+  // ===== SOCIAL MEDIA =====
+  SM_FMTS = {
+    instagram:       { w:1080, h:1080, label:'Instagram Post',      sz:'1080 × 1080' },
+    facebook:        { w:1200, h:630,  label:'Facebook Post',       sz:'1200 × 630'  },
+    whatsapp_chat:   { w:1200, h:628,  label:'WhatsApp Image',      sz:'1200 × 628'  },
+    whatsapp_status: { w:1080, h:1920, label:'WhatsApp Status',     sz:'1080 × 1920' },
+    outdoor:         { w:2400, h:1200, label:'Outdoor / Billboard', sz:'2400 × 1200' }
+  };
+  SM_PAL = {
+    navy:  { bg:'#0B1E35', txt:'#F4F2ED', sub:'#8fa3b8', acc:'#C89130', logo:'linen', sep:'rgba(255,255,255,.12)' },
+    linen: { bg:'#F4F2ED', txt:'#0B1E35', sub:'#5b6b7c', acc:'#1A8A9C', logo:'navy',  sep:'rgba(11,30,53,.12)'   },
+    teal:  { bg:'#1A8A9C', txt:'#F4F2ED', sub:'rgba(244,242,237,.68)', acc:'#C89130', logo:'linen', sep:'rgba(255,255,255,.14)' }
+  };
+  buildSocialPost = () => {
+    const d = this.state, fk = d.smFormat||'instagram', sk = d.smStyle||'navy';
+    const f = this.SM_FMTS[fk], s = this.SM_PAL[sk], esc = this.esc;
+    const w = f.w, h = f.h;
+    const headline = esc(d.smHeadline||'Vision starts here.');
+    const sub = esc(d.smSub||''), handle = esc(d.smHandle||'');
+    const web = esc(this.brand().web);
+    const logo = (this.logos&&this.logos[s.logo]) ? this.logos[s.logo] : `assets/logo_${s.logo}.svg`;
+    const FF = "'Plus Jakarta Sans',Arial,sans-serif";
+    const root = `width:${w}px;height:${h}px;position:relative;overflow:hidden;background:${s.bg};font-family:${FF};box-sizing:border-box`;
+    if (fk === 'outdoor') {
+      const lW = Math.round(w*0.335), hlSz = Math.round(h*0.115), subSz = Math.round(h*0.036);
+      return `<div style="${root}"><div style="position:absolute;top:0;left:0;width:${lW}px;bottom:0;background:#0B1E35;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px"><img src="${logo}" width="80" height="80" alt="" style="display:block;width:80px;height:80px"><div style="text-align:center"><div style="font:800 19px/1 ${FF};letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 9.5px/1 ${FF};letter-spacing:.26em;color:#C89130;margin-top:7px">OPTICAL · BARBADOS</div></div><div style="font:400 12px/1 ${FF};letter-spacing:.09em;color:rgba(244,242,237,.45)">${web}</div></div><div style="position:absolute;top:0;left:${lW}px;width:5px;bottom:0;background:#C89130"></div><div style="position:absolute;top:0;left:${lW+5}px;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;padding:0 ${Math.round(w*0.065)}px"><div style="width:60px;height:4px;background:${s.acc};margin-bottom:${Math.round(h*0.047)}px"></div><div style="font:800 ${hlSz}px/0.95 ${FF};letter-spacing:-.03em;color:${s.txt}">${headline}</div>${sub?`<div style="margin-top:${Math.round(h*0.04)}px;font:400 ${subSz}px/1.5 ${FF};color:${s.sub}">${sub}</div>`:''} ${handle?`<div style="margin-top:${Math.round(h*0.05)}px;font:600 ${Math.round(h*0.018)}px/1 ${FF};letter-spacing:.05em;color:${s.sub}">${handle}</div>`:''}</div><div style="position:absolute;top:0;left:0;right:0;height:5px;background:#C89130"></div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:#C89130"></div></div>`;
+    }
+    if (fk === 'whatsapp_status') {
+      const pad = 70, hlSz = Math.min(114, Math.round(w*0.102));
+      return `<div style="${root}"><div style="position:absolute;top:0;left:0;right:0;height:5px;background:${s.acc}"></div><div style="position:absolute;top:${pad}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:14px"><img src="${logo}" width="64" height="64" alt="" style="display:block;width:64px;height:64px"><div style="text-align:center"><div style="font:800 17px/1 ${FF};letter-spacing:.05em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 9px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:6px">OPTICAL · BARBADOS</div></div><div style="width:36px;height:2px;background:${s.acc};margin-top:6px"></div></div><div style="position:absolute;top:0;left:${pad}px;right:${pad}px;bottom:${Math.round(h*0.14)}px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font:800 ${hlSz}px/0.96 ${FF};letter-spacing:-.03em;color:${s.txt};text-align:center">${headline}</div>${sub?`<div style="margin-top:28px;font:400 26px/1.55 ${FF};color:${s.sub};text-align:center">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;padding:0 ${pad}px ${pad}px"><div style="height:1px;background:${s.sep};margin-bottom:24px"></div><div style="text-align:center;font:600 15px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="margin-top:12px;text-align:center;font:600 17px/1 ${FF};color:${s.sub}">${handle}</div>`:''}</div><div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:${s.acc}"></div></div>`;
+    }
+    const pad=56, logoSz=46, topH=106, botH=70;
+    const hlSz = fk==='instagram' ? Math.min(90,Math.round(w*0.083)) : Math.min(68,Math.round(h*0.108));
+    const subSz = fk==='instagram' ? 21 : Math.round(h*0.033);
+    const isInsta = fk==='instagram';
+    const leftPad = isInsta ? pad : pad+10;
+    const leftAccent = isInsta ? '' : `<div style="position:absolute;top:0;left:0;width:6px;bottom:0;background:${s.acc}"></div>`;
+    const topBar = isInsta ? `<div style="position:absolute;top:0;left:0;right:0;height:5px;background:${s.acc}"></div>` : '';
+    const botBar = isInsta ? '' : `<div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:${s.acc}"></div>`;
+    return `<div style="${root}">${leftAccent}${topBar}<div style="position:absolute;top:0;left:${leftPad}px;right:${pad}px;height:${topH}px;display:flex;align-items:center"><div style="display:flex;align-items:center;gap:12px"><img src="${logo}" width="${logoSz}" height="${logoSz}" alt="" style="display:block;width:${logoSz}px;height:${logoSz}px;flex:none"><div><div style="font:800 16px/1 ${FF};letter-spacing:.04em;color:${s.txt}">CLASSIC VISIONS</div><div style="font:700 8.5px/1 ${FF};letter-spacing:.24em;color:${s.acc};margin-top:5px">OPTICAL · BARBADOS</div></div></div></div><div style="position:absolute;top:${topH}px;left:${leftPad}px;right:${pad}px;height:2px;background:${s.acc}"></div><div style="position:absolute;top:${topH+2}px;left:${leftPad}px;right:${pad}px;bottom:${botH}px;display:flex;flex-direction:column;justify-content:center"><div style="font:800 ${hlSz}px/${hlSz>60?'0.96':'1.08'} ${FF};letter-spacing:-.03em;color:${s.txt}">${headline}</div>${sub?`<div style="margin-top:${Math.round(h*0.028)}px;font:400 ${subSz}px/1.55 ${FF};color:${s.sub}">${sub}</div>`:''}</div><div style="position:absolute;bottom:0;left:${leftPad}px;right:${pad}px;height:${botH}px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid ${s.sep}"><div style="font:600 11.5px/1 ${FF};letter-spacing:.12em;text-transform:uppercase;color:${s.sub}">${web}</div>${handle?`<div style="font:600 14px/1 ${FF};color:${s.sub}">${handle}</div>`:''}</div>${botBar}</div>`;
+  };
+  openSmFull = () => {
+    const d = this.state, f = this.SM_FMTS[d.smFormat||'instagram'];
+    const base = location.href.replace(/[^/]*$/,'');
+    let postHtml = this.buildSocialPost();
+    postHtml = postHtml.replace(/src="assets\//g, `src="${base}assets/`);
+    const w = window.open('','_blank','width=1200,height=900');
+    if (!w) { this.toast('Allow pop-ups to open full size'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${this.esc(f.label)} — Classic Visions</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;padding:24px;background:#111;display:flex;flex-direction:column;align-items:center;min-height:100vh;box-sizing:border-box;gap:14px}.note{font:400 12px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#666;text-align:center}@media print{body{background:none;padding:0}.note{display:none}@page{size:${f.w}px ${f.h}px;margin:0}}</style></head><body><p class="note">${this.esc(f.label)} · ${f.sz} px — Screenshot or Cmd+P / Ctrl+P to export</p>${postHtml}</body></html>`);
+    w.document.close();
+  };
+  savePost = () => {
+    const name = prompt('Name this post:'); if (!name) return;
+    const fields = {}; ['smFormat','smStyle','smHeadline','smSub','smHandle'].forEach(x => { fields[x] = this.state[x]; });
+    this.setState(s => ({ smPostLib: [...(s.smPostLib||[]), { id: Date.now()+'', name, fields }] }), this.persist);
+    this.toast('Post saved');
+  };
+  loadPost = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded "' + it.name + '"'); };
+
+  // ---------- view helpers ----------
+  tabStyle = (active) => `padding:7px 16px;border:0;border-radius:7px;cursor:pointer;font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;background:${active ? '#F4F2ED' : 'transparent'};color:${active ? '#0B1E35' : '#cdd8e4'};transition:.15s`;
+  segStyle = (active) => `flex:1;padding:9px 6px;border-radius:8px;border:1px solid ${active ? '#0B1E35' : '#d9d7cf'};background:${active ? '#0B1E35' : '#fff'};color:${active ? '#fff' : '#0B1E35'};font:700 11.5px/1.2 'Plus Jakarta Sans',sans-serif;cursor:pointer;text-align:center;transition:.15s`;
+  seg = (key, opts) => opts.map(o => ({ label: o.l, style: this.segStyle(this.state[key] === o.k), onClick: () => this.set(key, o.k) }));
+
+
+  // ---------- PRICE LIST rows ----------
+  addPlRow = () => this.setState(s => ({ plRows: [...(s.plRows||[]), { id: Date.now()+'', code:'', desc:'', price:'' }] }), this.persistSoon);
+  delPlRow = (i) => this.setState(s => { const r=[...(s.plRows||[])]; r.splice(i,1); return { plRows: r.length ? r : [{ id:Date.now()+'', code:'', desc:'', price:'' }] }; }, this.persistSoon);
+  updatePlRow = (i, key, val) => this.setState(s => { const r=[...(s.plRows||[])]; r[i]={...r[i],[key]:val}; return { plRows:r }; }, this.persistSoon);
+
+  // ---------- STATEMENT rows ----------
+  addStRow = () => this.setState(s => ({ stRows: [...(s.stRows||[]), { id: Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }), this.persistSoon);
+  delStRow = (i) => this.setState(s => { const r=[...(s.stRows||[])]; r.splice(i,1); return { stRows: r.length ? r : [{ id:Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }; }, this.persistSoon);
+  updateStRow = (i, key, val) => this.setState(s => { const r=[...(s.stRows||[])]; r[i]={...r[i],[key]:val}; return { stRows:r }; }, this.persistSoon);
+
+  // ---------- generic print ----------
+  printDoc = (html, title) => {
+    const w = window.open('', '_blank', 'width=860,height=1100');
+    if (!w) { this.toast('Allow pop-ups to print'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${this.esc(title)} — Classic Visions</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif}@page{size:letter;margin:0}@media print{body{background:#fff}}</style></head><body>${html}</body></html>`);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch(e){} }, 500);
+  };
+
+  // ---------- PRICE LIST build ----------
+  buildPricelist = () => {
+    const d = this.state, b = this.brand(), esc = this.esc;
+    const cur = d.plCurrency || 'BBD';
+    const rows = (d.plRows || []).filter(r => r.desc || r.code || r.price);
+    const rowsHtml = rows.length ? rows.map((r, i) => `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}"><td style="padding:11px 16px;font:400 13px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;border-bottom:1px solid #f0ede6">${esc(r.code)}</td><td style="padding:11px 16px;font:400 13px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.desc)}</td><td style="padding:11px 16px;font:600 13px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6">${esc(r.price)}</td></tr>`).join('') : `<tr><td colspan="3" style="padding:20px 16px;font:400 13px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#a7a596;font-style:italic">No items added yet.</td></tr>`;
+    return `<div style="width:680px;max-width:680px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+      <div style="padding:44px 52px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+          <td style="vertical-align:middle">${this.lockup('light',{big:true})}</td>
+          <td style="vertical-align:middle;text-align:right">
+            <div style="font:800 18px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:-.01em;color:#0B1E35">PRICE LIST</div>
+            <div style="font:400 12px/1.8 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:6px">${esc(d.plDate)}<br>Valid: ${esc(d.plValidity)}</div>
+          </td>
+        </tr></table>
+        <div style="height:2px;background:#C89130;margin:20px 0 0"></div>
+      </div>
+      ${d.plCustomer ? `<div style="padding:22px 52px 0"><div style="font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Prepared for</div><div style="font:600 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.plCustomer)}</div>${d.plAttn?`<div style="font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Attn: ${esc(d.plAttn)}</div>`:''}</div>` : ''}
+      <div style="padding:22px 52px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:10px;overflow:hidden">
+          <thead><tr style="background:#0B1E35"><th style="padding:11px 16px;font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Code</th><th style="padding:11px 16px;font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th><th style="padding:11px 16px;font:700 11px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#C89130;text-align:right">${esc(cur)}</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      ${d.plNote ? `<div style="padding:18px 52px 0;font:400 12px/1.65 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;font-style:italic">${esc(d.plNote)}</div>` : ''}
+      <div style="padding:34px 52px 44px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
+    </div>`;
+  };
+
+  // ---------- SHIPPING LABEL build ----------
+  buildShippingLabel = () => {
+    const d = this.state, esc = this.esc;
+    const box = (label, val) => val ? `<div style="margin-bottom:4px"><span style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C">${label}: </span><span style="font:400 13px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(val)}</span></div>` : '';
+    return `<div style="width:432px;font-family:'Plus Jakarta Sans',Arial,sans-serif;background:#fff;border:2px solid #0B1E35;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px -8px rgba(11,30,53,.25)">
+      <div style="background:#0B1E35;padding:14px 20px;display:flex;align-items:center;gap:12px">
+        <img src="/ds/assets/logo_linen.svg" width="36" height="36" alt="" style="display:block;width:36px;height:36px">
+        <div><div style="font:800 13px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 8px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.26em;color:#C89130;margin-top:4px">OPTICAL · BARBADOS</div></div>
+        ${d.slCarrier || d.slService ? `<div style="margin-left:auto;text-align:right"><div style="font:700 13px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#F4F2ED">${esc(d.slCarrier)}</div><div style="font:400 11px/1.3 'Plus Jakarta Sans',Arial,sans-serif;color:#8fa3b8">${esc(d.slService)}</div></div>` : ''}
+      </div>
+      <div style="display:flex">
+        <div style="flex:1;padding:16px 20px;border-right:1px solid #e7e4db">
+          <div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">From</div>
+          <div style="font:600 13px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.slFromName)}</div>
+          <div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap">${esc(d.slFromAddr)}</div>
+          ${box('Tel', d.slFromPhone)}
+        </div>
+        <div style="flex:1;padding:16px 20px">
+          <div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#0B1E35;margin-bottom:8px">Ship to</div>
+          <div style="font:700 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.slToName)}</div>
+          ${d.slToCompany ? `<div style="font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f">${esc(d.slToCompany)}</div>` : ''}
+          <div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;white-space:pre-wrap">${esc(d.slToAddr)}</div>
+          ${box('Tel', d.slToPhone)}
+        </div>
+      </div>
+      ${d.slTracking ? `<div style="padding:10px 20px;background:#f7f5ef;border-top:1px solid #e7e4db;display:flex;align-items:center;gap:12px"><div style="font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#1A8A9C">Tracking</div><div style="font:700 14px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;letter-spacing:.04em">${esc(d.slTracking)}</div></div>` : ''}
+      ${d.slWeight || d.slDims || d.slNote ? `<div style="padding:10px 20px;border-top:1px solid #e7e4db;display:flex;gap:20px;align-items:center">${box('Weight', d.slWeight)}${box('Dims', d.slDims)}${d.slNote?`<div style="margin-left:auto;font:600 11px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#C89130;font-style:italic">${esc(d.slNote)}</div>`:''}</div>` : ''}
+    </div>`;
+  };
+
+  // ---------- CUSTOMER STATEMENT build ----------
+  buildStatement = () => {
+    const d = this.state, b = this.brand(), esc = this.esc;
+    const cur = d.stCurrency || 'BBD';
+    const rows = d.stRows || [];
+    let bal = parseFloat(d.stOpenBal) || 0;
+    let rowsHtml = `<tr style="background:#f7f5ef"><td colspan="4" style="padding:10px 16px;font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Opening balance</td><td style="padding:10px 16px;font:700 13px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right">${cur} ${bal.toFixed(2)}</td></tr>`;
+    rows.forEach((r, i) => {
+      const debit = parseFloat(r.debit) || 0;
+      const credit = parseFloat(r.credit) || 0;
+      bal += debit - credit;
+      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}"><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;border-bottom:1px solid #f0ede6">${esc(r.date)}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.desc)}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${r.debit?'#c0392b':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6">${r.debit?cur+' '+parseFloat(r.debit).toFixed(2):''}</td><td style="padding:9px 16px;font:400 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${r.credit?'#389457':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6">${r.credit?cur+' '+parseFloat(r.credit).toFixed(2):''}</td><td style="padding:9px 16px;font:600 12.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6">${cur} ${bal.toFixed(2)}</td></tr>`;
+    });
+    return `<div style="width:700px;max-width:700px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+      <div style="padding:44px 52px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+          <td style="vertical-align:top">${this.lockup('light',{big:true})}</td>
+          <td style="vertical-align:top;text-align:right">
+            <div style="font:800 18px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">CUSTOMER STATEMENT</div>
+            <div style="font:400 12px/1.8 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:6px">${d.stFrom && d.stTo ? esc(d.stFrom)+' – '+esc(d.stTo) : esc(d.stFrom||d.stTo)}</div>
+          </td>
+        </tr></table>
+        <div style="height:2px;background:#C89130;margin:20px 0 0"></div>
+      </div>
+      <div style="padding:20px 52px 0;display:flex;gap:40px">
+        <div><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account</div><div style="font:600 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.stCustomer)}</div>${d.stAccount?`<div style="font:400 12px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Acct: ${esc(d.stAccount)}</div>`:''}<div style="font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap">${esc(d.stAddr)}</div></div>
+        <div style="margin-left:auto;text-align:right"><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Balance due</div><div style="font:800 26px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${cur} ${bal.toFixed(2)}</div></div>
+      </div>
+      <div style="padding:22px 52px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:10px;overflow:hidden">
+          <thead><tr style="background:#0B1E35"><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Date</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c0392b;text-align:right">Debit</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#C89130;text-align:right">Credit</th><th style="padding:10px 16px;font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#F4F2ED;text-align:right">Balance</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      ${d.stNote?`<div style="padding:14px 52px 0;font:400 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;font-style:italic">${esc(d.stNote)}</div>`:''}
+      <div style="padding:34px 52px 44px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
+    </div>`;
+  };
+
+  renderVals() {
+    const d = this.state;
+    const f = {};
+    ['emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltTo', 'ltFrom', 'ltRe', 'ltEyebrow', 'ltAmount', 'sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'smHeadline', 'smSub', 'smHandle', 'plCustomer', 'plAttn', 'plDate', 'plValidity', 'plNote', 'slFromName', 'slFromAddr', 'slFromPhone', 'slToName', 'slToCompany', 'slToAddr', 'slToPhone', 'slCarrier', 'slService', 'slTracking', 'slWeight', 'slDims', 'slNote', 'stCustomer', 'stAccount', 'stAddr', 'stFrom', 'stTo', 'stOpenBal', 'stNote'].forEach(k => {
+      f[k] = { v: d[k] == null ? '' : d[k], on: (e) => this.set(k, e.target.value) };
+    });
+    const tab = d.tab;
+    let previewNode;
+    if (tab === 'social') {
+      const smFmt = this.SM_FMTS[d.smFormat||'instagram'];
+      const smScale = Math.min(680/smFmt.w, 555/smFmt.h);
+      const smPW = Math.round(smFmt.w*smScale), smPH = Math.round(smFmt.h*smScale);
+      previewNode = React.createElement('div', { style: { display:'flex', justifyContent:'center', alignItems:'flex-start' } },
+        React.createElement('div', { style: { width:smPW+'px', height:smPH+'px', position:'relative', overflow:'hidden', borderRadius:'8px', boxShadow:'0 12px 48px -8px rgba(11,30,53,.45)', flexShrink:0 } },
+          React.createElement('div', { dangerouslySetInnerHTML: { __html: this.buildSocialPost() }, style: { position:'absolute', top:0, left:0, width:smFmt.w+'px', height:smFmt.h+'px', transform:`scale(${smScale})`, transformOrigin:'top left' } })
+        )
+      );
+    } else {
+      const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? this.buildStatement() : this.buildSignatureBoard();
+      previewNode = React.createElement('div', { style: { width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }, dangerouslySetInnerHTML: { __html: html } });
+    }
+    const tabs = [['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
+    const emailLib = (d.emailLib || []).map(it => ({ name: it.name, load: () => this.loadEmail(it), del: () => this.delLib('emailLib', it.id) }));
+    const letterLib = (d.letterLib || []).map(it => ({ name: it.name, load: () => this.loadLetter(it), del: () => this.delLib('letterLib', it.id) }));
+    const sigLib = (d.sigLib || []).map(it => ({ name: it.name, load: () => this.loadSig(it), del: () => this.delLib('sigLib', it.id) }));
+    const snippetItems = (d.snippets || []).map(s => ({ label: s.label, insert: () => this.insertSnippet(s.html), del: () => this.delLib('snippets', s.id) }));
+    const isBizColl = d.docType === 'business' || d.docType === 'collection';
+    const brandFields = [['companyName', 'bCompany'], ['website', 'bWebsite'], ['email', 'bEmail'], ['phone', 'bPhone'], ['phone2', 'bPhone2']].map(([label, key]) => ({ label, v: d[key] == null ? '' : d[key], on: (e) => this.set(key, e.target.value) }));
+    const smFormatOpts = Object.entries(this.SM_FMTS).map(([k, fmt]) => {
+      const active = (d.smFormat||'instagram') === k;
+      return { label: fmt.label, sz: fmt.sz, onClick: () => this.set('smFormat', k), style: `display:flex;align-items:center;gap:10px;width:100%;padding:10px 13px;border-radius:9px;border:1.5px solid ${active?'#0B1E35':'#d9d7cf'};background:${active?'#0B1E35':'#fff'};color:${active?'#F4F2ED':'#0B1E35'};cursor:pointer;transition:.12s` };
+    });
+    const smStyleOpts = [
+      { k:'navy',  l:'Navy',  bg:'#0B1E35', ring:'#0B1E35', txt:'#F4F2ED' },
+      { k:'linen', l:'Linen', bg:'#F4F2ED', ring:'#5b6b7c', txt:'#0B1E35' },
+      { k:'teal',  l:'Teal',  bg:'#1A8A9C', ring:'#1A8A9C', txt:'#F4F2ED' }
+    ].map(o => {
+      const active = (d.smStyle||'navy') === o.k;
+      return { label: o.l, onClick: () => this.set('smStyle', o.k), style: `flex:1;padding:9px 6px;border-radius:8px;border:${active?'2.5px':'1px'} solid ${active?o.ring:'#d9d7cf'};background:${o.bg};color:${o.txt};font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;text-align:center;transition:.12s` };
+    });
+    const smPostLib = (d.smPostLib||[]).map(it => ({ name: it.name, load: () => this.loadPost(it), del: () => this.delLib('smPostLib', it.id) }));
+    return {
+      tab,
+      isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement',
+      f, tabs, previewNode,
+      previewTitle: tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : 'Signature preview',
+      copyLabel: tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Copy document' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : 'Copy signature',
+      copyNow: this.copyNow, printLetter: this.printLetter,
+      dlOpen: d.dlOpen, toggleDl: this.toggleDl, dlHtml: this.dlHtml, dlEml: this.dlEml,
+      brandOpen: d.brandOpen, toggleBrand: this.toggleBrand, brandFields,
+      gearStyle: `display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:0;cursor:pointer;background:${d.brandOpen ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'};transition:.15s`,
+      emHeaderOpts: this.seg('emHeader', [{ k: 'navy', l: 'Navy band' }, { k: 'minimal', l: 'Minimal' }, { k: 'teal', l: 'Teal edge' }]),
+      emFooterOpts: this.seg('emFooter', [{ k: 'navy', l: 'Navy' }, { k: 'linen', l: 'Light' }]),
+      docTypeOpts: this.seg('docType', [{ k: 'business', l: 'Business' }, { k: 'announcement', l: 'Announcement' }, { k: 'collection', l: 'Collection' }, { k: 'memo', l: 'Memo' }]),
+      isMemo: d.docType === 'memo', notMemo: d.docType !== 'memo', isAnnounce: d.docType === 'announcement', isBizColl, isCollection: d.docType === 'collection',
+      showSubject: d.docType !== 'memo', subjectLabel: d.docType === 'announcement' ? 'Title' : 'Subject (Re:)',
+      emailLib, letterLib, sigLib, snippetItems,
+      hasEmailLib: emailLib.length > 0, noEmailLib: emailLib.length === 0,
+      hasLetterLib: letterLib.length > 0, noLetterLib: letterLib.length === 0,
+      hasSigLib: sigLib.length > 0, noSigLib: sigLib.length === 0,
+      hasSnippets: snippetItems.length > 0,
+      sgLogo: d.sgLogo, toggleLogo: this.toggleLogo,
+      setEmailEditor: this.setEmailEditor, setLetterEditor: this.setLetterEditor,
+      onEmailInput: this.onEmailInput, onLetterInput: this.onLetterInput,
+      onEmailPaste: this.onEmailPaste, onLetterPaste: this.onLetterPaste,
+      fmtBold: this.fmtBold, fmtItalic: this.fmtItalic, fmtH2: this.fmtH2, fmtUL: this.fmtUL, fmtLink: this.fmtLink,
+      saveSnippet: this.saveSnippet, saveEmail: this.saveEmail, saveLetter: this.saveLetter, saveSig: this.saveSig,
+      toolBtn: "width:32px;height:30px;border:1px solid #d9d7cf;border-radius:6px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer",
+      smFormatOpts, smStyleOpts, smPostLib, savePost: this.savePost, openSmFull: this.openSmFull,
+      hasSmPostLib: smPostLib.length > 0, noSmPostLib: smPostLib.length === 0,
+      smHeadlineV: d.smHeadline ?? '', smSubV: d.smSub ?? '', smHandleV: d.smHandle ?? '',
+      smHeadlineOn: (e) => this.set('smHeadline', e.target.value), smSubOn: (e) => this.set('smSub', e.target.value), smHandleOn: (e) => this.set('smHandle', e.target.value),
+      plCurrencyOpts: this.seg('plCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
+      plRowViews: (d.plRows || []).map((r, i) => ({
+        code: r.code, desc: r.desc, price: r.price,
+        onCode: (e) => this.updatePlRow(i, 'code', e.target.value),
+        onDesc: (e) => this.updatePlRow(i, 'desc', e.target.value),
+        onPrice: (e) => this.updatePlRow(i, 'price', e.target.value),
+        del: () => this.delPlRow(i)
+      })),
+      addPlRow: this.addPlRow,
+      stCurrencyOpts: this.seg('stCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
+      stRowViews: (d.stRows || []).map((r, i) => ({
+        date: r.date, desc: r.desc, debit: r.debit, credit: r.credit,
+        onDate: (e) => this.updateStRow(i, 'date', e.target.value),
+        onDesc: (e) => this.updateStRow(i, 'desc', e.target.value),
+        onDebit: (e) => this.updateStRow(i, 'debit', e.target.value),
+        onCredit: (e) => this.updateStRow(i, 'credit', e.target.value),
+        del: () => this.delStRow(i)
+      })),
+      addStRow: this.addStRow,
+      copied: d.copied
+    };
+  }
+}
+</script>
+<script>
+  // Embedded mode detection
+  (function() {
+    const p = new URLSearchParams(location.search);
+    if (p.get('embedded') === '1') {
+      document.body.classList.add('embedded');
+      document.getElementById('embedded-tabbar').style.display = 'flex';
+    }
+  })();
+</script>
+</body>
+</html>

@@ -973,11 +973,12 @@ function isSecureRequest(req) {
 
 function writeSecurityHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
+  // SAMEORIGIN allows the doc-studio iframe (/ds/studio.html) to load within the same origin
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'"
+    "default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'self'"
   );
 }
 

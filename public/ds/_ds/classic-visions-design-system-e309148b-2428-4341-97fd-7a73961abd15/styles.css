@@ -1,0 +1,381 @@
+/* ============================================================
+   CLASSIC VISIONS — "Meridian Precision" Design System
+   Wholesale optical supplier · Barbados
+   ------------------------------------------------------------
+   Global stylesheet: design tokens, base type, utilities.
+   Font: Plus Jakarta Sans only — display, body, and caps labels.
+   NO serif, NO monospace. One web-optimised family, many voices.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+:root {
+  /* ---- Brand palette (HSL channels — shadcn-compatible) ---- */
+  /* Deep indigo navy #0B1E35 — the sea, the primary field */
+  --primary: 213 66% 13%; /* @kind color */
+  --primary-foreground: 43 25% 94%; /* @kind color */
+
+  /* Teal #1A8A9C — the signal color, clarity & performance */
+  --secondary: 188 71% 36%; /* @kind color */
+  --secondary-foreground: 0 0% 100%; /* @kind color */
+
+  /* Gold #C89130 — structural accent, used with economy */
+  --accent: 38 61% 49%; /* @kind color */
+  --accent-foreground: 213 66% 13%; /* @kind color */
+
+  /* Off-white linen #F4F2ED — light field */
+  --background: 43 25% 94%; /* @kind color */
+  --foreground: 213 66% 13%; /* @kind color */
+
+  --card: 0 0% 100%; /* @kind color */
+  --card-foreground: 213 66% 13%; /* @kind color */
+  --popover: 0 0% 100%; /* @kind color */
+  --popover-foreground: 213 66% 13%; /* @kind color */
+
+  --muted: 43 15% 90%; /* @kind color */
+  --muted-foreground: 213 30% 45%; /* @kind color */
+
+  --success: 140 45% 40%; /* @kind color */
+  --success-foreground: 0 0% 100%; /* @kind color */
+  --destructive: 0 84% 60%; /* @kind color */
+  --destructive-foreground: 43 25% 94%; /* @kind color */
+
+  --border: 213 20% 85%; /* @kind color */
+  --input: 213 20% 85%; /* @kind color */
+  --ring: 188 71% 36%; /* @kind color */
+
+  /* ---- Convenience hex aliases (for non-HSL use) ---- */
+  --navy: #0B1E35;
+  --navy-700: #14304f;
+  --teal: #1A8A9C;
+  --teal-bright: #28a7bb;
+  --gold: #C89130;
+  --gold-bright: #dba744;
+  --linen: #F4F2ED;
+  --linen-deep: #e9e5da;
+  --ink: #0B1E35;
+  --paper: #ffffff;
+
+  /* ---- Radius ---- */
+  --radius: 0.75rem;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
+
+  /* ---- Type families ---- */
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-label: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; /* caps labels */
+
+  /* ---- Type scale (Meridian hierarchy, sans-only) ---- */
+  --text-display: clamp(2.75rem, 5.5vw, 4.5rem);   /* monuments */
+  --text-h1: clamp(2rem, 3.5vw, 3rem);
+  --text-h2: clamp(1.5rem, 2.4vw, 2rem);
+  --text-h3: 1.375rem;
+  --text-lg: 1.125rem;
+  --text-body: 1rem;
+  --text-sm: 0.875rem;
+  --text-label: 0.6875rem;   /* caps micro-labels */
+
+  /* ---- Gradients ---- */
+  --gradient-primary: linear-gradient(135deg, hsl(213 66% 13%) 0%, hsl(213 55% 22%) 100%); /* @kind color */
+  --gradient-accent: linear-gradient(135deg, hsl(38 61% 49%) 0%, hsl(38 70% 58%) 100%); /* @kind color */
+  --gradient-secondary: linear-gradient(135deg, hsl(188 71% 36%) 0%, hsl(188 65% 45%) 100%); /* @kind color */
+  --gradient-hero: linear-gradient(180deg, hsl(43 25% 94%) 0%, hsl(43 20% 90%) 100%); /* @kind color */
+
+  /* ---- Shadows (soft, navy-tinted) ---- */
+  --shadow-soft: 0 4px 20px -4px hsl(213 66% 13% / 0.08);
+  --shadow-medium: 0 8px 30px -6px hsl(213 66% 13% / 0.12);
+  --shadow-elegant: 0 10px 40px -10px hsl(213 66% 13% / 0.15);
+  --shadow-glow: 0 0 40px hsl(38 61% 49% / 0.25);
+  --shadow-glow-teal: 0 0 40px hsl(188 71% 36% / 0.2);
+
+  /* ---- Spacing rhythm ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Display / headings: sans, tight, monumental ---- */
+.cv-display,
+.cv-h1, .cv-h2, .cv-h3 {
+  font-family: var(--font-display);
+  color: hsl(var(--foreground));
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0;
+  text-wrap: balance;
+}
+.cv-display { font-size: var(--text-display); }
+.cv-h1 { font-size: var(--text-h1); letter-spacing: -0.025em; line-height: 1.05; }
+.cv-h2 { font-size: var(--text-h2); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.cv-h3 { font-size: var(--text-h3); font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+
+.cv-lead {
+  font-size: var(--text-lg);
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
+}
+
+/* ---- Precision label: Jakarta caps micro-label ---- */
+.cv-label {
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: hsl(var(--secondary));
+}
+
+/* ---- Gold structural hairline rule ---- */
+.cv-rule {
+  display: inline-block;
+  width: 2.5rem;
+  height: 2px;
+  background: hsl(var(--accent));
+  vertical-align: middle;
+}
+.cv-rule--vertical {
+  width: 2px;
+  height: 1.5rem;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.cv-bg-navy { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.cv-bg-linen { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.cv-bg-gradient-primary { background-image: var(--gradient-primary); }
+.cv-bg-gradient-accent { background-image: var(--gradient-accent); }
+.cv-bg-gradient-hero { background-image: var(--gradient-hero); }
+
+.cv-text-teal { color: hsl(var(--secondary)); }
+.cv-text-gold { color: hsl(var(--accent)); }
+.cv-text-navy { color: hsl(var(--primary)); }
+.cv-text-muted { color: hsl(var(--muted-foreground)); }
+
+.cv-text-gradient {
+  background-image: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cv-shadow-soft { box-shadow: var(--shadow-soft); }
+.cv-shadow-medium { box-shadow: var(--shadow-medium); }
+.cv-shadow-elegant { box-shadow: var(--shadow-elegant); }
+.cv-shadow-glow { box-shadow: var(--shadow-glow); }
+
+.cv-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ============================================================
+   COMPONENT: Button (.cv-btn)
+   ============================================================ */
+.cv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  line-height: 1;
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color .25s ease, box-shadow .25s ease, color .25s ease, transform .15s ease, border-color .25s ease;
+}
+.cv-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+}
+.cv-btn:disabled { opacity: .5; pointer-events: none; }
+
+/* sizes */
+.cv-btn--md { height: 2.75rem; padding: 0 1.5rem; }
+.cv-btn--sm { height: 2.25rem; padding: 0 1rem; border-radius: var(--radius-md); font-size: 0.8125rem; }
+.cv-btn--lg { height: 3.5rem; padding: 0 2rem; font-size: var(--text-body); border-radius: var(--radius-lg); }
+.cv-btn--icon { height: 2.75rem; width: 2.75rem; padding: 0; }
+
+/* variants */
+.cv-btn--primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); box-shadow: var(--shadow-soft); }
+.cv-btn--primary:hover { background: hsl(var(--primary) / .9); box-shadow: var(--shadow-medium); }
+
+.cv-btn--secondary { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); box-shadow: var(--shadow-soft); }
+.cv-btn--secondary:hover { background: hsl(var(--secondary) / .85); }
+
+.cv-btn--outline { background: transparent; color: hsl(var(--primary)); border: 2px solid hsl(var(--primary)); }
+.cv-btn--outline:hover { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+
+.cv-btn--ghost { background: transparent; color: hsl(var(--foreground)); }
+.cv-btn--ghost:hover { background: hsl(var(--muted)); }
+
+.cv-btn--hero { background-image: var(--gradient-accent); color: hsl(var(--accent-foreground)); box-shadow: var(--shadow-medium); }
+.cv-btn--hero:hover { box-shadow: var(--shadow-glow); transform: scale(1.02); }
+.cv-btn--hero:active { transform: scale(.98); }
+
+.cv-btn--hero-outline { background: transparent; color: hsl(var(--accent)); border: 2px solid hsl(var(--accent)); }
+.cv-btn--hero-outline:hover { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+
+/* ============================================================
+   COMPONENT: Badge (.cv-badge)
+   ============================================================ */
+.cv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+.cv-badge--navy { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.cv-badge--teal { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
+.cv-badge--gold { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.cv-badge--success { background: hsl(var(--success)); color: hsl(var(--success-foreground)); }
+.cv-badge--outline { background: transparent; color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
+.cv-badge--muted { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+
+/* ============================================================
+   COMPONENT: PrecisionLabel (.cv-plabel) — caps kicker
+   ============================================================ */
+.cv-plabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-label);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: hsl(var(--secondary));
+}
+.cv-plabel__rule { width: 2rem; height: 2px; background: hsl(var(--accent)); flex: none; }
+.cv-plabel__num { color: hsl(var(--accent)); }
+
+/* ============================================================
+   COMPONENT: Medallion (.cv-medallion) — optical circle icon
+   ============================================================ */
+.cv-medallion {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: hsl(var(--secondary));
+}
+.cv-medallion__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.35;
+}
+.cv-medallion__ring--2 { inset: 14%; opacity: 0.55; }
+.cv-medallion__ring--3 { inset: 28%; opacity: 0.8; }
+.cv-medallion__tick {
+  position: absolute;
+  width: 1px;
+  height: 7px;
+  background: currentColor;
+  top: 0;
+  left: 50%;
+  transform-origin: 50% calc(50% + 0px);
+  opacity: 0.5;
+}
+.cv-medallion__glyph {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   COMPONENT: SpecCard (.cv-speccard)
+   ============================================================ */
+.cv-speccard {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow .3s ease, transform .3s ease, border-color .3s ease;
+  position: relative;
+}
+.cv-speccard:hover { box-shadow: var(--shadow-medium); border-color: hsl(var(--secondary) / .4); }
+.cv-speccard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.cv-speccard__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-h3);
+  letter-spacing: -0.015em;
+  color: hsl(var(--foreground));
+  margin: 0;
+}
+.cv-speccard__body { color: hsl(var(--muted-foreground)); font-size: var(--text-sm); line-height: 1.6; margin: 0; }
+.cv-speccard__divider { height: 1px; background: hsl(var(--border)); margin: 1.25rem 0; }
+.cv-speccard__accent {
+  position: absolute;
+  left: 0; top: 1.75rem; bottom: 1.75rem;
+  width: 3px;
+  background: hsl(var(--accent));
+  border-radius: 0 2px 2px 0;
+}
