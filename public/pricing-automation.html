@@ -116,17 +116,18 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 [data-theme="dark"] .editing-pill.new { background: rgba(255,255,255,0.08); color: #8faabb; }
 
 /* Buttons */
-.pl-btn { padding: 5px 11px; border-radius: 6px; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: all 0.14s; white-space: nowrap; }
-.pl-btn-primary { background: var(--pl-navy); color: #fff; }
-.pl-btn-primary:hover { background: var(--pl-navy2); }
+.pl-btn { padding: 5px 11px; border-radius: 6px; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; position: relative; overflow: hidden; }
+.pl-btn:active { transform: scale(0.96); }
+.pl-btn-primary { background: var(--pl-navy); color: #fff; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
+.pl-btn-primary:hover { background: var(--pl-navy2); box-shadow: 0 4px 6px rgba(11, 30, 53, 0.1); transform: translateY(-1px); }
 .pl-btn-secondary { background: #fff; border: 1.5px solid var(--pl-border); color: var(--pl-text); }
-.pl-btn-secondary:hover { border-color: var(--pl-teal); color: var(--pl-teal); }
+.pl-btn-secondary:hover { border-color: var(--pl-teal); color: var(--pl-teal); background: rgba(26, 138, 156, 0.04); }
 [data-theme="dark"] .pl-btn-secondary { background: #1e3558; border-color: #2a4a70; color: #e0e8f0; }
-.pl-btn-teal { background: var(--pl-teal); color: #fff; }
-.pl-btn-teal:hover { filter: brightness(1.08); }
-.pl-btn-gold { background: var(--pl-gold); color: #fff; }
-.pl-btn-gold:hover { filter: brightness(1.06); }
-.pl-btn-danger { background: var(--pl-danger); color: #fff; font-size: 10.5px; padding: 4px 8px; }
+.pl-btn-teal { background: var(--pl-teal); color: #fff; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
+.pl-btn-teal:hover { filter: brightness(1.08); box-shadow: 0 4px 6px rgba(11, 30, 53, 0.1); transform: translateY(-1px); }
+.pl-btn-gold { background: var(--pl-gold); color: #fff; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
+.pl-btn-gold:hover { filter: brightness(1.06); box-shadow: 0 4px 6px rgba(11, 30, 53, 0.1); transform: translateY(-1px); }
+.pl-btn-danger { background: var(--pl-danger); color: #fff; font-size: 10.5px; padding: 4px 8px; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
 
 /* Scrollable content */
 .pl-content { flex: 1; overflow-y: auto; padding: 12px 14px; min-height: 0; }
@@ -146,7 +147,8 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 [data-theme="dark"] .pl-toggle button.active { background: var(--pl-teal); border-color: var(--pl-teal); }
 
 /* Matrix cards */
-.matrix-card { background: var(--pl-card); border-radius: var(--pl-radius); border: 1px solid var(--pl-border); overflow: hidden; margin-bottom: 10px; }
+.matrix-card { background: var(--pl-card); border-radius: var(--pl-radius); border: 1px solid var(--pl-border); overflow: hidden; margin-bottom: 10px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.05); }
+.matrix-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(11, 30, 53, 0.12); }
 [data-theme="dark"] .matrix-card { background: #14304f; border-color: #1e3a5c; }
 .matrix-hdr { background: linear-gradient(135deg, var(--pl-navy) 0%, var(--pl-navy2) 100%); color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
 .matrix-hdr h3 { font-size: 13px; font-weight: 700; margin: 0; }
@@ -225,7 +227,8 @@ table.sourcing-table .muted { color: var(--pl-muted-fg); font-size: 9.5px; }
 .flag-sin { background: rgba(26,138,156,0.12); color: #0f6b7a; }
 
 /* Data Sources */
-.source-card { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 12px 14px; margin-bottom: 10px; }
+.source-card { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 12px 14px; margin-bottom: 10px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.05); }
+.source-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(11, 30, 53, 0.12); }
 [data-theme="dark"] .source-card { background: #14304f; border-color: #1e3a5c; }
 .source-card.empty { opacity: 0.85; }
 .source-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }

@@ -166,7 +166,15 @@ function wireLauncher() {
   }
 
   function open()  { overlay.hidden = false; document.body.style.overflow = "hidden"; btn?.setAttribute("aria-expanded","true"); }
-  function close() { overlay.hidden = true;  document.body.style.overflow = "";       btn?.setAttribute("aria-expanded","false"); }
+  function close() { 
+    overlay.classList.add("closing");
+    setTimeout(() => {
+      overlay.hidden = true;  
+      overlay.classList.remove("closing");
+      document.body.style.overflow = "";       
+      btn?.setAttribute("aria-expanded","false"); 
+    }, 200);
+  }
 
   btn?.addEventListener("click", open);
   closeBtn?.addEventListener("click", close);
@@ -184,7 +192,15 @@ function wireSearch() {
   if (!overlay) return;
 
   function open()  { overlay.hidden = false; input?.focus(); renderResults(""); document.body.style.overflow = "hidden"; }
-  function close() { overlay.hidden = true;  document.body.style.overflow = ""; if (input) input.value = ""; }
+  function close() { 
+    overlay.classList.add("closing");
+    setTimeout(() => {
+      overlay.hidden = true;  
+      overlay.classList.remove("closing");
+      document.body.style.overflow = ""; 
+      if (input) input.value = ""; 
+    }, 200);
+  }
 
   trigger?.addEventListener("click", open);
   overlay?.addEventListener("click", e => { if (e.target === overlay) close(); });
@@ -303,8 +319,12 @@ function openAuth() {
 function closeAuth() {
   const overlay = document.querySelector("#authOverlay");
   if (!overlay) return;
-  overlay.hidden = true;
-  document.body.style.overflow = "";
+  overlay.classList.add("closing");
+  setTimeout(() => {
+    overlay.hidden = true;
+    overlay.classList.remove("closing");
+    document.body.style.overflow = "";
+  }, 200);
 }
 
 async function submitAuth(event) {
