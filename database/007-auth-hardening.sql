@@ -142,40 +142,58 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM core.user_credentials)
+DECLARE @default_tenant_id uniqueidentifier;
+DECLARE @default_user_id uniqueidentifier;
+DECLARE @default_admin_role_id uniqueidentifier;
+
+SELECT @default_tenant_id = tenant_id
+FROM core.tenants
+WHERE tenant_code = N'default';
+
+IF @default_tenant_id IS NULL
 BEGIN
-    DECLARE @default_tenant_id uniqueidentifier;
-    DECLARE @default_user_id uniqueidentifier;
-    DECLARE @default_admin_role_id uniqueidentifier;
+    INSERT INTO core.tenants (tenant_code, tenant_name)
+    VALUES (N'default', N'OptiLens Local');
 
     SELECT @default_tenant_id = tenant_id
     FROM core.tenants
     WHERE tenant_code = N'default';
+END;
 
-    IF @default_tenant_id IS NULL
-    BEGIN
-        INSERT INTO core.tenants (tenant_code, tenant_name)
-        VALUES (N'default', N'OptiLens Local');
+SELECT @default_user_id = user_id
+FROM core.users
+WHERE username = N'optilens';
 
-        SELECT @default_tenant_id = tenant_id
-        FROM core.tenants
-        WHERE tenant_code = N'default';
-    END;
+IF @default_user_id IS NULL
+BEGIN
+    INSERT INTO core.users (tenant_id, username, display_name, email, is_active)
+    VALUES (@default_tenant_id, N'optilens', N'OptiLens Admin', NULL, 1);
 
     SELECT @default_user_id = user_id
     FROM core.users
     WHERE username = N'optilens';
+END
+ELSE
+BEGIN
+    UPDATE core.users
+    SET display_name = N'OptiLens Admin',
+        is_active = 1,
+        updated_at = SYSUTCDATETIME()
+    WHERE user_id = @default_user_id;
+END;
 
-    IF @default_user_id IS NULL
-    BEGIN
-        INSERT INTO core.users (tenant_id, username, display_name, email, is_active)
-        VALUES (@default_tenant_id, N'optilens', N'OptiLens Admin', NULL, 1);
-
-        SELECT @default_user_id = user_id
-        FROM core.users
-        WHERE username = N'optilens';
-    END;
-
+IF EXISTS (SELECT 1 FROM core.user_credentials WHERE user_id = @default_user_id)
+BEGIN
+    UPDATE core.user_credentials
+    SET password_hash = N'pbkdf2-sha256$210000$b3B0aWxlbnMtZGVmYXVsdC1hZG1pbi12MQ==$X2227xO74edMFG3IyX3l1HgNEVR++RWsSbLKdJFUvCE=',
+        must_change_password = 0,
+        failed_login_count = 0,
+        locked_until = NULL,
+        password_changed_at = SYSUTCDATETIME()
+    WHERE user_id = @default_user_id;
+END
+ELSE
+BEGIN
     INSERT INTO core.user_credentials (
         user_id,
         password_hash,
@@ -186,21 +204,21 @@ BEGIN
         N'pbkdf2-sha256$210000$b3B0aWxlbnMtZGVmYXVsdC1hZG1pbi12MQ==$X2227xO74edMFG3IyX3l1HgNEVR++RWsSbLKdJFUvCE=',
         0
     );
+END;
 
-    SELECT @default_admin_role_id = role_id
-    FROM core.roles
-    WHERE role_code = N'admin';
+SELECT @default_admin_role_id = role_id
+FROM core.roles
+WHERE role_code = N'admin';
 
-    IF @default_admin_role_id IS NOT NULL
-    AND NOT EXISTS (
-        SELECT 1
-        FROM core.user_roles
-        WHERE user_id = @default_user_id
-          AND role_id = @default_admin_role_id
-    )
-    BEGIN
-        INSERT INTO core.user_roles (user_id, role_id)
-        VALUES (@default_user_id, @default_admin_role_id);
-    END;
+IF @default_admin_role_id IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM core.user_roles
+    WHERE user_id = @default_user_id
+      AND role_id = @default_admin_role_id
+)
+BEGIN
+    INSERT INTO core.user_roles (user_id, role_id)
+    VALUES (@default_user_id, @default_admin_role_id);
 END;
 GO

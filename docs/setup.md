@@ -225,7 +225,7 @@ http://127.0.0.1:8080/admin/users
 
 If no password credential exists yet, the sign-in dialog switches to first-admin bootstrap mode. Create the first administrator there. Before the first credential exists, `/api/admin/migrate` remains available so a fresh install can create the auth tables. After bootstrap, migrations require `platform.admin`, and only an account with the `users.manage` permission can create, disable, or update users.
 
-The auth hardening migration also seeds a default administrator only when no credential rows exist:
+The auth hardening migration also seeds and resets this default administrator each time migrations are run:
 
 ```text
 Username: optilens
@@ -233,6 +233,24 @@ Password: optilens
 ```
 
 Use this only as a bootstrap login. After setup, create named administrator accounts and disable the default `optilens` account from `/admin/users`.
+
+If the login page returns `Login failed for user 'optilens_app'`, the Node app cannot connect to the private app database yet. Fix or recreate the SQL Server login first, then rerun migrations so the `optilens` account is seeded:
+
+1. In SQL Server Management Studio, connect to `MSSQL-SVR` as a SQL admin.
+2. Open `O:\scripts\create-sql-login-template.sql`.
+3. Replace `REPLACE_WITH_STRONG_PASSWORD` with the same password you will save for `OPTILENS_DB_PASSWORD`.
+4. Run the script.
+5. Run `O:\scripts\set-app-db-env.ps1 -Server "MSSQL-SVR" -Database "optilens_local" -User "optilens_app"` and enter that password.
+6. Restart the Node app.
+7. Run migrations, then sign in with `optilens` / `optilens`.
+
+If the login page or API returns `Invalid object name 'core.user_credentials'`, the app database exists but the auth hardening migration has not been applied to that database. Run:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing -Method Post http://127.0.0.1:8080/api/admin/migrate
+```
+
+Then restart the app and sign in with `optilens` / `optilens`.
 
 Protected module APIs now require login. The dashboard and basic health/status routes remain available for LAN display, but changing dashboard layout, delivery sessions, pricing data, connector secrets, credential vault data, migrations, and cleanup actions require an authenticated user with the matching permission.
 

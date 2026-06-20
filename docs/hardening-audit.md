@@ -6,7 +6,7 @@ Date: 2026-06-19
 
 - Added database-backed user credentials in `core.user_credentials`.
 - Added seeded permissions for platform admin, user management, dashboard writes, credentials management, delivery read/write, pricing read/write, and integration read/manage.
-- Added a fresh-install default administrator seed, `optilens` / `optilens`, only when no password credentials exist yet.
+- Added a default administrator seed, `optilens` / `optilens`, reset by the auth hardening migration so rerunning migrations restores that bootstrap login.
 - Added first-admin bootstrap through `/api/auth/bootstrap-state` and `/api/auth/bootstrap`.
 - Added login, logout, and current-user endpoints backed by HttpOnly SameSite cookies.
 - Added `/admin/users` for administrator-controlled account creation and account enable/disable.

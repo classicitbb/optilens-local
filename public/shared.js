@@ -213,6 +213,7 @@ function wireSearch() {
 
 const AUTH_STATE = {
   user: null,
+  needsMigration: false,
   needsBootstrap: false
 };
 
@@ -243,7 +244,8 @@ function wireAuth() {
 }
 
 async function refreshAuthState() {
-  const bootstrap = await authFetch("/api/auth/bootstrap-state").catch(() => ({ needsBootstrap: false }));
+  const bootstrap = await authFetch("/api/auth/bootstrap-state").catch(() => ({ needsMigration: false, needsBootstrap: false }));
+  AUTH_STATE.needsMigration = Boolean(bootstrap.needsMigration);
   AUTH_STATE.needsBootstrap = Boolean(bootstrap.needsBootstrap);
 
   const me = await authFetch("/api/auth/me").catch(() => ({ user: null }));
@@ -263,8 +265,8 @@ function renderAuthChip() {
       chip.setAttribute("aria-label", "Signed in user. Click to sign out.");
     } else {
       avatar.textContent = "IN";
-      name.textContent = AUTH_STATE.needsBootstrap ? "Create Admin" : "Sign in";
-      chip.setAttribute("aria-label", AUTH_STATE.needsBootstrap ? "Create first admin user" : "Sign in");
+      name.textContent = AUTH_STATE.needsMigration ? "Run Migrations" : AUTH_STATE.needsBootstrap ? "Create Admin" : "Sign in";
+      chip.setAttribute("aria-label", AUTH_STATE.needsMigration ? "Run migrations before signing in" : AUTH_STATE.needsBootstrap ? "Create first admin user" : "Sign in");
     }
   });
 }
@@ -281,11 +283,14 @@ function openAuth() {
   const error = document.querySelector("#authError");
   if (!overlay) return;
 
-  title.textContent = AUTH_STATE.needsBootstrap ? "Create first admin" : "Sign in";
-  copy.textContent = AUTH_STATE.needsBootstrap
+  title.textContent = AUTH_STATE.needsMigration ? "Run migrations" : AUTH_STATE.needsBootstrap ? "Create first admin" : "Sign in";
+  copy.textContent = AUTH_STATE.needsMigration
+    ? "Authentication tables are missing. Run /api/admin/migrate, restart if needed, then sign in with optilens / optilens."
+    : AUTH_STATE.needsBootstrap
     ? "Create the first administrator account. This can only be done before any password credential exists."
     : "Use your OptiLens Local account to change data and manage protected modules.";
   submit.textContent = AUTH_STATE.needsBootstrap ? "Create admin" : "Sign in";
+  submit.disabled = AUTH_STATE.needsMigration;
   displayWrap.hidden = !AUTH_STATE.needsBootstrap;
   emailWrap.hidden = !AUTH_STATE.needsBootstrap;
   error.textContent = "";

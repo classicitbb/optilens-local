@@ -9,7 +9,7 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'optilens_app')
 BEGIN
     CREATE LOGIN [optilens_app]
-    WITH PASSWORD = N'U$E0cuc0',
+    WITH PASSWORD = N'REPLACE_WITH_STRONG_PASSWORD',
          CHECK_POLICY = ON,
          CHECK_EXPIRATION = OFF;
 END;
