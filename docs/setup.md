@@ -118,6 +118,7 @@ In SQL Server Management Studio:
    - `O:\database\003-delivery-module-schema.sql`
    - `O:\database\006-pricing-module-schema.sql`
    - `O:\database\004-seed-platform.sql`
+   - `O:\database\007-auth-hardening.sql`
 
 This creates:
 
@@ -128,6 +129,7 @@ This creates:
 - `integration` schema
 - `archive` schema
 - Platform seed records
+- User credential, role, and permission hardening records
 
 ## Desktop Shortcut / PWA Install
 
@@ -212,6 +214,27 @@ O:\scripts\run-db-setup-with-windows-auth.ps1 -Server "MSSQL-SVR"
 8. Add read-only source lookup for `ShipmentItems` by `CustomerAccount` and `ShipmentID`.
 9. Add authentication for change-capable module screens.
 10. Keep the dashboard route unauthenticated for LAN display.
+
+## First Admin Login
+
+After app DB credentials are configured and migrations have been applied, open:
+
+```text
+http://127.0.0.1:8080/admin/users
+```
+
+If no password credential exists yet, the sign-in dialog switches to first-admin bootstrap mode. Create the first administrator there. Before the first credential exists, `/api/admin/migrate` remains available so a fresh install can create the auth tables. After bootstrap, migrations require `platform.admin`, and only an account with the `users.manage` permission can create, disable, or update users.
+
+The auth hardening migration also seeds a default administrator only when no credential rows exist:
+
+```text
+Username: optilens
+Password: optilens
+```
+
+Use this only as a bootstrap login. After setup, create named administrator accounts and disable the default `optilens` account from `/admin/users`.
+
+Protected module APIs now require login. The dashboard and basic health/status routes remain available for LAN display, but changing dashboard layout, delivery sessions, pricing data, connector secrets, credential vault data, migrations, and cleanup actions require an authenticated user with the matching permission.
 
 ## Access Import Dry Run
 

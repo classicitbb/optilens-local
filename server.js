@@ -36,24 +36,24 @@ function writeVault(obj) {
 // 64-char hex token stored in client sessionStorage; valid for 8 hours.
 
 const SESSION_TTL = 8 * 60 * 60 * 1000;
-const sessions = new Map(); // token → expiresAt
+const vaultSessions = new Map(); // token -> expiresAt
 
 function createSession() {
   const token = nodeCrypto.randomBytes(32).toString("hex");
-  sessions.set(token, Date.now() + SESSION_TTL);
+  vaultSessions.set(token, Date.now() + SESSION_TTL);
   return token;
 }
 
 function validateSession(token) {
   if (!token) return false;
-  const exp = sessions.get(token);
+  const exp = vaultSessions.get(token);
   if (!exp) return false;
-  if (Date.now() > exp) { sessions.delete(token); return false; }
+  if (Date.now() > exp) { vaultSessions.delete(token); return false; }
   return true;
 }
 
 function destroySession(token) {
-  sessions.delete(token);
+  vaultSessions.delete(token);
 }
 
 function bearerToken(req) {
@@ -87,6 +87,15 @@ const {
   listPriceCalculations,
   listPricingRules
 } = require("./lib/pricing");
+const {
+  authenticateUser,
+  bootstrapAdmin,
+  createUser,
+  getBootstrapState,
+  getUserAccess,
+  listUsers,
+  updateUser
+} = require("./lib/auth");
 
 // ─── Pricelist Builder (folded in from pricelist-automation) ─────────────────
 const PE = require("./lib/pricing-engine");
@@ -202,6 +211,9 @@ const config = getConfig();
 const host = config.host;
 const port = config.port;
 const publicDir = path.join(__dirname, "public");
+const AUTH_COOKIE = "optilens_session";
+const AUTH_TTL = 8 * 60 * 60 * 1000;
+const authSessions = new Map(); // token -> { userId, expiresAt }
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -216,17 +228,79 @@ const mimeTypes = {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
+  // ── Platform Auth API ─────────────────────────────────────────────────────
+
+  if (url.pathname === "/api/auth/bootstrap-state" && req.method === "GET") {
+    return handleApi(res, async () => getBootstrapState());
+  }
+
+  if (url.pathname === "/api/auth/bootstrap" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await bootstrapAdmin(await readJsonBody(req));
+      setAuthCookie(res, createAuthSession(user), req);
+      return { user };
+    }, 201);
+  }
+
+  if (url.pathname === "/api/auth/login" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const body = await readJsonBody(req);
+      const user = await authenticateUser(body.username, body.password);
+      setAuthCookie(res, createAuthSession(user), req);
+      return { user };
+    });
+  }
+
+  if (url.pathname === "/api/auth/logout" && req.method === "POST") {
+    destroyAuthSession(readAuthToken(req));
+    clearAuthCookie(res, req);
+    return sendJson(res, { ok: true });
+  }
+
+  if (url.pathname === "/api/auth/me" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await currentUser(req);
+      return { user };
+    });
+  }
+
+  if (url.pathname === "/api/admin/users" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "users.manage");
+      return listUsers();
+    });
+  }
+
+  if (url.pathname === "/api/admin/users" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "users.manage");
+      return { user: await createUser(await readJsonBody(req), actor.userId) };
+    }, 201);
+  }
+
+  const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (adminUserMatch && req.method === "PATCH") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "users.manage");
+      return { user: await updateUser(adminUserMatch[1], await readJsonBody(req), actor.userId) };
+    });
+  }
+
   // ── Vault API ──────────────────────────────────────────────────────────────
 
   // State — tells the client whether a PIN has been configured
   if (url.pathname === "/api/vault/state" && req.method === "GET") {
-    const v = readVault();
-    return sendJson(res, { hasPin: !!v.pinHash });
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const v = readVault();
+      return { hasPin: !!v.pinHash };
+    });
   }
 
   // Setup — first-time: hash PIN server-side, persist data
   if (url.pathname === "/api/vault/setup" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const { pin, data } = await readJsonBody(req);
       if (!pin) throw Object.assign(new Error("pin is required"), { statusCode: 400 });
       const existing = readVault();
@@ -239,6 +313,7 @@ const server = http.createServer(async (req, res) => {
   // Unlock — verify PIN, return session token
   if (url.pathname === "/api/vault/unlock" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const { pin } = await readJsonBody(req);
       const v = readVault();
       if (!v.pinHash) throw Object.assign(new Error("Vault not initialised"), { statusCode: 404 });
@@ -250,6 +325,7 @@ const server = http.createServer(async (req, res) => {
   // Get data — requires valid session
   if (url.pathname === "/api/vault/data" && req.method === "GET") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       if (!validateSession(bearerToken(req))) throw Object.assign(new Error("Unauthorised"), { statusCode: 401 });
       return { data: readVault().data || {} };
     });
@@ -258,6 +334,7 @@ const server = http.createServer(async (req, res) => {
   // Save data — requires valid session
   if (url.pathname === "/api/vault/data" && req.method === "PUT") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       if (!validateSession(bearerToken(req))) throw Object.assign(new Error("Unauthorised"), { statusCode: 401 });
       const { data } = await readJsonBody(req);
       const v = readVault();
@@ -269,15 +346,21 @@ const server = http.createServer(async (req, res) => {
 
   // Lock — invalidate session token
   if (url.pathname === "/api/vault/lock" && req.method === "POST") {
-    destroySession(bearerToken(req));
-    return sendJson(res, { ok: true });
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      destroySession(bearerToken(req));
+      return { ok: true };
+    });
   }
 
   // Reset — wipe vault and all sessions
   if (url.pathname === "/api/vault/reset" && req.method === "POST") {
-    sessions.clear();
-    writeVault({ pinHash: null, data: null });
-    return sendJson(res, { ok: true });
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      vaultSessions.clear();
+      writeVault({ pinHash: null, data: null });
+      return { ok: true };
+    });
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -302,11 +385,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/dashboard" && req.method === "GET") {
-    return sendJson(res, await buildDashboard(url.searchParams.get("deviceId")));
+    const user = await optionalCurrentUser(req);
+    return sendJson(res, await buildDashboard(url.searchParams.get("deviceId"), user?.userId || null));
   }
 
   if (url.pathname === "/api/dashboard/tiles" && req.method === "PUT") {
-    return handleApi(res, async () => saveDashboardTiles(await readJsonBody(req)));
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "dashboard.write");
+      return saveDashboardTiles(await readJsonBody(req), actor.userId);
+    });
   }
 
   if (url.pathname === "/api/dashboard/device" && req.method === "POST") {
@@ -320,96 +407,158 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/admin/migrate" && req.method === "POST") {
-    return handleApi(res, async () => runMigrations());
+    return handleApi(res, async () => {
+      await requireMigrationAccess(req);
+      return runMigrations();
+    });
   }
 
   if (url.pathname === "/api/admin/cleanup-test-shipments" && req.method === "POST") {
-    return handleApi(res, async () => deleteTestShipmentSessions());
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      return deleteTestShipmentSessions();
+    });
   }
 
   if (url.pathname === "/api/delivery/shipments" && req.method === "GET") {
-    return handleApi(res, async () => ({ sessions: await listShipmentSessions() }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { sessions: await listShipmentSessions() };
+    });
   }
 
   if (url.pathname === "/api/source/dispatchers" && req.method === "GET") {
-    return handleApi(res, async () => ({ dispatchers: await listDispatchers() }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { dispatchers: await listDispatchers() };
+    });
   }
 
   if (url.pathname === "/api/source/export-customers" && req.method === "GET") {
-    return handleApi(res, async () => ({ customers: await listExportCustomers(url.searchParams.get("q") || "") }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { customers: await listExportCustomers(url.searchParams.get("q") || "") };
+    });
   }
 
   if (url.pathname === "/api/source/shipment-items" && req.method === "GET") {
-    return handleApi(res, async () => ({
-      items: await listShipmentItems({
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { items: await listShipmentItems({
         customerAccount: url.searchParams.get("customerAccount") || "",
         shipmentId: url.searchParams.get("shipmentId") || ""
-      })
-    }));
+      }) };
+    });
   }
 
   if (url.pathname === "/api/delivery/shipments" && req.method === "POST") {
-    return handleApi(res, async () => ({ session: await createShipmentSession(await readJsonBody(req)) }), 201);
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      return { session: await createShipmentSession(await readJsonBody(req), actor.userId) };
+    }, 201);
   }
 
   if (url.pathname === "/api/pricing/rules" && req.method === "GET") {
-    return handleApi(res, async () => ({ rules: await listPricingRules() }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return { rules: await listPricingRules() };
+    });
   }
 
   if (url.pathname === "/api/pricing/rules" && req.method === "POST") {
-    return handleApi(res, async () => ({ rule: await createPricingRule(await readJsonBody(req)) }), 201);
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "pricing.write");
+      return { rule: await createPricingRule(await readJsonBody(req), actor.userId) };
+    }, 201);
   }
 
   if (url.pathname === "/api/pricing/calculate" && req.method === "POST") {
-    return handleApi(res, async () => await calculatePrice(await readJsonBody(req)), 201);
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "pricing.write");
+      return calculatePrice(await readJsonBody(req), actor.userId);
+    }, 201);
   }
 
   if (url.pathname === "/api/pricing/calculations" && req.method === "GET") {
-    return handleApi(res, async () => ({ calculations: await listPriceCalculations() }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return { calculations: await listPriceCalculations() };
+    });
   }
 
   const sessionGetMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)$/);
   if (sessionGetMatch && req.method === "GET") {
-    return handleApi(res, async () => ({ session: await getShipmentSession(sessionGetMatch[1]) }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { session: await getShipmentSession(sessionGetMatch[1]) };
+    });
   }
 
   const closeMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/close$/);
   if (closeMatch && req.method === "POST") {
-    return handleApi(res, async () => ({ session: await updateShipmentStatus(closeMatch[1], "closed") }));
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      return { session: await updateShipmentStatus(closeMatch[1], "closed", actor.userId) };
+    });
   }
 
   const reopenMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/reopen$/);
   if (reopenMatch && req.method === "POST") {
-    return handleApi(res, async () => ({ session: await updateShipmentStatus(reopenMatch[1], "prep") }));
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      return { session: await updateShipmentStatus(reopenMatch[1], "prep", actor.userId) };
+    });
   }
 
   const eventsMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/events$/);
   if (eventsMatch && req.method === "GET") {
-    return handleApi(res, async () => ({ events: await listShipmentEvents(eventsMatch[1]) }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { events: await listShipmentEvents(eventsMatch[1]) };
+    });
   }
 
   // ── Pricelist Builder API (/api/v2/* + /api/customers + /api/pricelists + /api/connectors) ──
 
   if (url.pathname === "/api/v2/combos" && req.method === "GET") {
-    return sendJson(res, plCombos);
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plCombos;
+    });
   }
   if (url.pathname === "/api/v2/quote-only" && req.method === "GET") {
-    return sendJson(res, plReadJSON(PL_QUOTE, {}));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plReadJSON(PL_QUOTE, {});
+    });
   }
   if (url.pathname === "/api/v2/sources" && req.method === "GET") {
-    return sendJson(res, plReadJSON(PL_SOURCES, { sources: [], live: [] }));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plReadJSON(PL_SOURCES, { sources: [], live: [] });
+    });
   }
   if (url.pathname === "/api/v2/source-status" && req.method === "GET") {
-    return sendJson(res, plSourceStatus());
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plSourceStatus();
+    });
   }
   if (url.pathname === "/api/v2/overrides" && req.method === "GET") {
-    return sendJson(res, plLoadOverrides());
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plLoadOverrides();
+    });
   }
   if (url.pathname === "/api/v2/overrides" && req.method === "POST") {
-    return handleApi(res, async () => plSaveOverrides(await readJsonBody(req)));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
+      return plSaveOverrides(await readJsonBody(req));
+    });
   }
   if (url.pathname === "/api/v2/price" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
       const settings = await readJsonBody(req);
       if (!settings.disabled) settings.disabled = plLoadOverrides();
       return { settings, rows: plPricedMatrix(plCombos, settings) };
@@ -417,6 +566,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/v2/override" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
       const body = await readJsonBody(req);
       const combo = plComboByKey[body.key];
       if (!combo) { const e = new Error("combo not found"); e.statusCode = 404; throw e; }
@@ -426,16 +576,23 @@ const server = http.createServer(async (req, res) => {
 
   // Pricelist builder customers (separate from delivery customers)
   if (url.pathname === "/api/pl/customers" && req.method === "GET") {
-    return sendJson(res, plReadJSON(PL_CUSTOMERS, []));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return plReadJSON(PL_CUSTOMERS, []);
+    });
   }
 
   // Saved pricelists CRUD
   if (url.pathname === "/api/pricelists" && req.method === "GET") {
-    const pl = plLoadLists();
-    return sendJson(res, Object.entries(pl).map(([id, p]) => ({ id, name: p.name, customer: p.customer, customerName: p.customerName, updatedAt: p.updatedAt })));
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      const pl = plLoadLists();
+      return Object.entries(pl).map(([id, p]) => ({ id, name: p.name, customer: p.customer, customerName: p.customerName, updatedAt: p.updatedAt }));
+    });
   }
   if (url.pathname === "/api/pricelists" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
       const pl = plLoadLists();
       const id = Date.now().toString();
       pl[id] = { ...await readJsonBody(req), id, updatedAt: new Date().toISOString() };
@@ -445,12 +602,20 @@ const server = http.createServer(async (req, res) => {
   }
   const plGetMatch = url.pathname.match(/^\/api\/pricelists\/([^/]+)$/);
   if (plGetMatch && req.method === "GET") {
-    const pl = plLoadLists();
-    if (!pl[plGetMatch[1]]) return sendJson(res, { error: "Not found" }, 404);
-    return sendJson(res, pl[plGetMatch[1]]);
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      const pl = plLoadLists();
+      if (!pl[plGetMatch[1]]) {
+        const error = new Error("Not found");
+        error.statusCode = 404;
+        throw error;
+      }
+      return pl[plGetMatch[1]];
+    });
   }
   if (plGetMatch && req.method === "PUT") {
     return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
       const pl = plLoadLists();
       pl[plGetMatch[1]] = { ...await readJsonBody(req), id: plGetMatch[1], updatedAt: new Date().toISOString() };
       plSaveLists(pl);
@@ -459,6 +624,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (plGetMatch && req.method === "DELETE") {
     return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
       const pl = plLoadLists();
       delete pl[plGetMatch[1]];
       plSaveLists(pl);
@@ -468,10 +634,14 @@ const server = http.createServer(async (req, res) => {
 
   // Connectors (passphrase-locked credential vault)
   if (url.pathname === "/api/connectors/status" && req.method === "GET") {
-    return sendJson(res, plSecure.status());
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      return plSecure.status();
+    });
   }
   if (url.pathname === "/api/connectors/init" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       if (plSecure.isInitialised()) { const e = new Error("Already initialised."); e.statusCode = 409; throw e; }
       plSecure.setPassphrase(body.passphrase);
@@ -480,6 +650,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/unlock" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const token = plSecure.unlock(body.passphrase || "");
       if (!token) { const e = new Error("Wrong passphrase."); e.statusCode = 401; throw e; }
@@ -487,10 +658,15 @@ const server = http.createServer(async (req, res) => {
     });
   }
   if (url.pathname === "/api/connectors/lock" && req.method === "POST") {
-    return handleApi(res, async () => { plSecure.lock((await readJsonBody(req)).token); return { ok: true }; });
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      plSecure.lock((await readJsonBody(req)).token);
+      return { ok: true };
+    });
   }
   if (url.pathname === "/api/connectors/reveal" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -499,6 +675,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/config" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -507,6 +684,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/cvapi/config" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -515,6 +693,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/cvapi/reveal" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -523,6 +702,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/cvapi/test" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -549,6 +729,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/pull" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -563,6 +744,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === "/api/connectors/push" && req.method === "POST") {
     return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
@@ -587,6 +769,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     const ext = path.extname(filePath).toLowerCase();
+    writeSecurityHeaders(res);
     res.writeHead(200, {
       "Content-Type": mimeTypes[ext] || "application/octet-stream",
       "Cache-Control": "no-store"
@@ -598,8 +781,9 @@ const server = http.createServer(async (req, res) => {
 function resolveStaticPath(requestPath) {
   const route = requestPath === "/" ? "/index.html" : requestPath;
   const candidate = path.normalize(path.join(publicDir, route));
+  const relative = path.relative(publicDir, candidate);
 
-  if (!candidate.startsWith(publicDir)) {
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     return null;
   }
 
@@ -612,7 +796,8 @@ function resolveStaticPath(requestPath) {
     "/modules/integrations":        "integrations.html",
     "/modules/automation":          "automation.html",
     "/modules/doc-studio":          "doc-studio.html",
-    "/modules/business-metrics":    "business-metrics.html"
+    "/modules/business-metrics":    "business-metrics.html",
+    "/admin/users":                 "admin-users.html"
   };
   if (pageRoutes[route]) {
     return path.join(publicDir, pageRoutes[route]);
@@ -626,6 +811,7 @@ function resolveStaticPath(requestPath) {
 }
 
 function sendJson(res, data, status = 200) {
+  writeSecurityHeaders(res);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store"
@@ -634,6 +820,7 @@ function sendJson(res, data, status = 200) {
 }
 
 function sendText(res, text, status = 200) {
+  writeSecurityHeaders(res);
   res.writeHead(status, {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "no-store"
@@ -653,7 +840,14 @@ async function handleApi(res, action, status = 200) {
 
 async function readJsonBody(req) {
   const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 1024 * 1024) {
+      const err = new Error("Request body is too large.");
+      err.statusCode = 413;
+      throw err;
+    }
     chunks.push(chunk);
   }
 
@@ -666,6 +860,125 @@ async function readJsonBody(req) {
     err.statusCode = 400;
     throw err;
   }
+}
+
+function createAuthSession(user) {
+  const token = nodeCrypto.randomBytes(32).toString("hex");
+  authSessions.set(token, {
+    userId: user.userId,
+    expiresAt: Date.now() + AUTH_TTL
+  });
+  return token;
+}
+
+function destroyAuthSession(token) {
+  if (token) authSessions.delete(token);
+}
+
+async function currentUser(req) {
+  const token = readAuthToken(req);
+  const session = token ? authSessions.get(token) : null;
+
+  if (!session) {
+    throwAuthError("Authentication required.");
+  }
+
+  if (Date.now() > session.expiresAt) {
+    authSessions.delete(token);
+    throwAuthError("Session expired.");
+  }
+
+  return getUserAccess(session.userId);
+}
+
+async function optionalCurrentUser(req) {
+  try {
+    return await currentUser(req);
+  } catch {
+    return null;
+  }
+}
+
+async function requirePermission(req, permissionCode) {
+  const user = await currentUser(req);
+  if (!user.permissions.includes(permissionCode)) {
+    const error = new Error("You do not have permission to perform this action.");
+    error.statusCode = 403;
+    throw error;
+  }
+  return user;
+}
+
+async function requireMigrationAccess(req) {
+  try {
+    return await requirePermission(req, "platform.admin");
+  } catch (error) {
+    if (error.statusCode !== 401) throw error;
+
+    const state = await getBootstrapState().catch(() => ({ needsBootstrap: true }));
+    if (state.needsBootstrap) return null;
+    throw error;
+  }
+}
+
+function throwAuthError(message) {
+  const error = new Error(message);
+  error.statusCode = 401;
+  throw error;
+}
+
+function readAuthToken(req) {
+  const cookies = parseCookies(req.headers.cookie || "");
+  return cookies[AUTH_COOKIE] || "";
+}
+
+function parseCookies(cookieHeader) {
+  return cookieHeader.split(";").reduce((cookies, part) => {
+    const index = part.indexOf("=");
+    if (index < 0) return cookies;
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+    if (key) cookies[key] = decodeURIComponent(value);
+    return cookies;
+  }, {});
+}
+
+function setAuthCookie(res, token, req) {
+  res.setHeader("Set-Cookie", cookieHeader(AUTH_COOKIE, token, req, Math.floor(AUTH_TTL / 1000)));
+}
+
+function clearAuthCookie(res, req) {
+  res.setHeader("Set-Cookie", cookieHeader(AUTH_COOKIE, "", req, 0));
+}
+
+function cookieHeader(name, value, req, maxAge) {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Strict",
+    `Max-Age=${maxAge}`
+  ];
+
+  if (isSecureRequest(req)) {
+    parts.push("Secure");
+  }
+
+  return parts.join("; ");
+}
+
+function isSecureRequest(req) {
+  return req.headers["x-forwarded-proto"] === "https" || req.socket.encrypted;
+}
+
+function writeSecurityHeaders(res) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'"
+  );
 }
 
 function readJsonFile(filePath, fallback) {

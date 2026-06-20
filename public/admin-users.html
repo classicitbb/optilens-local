@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Users | OptiLens Local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="module-body">
+  <header class="top">
+    <div class="top-left">
+      <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="0" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
+        <strong>OptiLens Local</strong>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">Users</span>
+      </a>
+    </div>
+
+    <div class="top-center">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="sb-text">Search modules, wiki, settings...</span>
+        <kbd>Ctrl+K</kbd>
+      </button>
+    </div>
+
+    <div class="top-right">
+      <button class="top-action-btn" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5a1.5 1.5 0 113 0c0 1-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".75" fill="currentColor"/></svg>
+      </button>
+      <button class="top-action-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☽</button>
+      <button class="user-chip" type="button" aria-label="User">
+        <span class="user-avatar">IN</span>
+        <span class="user-name">Sign in</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Platform admin</p>
+          <h1>Users</h1>
+        </div>
+      </div>
+
+      <div class="workflow-panel active">
+        <div class="admin-grid">
+          <form class="admin-panel" id="userForm">
+            <div class="admin-panel-head">
+              <h2>Create User</h2>
+            </div>
+            <div class="admin-panel-body">
+              <label>Username
+                <input id="newUsername" autocomplete="off" required>
+              </label>
+              <label>Display name
+                <input id="newDisplayName" autocomplete="name" required>
+              </label>
+              <label>Email
+                <input id="newEmail" type="email" autocomplete="email">
+              </label>
+              <label>Temporary password
+                <input id="newPassword" type="password" autocomplete="new-password" required>
+              </label>
+              <div>
+                <p class="eyebrow">Roles</p>
+                <div class="checkbox-grid" id="roleChoices"></div>
+              </div>
+              <div class="admin-message" id="userFormMessage"></div>
+              <button class="button primary" type="submit">Create user</button>
+            </div>
+          </form>
+
+          <section class="admin-panel">
+            <div class="admin-panel-head">
+              <h2>Active Accounts</h2>
+            </div>
+            <div class="admin-panel-body">
+              <div class="admin-message" id="userListMessage">Loading users...</div>
+              <div class="user-list" id="userList"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/admin-users.js"></script>
+</body>
+</html>

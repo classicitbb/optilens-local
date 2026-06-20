@@ -1295,6 +1295,173 @@ th {
 }
 
 /* ════════════════════════════════════════════════════════
+   AUTHENTICATION
+════════════════════════════════════════════════════════ */
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 84px 16px 24px;
+  background: rgba(11, 30, 53, .52);
+  backdrop-filter: blur(4px);
+}
+
+.auth-overlay[hidden] { display: none; }
+
+.auth-panel {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.auth-body {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.auth-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.auth-error {
+  min-height: 18px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-panel .button {
+  justify-content: center;
+}
+
+/* ════════════════════════════════════════════════════════
+   ADMIN USERS
+════════════════════════════════════════════════════════ */
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, .75fr) minmax(0, 1.25fr);
+  gap: 18px;
+}
+
+.admin-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.admin-panel-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elevated);
+}
+
+.admin-panel-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.admin-panel-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.checkbox-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  min-height: auto;
+}
+
+.admin-message {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-message.error {
+  color: var(--red);
+}
+
+.user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+
+.user-row h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.user-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.role-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.role-pill {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--badge-default-bg);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.user-row-actions {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ════════════════════════════════════════════════════════
    WELCOME BANNER
 ════════════════════════════════════════════════════════ */
 

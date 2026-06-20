@@ -11,6 +11,7 @@ const LAUNCHER_APPS = [
   { label: "Automation",        icon: "⚡", href: "/modules/automation",          color: "#7c3aed" },
   { label: "Doc Studio",        icon: "📄", href: "/modules/doc-studio",          color: "#1A8A9C" },
   { label: "Business Metrics",  icon: "📊", href: "/modules/business-metrics",   color: "#b45309" },
+  { label: "Users",             icon: "👤", href: "/admin/users",                 color: "#0B1E35" },
   { label: "Credentials",       icon: "🔐", href: "/credentials",                color: "#64748b" },
   { label: "Settings",          icon: "⚙",  href: "/settings",                   color: "#4b5563" }
 ];
@@ -23,6 +24,7 @@ const SEARCH_INDEX = [
   { label: "Automation",          meta: "Module",   icon: "⚡", color: "#7c3aed", href: "/modules/automation" },
   { label: "Doc Studio",          meta: "Module",   icon: "📄", color: "#1A8A9C", href: "/modules/doc-studio" },
   { label: "Business Metrics",    meta: "Module",   icon: "📊", color: "#b45309", href: "/modules/business-metrics" },
+  { label: "Users",               meta: "Admin",    icon: "👤", color: "#0B1E35", href: "/admin/users" },
   { label: "Credentials",         meta: "Security", icon: "🔐", color: "#64748b", href: "/credentials" },
   { label: "Settings",            meta: "Page",     icon: "⚙",  color: "#4b5563", href: "/settings" },
   { label: "API Health",          meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health" },
@@ -48,6 +50,7 @@ function setup() {
   wireThemeToggle();
   wireLauncher();
   wireSearch();
+  wireAuth();
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -85,8 +88,6 @@ function wireThemeToggle() {
 // ─── Overlay injection ───────────────────────────────────────────────────────
 
 function injectOverlays() {
-  if (document.getElementById("launcherOverlay")) return; // already present (index.html)
-
   const launcherHtml = `
 <div class="launcher-overlay" id="launcherOverlay" hidden aria-modal="true" role="dialog" aria-label="App launcher">
   <div class="launcher-panel">
@@ -112,7 +113,38 @@ function injectOverlays() {
   </div>
 </div>`;
 
-  document.body.insertAdjacentHTML("afterbegin", launcherHtml + searchHtml);
+  const authHtml = `
+<div class="auth-overlay" id="authOverlay" hidden aria-modal="true" role="dialog" aria-label="Sign in">
+  <form class="auth-panel" id="authForm">
+    <div class="launcher-head">
+      <h2 id="authTitle">Sign in</h2>
+      <button class="launcher-close" id="authClose" type="button" aria-label="Close sign in">&#x2715;</button>
+    </div>
+    <div class="auth-body">
+      <p class="auth-copy" id="authCopy">Use your OptiLens Local account to change data and manage protected modules.</p>
+      <label>Username
+        <input id="authUsername" name="username" autocomplete="username" required>
+      </label>
+      <label id="authDisplayNameWrap" hidden>Display name
+        <input id="authDisplayName" name="displayName" autocomplete="name">
+      </label>
+      <label id="authEmailWrap" hidden>Email
+        <input id="authEmail" name="email" type="email" autocomplete="email">
+      </label>
+      <label>Password
+        <input id="authPassword" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <div class="auth-error" id="authError" role="alert"></div>
+      <button class="button primary" id="authSubmit" type="submit">Sign in</button>
+    </div>
+  </form>
+</div>`;
+
+  let html = "";
+  if (!document.getElementById("launcherOverlay")) html += launcherHtml;
+  if (!document.getElementById("searchOverlay")) html += searchHtml;
+  if (!document.getElementById("authOverlay")) html += authHtml;
+  if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
 // ─── Launcher ────────────────────────────────────────────────────────────────
@@ -175,6 +207,163 @@ function wireSearch() {
       </a>`).join("");
     results.querySelectorAll("a").forEach(a => a.addEventListener("click", close));
   }
+}
+
+// ─── Authentication ─────────────────────────────────────────────────────────
+
+const AUTH_STATE = {
+  user: null,
+  needsBootstrap: false
+};
+
+function wireAuth() {
+  const chips = document.querySelectorAll(".user-chip");
+  const overlay = document.querySelector("#authOverlay");
+  const form = document.querySelector("#authForm");
+  const closeBtn = document.querySelector("#authClose");
+  if (!overlay || !form) return;
+
+  window.OptiLensAuth = {
+    currentUser: () => AUTH_STATE.user,
+    requireSignIn: openAuth
+  };
+
+  chips.forEach((chip) => chip.addEventListener("click", () => {
+    if (AUTH_STATE.user) {
+      if (confirm("Sign out of OptiLens Local?")) signOut();
+      return;
+    }
+    openAuth();
+  }));
+
+  closeBtn?.addEventListener("click", closeAuth);
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) closeAuth(); });
+  form.addEventListener("submit", submitAuth);
+  refreshAuthState();
+}
+
+async function refreshAuthState() {
+  const bootstrap = await authFetch("/api/auth/bootstrap-state").catch(() => ({ needsBootstrap: false }));
+  AUTH_STATE.needsBootstrap = Boolean(bootstrap.needsBootstrap);
+
+  const me = await authFetch("/api/auth/me").catch(() => ({ user: null }));
+  AUTH_STATE.user = me.user || null;
+  renderAuthChip();
+}
+
+function renderAuthChip() {
+  document.querySelectorAll(".user-chip").forEach((chip) => {
+    const avatar = chip.querySelector(".user-avatar");
+    const name = chip.querySelector(".user-name");
+    if (!avatar || !name) return;
+
+    if (AUTH_STATE.user) {
+      avatar.textContent = initials(AUTH_STATE.user.displayName || AUTH_STATE.user.username);
+      name.textContent = AUTH_STATE.user.displayName || AUTH_STATE.user.username;
+      chip.setAttribute("aria-label", "Signed in user. Click to sign out.");
+    } else {
+      avatar.textContent = "IN";
+      name.textContent = AUTH_STATE.needsBootstrap ? "Create Admin" : "Sign in";
+      chip.setAttribute("aria-label", AUTH_STATE.needsBootstrap ? "Create first admin user" : "Sign in");
+    }
+  });
+}
+
+function openAuth() {
+  const overlay = document.querySelector("#authOverlay");
+  const title = document.querySelector("#authTitle");
+  const copy = document.querySelector("#authCopy");
+  const submit = document.querySelector("#authSubmit");
+  const displayWrap = document.querySelector("#authDisplayNameWrap");
+  const emailWrap = document.querySelector("#authEmailWrap");
+  const username = document.querySelector("#authUsername");
+  const password = document.querySelector("#authPassword");
+  const error = document.querySelector("#authError");
+  if (!overlay) return;
+
+  title.textContent = AUTH_STATE.needsBootstrap ? "Create first admin" : "Sign in";
+  copy.textContent = AUTH_STATE.needsBootstrap
+    ? "Create the first administrator account. This can only be done before any password credential exists."
+    : "Use your OptiLens Local account to change data and manage protected modules.";
+  submit.textContent = AUTH_STATE.needsBootstrap ? "Create admin" : "Sign in";
+  displayWrap.hidden = !AUTH_STATE.needsBootstrap;
+  emailWrap.hidden = !AUTH_STATE.needsBootstrap;
+  error.textContent = "";
+  password.value = "";
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  setTimeout(() => username?.focus(), 0);
+}
+
+function closeAuth() {
+  const overlay = document.querySelector("#authOverlay");
+  if (!overlay) return;
+  overlay.hidden = true;
+  document.body.style.overflow = "";
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const submit = document.querySelector("#authSubmit");
+  const error = document.querySelector("#authError");
+  const body = {
+    username: document.querySelector("#authUsername").value.trim(),
+    password: document.querySelector("#authPassword").value
+  };
+
+  if (AUTH_STATE.needsBootstrap) {
+    body.displayName = document.querySelector("#authDisplayName").value.trim() || "Administrator";
+    body.email = document.querySelector("#authEmail").value.trim();
+  }
+
+  submit.disabled = true;
+  error.textContent = "";
+
+  try {
+    const endpoint = AUTH_STATE.needsBootstrap ? "/api/auth/bootstrap" : "/api/auth/login";
+    const data = await authFetch(endpoint, { method: "POST", body });
+    AUTH_STATE.user = data.user;
+    AUTH_STATE.needsBootstrap = false;
+    renderAuthChip();
+    closeAuth();
+    window.dispatchEvent(new CustomEvent("optilens:auth-changed", { detail: { user: data.user } }));
+    window.location.reload();
+  } catch (err) {
+    error.textContent = err.message || "Sign in failed.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function signOut() {
+  await authFetch("/api/auth/logout", { method: "POST" }).catch(() => ({}));
+  AUTH_STATE.user = null;
+  renderAuthChip();
+  window.location.reload();
+}
+
+async function authFetch(url, options = {}) {
+  const fetchOptions = {
+    method: options.method || "GET",
+    headers: { ...(options.headers || {}) },
+    cache: "no-store"
+  };
+
+  if (options.body !== undefined) {
+    fetchOptions.headers["Content-Type"] = "application/json";
+    fetchOptions.body = JSON.stringify(options.body);
+  }
+
+  const response = await fetch(url, fetchOptions);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+function initials(value) {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "IN";
+  return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("");
 }
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
