@@ -60,26 +60,10 @@ const fallbackModules = [
   }
 ];
 
-const launcherApps = [
-  { label: "Launch Pad", icon: "🏠", href: "/", color: "#1A8A9C" },
-  { label: "Delivery & Export", icon: "📦", href: "/modules/delivery-export", color: "#C89130" },
-  { label: "Pricing", icon: "💲", href: "/modules/pricing-automation", color: "#389457" },
-  { label: "Integrations", icon: "🔗", href: "/modules/integrations", color: "#0B1E35" },
-  { label: "Automation", icon: "⚡", href: "/modules/automation", color: "#7c3aed" },
-  { label: "Settings", icon: "⚙", href: "/settings", color: "#64748b" }
-];
-
-const searchIndex = [
-  { label: "Dashboard", meta: "Home", icon: "🏠", color: "#1A8A9C", href: "/" },
-  { label: "Delivery & Export", meta: "Module", icon: "📦", color: "#C89130", href: "/modules/delivery-export" },
-  { label: "Pricing Automation", meta: "Module", icon: "💲", color: "#389457", href: "/modules/pricing-automation" },
-  { label: "Integrations", meta: "Module", icon: "🔗", color: "#0B1E35", href: "/modules/integrations" },
-  { label: "Automation", meta: "Module", icon: "⚡", color: "#7c3aed", href: "/modules/automation" },
-  { label: "Settings", meta: "Page", icon: "⚙", color: "#64748b", href: "/settings" },
-  { label: "API Health", meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health" },
-  { label: "Platform Dashboard API", meta: "Endpoint", icon: "📊", color: "#1A8A9C", href: "/api/dashboard" },
-  { label: "Modules API", meta: "Endpoint", icon: "📋", color: "#1A8A9C", href: "/api/modules" }
-];
+// NOTE: The launcher and search are owned entirely by shared.js (LAUNCHER_APPS /
+// SEARCH_INDEX / wireLauncher / wireSearch). The previous duplicate copies here were
+// stale (missing Doc Studio, Business Metrics, Users, Credentials) and raced with
+// shared.js to populate #launcherGrid, so they have been removed.
 
 async function init() {
   tickClock();
@@ -159,68 +143,6 @@ function wireDashboardActions() {
     }
     renderMetrics();
   });
-}
-
-function wireLauncher() {
-  const btn = document.querySelector("#launcherBtn");
-  const overlay = document.querySelector("#launcherOverlay");
-  const closeBtn = document.querySelector("#launcherClose");
-  const grid = document.querySelector("#launcherGrid");
-  if (!overlay) return;
-
-  if (grid) {
-    grid.innerHTML = launcherApps.map(app => `
-      <a class="launcher-tile" href="${escapeHtml(app.href)}">
-        <span class="launcher-icon" style="background:${escapeHtml(app.color)}">${app.icon}</span>
-        <span>${escapeHtml(app.label)}</span>
-      </a>
-    `).join("");
-  }
-
-  function openLauncher() { overlay.hidden = false; document.body.style.overflow = "hidden"; }
-  function closeLauncher() { overlay.hidden = true; document.body.style.overflow = ""; }
-
-  btn?.addEventListener("click", openLauncher);
-  closeBtn?.addEventListener("click", closeLauncher);
-  overlay?.addEventListener("click", (e) => { if (e.target === overlay) closeLauncher(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !overlay.hidden) closeLauncher(); });
-}
-
-function wireSearch() {
-  const trigger = document.querySelector("#searchTrigger");
-  const overlay = document.querySelector("#searchOverlay");
-  const input = document.querySelector("#searchInput");
-  const results = document.querySelector("#searchResults");
-  if (!overlay) return;
-
-  function openSearch() { overlay.hidden = false; input?.focus(); renderSearchResults(""); document.body.style.overflow = "hidden"; }
-  function closeSearch() { overlay.hidden = true; document.body.style.overflow = ""; if (input) input.value = ""; }
-
-  trigger?.addEventListener("click", openSearch);
-  overlay?.addEventListener("click", (e) => { if (e.target === overlay) closeSearch(); });
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); openSearch(); }
-    if (e.key === "Escape" && !overlay?.hidden) closeSearch();
-  });
-  input?.addEventListener("input", () => renderSearchResults(input.value));
-
-  function renderSearchResults(query) {
-    if (!results) return;
-    const q = query.trim().toLowerCase();
-    const filtered = q ? searchIndex.filter(item => item.label.toLowerCase().includes(q) || item.meta.toLowerCase().includes(q)) : searchIndex;
-    if (!filtered.length) {
-      results.innerHTML = `<div class="search-empty">No results for "${escapeHtml(query)}"</div>`;
-      return;
-    }
-    results.innerHTML = filtered.map(item => `
-      <a class="search-result-item" href="${escapeHtml(item.href)}">
-        <span class="search-result-icon" style="background:${escapeHtml(item.color)}">${item.icon}</span>
-        ${escapeHtml(item.label)}
-        <span class="search-result-meta">${escapeHtml(item.meta)}</span>
-      </a>
-    `).join("");
-    results.querySelectorAll("a").forEach(a => a.addEventListener("click", closeSearch));
-  }
 }
 
 function wireHeaderActions() {
