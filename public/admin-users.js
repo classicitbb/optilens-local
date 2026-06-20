@@ -56,6 +56,7 @@ function renderUsers() {
         </div>
       </div>
       <div class="user-row-actions">
+        <button class="text-button" type="button" data-reset="${escapeHtml(user.userId)}">Reset Password</button>
         <button class="text-button" type="button" data-toggle="${escapeHtml(user.userId)}" data-active="${user.isActive ? "1" : "0"}">${user.isActive ? "Disable" : "Enable"}</button>
       </div>
     </article>
@@ -66,6 +67,18 @@ function renderUsers() {
       const userId = button.dataset.toggle;
       const isActive = button.dataset.active !== "1";
       await updatePlatformUser(userId, { isActive });
+    });
+  });
+
+  target.querySelectorAll("[data-reset]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const userId = button.dataset.reset;
+      const user = adminState.users.find(u => u.userId === userId);
+      const newPassword = prompt(`Enter new temporary password for ${user.username}:`);
+      if (newPassword) {
+        await updatePlatformUser(userId, { password: newPassword });
+        alert(`Password for ${user.username} has been reset.`);
+      }
     });
   });
 }

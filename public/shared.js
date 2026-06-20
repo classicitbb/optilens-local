@@ -140,10 +140,32 @@ function injectOverlays() {
   </form>
 </div>`;
 
+  const accountHtml = `
+<div class="auth-overlay" id="accountOverlay" hidden aria-modal="true" role="dialog" aria-label="Account">
+  <form class="auth-panel" id="accountForm">
+    <div class="launcher-head">
+      <h2>Reset Password</h2>
+      <button class="launcher-close" id="accountClose" type="button" aria-label="Close account">&#x2715;</button>
+    </div>
+    <div class="auth-body">
+      <p class="auth-copy">Enter your current password and choose a new one.</p>
+      <label>Current Password
+        <input id="accountOldPassword" name="oldPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <label>New Password
+        <input id="accountNewPassword" name="newPassword" type="password" autocomplete="new-password" required>
+      </label>
+      <div class="auth-error" id="accountError" role="alert"></div>
+      <button class="button primary" id="accountSubmit" type="submit">Change password</button>
+    </div>
+  </form>
+</div>`;
+
   let html = "";
   if (!document.getElementById("launcherOverlay")) html += launcherHtml;
   if (!document.getElementById("searchOverlay")) html += searchHtml;
   if (!document.getElementById("authOverlay")) html += authHtml;
+  if (!document.getElementById("accountOverlay")) html += accountHtml;
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
@@ -234,7 +256,6 @@ const AUTH_STATE = {
 };
 
 function wireAuth() {
-  const chips = document.querySelectorAll(".user-chip");
   const overlay = document.querySelector("#authOverlay");
   const form = document.querySelector("#authForm");
   const closeBtn = document.querySelector("#authClose");
@@ -245,18 +266,135 @@ function wireAuth() {
     requireSignIn: openAuth
   };
 
-  chips.forEach((chip) => chip.addEventListener("click", () => {
-    if (AUTH_STATE.user) {
-      if (confirm("Sign out of OptiLens Local?")) signOut();
-      return;
+  // Wrap each user-chip in a relative-positioned container and attach dropdown
+  document.querySelectorAll(".user-chip").forEach((chip) => {
+    // Wrap if not already wrapped
+    if (!chip.parentElement.classList.contains("user-chip-wrap")) {
+      const wrap = document.createElement("div");
+      wrap.className = "user-chip-wrap";
+      chip.parentNode.insertBefore(wrap, chip);
+      wrap.appendChild(chip);
     }
-    openAuth();
-  }));
+    const wrap = chip.parentElement;
+
+    // Add caret to chip if missing
+    if (!chip.querySelector(".user-chip-caret")) {
+      const caret = document.createElement("span");
+      caret.className = "user-chip-caret";
+      caret.setAttribute("aria-hidden", "true");
+      caret.textContent = "▾";
+      chip.appendChild(caret);
+    }
+
+    // Build dropdown
+    let dropdown = wrap.querySelector(".user-dropdown");
+    if (!dropdown) {
+      dropdown = document.createElement("div");
+      dropdown.className = "user-dropdown";
+      dropdown.setAttribute("hidden", "");
+      dropdown.setAttribute("role", "menu");
+      wrap.appendChild(dropdown);
+    }
+
+    function openDropdown() {
+      renderUserDropdown(chip, dropdown);
+      dropdown.hidden = false;
+      dropdown.classList.remove("closing");
+      chip.setAttribute("aria-expanded", "true");
+    }
+
+    function closeDropdown() {
+      dropdown.classList.add("closing");
+      setTimeout(() => {
+        dropdown.hidden = true;
+        dropdown.classList.remove("closing");
+        chip.setAttribute("aria-expanded", "false");
+      }, 150);
+    }
+
+    function toggleDropdown() {
+      if (!dropdown.hidden) { closeDropdown(); return; }
+      if (!AUTH_STATE.user) { openAuth(); return; }
+      openDropdown();
+    }
+
+    chip.setAttribute("aria-expanded", "false");
+    chip.setAttribute("aria-haspopup", "menu");
+    chip.addEventListener("click", (e) => { e.stopPropagation(); toggleDropdown(); });
+
+    // Close on outside click
+    document.addEventListener("click", (e) => {
+      if (!dropdown.hidden && !wrap.contains(e.target)) closeDropdown();
+    });
+
+    // Close on Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !dropdown.hidden) closeDropdown();
+    });
+  });
 
   closeBtn?.addEventListener("click", closeAuth);
   overlay.addEventListener("click", (event) => { if (event.target === overlay) closeAuth(); });
   form.addEventListener("submit", submitAuth);
+
+  const accountOverlay = document.querySelector("#accountOverlay");
+  const accountForm = document.querySelector("#accountForm");
+  const accountCloseBtn = document.querySelector("#accountClose");
+
+  if (accountOverlay) {
+    accountCloseBtn?.addEventListener("click", closeAccount);
+    accountOverlay.addEventListener("click", (event) => { if (event.target === accountOverlay) closeAccount(); });
+    accountForm?.addEventListener("submit", submitChangePassword);
+  }
+
   refreshAuthState();
+}
+
+function renderUserDropdown(chip, dropdown) {
+  const user = AUTH_STATE.user;
+  const name = user ? (user.displayName || user.username) : "";
+  const role = user ? (user.role || "User") : "";
+  dropdown.innerHTML = `
+    <div class="user-dropdown-header">
+      <div class="user-dropdown-name">${esc(name)}</div>
+      <div class="user-dropdown-role">${esc(role)}</div>
+    </div>
+    <div class="user-dropdown-divider"></div>
+    <button class="user-dropdown-item" id="ddResetPassword" type="button" role="menuitem">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Reset password
+    </button>
+    <button class="user-dropdown-item danger" id="ddSignOut" type="button" role="menuitem">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M5 2H2.5A1.5 1.5 0 001 3.5v7A1.5 1.5 0 002.5 12H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M9 9.5L12 7l-3-2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 7H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Sign out
+    </button>`;
+
+  dropdown.querySelector("#ddResetPassword").addEventListener("click", () => {
+    closeAllDropdowns();
+    openAccount();
+  });
+
+  dropdown.querySelector("#ddSignOut").addEventListener("click", () => {
+    closeAllDropdowns();
+    if (confirm("Sign out of OptiLens Local?")) signOut();
+  });
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll(".user-dropdown").forEach((d) => {
+    if (!d.hidden) {
+      d.classList.add("closing");
+      setTimeout(() => { d.hidden = true; d.classList.remove("closing"); }, 150);
+    }
+  });
+  document.querySelectorAll(".user-chip").forEach((c) => c.setAttribute("aria-expanded", "false"));
 }
 
 async function refreshAuthState() {
@@ -278,7 +416,7 @@ function renderAuthChip() {
     if (AUTH_STATE.user) {
       avatar.textContent = initials(AUTH_STATE.user.displayName || AUTH_STATE.user.username);
       name.textContent = AUTH_STATE.user.displayName || AUTH_STATE.user.username;
-      chip.setAttribute("aria-label", "Signed in user. Click to sign out.");
+      chip.setAttribute("aria-label", `Signed in as ${AUTH_STATE.user.displayName || AUTH_STATE.user.username}. Click for account options.`);
     } else {
       avatar.textContent = "IN";
       name.textContent = AUTH_STATE.needsMigration ? "Run Migrations" : AUTH_STATE.needsBootstrap ? "Create Admin" : "Sign in";
@@ -327,6 +465,31 @@ function closeAuth() {
   }, 200);
 }
 
+function openAccount() {
+  const overlay = document.querySelector("#accountOverlay");
+  const oldPassword = document.querySelector("#accountOldPassword");
+  const newPassword = document.querySelector("#accountNewPassword");
+  const error = document.querySelector("#accountError");
+  if (!overlay) return;
+  oldPassword.value = "";
+  newPassword.value = "";
+  error.textContent = "";
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  setTimeout(() => oldPassword?.focus(), 0);
+}
+
+function closeAccount() {
+  const overlay = document.querySelector("#accountOverlay");
+  if (!overlay) return;
+  overlay.classList.add("closing");
+  setTimeout(() => {
+    overlay.hidden = true;
+    overlay.classList.remove("closing");
+    document.body.style.overflow = "";
+  }, 200);
+}
+
 async function submitAuth(event) {
   event.preventDefault();
   const submit = document.querySelector("#authSubmit");
@@ -355,6 +518,29 @@ async function submitAuth(event) {
     window.location.reload();
   } catch (err) {
     error.textContent = err.message || "Sign in failed.";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function submitChangePassword(event) {
+  event.preventDefault();
+  const submit = document.querySelector("#accountSubmit");
+  const error = document.querySelector("#accountError");
+  const body = {
+    oldPassword: document.querySelector("#accountOldPassword").value,
+    newPassword: document.querySelector("#accountNewPassword").value
+  };
+
+  submit.disabled = true;
+  error.textContent = "";
+
+  try {
+    await authFetch("/api/auth/change-password", { method: "POST", body });
+    alert("Password changed successfully.");
+    closeAccount();
+  } catch (err) {
+    error.textContent = err.message || "Change password failed.";
   } finally {
     submit.disabled = false;
   }

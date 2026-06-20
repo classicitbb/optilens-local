@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OptiLens Local - Login</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="/icons/favicon.ico" sizes="any">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg-color);
+      margin: 0;
+      font-family: var(--font-family);
+    }
+    .login-container {
+      background: var(--surface-color, #ffffff);
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .login-header h1 {
+      margin: 0;
+      color: var(--text-color);
+      font-size: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color, #ccc);
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary-color, #0056b3);
+      box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
+    }
+    .login-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--primary-color, #0056b3);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+    .login-btn:hover {
+      background: var(--primary-hover, #004494);
+    }
+    .error-msg {
+      color: #dc3545;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <h1>OptiLens Local</h1>
+    </div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <div id="errorMsg" class="error-msg"></div>
+      <button type="submit" class="login-btn">Sign In</button>
+    </form>
+  </div>
+  <script src="/login.js"></script>
+</body>
+</html>

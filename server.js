@@ -90,6 +90,7 @@ const {
 const {
   authenticateUser,
   bootstrapAdmin,
+  changePassword,
   createUser,
   getBootstrapState,
   getUserAccess,
@@ -261,6 +262,20 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       const user = await currentUser(req);
       return { user };
+    });
+  }
+
+  if (url.pathname === "/api/auth/change-password" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await currentUser(req);
+      if (!user) {
+        const error = new Error("Unauthorized");
+        error.statusCode = 401;
+        throw error;
+      }
+      const body = await readJsonBody(req);
+      await changePassword(user.userId, body.oldPassword, body.newPassword);
+      return { ok: true };
     });
   }
 
@@ -787,8 +802,8 @@ function resolveStaticPath(requestPath) {
     return null;
   }
 
-  // Named page routes
   const pageRoutes = {
+    "/login":                       "login.html",
     "/settings":                    "settings.html",
     "/credentials":                 "credentials.html",
     "/modules/delivery-export":     "delivery-export.html",
