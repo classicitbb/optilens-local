@@ -455,6 +455,12 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, createDeviceRegistration((await readJsonBody(req)).deviceId), 201);
   }
 
+  if (url.pathname === "/api/access-import/status" && req.method === "GET") {
+    return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-last-run.json"), {
+      error: "Access import has not run yet."
+    }));
+  }
+
   if (url.pathname === "/api/access-import/dry-run" || url.pathname.startsWith("/api/access-import/")) {
     return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-dry-run.json"), {
       error: "Access import dry-run has not been generated yet."

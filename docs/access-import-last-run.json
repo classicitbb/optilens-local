@@ -1,0 +1,23 @@
+{
+  "import_batch_id": "9f8dcba4-8cf2-4522-b94b-a677168c2491",
+  "source": "C:\\Users\\cvre\\OneDrive\\OPTICINFO\\CV Accounts BE DB\\CV_Accounts_be.accdb",
+  "history_months": 6,
+  "cutoff_date": "2025-12-21",
+  "started_at": "2026-06-21T23:19:42.435672+00:00",
+  "mode": "read Access, write optilens_local archive",
+  "tables": {
+    "archive.access_deliveries": 138,
+    "archive.access_delivery_items": 1004,
+    "archive.access_delivery_extras": 0,
+    "archive.access_commercial_invoices": 126,
+    "archive.access_customer_branches": 69,
+    "archive.access_couriers": 62,
+    "archive.access_ci_declarations": 31,
+    "archive.access_ci_goods": 31,
+    "archive.access_dispatchers": 7,
+    "archive.access_company": 1
+  },
+  "delivery_no_min": 6328,
+  "delivery_no_max": 6468,
+  "completed_at": "2026-06-21T23:19:53.151791+00:00"
+}

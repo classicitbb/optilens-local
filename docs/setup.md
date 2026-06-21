@@ -267,3 +267,19 @@ The result is also available through:
 ```text
 http://127.0.0.1:8080/api/access-import/dry-run
 ```
+
+## Access Import
+
+Import the last 6 months of Access delivery history into `optilens_local` with:
+
+```powershell
+python O:\scripts\access-import.py --source "C:\Users\cvre\OneDrive\OPTICINFO\CV Accounts BE DB\CV_Accounts_be.accdb" --months 6 --output "O:\docs\access-import-last-run.json"
+```
+
+The import reads Access through ODBC and writes only to the private app database archive tables. It is idempotent by legacy Access IDs.
+
+The latest import summary is available through:
+
+```text
+http://127.0.0.1:8080/api/access-import/status
+```
