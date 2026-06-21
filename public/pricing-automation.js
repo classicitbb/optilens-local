@@ -527,6 +527,9 @@ async function buildSourcesView() {
     const onFallback = ss.active === 'fallback';
     const isEmpty = ss.active === 'empty';
     const dot = isEmpty ? 'var(--pl-danger)' : onFallback ? 'var(--pl-gold)' : 'var(--pl-success)';
+    const mode = ss.mode || 'auto';
+    const modeBtn = (m, label, title) =>
+      `<button class="mini-btn ${mode===m?'':'off'}" title="${title}" onclick="setSourceMode('${m}')">${label}</button>`;
     srcBanner = `<div class="source-card" style="border-left:4px solid ${dot}">
       <div class="source-hd"><h3>Active data source</h3></div>
       <div class="source-meta">${ss.label} · ${ss.count} combos</div>
@@ -536,7 +539,12 @@ async function buildSourcesView() {
         ${onFallback?'Running on bundled fallback — live pull unavailable or not yet run.':
           isEmpty?'No catalog available. Run a live pull from Connectors.':
           'Live catalog active. Bundled snapshot is the safety net.'}
-      </p></div>`;
+      </p>
+      <div class="source-meta" style="margin-top:8px">Source mode:
+        ${modeBtn('auto','Auto','Use the live catalog when present, otherwise the bundled snapshot')}
+        ${modeBtn('live','Live only','Force the live-refreshed catalog; no snapshot fallback')}
+        ${modeBtn('fallback','Bundled fallback','Force the bundled snapshot — use when the live API is unreachable')}
+      </div></div>`;
   }
   $('sources-body').innerHTML = `
     ${srcBanner}
@@ -544,6 +552,23 @@ async function buildSourcesView() {
     ${cards}
     <h4 class="src-h4">Live / external feeds</h4>
     ${live}`;
+}
+
+// Switch the catalog data source (auto / live / fallback). The server reloads
+// its combos; we reload the module so every view reflects the new dataset.
+async function setSourceMode(mode) {
+  try {
+    const r = await fetch('/api/v2/source-mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('HTTP ' + r.status)); }
+    const ss = await r.json();
+    toast(`Data source: ${ss.label} · ${ss.count} combos`);
+    location.reload();
+  } catch (e) {
+    toast('Could not switch source: ' + e.message, true);
+  }
 }
 
 // ── Preview ────────────────────────────────────────────────────────────
@@ -830,6 +855,7 @@ async function buildConnectorsView() {
         <button class="pl-btn pl-btn-primary" onclick="cvSave()">Save (encrypted)</button>
         <button class="pl-btn pl-btn-secondary" onclick="cvReveal()">👁 Reveal</button>
         <button class="pl-btn pl-btn-teal" onclick="cvTest()">⇄ Test link</button>
+        <button class="pl-btn pl-btn-teal" onclick="cvPull()">⇩ Pull live catalog</button>
       </div>
       <div id="cv-result" class="conn-result">${a.updatedAt?`<span class="muted">Key saved ${new Date(a.updatedAt).toLocaleString()}</span>`:''}</div>
     </div>
@@ -874,6 +900,17 @@ async function cvTest() {
   if (!r.ok) { box.innerHTML = `<span class="conn-err">✗ ${r.message||'Link failed'}</span>`; return; }
   const fields = Object.entries(r.parity).map(([k,hit]) => `${hit?'✓':'✗'} ${k}${hit?` → ${hit}`:' missing'}`).join(' · ');
   box.innerHTML = `<div class="conn-dry"><span class="conn-ok">✓ Connected.</span> Catalog rows sampled: <b>${r.catalogRows}</b>; customers: <b>${r.customersOk?'ok':'no'}</b>.<br><span class="muted">Parity:</span> ${fields}</div>`;
+}
+async function cvPull() {
+  const box = $('cv-result'); box.innerHTML = '<span class="muted">Pulling live catalog from Classic Visions…</span>';
+  const r = await cpost('cvapi/pull', { token: connToken });
+  if (r.error) { box.innerHTML = `<span class="conn-err">Pull failed: ${r.error}</span>`; return; }
+  combos = await fetch('/api/v2/combos').then(x => x.json());
+  comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+  sources = await fetch('/api/v2/sources').then(x => x.json());
+  await rePrice();
+  box.innerHTML = `<span class="conn-ok">✓ Pulled ${r.combos} combos from ${r.rawRows} catalog rows (${r.mappedRows} classified). Prices regenerated.</span>`;
+  toast('Classic Visions catalog synced');
 }
 async function connSave() {
   const r = await cpost('config', { token: connToken, url: $('conn-url').value.trim(), anonKey: $('conn-anon').value.trim()||undefined, serviceKey: $('conn-svc').value.trim()||undefined });

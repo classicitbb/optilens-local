@@ -102,6 +102,7 @@ const {
 const PE = require("./lib/pricing-engine");
 const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
+const plCvConnector = require("./lib/cv-api-connector");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -111,34 +112,68 @@ const PL_SOURCES  = path.join(PL_DIR, "sources.generated.json");
 const PL_OVERRIDES = path.join(PL_DIR, "catalog-overrides.json");
 const PL_LISTS    = path.join(PL_DIR, "saved-pricelists.json");
 const PL_CUSTOMERS = path.join(PL_DIR, "customers.json");
+const PL_SOURCE_MODE = path.join(PL_DIR, "source-mode.json");
 
 function plReadJSON(p, dflt) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return dflt; }
 }
 function plWriteJSON(p, data) { fs.writeFileSync(p, JSON.stringify(data, null, 2)); }
 
-// Load combos once at startup, reload after a live pull
+// Source mode: "auto" (prefer live/generated, fall back to bundled),
+// "live" (force generated only), or "fallback" (force bundled snapshot).
+// Persisted so the choice survives restarts.
+const PL_SOURCE_MODES = ["auto", "live", "fallback"];
+function plSourceMode() {
+  const m = plReadJSON(PL_SOURCE_MODE, null);
+  return m && PL_SOURCE_MODES.includes(m.mode) ? m.mode : "auto";
+}
+function plSetSourceMode(mode) {
+  if (!PL_SOURCE_MODES.includes(mode)) { const e = new Error("Invalid source mode."); e.statusCode = 400; throw e; }
+  plWriteJSON(PL_SOURCE_MODE, { mode, updatedAt: new Date().toISOString() });
+  return mode;
+}
+
+// Load combos once at startup, reload after a live pull or a mode switch.
 function plLoadCombos() {
   const tryFile = (p) => { try { const d = JSON.parse(fs.readFileSync(p, "utf8")); return Array.isArray(d) && d.length ? d : null; } catch { return null; } };
+  const mode = plSourceMode();
   const gen = tryFile(PL_GEN);
-  if (gen) return { combos: gen, active: "generated" };
   const fb = tryFile(PL_FALLBACK);
-  if (fb) return { combos: fb, active: "fallback" };
-  return { combos: [], active: "empty" };
+  // Forced bundled fallback.
+  if (mode === "fallback") {
+    if (fb) return { combos: fb, active: "fallback", mode };
+    return { combos: [], active: "empty", mode };
+  }
+  // Forced live/generated (no silent downgrade to the snapshot).
+  if (mode === "live") {
+    if (gen) return { combos: gen, active: "generated", mode };
+    return { combos: [], active: "empty", mode };
+  }
+  // Auto: prefer the live-refreshed catalog, fall back to the bundled snapshot.
+  if (gen) return { combos: gen, active: "generated", mode };
+  if (fb) return { combos: fb, active: "fallback", mode };
+  return { combos: [], active: "empty", mode };
 }
 let plLoaded = plLoadCombos();
 let plCombos = plLoaded.combos;
 let plComboByKey = Object.fromEntries(plCombos.map(c => [c.key, c]));
 
+function plReloadCombos() {
+  plLoaded = plLoadCombos();
+  plCombos = plLoaded.combos;
+  plComboByKey = Object.fromEntries(plCombos.map(c => [c.key, c]));
+  return plLoaded;
+}
+
 function plSourceStatus() {
   const exists = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
-  const { active } = plLoaded;
+  const { active, mode } = plLoaded;
   return {
-    active, count: plCombos.length,
+    active, mode, count: plCombos.length,
     generatedExists: exists(PL_GEN),
     fallbackExists: exists(PL_FALLBACK),
     label: active === "generated" ? "Generated catalog (live-refreshable)"
-      : active === "fallback" ? "Bundled fallback snapshot (generated file unavailable)"
+      : active === "fallback" ? (mode === "fallback" ? "Bundled fallback snapshot (forced)" : "Bundled fallback snapshot (generated file unavailable)")
       : "No catalog loaded",
   };
 }
@@ -559,6 +594,15 @@ const server = http.createServer(async (req, res) => {
       return plSourceStatus();
     });
   }
+  if (url.pathname === "/api/v2/source-mode" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
+      const body = await readJsonBody(req);
+      plSetSourceMode((body && body.mode) || "auto");
+      plReloadCombos();
+      return plSourceStatus();
+    });
+  }
   if (url.pathname === "/api/v2/overrides" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
@@ -742,6 +786,36 @@ const server = http.createServer(async (req, res) => {
       return { ok: true, link: "connected", base, catalogColumns: cols, catalogRows: rows.length, customersOk: cust.ok, parity, costPresent: !!parity.cost };
     });
   }
+  // Pull the live Classic Visions catalog (catalog_live) → engine combos.
+  if (url.pathname === "/api/connectors/cvapi/pull" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      const summary = await plCvConnector.pull(creds, { write: true });
+      // Live pull wrote the generated catalog — return to it unless fallback is forced.
+      if (plSourceMode() === "fallback") plSetSourceMode("auto");
+      plReloadCombos();
+      return summary;
+    });
+  }
+  // Publish the built pricelist back to the key's draft pricelist_version.
+  if (url.pathname === "/api/connectors/cvapi/publish" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      return plCvConnector.publish(creds, {
+        pricedRows: body.pricedRows || [],
+        versionName: body.versionName,
+        commit: !!body.commit,
+      });
+    });
+  }
   if (url.pathname === "/api/connectors/pull" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
@@ -750,10 +824,11 @@ const server = http.createServer(async (req, res) => {
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getOptilens(body.token, { needService: false });
       const summary = await plConnector.pull(creds, { write: true });
-      // Reload combos in memory after successful pull
-      plLoaded = plLoadCombos();
-      plCombos = plLoaded.combos;
-      plComboByKey = Object.fromEntries(plCombos.map(c => [c.key, c]));
+      // A successful pull writes the generated catalog; switch back to it
+      // automatically (unless the user has explicitly forced fallback) and
+      // reload combos in memory.
+      if (plSourceMode() === "fallback") plSetSourceMode("auto");
+      plReloadCombos();
       return summary;
     });
   }
