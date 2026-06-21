@@ -405,6 +405,13 @@ async function refreshAuthState() {
   const me = await authFetch("/api/auth/me").catch(() => ({ user: null }));
   AUTH_STATE.user = me.user || null;
   renderAuthChip();
+  window.dispatchEvent(new CustomEvent("optilens:auth-changed", {
+    detail: {
+      user: AUTH_STATE.user,
+      needsMigration: AUTH_STATE.needsMigration,
+      needsBootstrap: AUTH_STATE.needsBootstrap
+    }
+  }));
 }
 
 function renderAuthChip() {

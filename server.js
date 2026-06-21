@@ -61,6 +61,7 @@ function bearerToken(req) {
   return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
 }
 const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
+const { checkPsqlDatabase } = require("./lib/psql-odbc");
 const {
   buildDashboard,
   createDeviceRegistration,
@@ -416,17 +417,21 @@ const server = http.createServer(async (req, res) => {
   // ──────────────────────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/health") {
-    const appDbHealth = await checkAppDatabase();
-    const sourceDbHealth = await checkSourceDatabase();
+    const [appDbHealth, sourceDbHealth, psqlDbHealth] = await Promise.all([
+      checkAppDatabase(),
+      checkSourceDatabase(),
+      checkPsqlDatabase()
+    ]);
     return sendJson(res, {
-      ok: appDbHealth.state === "online" && sourceDbHealth.state === "online",
+      ok: appDbHealth.state === "online" && sourceDbHealth.state === "online" && psqlDbHealth.state === "online",
       service: "optilens-local",
       time: new Date().toISOString(),
       database: config.appDb.database,
       sourceMode: "read-only",
       writeBack: config.writeBackEnabled ? "enabled" : "disabled",
       appDatabase: appDbHealth,
-      sourceDatabase: sourceDbHealth
+      sourceDatabase: sourceDbHealth,
+      psqlDatabase: psqlDbHealth
     });
   }
 
