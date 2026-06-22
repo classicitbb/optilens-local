@@ -16,6 +16,8 @@ const LAUNCHER_APPS = [
   { label: "Settings",          icon: "⚙",  href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
 ];
 
+const LAUNCHER_ORDER_STORAGE_KEY = "optilens.launcherOrder";
+
 const SEARCH_INDEX = [
   { label: "Dashboard",           meta: "Home",     icon: "🏠", color: "#1A8A9C", href: "/", permissions: [] },
   { label: "Delivery & Export",   meta: "Module",   icon: "📦", color: "#C89130", href: "/modules/delivery-export", permissions: ["delivery.read", "delivery.write"] },
@@ -185,6 +187,7 @@ function wireLauncher() {
   if (!overlay) return;
 
   renderLauncherApps();
+  wireLauncherReordering(grid);
 
   function open()  { overlay.hidden = false; document.body.style.overflow = "hidden"; btn?.setAttribute("aria-expanded","true"); }
   function close() { 
@@ -413,11 +416,133 @@ function renderLauncherApps() {
   const grid = document.querySelector("#launcherGrid");
   if (!grid) return;
 
-  grid.innerHTML = LAUNCHER_APPS.filter(canAccessSharedItem).map(app => `
-    <a class="launcher-tile" href="${esc(app.href)}">
+  grid.innerHTML = getOrderedLauncherApps().filter(canAccessSharedItem).map(app => `
+    <a class="launcher-tile" href="${esc(app.href)}" data-launcher-key="${esc(launcherAppKey(app))}">
       <span class="launcher-icon" style="background:${esc(app.color)}">${app.icon}</span>
       <span>${esc(app.label)}</span>
     </a>`).join("");
+}
+
+function wireLauncherReordering(grid) {
+  if (!grid || grid.dataset.reorderWired === "true") return;
+  grid.dataset.reorderWired = "true";
+
+  let dragState = null;
+
+  grid.addEventListener("pointerdown", (event) => {
+    const tile = event.target.closest(".launcher-tile");
+    if (!tile || !grid.contains(tile) || event.button !== 0) return;
+    startLauncherDrag(tile, event.clientX, event.clientY, event.pointerId);
+  });
+
+  grid.addEventListener("mousedown", (event) => {
+    if (dragState) return;
+    const tile = event.target.closest(".launcher-tile");
+    if (!tile || !grid.contains(tile) || event.button !== 0) return;
+    startLauncherDrag(tile, event.clientX, event.clientY, "mouse");
+  });
+
+  document.addEventListener("pointermove", (event) => moveLauncherDrag(event, event.pointerId));
+  document.addEventListener("mousemove", (event) => moveLauncherDrag(event, "mouse"));
+  document.addEventListener("pointerup", (event) => finishLauncherDrag(event, event.pointerId));
+  document.addEventListener("mouseup", (event) => finishLauncherDrag(event, "mouse"));
+  document.addEventListener("pointercancel", (event) => finishLauncherDrag(event, event.pointerId));
+
+  grid.addEventListener("click", (event) => {
+    if (grid.dataset.suppressNextClick !== "true") return;
+    event.preventDefault();
+    event.stopPropagation();
+    delete grid.dataset.suppressNextClick;
+  }, true);
+
+  function startLauncherDrag(tile, clientX, clientY, pointerId) {
+    dragState = {
+      pointerId,
+      tile,
+      startX: clientX,
+      startY: clientY,
+      dragging: false
+    };
+  }
+
+  function moveLauncherDrag(event, pointerId) {
+    if (!dragState || dragState.pointerId !== pointerId) return;
+
+    const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+    if (!dragState.dragging && distance < 6) return;
+
+    if (!dragState.dragging) {
+      dragState.dragging = true;
+      dragState.tile.classList.add("is-dragging");
+      grid.classList.add("is-reordering");
+      if (pointerId !== "mouse") dragState.tile.setPointerCapture?.(pointerId);
+    }
+
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".launcher-tile");
+    if (!target || target === dragState.tile || !grid.contains(target)) return;
+
+    const tiles = Array.from(grid.querySelectorAll(".launcher-tile"));
+    const draggedIndex = tiles.indexOf(dragState.tile);
+    const targetIndex = tiles.indexOf(target);
+    if (draggedIndex < 0 || targetIndex < 0) return;
+
+    grid.insertBefore(dragState.tile, draggedIndex < targetIndex ? target.nextSibling : target);
+  }
+
+  function finishLauncherDrag(event, pointerId) {
+    if (!dragState || dragState.pointerId !== pointerId) return;
+    const wasDragging = dragState.dragging;
+    if (pointerId !== "mouse") dragState.tile.releasePointerCapture?.(pointerId);
+    dragState.tile.classList.remove("is-dragging");
+    grid.classList.remove("is-reordering");
+
+    if (wasDragging) {
+      event.preventDefault();
+      saveLauncherOrder(grid);
+      grid.dataset.suppressNextClick = "true";
+      setTimeout(() => { delete grid.dataset.suppressNextClick; }, 0);
+    }
+
+    dragState = null;
+  }
+}
+
+function getOrderedLauncherApps() {
+  const order = getLauncherOrder();
+  if (!order.length) return LAUNCHER_APPS;
+
+  const orderIndex = new Map(order.map((key, index) => [key, index]));
+  return [...LAUNCHER_APPS].sort((a, b) => {
+    const aIndex = orderIndex.has(launcherAppKey(a)) ? orderIndex.get(launcherAppKey(a)) : Number.MAX_SAFE_INTEGER;
+    const bIndex = orderIndex.has(launcherAppKey(b)) ? orderIndex.get(launcherAppKey(b)) : Number.MAX_SAFE_INTEGER;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return LAUNCHER_APPS.indexOf(a) - LAUNCHER_APPS.indexOf(b);
+  });
+}
+
+function getLauncherOrder() {
+  try {
+    const value = JSON.parse(localStorage.getItem(LAUNCHER_ORDER_STORAGE_KEY) || "[]");
+    return Array.isArray(value) ? value.filter((key) => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLauncherOrder(grid) {
+  const visibleKeys = Array.from(grid.querySelectorAll(".launcher-tile"))
+    .map((tile) => tile.dataset.launcherKey)
+    .filter(Boolean);
+  const visibleKeySet = new Set(visibleKeys);
+  const hiddenKeys = getOrderedLauncherApps()
+    .map(launcherAppKey)
+    .filter((key) => !visibleKeySet.has(key));
+  localStorage.setItem(LAUNCHER_ORDER_STORAGE_KEY, JSON.stringify([...visibleKeys, ...hiddenKeys]));
+}
+
+function launcherAppKey(app) {
+  return app.href;
 }
 
 function canAccessSharedItem(item) {

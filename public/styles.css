@@ -1381,6 +1381,10 @@ th {
   padding: 16px;
 }
 
+.launcher-grid.is-reordering {
+  user-select: none;
+}
+
 .launcher-tile {
   display: flex;
   flex-direction: column;
@@ -1390,7 +1394,7 @@ th {
   border: 1px solid transparent;
   border-radius: 14px;
   background: transparent;
-  cursor: pointer;
+  cursor: grab;
   color: var(--ink);
   text-align: center;
   text-decoration: none;
@@ -1398,12 +1402,22 @@ th {
   font-weight: 700;
   line-height: 1.25;
   font-family: inherit;
-  transition: background .1s;
+  touch-action: none;
+  transition: background .1s, border-color .1s, box-shadow .1s, opacity .1s, transform .1s;
 }
 
 .launcher-tile:hover {
   background: var(--bg-elevated);
   border-color: var(--line);
+}
+
+.launcher-tile.is-dragging {
+  cursor: grabbing;
+  opacity: .72;
+  transform: scale(.98);
+  box-shadow: var(--shadow);
+  border-color: var(--blue);
+  background: var(--bg-elevated);
 }
 
 .launcher-icon {
