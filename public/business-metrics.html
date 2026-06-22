@@ -72,6 +72,13 @@
       </nav>
 
       <section class="workflow-panel active" id="overview">
+        <h2 style="font-size:1rem; margin:4px 0 8px;">Live KPIs <span class="muted" style="font-weight:400;">— Innovations (MSSQL)</span></h2>
+        <div class="analytics-row" id="kpiBand" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:8px;">
+          <div class="analytics-metric"><div class="a-label">Loading…</div><strong class="a-value">—</strong></div>
+        </div>
+        <div class="placeholder-pane" id="kpiNote" style="display:none; margin-bottom:14px;"></div>
+
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Export archive context</h2>
         <div class="analytics-row" id="ovMetrics" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;">
           <div class="analytics-metric"><div class="a-label">Loading…</div><strong class="a-value">—</strong></div>
         </div>
@@ -79,11 +86,17 @@
       </section>
 
       <section class="workflow-panel" id="sales">
+        <h2 style="font-size:1rem; margin:4px 0 8px;">Top 10 customers <span class="muted" style="font-weight:400;">(YTD sales — live MSSQL)</span></h2>
+        <div id="liveTopCustomers"></div>
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Receivables aging <span class="muted" style="font-weight:400;">(live MSSQL)</span></h2>
+        <div id="agingBlock"></div>
+
+        <h2 style="font-size:1rem; margin:22px 0 8px;">Archive context <span class="muted" style="font-weight:400;">(imported deliveries)</span></h2>
         <div class="placeholder-pane" id="salesNote" style="display:none;"></div>
         <div class="analytics-row" id="salesTotals" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
-        <h2 style="font-size:1rem; margin:18px 0 8px;">Revenue by month <span class="muted" style="font-weight:400;">(archive)</span></h2>
+        <h2 style="font-size:.95rem; margin:14px 0 8px;">Revenue by month <span class="muted" style="font-weight:400;">(archive)</span></h2>
         <div id="salesChart" class="bm-chart"></div>
-        <h2 style="font-size:1rem; margin:18px 0 8px;">Top customers <span class="muted" style="font-weight:400;">(by archived revenue)</span></h2>
+        <h2 style="font-size:.95rem; margin:18px 0 8px;">Top customers <span class="muted" style="font-weight:400;">(by archived revenue)</span></h2>
         <div id="salesCustomers"></div>
       </section>
 
@@ -122,6 +135,7 @@
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
   <script>
+  (function () {
     document.querySelectorAll(".workflow-tabs button").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
@@ -172,8 +186,8 @@
       banner.innerHTML =
         `Data sources: ${srcPill(s.appDb)} ${srcPill(s.sourceMssql)} ${srcPill(s.sourcePsql)}<br>` +
         (live
-          ? `Live Innovations source is online — figures include live Shipments / ShipmentItems / pricing history.`
-          : `Showing data available locally (imported Access archive + app-owned delivery &amp; pricing). Live Shipments / product-level revenue light up once the MSSQL Innovations credentials are added in <a href="/credentials">Credentials</a>.`);
+          ? `Live Innovations (MSSQL) source is online — headline KPIs (sales YTD/MTD, WIP, receivables, aging, top customers) are live.`
+          : `Live Innovations (MSSQL) source is offline, so headline KPIs are unavailable. Showing locally available data (imported Access archive + app-owned delivery &amp; pricing). Add credentials in <a href="/credentials">Credentials</a> to populate live KPIs.`);
     }
 
     function renderOverview(d) {
@@ -247,30 +261,92 @@
         : "Pricing analytics reflect app-owned rules and calculations. Live price-list version history requires the MSSQL Innovations source.";
     }
 
+    function renderKpis(d) {
+      const band = document.getElementById("kpiBand");
+      const note = document.getElementById("kpiNote");
+      const agingEl = document.getElementById("agingBlock");
+      const liveCustEl = document.getElementById("liveTopCustomers");
+      const k = d.sourceKpis;
+      if (!k) {
+        const state = (d.sources && d.sources.sourceMssql && d.sources.sourceMssql.state) || "offline";
+        const why = d.sourceKpisError
+          ? `Live KPI query failed: ${d.sourceKpisError}`
+          : `Live Innovations (MSSQL) source is ${state}. Add credentials in Credentials to populate live KPIs.`;
+        band.innerHTML = metric("Live KPIs", "—", "MSSQL source unavailable");
+        note.style.display = "block";
+        note.textContent = why;
+        if (agingEl) agingEl.innerHTML = `<div class="placeholder-pane" style="border:0;">${esc(why)}</div>`;
+        if (liveCustEl) liveCustEl.innerHTML = `<div class="placeholder-pane" style="border:0;">${esc(why)}</div>`;
+        return;
+      }
+      band.innerHTML =
+        metric("Sales YTD", money(k.salesYTD), "year to date") +
+        metric("Sales MTD", money(k.salesMTD), "period to date") +
+        metric("WIP value", money(k.wipValue), "open work in progress") +
+        metric("Receivables", money(k.receivables), `${intf(k.customers)} customers`) +
+        metric("Stock turn", (k.stockTurn != null ? k.stockTurn + "×" : "—"), "YTD COGS ÷ stock value");
+      note.style.display = "block";
+      note.innerHTML = `As of ${esc(k.asOf ? dateLabel(k.asOf) : "now")} · COGS YTD ${money(k.cogsYTD)} · stock value ${money(k.inventoryValue)} (${intf(k.inventoryLots)} lots).` +
+        (k.stockTurnConfidence === "low" && k.caveats && k.caveats.length ? `<br><span class="muted">⚠ ${esc(k.caveats[0])}</span>` : "");
+
+      const rows = k.aging || [];
+      const agingTotal = k.agingTotal != null ? k.agingTotal : rows.reduce((s,a)=>s+Number(a.amountDue||0),0);
+      if (agingEl) agingEl.innerHTML =
+        `<div class="analytics-row" style="border:1px solid var(--line); border-radius:12px; overflow:hidden;">` +
+        rows.map(a => metric(a.label, money(a.amountDue), `${intf(a.items)} items${a.detail ? " · "+a.detail : ""}`)).join("") +
+        metric("Total due", money(agingTotal), "all open items") +
+        `</div>`;
+
+      const cust = k.topCustomers || [];
+      if (liveCustEl) liveCustEl.innerHTML = cust.length
+        ? `<table class="bm-table"><thead><tr><th>#</th><th>Customer</th><th>Account</th><th class="num">Sales YTD</th><th class="num">Balance</th></tr></thead><tbody>` +
+          cust.map((c,i) => `<tr><td>${i+1}</td><td>${esc(c.name)}</td><td>${esc(c.accountNumber||"—")}</td><td class="num">${money(c.salesYTD)}</td><td class="num">${money(c.balance)}</td></tr>`).join("") +
+          `</tbody></table>`
+        : `<div class="placeholder-pane" style="border:0;">No customer balances found.</div>`;
+    }
+
+    const REQUEST_TIMEOUT_MS = 25000;
     async function loadMetrics() {
+      const badge = document.getElementById("statusBadge");
+      const banner = document.getElementById("sourceBanner");
+      badge.textContent = "Loading…";
+      badge.className = "badge planned";
+      banner.style.display = "none";
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
-        const res = await fetch("/api/business-metrics", { cache: "no-store" });
+        const res = await fetch("/api/business-metrics", { cache: "no-store", signal: controller.signal });
+        clearTimeout(timer);
         const d = await res.json();
-        if (!res.ok) throw new Error(d.error || "Request failed");
+        if (!res.ok) throw new Error(d.error || ("Request failed (HTTP " + res.status + ")"));
         renderSources(d);
+        renderKpis(d);
         renderOverview(d);
         renderSales(d);
         renderDeliveries(d);
         renderPricing(d);
       } catch (err) {
-        document.getElementById("statusBadge").textContent = "Error";
-        document.getElementById("statusBadge").className = "badge credentials-needed";
-        const banner = document.getElementById("sourceBanner");
-        banner.style.display = "block";
-        const msg = /permission|denied|403/i.test(err.message) ? "You need delivery read access to view business metrics."
+        clearTimeout(timer);
+        badge.textContent = "Error";
+        badge.className = "badge credentials-needed";
+        const aborted = err.name === "AbortError";
+        const msg = aborted
+          ? `The request took longer than ${REQUEST_TIMEOUT_MS/1000}s and was stopped — a data source may be slow or unreachable.`
+          : /permission|denied|403/i.test(err.message) ? "You need delivery read access to view business metrics."
           : /auth|401|sign/i.test(err.message) ? "Please sign in to view business metrics."
+          : /Failed to fetch|NetworkError/i.test(err.message) ? "Could not reach the server. Is OptiLens Local running, and was it restarted after the update?"
           : "Could not load business metrics: " + err.message;
-        banner.textContent = msg;
-        document.getElementById("ovArchiveNote").textContent = "";
+        banner.style.display = "block";
+        banner.innerHTML = `${esc(msg)} <button type="button" id="retryBtn" class="src-pill src-wait" style="cursor:pointer; border:0;">Retry</button>`;
+        const rb = document.getElementById("retryBtn");
+        if (rb) rb.addEventListener("click", loadMetrics);
+        const note = document.getElementById("ovArchiveNote");
+        if (note) note.textContent = "";
       }
     }
 
     loadMetrics();
+  })();
   </script>
 </body>
 </html>
