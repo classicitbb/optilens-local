@@ -435,12 +435,12 @@ function openAudit(key) {
       ? `<button class="mini-btn" onclick="toggleDisableSupplier('${kEsc}','${r.sup}')">enable</button>`
       : `<button class="mini-btn off" onclick="toggleDisableSupplier('${kEsc}','${r.sup}')">disable</button>`;
     return `<tr class="${(r.disabled||r.excluded)?'dim':''}">
-      <td><span class="dot" style="background:${SUPPLIER_COLORS[r.sup]||'#888'}"></span>${SUP_ABBR[r.sup]||r.sup}</td>
-      <td class="src">${r.pr.sourceName}${r.pr.rowCount>1?` <span class="muted">(+${r.pr.rowCount-1} more)</span>`:''}</td>
-      <td class="num">$${r.pr.sourceCost.toFixed(2)}</td>
-      <td class="num">+${(r.lc.freight*100).toFixed(0)}%</td>
-      <td class="num">$${r.lc.landed.toFixed(2)}</td>
-      <td>${status}</td><td>${btn}</td>
+      <td data-label="Supplier"><span class="dot" style="background:${SUPPLIER_COLORS[r.sup]||'#888'}"></span>${SUP_ABBR[r.sup]||r.sup}</td>
+      <td data-label="Source row" class="src">${r.pr.sourceName}${r.pr.rowCount>1?` <span class="muted">(+${r.pr.rowCount-1} more)</span>`:''}</td>
+      <td data-label="FOB" class="num">$${r.pr.sourceCost.toFixed(2)}</td>
+      <td data-label="Freight" class="num">+${(r.lc.freight*100).toFixed(0)}%</td>
+      <td data-label="Landed" class="num">$${r.lc.landed.toFixed(2)}</td>
+      <td data-label="Role">${status}</td><td data-label="Action">${btn}</td>
     </tr>`;
   }).join('');
 
