@@ -83,6 +83,7 @@ const {
 const {
   listDispatchers,
   listExportCustomers,
+  listPricelistCustomers,
   listShipmentItems
 } = require("./lib/source-innovations");
 const {
@@ -961,11 +962,43 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Pricelist builder customers (separate from delivery customers)
+  // Pricelist builder customers — live from SQL, enriched with priceList/balance
+  // from the static JSON, with full fallback to static JSON if SQL is unavailable.
   if (url.pathname === "/api/pl/customers" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
-      return plReadJSON(PL_CUSTOMERS, []);
+      try {
+        const sqlRows = await listPricelistCustomers();
+        // Build a lookup from the static file so we can enrich priceList + balance
+        const staticList = plReadJSON(PL_CUSTOMERS, []);
+        const staticMap = {};
+        for (const c of staticList) if (c.account) staticMap[c.account] = c;
+        return sqlRows.map(r => ({
+          ...r,
+          priceList: staticMap[r.account]?.priceList || '',
+          balance:   staticMap[r.account]?.balance   || '0',
+        }));
+      } catch (sqlErr) {
+        // SQL unavailable — serve the static snapshot
+        // The _sqlError field is stripped in production but visible in devtools
+        const rows = plReadJSON(PL_CUSTOMERS, []);
+        rows._sqlError = sqlErr.message || String(sqlErr);
+        return rows;
+      }
+    });
+  }
+
+  // Diagnostic: test the SQL customer query and return the raw result or error.
+  // Hit GET /api/pl/customers/test in a browser to see exactly what SQL returns.
+  if (url.pathname === "/api/pl/customers/test" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      try {
+        const rows = await listPricelistCustomers();
+        return { ok: true, source: "sql", count: rows.length, sample: rows.slice(0, 3) };
+      } catch (err) {
+        return { ok: false, source: "sql", error: err.message || String(err) };
+      }
     });
   }
 
