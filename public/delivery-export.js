@@ -1,64 +1,106 @@
+const POLL_INTERVAL_MS = 30000;
+
 const moduleState = {
   dispatchers: [],
   customers: [],
-  sourceShipmentItems: [],
+  customerByAccount: new Map(),
   shipmentSessions: [],
-  dashboard: null
+  shipmentItems: [],
+  selectedSessionId: "",
+  selectedDomesticIds: new Set(),
+  dashboard: null,
+  pollingId: null
 };
 
 initModule();
 
 async function initModule() {
+  setDefaultDateRange();
   wireTabs();
   wireActions();
 
-  const [dashboard, dispatchers, customers, sessions] = await Promise.all([
+  const [dashboard, dispatchers, customers] = await Promise.all([
     getJson("/api/dashboard", { integrationHealth: [] }),
     getJson("/api/source/dispatchers", { dispatchers: [], error: "" }),
-    getJson("/api/source/export-customers", { customers: [], error: "" }),
-    getJson("/api/delivery/shipments", { sessions: [], error: "" })
+    getJson("/api/source/customers", { customers: [], error: "" })
   ]);
 
   moduleState.dashboard = dashboard;
   moduleState.dispatchers = dispatchers.dispatchers || [];
   moduleState.customers = customers.customers || [];
-  moduleState.shipmentSessions = sessions.sessions || [];
+  moduleState.customerByAccount = new Map(moduleState.customers.map((customer) => [
+    String(customer.customerAccount || "").toUpperCase(),
+    customer
+  ]));
 
   renderHealth();
   renderDispatchers(dispatchers.error);
   renderCustomers(customers.error);
-  renderShipmentSessions();
+  await refreshShipmentSessions({ preserveSelection: true });
+  startPolling();
 }
 
 function wireTabs() {
-  document.querySelectorAll(".workflow-tabs button").forEach((button) => {
+  document.querySelectorAll(".workflow-tabs button[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
-      const tabId = button.dataset.tab;
-      document.querySelectorAll(".workflow-tabs button").forEach((item) => item.classList.toggle("active", item === button));
-      document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+      if (button.disabled) return;
+      activateTab(button.dataset.tab);
     });
   });
 }
 
 function wireActions() {
   document.querySelector("#startShipmentBtn")?.addEventListener("click", startShipmentSession);
-  document.querySelector("#preloadItemsBtn")?.addEventListener("click", preloadSourceShipmentItems);
-  document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", refreshShipmentSessions);
+  document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", () => refreshShipmentSessions({ preserveSelection: true }));
+  document.querySelector("#closeSelectedBtn")?.addEventListener("click", closeSelectedDomesticShipments);
+  document.querySelector("#customerAccountInput")?.addEventListener("change", handleCustomerChange);
+  document.querySelector("#fromDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
+  document.querySelector("#toDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
+  document.querySelector("#addRowsBtn")?.addEventListener("click", openAddRowsModal);
+  document.querySelector("#addRowsClose")?.addEventListener("click", closeAddRowsModal);
+  document.querySelector("#addRowsModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "addRowsModal") closeAddRowsModal();
+  });
+  document.querySelector("#addRowsForm")?.addEventListener("submit", submitAddRow);
 
-  document.querySelector("#shipmentSessionsRows")?.addEventListener("click", async (event) => {
-    const closeId = event.target.dataset.close;
-    const reopenId = event.target.dataset.reopen;
-
-    if (closeId) {
-      await postJson(`/api/delivery/shipments/${closeId}/close`, {});
-      await refreshShipmentSessions();
+  document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
+    const checkbox = event.target.closest("[data-select-domestic]");
+    if (checkbox) {
+      toggleDomesticSelection(checkbox.dataset.selectDomestic, checkbox.checked);
+      return;
     }
 
-    if (reopenId) {
-      await postJson(`/api/delivery/shipments/${reopenId}/reopen`, {});
-      await refreshShipmentSessions();
+    const row = event.target.closest("[data-session-id]");
+    if (row) selectShipmentSession(row.dataset.sessionId);
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      startPolling();
+      refreshShipmentSessions({ preserveSelection: true });
     }
   });
+}
+
+function activateTab(tabId) {
+  document.querySelectorAll(".workflow-tabs button[data-tab]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === tabId);
+  });
+  document.querySelectorAll(".workflow-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === tabId);
+  });
+}
+
+function setDefaultDateRange() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(from.getDate() - 7);
+  const fromInput = document.querySelector("#fromDateInput");
+  const toInput = document.querySelector("#toDateInput");
+  if (fromInput) fromInput.value = toDateInputValue(from);
+  if (toInput) toInput.value = toDateInputValue(to);
 }
 
 function renderHealth() {
@@ -97,44 +139,79 @@ function renderCustomers(error) {
     return;
   }
 
-  target.innerHTML = `<option value="">Select export customer</option>` + moduleState.customers.map((customer) => `
-    <option value="${escapeHtml(customer.customerAccount)}">${escapeHtml(customer.customerAccount)} - ${escapeHtml(customer.customerName)}</option>
-  `).join("");
+  target.innerHTML = `<option value="">Select customer</option>` + moduleState.customers.map((customer) => {
+    const type = customer.isExportCustomer ? "Export" : "Domestic";
+    return `
+      <option value="${escapeHtml(customer.customerAccount)}" data-export="${customer.isExportCustomer ? "1" : "0"}">
+        ${escapeHtml(customer.customerAccount)} - ${escapeHtml(customer.customerName)} (${type})
+      </option>`;
+  }).join("");
 }
 
 function renderShipmentSessions() {
-  const target = document.querySelector("#shipmentSessionsRows");
-  if (!target) return;
+  const open = moduleState.shipmentSessions.filter((session) => session.app_status !== "closed");
+  const closed = moduleState.shipmentSessions.filter((session) => session.app_status === "closed");
 
-  target.innerHTML = moduleState.shipmentSessions.map((session) => `
-    <tr>
-      <td>${escapeHtml(session.customer_account || "")}</td>
-      <td>${escapeHtml(session.source_shipment_id || "")}</td>
-      <td><span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status)}</span></td>
-      <td>${formatDate(session.started_at)}</td>
-      <td>
-        ${session.app_status === "closed"
-          ? `<button class="text-button" type="button" data-reopen="${escapeHtml(session.shipment_session_id)}">Reopen</button>`
-          : `<button class="text-button" type="button" data-close="${escapeHtml(session.shipment_session_id)}">Close</button>`}
-      </td>
-    </tr>
-  `).join("") || `<tr><td colspan="5">No app-owned shipment sessions yet.</td></tr>`;
+  setText("#openShipmentCount", String(open.length));
+  setText("#closedShipmentCount", String(closed.length));
+  setText("#shipmentListSummary", `${open.length} open / ${closed.length} closed`);
+
+  renderShipmentRows("#openShipmentRows", open, "No open shipments.");
+  renderShipmentRows("#closedShipmentRows", closed, "No closed shipments in this close-date range.");
+  updateCloseSelectedState();
+  updateCommercialInvoiceAvailability();
 }
 
-function renderSourceShipmentItems() {
-  const target = document.querySelector("#sourceShipmentItemsRows");
+function renderShipmentRows(selector, sessions, emptyText) {
+  const target = document.querySelector(selector);
   if (!target) return;
 
-  target.innerHTML = moduleState.sourceShipmentItems.map((item) => `
+  target.innerHTML = sessions.map((session) => {
+    const id = escapeHtml(session.shipment_session_id);
+    const isOpenDomestic = isDomesticClosable(session);
+    const selected = moduleState.selectedSessionId === session.shipment_session_id;
+    return `
+      <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}">
+        <div class="shipment-row-select">
+          ${isOpenDomestic
+            ? `<input type="checkbox" aria-label="Select domestic shipment ${escapeHtml(session.customer_account || "")}" data-select-domestic="${id}" ${moduleState.selectedDomesticIds.has(session.shipment_session_id) ? "checked" : ""}>`
+            : ""}
+        </div>
+        <div class="shipment-row-main">
+          <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
+          <span>${escapeHtml(session.customer_account || "")}${session.source_shipment_id ? ` · Shipment ${escapeHtml(session.source_shipment_id)}` : ""}</span>
+          <small>${formatDate(session.closed_at || session.started_at)}</small>
+        </div>
+        <div class="shipment-row-meta">
+          <span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status || "prep")}</span>
+          <span>${Number(session.item_count || 0)} items</span>
+          <span>${isExportSession(session) ? "Export" : "Domestic"}</span>
+        </div>
+      </article>`;
+  }).join("") || `<p class="shipment-empty">${escapeHtml(emptyText)}</p>`;
+}
+
+function renderShipmentItems() {
+  const target = document.querySelector("#shipmentItemsRows");
+  if (!target) return;
+
+  target.innerHTML = moduleState.shipmentItems.map((item) => `
     <tr>
-      <td>${escapeHtml(item.shipmentItemId)}</td>
       <td>${escapeHtml(item.orderId || "")}</td>
       <td>${escapeHtml(item.invoiceNumber || "")}</td>
       <td>${escapeHtml(item.patientName || "")}</td>
       <td>${formatMoney(item.price)}</td>
-      <td><span class="badge ${Number(item.sourceShipped) === 1 ? "" : "open"}">${Number(item.sourceShipped) === 1 ? "shipped" : "open"}</span></td>
+      <td><span class="badge">${escapeHtml(item.origin || "app")}</span></td>
+      <td><span class="badge ${item.itemState === "shipped" ? "" : "open"}">${escapeHtml(item.itemState || "prep")}</span></td>
     </tr>
-  `).join("") || `<tr><td colspan="6">No source shipment items found for this customer/shipment.</td></tr>`;
+  `).join("") || `<tr><td colspan="6">No jobs found for the selected shipment.</td></tr>`;
+}
+
+function handleCustomerChange() {
+  moduleState.selectedSessionId = "";
+  moduleState.shipmentItems = [];
+  renderShipmentSessions();
+  loadSelectedShipmentItems();
 }
 
 async function startShipmentSession() {
@@ -142,31 +219,219 @@ async function startShipmentSession() {
   const sourceShipmentId = document.querySelector("#shipmentIdInput").value.trim();
   const dispatcherId = document.querySelector("#dispatcherInput").value.trim();
 
-  await postJson("/api/delivery/shipments", {
+  if (!customerAccount) {
+    setMessage("Select a customer before starting a shipment.", true);
+    return;
+  }
+
+  const data = await postJson("/api/delivery/shipments", {
     sourceSystem: "mssql",
     customerAccount,
     sourceShipmentId,
     dispatcherId,
     sourceShipped: false
+  }).catch((error) => {
+    setMessage(error.message, true);
+    return null;
+  });
+  if (!data) return;
+
+  moduleState.selectedSessionId = data.session.shipment_session_id;
+  await refreshShipmentSessions({ preserveSelection: true });
+  setMessage("Shipment started.");
+}
+
+async function refreshShipmentSessions(options = {}) {
+  const query = new URLSearchParams({
+    fromDate: document.querySelector("#fromDateInput")?.value || "",
+    toDate: document.querySelector("#toDateInput")?.value || ""
+  });
+  const data = await getJson(`/api/delivery/shipments?${query.toString()}`, { sessions: [] });
+  moduleState.shipmentSessions = (data.sessions || []).map(enrichSessionFromCustomerList);
+  moduleState.selectedDomesticIds = new Set([...moduleState.selectedDomesticIds].filter((id) => {
+    const session = getSessionById(id);
+    return session && isDomesticClosable(session);
+  }));
+
+  if (!options.preserveSelection || !getSessionById(moduleState.selectedSessionId)) {
+    moduleState.selectedSessionId = moduleState.shipmentSessions[0]?.shipment_session_id || "";
+  }
+
+  renderShipmentSessions();
+  await loadSelectedShipmentItems();
+}
+
+async function selectShipmentSession(sessionId) {
+  moduleState.selectedSessionId = sessionId;
+  renderShipmentSessions();
+  await loadSelectedShipmentItems();
+}
+
+async function loadSelectedShipmentItems() {
+  const session = getSelectedSession();
+  const addRowsBtn = document.querySelector("#addRowsBtn");
+
+  if (!session) {
+    moduleState.shipmentItems = [];
+    setText("#selectedShipmentTitle", "Select a shipment");
+    setText("#selectedShipmentMeta", "Choose an open or closed shipment to review jobs.");
+    if (addRowsBtn) addRowsBtn.hidden = true;
+    renderShipmentItems();
+    updateCommercialInvoiceAvailability();
+    return;
+  }
+
+  setText("#selectedShipmentTitle", `${session.customer_account || "Shipment"} ${session.source_shipment_id || ""}`.trim());
+  setText("#selectedShipmentMeta", `${isExportSession(session) ? "Export" : "Domestic"} · ${session.app_status || "prep"} · ${Number(session.item_count || 0)} counted items`);
+  if (addRowsBtn) addRowsBtn.hidden = !(isExportSession(session) && session.app_status !== "closed");
+
+  const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, { items: [] });
+  moduleState.shipmentItems = data.items || [];
+  renderShipmentItems();
+  updateCommercialInvoiceAvailability();
+}
+
+async function closeSelectedDomesticShipments() {
+  const sessionIds = [...moduleState.selectedDomesticIds];
+  const dispatcherId = document.querySelector("#dispatcherInput").value.trim();
+
+  if (!sessionIds.length) {
+    setMessage("Select at least one open domestic shipment.", true);
+    return;
+  }
+  if (!dispatcherId) {
+    setMessage("Select a dispatcher before closing domestic shipments.", true);
+    return;
+  }
+
+  const data = await postJson("/api/delivery/shipments/close-batch", { sessionIds, dispatcherId }).catch((error) => {
+    setMessage(error.message, true);
+    return null;
+  });
+  if (!data) return;
+
+  moduleState.selectedDomesticIds.clear();
+  await refreshShipmentSessions({ preserveSelection: true });
+  setMessage(`Closed ${data.sessions.length} domestic shipment${data.sessions.length === 1 ? "" : "s"}.`);
+}
+
+function toggleDomesticSelection(sessionId, isSelected) {
+  if (isSelected) {
+    moduleState.selectedDomesticIds.add(sessionId);
+  } else {
+    moduleState.selectedDomesticIds.delete(sessionId);
+  }
+  updateCloseSelectedState();
+}
+
+function updateCloseSelectedState() {
+  const button = document.querySelector("#closeSelectedBtn");
+  if (!button) return;
+  const count = moduleState.selectedDomesticIds.size;
+  button.disabled = count === 0;
+  button.textContent = count ? `Close selected domestic (${count})` : "Close selected domestic";
+}
+
+function updateCommercialInvoiceAvailability() {
+  const tab = document.querySelector("#commercialInvoiceTab");
+  if (!tab) return;
+  const session = getSelectedSession();
+  const customer = getSelectedCustomer();
+  const enabled = session ? isExportSession(session) : Boolean(customer?.isExportCustomer);
+  tab.disabled = !enabled;
+  tab.title = enabled ? "" : "Commercial invoices are only available for export customers.";
+  if (!enabled && tab.classList.contains("active")) activateTab("shipmentPrep");
+}
+
+function openAddRowsModal() {
+  const modal = document.querySelector("#addRowsModal");
+  const input = document.querySelector("#addRowsInvoiceInput");
+  const error = document.querySelector("#addRowsError");
+  if (!modal) return;
+  if (error) error.textContent = "";
+  if (input) input.value = "";
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+  setTimeout(() => input?.focus(), 0);
+}
+
+function closeAddRowsModal() {
+  const modal = document.querySelector("#addRowsModal");
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+async function submitAddRow(event) {
+  event.preventDefault();
+  const input = document.querySelector("#addRowsInvoiceInput");
+  const error = document.querySelector("#addRowsError");
+  const submit = document.querySelector("#addRowsSubmit");
+  const session = getSelectedSession();
+  if (!session) return;
+
+  if (submit) submit.disabled = true;
+  if (error) error.textContent = "";
+
+  const data = await postJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, {
+    invoiceNumber: input?.value.trim() || ""
+  }).catch((err) => {
+    if (error) error.textContent = err.message;
+    return null;
   });
 
-  await refreshShipmentSessions();
+  if (submit) submit.disabled = false;
+  if (!data) return;
+
+  moduleState.shipmentItems = data.items || [];
+  renderShipmentItems();
+  closeAddRowsModal();
+  await refreshShipmentSessions({ preserveSelection: true });
+  setMessage("Invoice row added.");
 }
 
-async function preloadSourceShipmentItems() {
-  const customerAccount = document.querySelector("#customerAccountInput").value.trim();
-  const shipmentId = document.querySelector("#shipmentIdInput").value.trim();
-  const query = new URLSearchParams({ customerAccount, shipmentId });
-  const data = await getJson(`/api/source/shipment-items?${query.toString()}`, { items: [] });
-
-  moduleState.sourceShipmentItems = data.items || [];
-  renderSourceShipmentItems();
+function startPolling() {
+  if (moduleState.pollingId || document.hidden) return;
+  moduleState.pollingId = setInterval(() => {
+    refreshShipmentSessions({ preserveSelection: true, silent: true });
+  }, POLL_INTERVAL_MS);
 }
 
-async function refreshShipmentSessions() {
-  const data = await getJson("/api/delivery/shipments", { sessions: [] });
-  moduleState.shipmentSessions = data.sessions || [];
-  renderShipmentSessions();
+function stopPolling() {
+  if (!moduleState.pollingId) return;
+  clearInterval(moduleState.pollingId);
+  moduleState.pollingId = null;
+}
+
+function enrichSessionFromCustomerList(session) {
+  const customer = moduleState.customerByAccount.get(String(session.customer_account || "").toUpperCase());
+  return {
+    ...session,
+    customer_name: session.customer_name || customer?.customerName || "",
+    shipping_method_id: session.shipping_method_id ?? customer?.shippingMethodId ?? null,
+    is_export_customer: Boolean(session.is_export_customer || customer?.isExportCustomer)
+  };
+}
+
+function getSelectedSession() {
+  return getSessionById(moduleState.selectedSessionId);
+}
+
+function getSessionById(id) {
+  return moduleState.shipmentSessions.find((session) => session.shipment_session_id === id) || null;
+}
+
+function getSelectedCustomer() {
+  const account = document.querySelector("#customerAccountInput")?.value || "";
+  return moduleState.customerByAccount.get(String(account).toUpperCase()) || null;
+}
+
+function isExportSession(session) {
+  return Boolean(session?.is_export_customer);
+}
+
+function isDomesticClosable(session) {
+  return Boolean(session && session.app_status !== "closed" && session.shipping_method_id !== null && !isExportSession(session));
 }
 
 async function getJson(url, fallback) {
@@ -188,6 +453,22 @@ async function postJson(url, body) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
+}
+
+function setMessage(message, isError = false) {
+  const target = document.querySelector("#shipmentPrepMessage");
+  if (!target) return;
+  target.textContent = message || "";
+  target.classList.toggle("error", Boolean(isError));
+}
+
+function setText(selector, value) {
+  const target = document.querySelector(selector);
+  if (target) target.textContent = value;
+}
+
+function toDateInputValue(date) {
+  return date.toISOString().slice(0, 10);
 }
 
 function formatDate(value) {

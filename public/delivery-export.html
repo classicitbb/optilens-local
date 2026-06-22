@@ -60,72 +60,77 @@
 
       <nav class="workflow-tabs" aria-label="Delivery workflow tabs">
         <button class="active" type="button" data-tab="shipmentPrep">Shipment prep</button>
-        <button type="button" data-tab="commercialInvoice">Commercial invoice</button>
+        <button type="button" data-tab="commercialInvoice" id="commercialInvoiceTab">Commercial invoice</button>
         <button type="button" data-tab="archive">Archive</button>
         <button type="button" data-tab="sourceHealth">Source health</button>
+        <button class="workflow-tab-refresh" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">&#8635;</button>
       </nav>
 
       <section class="workflow-panel active" id="shipmentPrep">
-        <div class="access-toolbar">
-          <label>CustomerAccount<select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading export customers</option></select></label>
+        <div class="access-toolbar shipment-prep-toolbar">
+          <label class="customer-start-field">CustomerAccount
+            <span class="customer-start-row">
+              <select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading customers</option></select>
+              <button class="button primary" id="startShipmentBtn" type="button">Start</button>
+            </span>
+          </label>
           <label>Shipment ID<input id="shipmentIdInput" placeholder="Source ShipmentID" aria-label="Shipment ID"></label>
           <label>Dispatcher<select id="dispatcherInput" aria-label="Dispatcher"><option value="">Loading dispatchers</option></select></label>
-          <label>Scan invoice<input id="invoiceScanInput" placeholder="Scan or type invoice number" aria-label="Scan invoice"></label>
-        </div>
-
-        <div class="command-row">
-          <button class="button primary" id="startShipmentBtn" type="button">Start</button>
-          <button class="button secondary" id="preloadItemsBtn" type="button">Preload shipment items</button>
-          <button class="button secondary" id="refreshShipmentsBtn" type="button">Refresh</button>
+          <label>From close date<input id="fromDateInput" type="date" aria-label="From close date"></label>
+          <label>To close date<input id="toDateInput" type="date" aria-label="To close date"></label>
         </div>
 
         <div class="shipment-strip">
-          <span>Source shipped flag: <strong>0 open / 1 shipped</strong></span>
+          <span>Customers: <strong>domestic delivery slips / export commercial invoices</strong></span>
           <span>App state: <strong>private close/reopen</strong></span>
           <span>Write-back: <strong>disabled</strong></span>
         </div>
 
-        <div class="split-workflow">
-          <section class="workflow-block">
-            <div class="section-head tight">
-              <h2>Source shipment items</h2>
+        <div class="shipment-status-line" id="shipmentPrepMessage" role="status"></div>
+
+        <div class="shipment-master-detail">
+          <section class="workflow-block shipment-list-panel">
+            <div class="section-head tight shipment-list-head">
+              <div>
+                <h2>Shipments</h2>
+                <p id="shipmentListSummary">Loading shipments</p>
+              </div>
+              <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Close selected domestic</button>
+            </div>
+            <div class="shipment-groups" id="shipmentGroups">
+              <details class="shipment-group" open>
+                <summary>Open <span id="openShipmentCount">0</span></summary>
+                <div class="shipment-row-list" id="openShipmentRows">Loading open shipments</div>
+              </details>
+              <details class="shipment-group" open>
+                <summary>Closed <span id="closedShipmentCount">0</span></summary>
+                <div class="shipment-row-list" id="closedShipmentRows">Loading closed shipments</div>
+              </details>
+            </div>
+          </section>
+
+          <section class="workflow-block shipment-detail-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2 id="selectedShipmentTitle">Select a shipment</h2>
+                <p id="selectedShipmentMeta">Choose an open or closed shipment to review jobs.</p>
+              </div>
+              <button class="button primary" id="addRowsBtn" type="button" hidden>Add Rows</button>
             </div>
             <div class="table-wrap">
-              <table>
+              <table class="shipment-items-table">
                 <thead>
                   <tr>
-                    <th>Shipment item</th>
                     <th>Order</th>
                     <th>Invoice</th>
                     <th>Patient</th>
                     <th>Price</th>
-                    <th>Source shipped</th>
+                    <th>Origin</th>
+                    <th>State</th>
                   </tr>
                 </thead>
-                <tbody id="sourceShipmentItemsRows">
-                  <tr><td colspan="6">Choose a customer and shipment, then preload source items.</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="workflow-block">
-            <div class="section-head tight">
-              <h2>App shipment sessions</h2>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>CustomerAccount</th>
-                    <th>Shipment ID</th>
-                    <th>Status</th>
-                    <th>Started</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="shipmentSessionsRows">
-                  <tr><td colspan="5">Loading shipment sessions</td></tr>
+                <tbody id="shipmentItemsRows">
+                  <tr><td colspan="6">Select a shipment to view its jobs.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -157,6 +162,23 @@
       </section>
     </section>
   </main>
+
+  <div class="auth-overlay shipment-modal" id="addRowsModal" hidden aria-modal="true" role="dialog" aria-label="Add invoice rows">
+    <form class="auth-panel" id="addRowsForm">
+      <div class="launcher-head">
+        <h2>Add Rows</h2>
+        <button class="launcher-close" id="addRowsClose" type="button" aria-label="Close add rows">&#x2715;</button>
+      </div>
+      <div class="auth-body">
+        <p class="auth-copy">Scan or type an Innovations invoice number to add it to the selected export shipment.</p>
+        <label>Invoice
+          <input id="addRowsInvoiceInput" name="invoiceNumber" autocomplete="off" inputmode="numeric" required>
+        </label>
+        <div class="auth-error" id="addRowsError" role="alert"></div>
+        <button class="button primary" id="addRowsSubmit" type="submit">Add Row</button>
+      </div>
+    </form>
+  </div>
 
   <script src="/shared.js"></script>
   <script src="/delivery-export.js"></script>

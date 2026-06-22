@@ -73,14 +73,19 @@ const {
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
 const {
+  addShipmentSessionItem,
+  closeShipmentSessionsBatch,
   createShipmentSession,
   deleteTestShipmentSessions,
   getShipmentSession,
+  listShipmentSessionItems,
   listShipmentEvents,
   listShipmentSessions,
   updateShipmentStatus
 } = require("./lib/delivery");
 const {
+  findInvoiceItem,
+  listCustomers,
   listDispatchers,
   listExportCustomers,
   listPricelistCustomers,
@@ -829,7 +834,11 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/delivery/shipments" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
-      return { sessions: await listShipmentSessions() };
+      const sessions = await listShipmentSessions({
+        fromDate: url.searchParams.get("fromDate") || "",
+        toDate: url.searchParams.get("toDate") || ""
+      });
+      return { sessions: await enrichShipmentSessions(sessions) };
     });
   }
 
@@ -844,6 +853,13 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
       return { customers: await listExportCustomers(url.searchParams.get("q") || "") };
+    });
+  }
+
+  if (url.pathname === "/api/source/customers" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { customers: await listCustomers(url.searchParams.get("q") || "") };
     });
   }
 
@@ -862,6 +878,27 @@ const server = http.createServer(async (req, res) => {
       const actor = await requirePermission(req, "delivery.write");
       return { session: await createShipmentSession(await readJsonBody(req), actor.userId) };
     }, 201);
+  }
+
+  if (url.pathname === "/api/delivery/shipments/close-batch" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      const sessions = await enrichShipmentSessions(await listShipmentSessions({}));
+      const byId = new Map(sessions.map((session) => [String(session.shipment_session_id), session]));
+      const requested = Array.isArray(body.sessionIds) ? body.sessionIds.map((id) => String(id || "").trim()).filter(Boolean) : [];
+      const blocked = requested
+        .map((id) => byId.get(id))
+        .filter((session) => !session || session.app_status === "closed" || session.is_export_customer || session.shipping_method_id === null);
+
+      if (blocked.length) {
+        const error = new Error("Batch close is only available for selected open domestic shipments.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      return { sessions: await closeShipmentSessionsBatch(requested, body.dispatcherId || "", actor.userId) };
+    });
   }
 
   if (url.pathname === "/api/pricing/rules" && req.method === "GET") {
@@ -896,8 +933,51 @@ const server = http.createServer(async (req, res) => {
   if (sessionGetMatch && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
-      return { session: await getShipmentSession(sessionGetMatch[1]) };
+      const sessions = await enrichShipmentSessions([await getShipmentSession(sessionGetMatch[1])]);
+      return { session: sessions[0] };
     });
+  }
+
+  const itemMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/items$/);
+  if (itemMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { items: await buildShipmentItems(itemMatch[1]) };
+    });
+  }
+
+  if (itemMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const session = (await enrichShipmentSessions([await getShipmentSession(itemMatch[1])]))[0];
+      if (!session.is_export_customer) {
+        const error = new Error("Add Rows is only available for export shipments.");
+        error.statusCode = 400;
+        throw error;
+      }
+      if (session.app_status === "closed") {
+        const error = new Error("Rows cannot be added to a closed shipment.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const body = await readJsonBody(req);
+      const invoiceNumber = String(body.invoiceNumber || "").trim();
+      const sourceItem = await findInvoiceItem(invoiceNumber);
+      if (!sourceItem) {
+        const error = new Error(`Invoice ${invoiceNumber || "(blank)"} was not found in Innovations.`);
+        error.statusCode = 404;
+        throw error;
+      }
+      if (session.customer_account && sourceItem.customerAccount && session.customer_account !== sourceItem.customerAccount) {
+        const error = new Error(`Invoice ${invoiceNumber} belongs to ${sourceItem.customerAccount}, not ${session.customer_account}.`);
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const item = await addShipmentSessionItem(itemMatch[1], sourceItem, actor.userId);
+      return { item, items: await buildShipmentItems(itemMatch[1]) };
+    }, 201);
   }
 
   const closeMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/close$/);
@@ -1427,6 +1507,83 @@ async function readJsonBody(req) {
     err.statusCode = 400;
     throw err;
   }
+}
+
+async function enrichShipmentSessions(sessions) {
+  const customerMap = await buildCustomerMap();
+  return sessions.map((session) => {
+    const customer = customerMap.get(String(session.customer_account || "").toUpperCase());
+    return {
+      ...session,
+      item_count: Number(session.item_count || 0),
+      customer_name: customer?.customerName || "",
+      shipping_method_id: customer?.shippingMethodId ?? null,
+      is_export_customer: Boolean(customer?.isExportCustomer)
+    };
+  });
+}
+
+async function buildCustomerMap() {
+  try {
+    const customers = await listCustomers("");
+    return new Map(customers.map((customer) => [
+      String(customer.customerAccount || "").toUpperCase(),
+      {
+        customerName: customer.customerName || "",
+        shippingMethodId: customer.shippingMethodId,
+        isExportCustomer: Boolean(customer.isExportCustomer)
+      }
+    ]));
+  } catch {
+    return new Map();
+  }
+}
+
+async function buildShipmentItems(sessionId) {
+  const session = await getShipmentSession(sessionId);
+  const appItems = await listShipmentSessionItems(sessionId);
+  let sourceItems = [];
+
+  if (session.source_shipment_id) {
+    sourceItems = await listShipmentItems({
+      customerAccount: session.customer_account || "",
+      shipmentId: session.source_shipment_id
+    }).catch(() => []);
+  }
+
+  return [
+    ...sourceItems.map((item) => normalizeSourceShipmentItem(item)),
+    ...appItems.map((item) => normalizeAppShipmentItem(item))
+  ];
+}
+
+function normalizeSourceShipmentItem(item) {
+  return {
+    origin: "source",
+    shipmentItemId: item.shipmentItemId || "",
+    orderId: item.orderId || "",
+    invoiceNumber: item.invoiceNumber || "",
+    patientName: item.patientName || "",
+    price: item.price ?? null,
+    itemState: Number(item.sourceShipped) === 1 ? "shipped" : "open",
+    sourceShipped: item.sourceShipped,
+    createdAt: item.sourceShippedTime || null
+  };
+}
+
+function normalizeAppShipmentItem(item) {
+  return {
+    origin: "app",
+    shipmentSessionItemId: item.shipmentSessionItemId,
+    shipmentItemId: item.shipmentItemId || "",
+    orderId: item.orderId || "",
+    invoiceNumber: item.invoiceNumber || "",
+    patientName: item.patientName || "",
+    price: item.price ?? null,
+    itemState: item.itemState || "prep",
+    addedMethod: item.addedMethod || "",
+    createdAt: item.createdAt || null
+  };
 }
 
 function createAuthSession(user) {

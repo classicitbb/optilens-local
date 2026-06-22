@@ -800,6 +800,7 @@ th {
 
 .workflow-tabs {
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 8px 12px 0;
   border-bottom: 1px solid var(--line);
@@ -822,6 +823,21 @@ th {
   border-color: var(--line);
   background: var(--surface);
   color: var(--ink);
+}
+
+.workflow-tabs button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.workflow-tab-refresh {
+  margin-left: auto;
+  min-width: 38px;
+  padding-inline: 10px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: var(--surface) !important;
+  color: var(--ink) !important;
 }
 
 .workflow-panel {
@@ -888,6 +904,184 @@ th {
   overflow: hidden;
 }
 
+.shipment-prep-toolbar {
+  grid-template-columns: minmax(290px, 1.25fr) minmax(160px, .8fr) minmax(220px, 1fr) minmax(150px, .65fr) minmax(150px, .65fr);
+}
+
+.customer-start-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customer-start-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-start-row .button {
+  flex: 0 0 auto;
+}
+
+.shipment-status-line {
+  min-height: 22px;
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shipment-status-line.error {
+  color: var(--red);
+}
+
+.shipment-master-detail {
+  display: grid;
+  grid-template-columns: minmax(360px, .95fr) minmax(0, 1.25fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.shipment-list-panel,
+.shipment-detail-panel {
+  min-height: 520px;
+}
+
+.shipment-list-head,
+.shipment-detail-head {
+  align-items: center;
+}
+
+.shipment-list-head p,
+.shipment-detail-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shipment-groups {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  max-height: 650px;
+  overflow: auto;
+}
+
+.shipment-group {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.shipment-group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 9px 12px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.shipment-group summary span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  min-height: 22px;
+  border-radius: 999px;
+  background: var(--badge-default-bg);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shipment-row-list {
+  display: grid;
+}
+
+.shipment-list-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.shipment-list-row:hover,
+.shipment-list-row.selected {
+  background: var(--bg-elevated);
+}
+
+.shipment-list-row.selected {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.shipment-row-select {
+  display: grid;
+  place-items: center;
+}
+
+.shipment-row-select input {
+  min-height: auto;
+  width: 16px;
+  height: 16px;
+}
+
+.shipment-row-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.shipment-row-main strong,
+.shipment-row-main span,
+.shipment-row-main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shipment-row-main span,
+.shipment-row-main small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shipment-row-meta {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.shipment-empty {
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.shipment-items-table {
+  min-width: 760px;
+}
+
+.shipment-modal .auth-panel {
+  margin-top: 20px;
+}
+
 .section-head.tight {
   margin: 0;
   padding: 12px 14px;
@@ -911,7 +1105,9 @@ th {
   .access-toolbar,
   .pricing-toolbar,
   .pricing-rule-toolbar,
-  .split-workflow {
+  .split-workflow,
+  .shipment-prep-toolbar,
+  .shipment-master-detail {
     grid-template-columns: 1fr;
   }
 }
