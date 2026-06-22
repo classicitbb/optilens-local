@@ -867,6 +867,13 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, { error: "Not found" }, 404);
   }
 
+  if (isInteractivePageRequest(url.pathname) && !isPublicInteractivePage(url.pathname)) {
+    const user = await optionalCurrentUser(req);
+    if (!user) {
+      return redirectToSignIn(res);
+    }
+  }
+
   const filePath = resolveStaticPath(url.pathname);
   if (!filePath) {
     return sendText(res, "Not found", 404);
@@ -886,6 +893,38 @@ const server = http.createServer(async (req, res) => {
     res.end(content);
   });
 });
+
+function isInteractivePageRequest(requestPath) {
+  const normalized = normalizeRoutePath(requestPath);
+  const ext = path.extname(normalized).toLowerCase();
+
+  if (!ext) return true;
+  return ext === ".html";
+}
+
+function isPublicInteractivePage(requestPath) {
+  const route = normalizeRoutePath(requestPath);
+  return route === "/"
+    || route === "/index.html"
+    || route === "/modules/business-metrics"
+    || route === "/business-metrics.html";
+}
+
+function normalizeRoutePath(requestPath) {
+  if (!requestPath || requestPath === "/") return "/";
+  return requestPath.endsWith("/") && requestPath.length > 1
+    ? requestPath.slice(0, -1)
+    : requestPath;
+}
+
+function redirectToSignIn(res) {
+  writeSecurityHeaders(res);
+  res.writeHead(302, {
+    "Location": "/",
+    "Cache-Control": "no-store"
+  });
+  res.end();
+}
 
 function resolveStaticPath(requestPath) {
   const route = requestPath === "/" ? "/index.html" : requestPath;
