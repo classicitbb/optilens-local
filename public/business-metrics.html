@@ -59,8 +59,10 @@
           <p class="eyebrow">Reporting &amp; KPIs</p>
           <h1>Business Metrics</h1>
         </div>
-        <span class="badge planned">Planned</span>
+        <span class="badge planned" id="statusBadge">Loading…</span>
       </div>
+
+      <div id="sourceBanner" class="placeholder-pane" style="margin-bottom:14px; display:none;"></div>
 
       <nav class="workflow-tabs" aria-label="Metrics tabs">
         <button class="active" type="button" data-tab="overview">Overview</button>
@@ -70,44 +72,52 @@
       </nav>
 
       <section class="workflow-panel active" id="overview">
-        <div class="analytics-row" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;">
-          <div class="analytics-metric">
-            <div class="a-label">Total shipments (YTD)</div>
-            <strong class="a-value">—</strong>
-            <span class="a-detail muted">Awaiting MSSQL connection</span>
-          </div>
-          <div class="analytics-metric">
-            <div class="a-label">Open export sessions</div>
-            <strong class="a-value">—</strong>
-            <span class="a-detail muted">Awaiting DB setup</span>
-          </div>
-          <div class="analytics-metric">
-            <div class="a-label">Pricing rules active</div>
-            <strong class="a-value">0</strong>
-            <span class="a-detail muted">Configure in Pricing module</span>
-          </div>
-          <div class="analytics-metric">
-            <div class="a-label">Access records</div>
-            <strong class="a-value">—</strong>
-            <span class="a-detail muted">Import pending</span>
-          </div>
+        <div class="analytics-row" id="ovMetrics" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;">
+          <div class="analytics-metric"><div class="a-label">Loading…</div><strong class="a-value">—</strong></div>
         </div>
-        <div class="placeholder-pane">Business metrics will populate once MSSQL Innovations credentials are configured and the integration layer is active. Data sources: Shipments, ShipmentItems, Pricing history, and Access archive.</div>
+        <div class="placeholder-pane" id="ovArchiveNote">Loading business metrics…</div>
       </section>
 
       <section class="workflow-panel" id="sales">
-        <div class="placeholder-pane">Sales performance — revenue by customer, product, and period. Requires MSSQL Innovations data source.</div>
+        <div class="placeholder-pane" id="salesNote" style="display:none;"></div>
+        <div class="analytics-row" id="salesTotals" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Revenue by month <span class="muted" style="font-weight:400;">(archive)</span></h2>
+        <div id="salesChart" class="bm-chart"></div>
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Top customers <span class="muted" style="font-weight:400;">(by archived revenue)</span></h2>
+        <div id="salesCustomers"></div>
       </section>
 
       <section class="workflow-panel" id="deliveries">
-        <div class="placeholder-pane">Delivery KPIs — on-time rate, export volumes, shipment lifecycle times. Pulls from app-owned delivery sessions.</div>
+        <h2 style="font-size:1rem; margin:4px 0 8px;">App-owned delivery sessions</h2>
+        <div class="analytics-row" id="delAppOwned" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Export archive &amp; logistics</h2>
+        <div class="analytics-row" id="delArchive" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
+        <h2 style="font-size:1rem; margin:18px 0 8px;">Deliveries by month <span class="muted" style="font-weight:400;">(archive)</span></h2>
+        <div id="delChart" class="bm-chart"></div>
       </section>
 
       <section class="workflow-panel" id="pricing">
-        <div class="placeholder-pane">Pricing analytics — rule application frequency, margin trends, price list version history.</div>
+        <div class="analytics-row" id="priceMetrics" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;"></div>
+        <div class="placeholder-pane" id="priceNote"></div>
       </section>
     </section>
   </main>
+
+  <style>
+    .bm-chart { display:flex; align-items:flex-end; gap:6px; min-height:160px; padding:10px 4px 0; border:1px solid var(--line); border-radius:12px; overflow-x:auto; }
+    .bm-bar-wrap { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1 0 38px; min-width:38px; height:150px; }
+    .bm-bar { width:60%; min-height:2px; background:var(--accent, #C89130); border-radius:3px 3px 0 0; transition:height .2s; }
+    .bm-bar-val { font-size:.62rem; color:var(--muted, #64748b); margin-bottom:3px; white-space:nowrap; }
+    .bm-bar-lbl { font-size:.6rem; color:var(--muted, #64748b); margin-top:5px; transform:rotate(-40deg); white-space:nowrap; }
+    .bm-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    .bm-table th, .bm-table td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); }
+    .bm-table th { color:var(--muted, #64748b); font-weight:600; }
+    .bm-table td.num, .bm-table th.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .src-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:600; margin-left:6px; }
+    .src-online { background:#dcfce7; color:#166534; }
+    .src-wait   { background:#fef9c3; color:#854d0e; }
+    .src-error  { background:#fee2e2; color:#991b1b; }
+  </style>
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
@@ -118,6 +128,149 @@
         document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
       });
     });
+
+    const CURRENCY = "BBD";
+    const esc = (v) => String(v == null ? "" : v).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+    const money = (n) => new Intl.NumberFormat(undefined, { style:"currency", currency:CURRENCY, maximumFractionDigits:0 }).format(Number(n) || 0);
+    const intf = (n) => new Intl.NumberFormat().format(Number(n) || 0);
+    const monthLabel = (ym) => { if (!ym) return ""; const [y,m] = ym.split("-"); return new Date(y, m-1, 1).toLocaleString(undefined, { month:"short" }) + " " + String(y).slice(2); };
+    const dateLabel = (v) => v ? new Date(v).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) : "—";
+
+    function metric(label, value, detail) {
+      return `<div class="analytics-metric"><div class="a-label">${esc(label)}</div><strong class="a-value">${value}</strong>${detail ? `<span class="a-detail muted">${esc(detail)}</span>` : ""}</div>`;
+    }
+
+    function srcPill(s) {
+      if (!s) return "";
+      const cls = s.state === "online" ? "src-online" : s.state === "error" ? "src-error" : "src-wait";
+      const txt = s.state === "online" ? "online" : s.state === "credentials-needed" ? "credentials needed" : s.state;
+      return `<span class="src-pill ${cls}">${esc(s.name || "source")}: ${esc(txt)}</span>`;
+    }
+
+    function barChart(rows, valueKey, fmt) {
+      if (!rows || !rows.length) return `<div class="placeholder-pane" style="border:0;">No dated records in the archive window.</div>`;
+      const max = Math.max(...rows.map(r => Number(r[valueKey]) || 0), 1);
+      return rows.map(r => {
+        const v = Number(r[valueKey]) || 0;
+        const h = Math.round((v / max) * 120);
+        return `<div class="bm-bar-wrap" title="${esc(monthLabel(r.month))}: ${esc(fmt(v))}">
+          <span class="bm-bar-val">${fmt(v)}</span>
+          <div class="bm-bar" style="height:${h}px;"></div>
+          <span class="bm-bar-lbl">${esc(monthLabel(r.month))}</span>
+        </div>`;
+      }).join("");
+    }
+
+    function renderSources(d) {
+      const banner = document.getElementById("sourceBanner");
+      const badge = document.getElementById("statusBadge");
+      const s = d.sources || {};
+      badge.textContent = d.appDbOnline ? "Live (local)" : "Offline";
+      badge.className = "badge " + (d.appDbOnline ? "ready-for-import" : "credentials-needed");
+      const live = d.liveSourceOnline;
+      banner.style.display = "block";
+      banner.innerHTML =
+        `Data sources: ${srcPill(s.appDb)} ${srcPill(s.sourceMssql)} ${srcPill(s.sourcePsql)}<br>` +
+        (live
+          ? `Live Innovations source is online — figures include live Shipments / ShipmentItems / pricing history.`
+          : `Showing data available locally (imported Access archive + app-owned delivery &amp; pricing). Live Shipments / product-level revenue light up once the MSSQL Innovations credentials are added in <a href="/credentials">Credentials</a>.`);
+    }
+
+    function renderOverview(d) {
+      const o = d.overview;
+      const note = document.getElementById("ovArchiveNote");
+      if (!o) { document.getElementById("ovMetrics").innerHTML = metric("Unavailable", "—", "App database offline"); note.textContent = (d.notes || []).join(" "); return; }
+      const w = o.archiveWindow || {};
+      document.getElementById("ovMetrics").innerHTML =
+        metric("Archived deliveries", intf(o.deliveriesTotal), `${intf(o.deliveriesThisYear)} this year`) +
+        metric("Archived revenue", money(o.archivedRevenueTotal), `${intf(o.deliveryItemsTotal)} line items`) +
+        metric("Open export sessions", intf(o.openExportSessions), `${intf(o.shipmentSessionsTotal)} sessions total`) +
+        metric("Commercial invoices", intf(o.commercialInvoicesTotal), "in export archive") +
+        metric("Active pricing rules", intf(o.activePricingRules), "app-owned");
+      note.innerHTML = `Archive window: <strong>${dateLabel(w.min)} → ${dateLabel(w.max)}</strong>` +
+        (w.historyMonths ? ` · ${intf(w.historyMonths)}-month import` : "") +
+        (w.completedAt ? ` · last imported ${dateLabel(w.completedAt)}` : "") +
+        `. Source: Access archive (CV_Accounts_be) + app-owned delivery &amp; pricing tables in optilens_local.`;
+    }
+
+    function renderSales(d) {
+      const s = d.sales;
+      const note = document.getElementById("salesNote");
+      if (!s) { document.getElementById("salesTotals").innerHTML = metric("Unavailable","—","App database offline"); return; }
+      if (s.liveNote) { note.style.display = "block"; note.textContent = s.liveNote; }
+      const months = s.revenueByMonth || [];
+      const avg = months.length ? s.archivedRevenueTotal / months.length : 0;
+      const best = months.reduce((a,b) => (Number(b.revenue) > Number(a.revenue) ? b : a), { revenue:0, month:null });
+      document.getElementById("salesTotals").innerHTML =
+        metric("Archived revenue", money(s.archivedRevenueTotal), "all archived deliveries") +
+        metric("Avg / month", money(avg), `${intf(months.length)} months`) +
+        metric("Best month", best.month ? money(best.revenue) : "—", best.month ? monthLabel(best.month) : "") +
+        metric("Customers", intf((s.topCustomers || []).length) + "+", "with archived sales");
+      document.getElementById("salesChart").innerHTML = barChart(months, "revenue", money);
+      const cust = s.topCustomers || [];
+      document.getElementById("salesCustomers").innerHTML = cust.length
+        ? `<table class="bm-table"><thead><tr><th>Customer</th><th>Account</th><th class="num">Line items</th><th class="num">Revenue</th></tr></thead><tbody>` +
+          cust.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.accountNumber || "—")}</td><td class="num">${intf(c.items)}</td><td class="num">${money(c.revenue)}</td></tr>`).join("") +
+          `</tbody></table>`
+        : `<div class="placeholder-pane" style="border:0;">No customer-attributed revenue in the archive.</div>`;
+    }
+
+    function renderDeliveries(d) {
+      const dl = d.deliveries;
+      if (!dl) { document.getElementById("delAppOwned").innerHTML = metric("Unavailable","—","App database offline"); return; }
+      const a = dl.appOwned, ar = dl.archive;
+      document.getElementById("delAppOwned").innerHTML =
+        metric("Total sessions", intf(a.total), "tracked by the app") +
+        metric("Open (prep)", intf(a.openPrep), "in progress") +
+        metric("Closed", intf(a.closed), "completed") +
+        metric("Reopened", intf(a.reopened), "re-edited after close");
+      document.getElementById("delArchive").innerHTML =
+        metric("Archived deliveries", intf(ar.deliveriesTotal), `${ar.avgItemsPerDelivery} items/delivery avg`) +
+        metric("Couriers", intf(ar.couriersTotal), `${intf(ar.overseasCouriers)} overseas`) +
+        metric("Commercial invoices", intf(ar.commercialInvoicesTotal), "export shipments") +
+        metric("Freight cost", money(ar.freightCostTotal), "archived CI total") +
+        metric("Packing + insurance", money(Number(ar.packingCostTotal) + Number(ar.insuranceCostTotal)), "archived CI total");
+      document.getElementById("delChart").innerHTML = barChart(dl.byMonth || [], "deliveries", intf);
+    }
+
+    function renderPricing(d) {
+      const p = d.pricing;
+      const note = document.getElementById("priceNote");
+      if (!p) { document.getElementById("priceMetrics").innerHTML = metric("Unavailable","—","App database offline"); return; }
+      document.getElementById("priceMetrics").innerHTML =
+        metric("Pricing rules", intf(p.rulesTotal), `${intf(p.rulesActive)} active`) +
+        metric("Calculations run", intf(p.calculationsTotal), "app-owned history") +
+        metric("Avg adjustment", money(p.avgAdjustment), "calculated − input") +
+        metric("Last calculation", p.lastCalculationAt ? dateLabel(p.lastCalculationAt) : "—", "");
+      note.innerHTML = d.liveSourceOnline
+        ? "Pricing history reflects app-owned calculations. Live price-list version history is available from the Innovations source."
+        : "Pricing analytics reflect app-owned rules and calculations. Live price-list version history requires the MSSQL Innovations source.";
+    }
+
+    async function loadMetrics() {
+      try {
+        const res = await fetch("/api/business-metrics", { cache: "no-store" });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || "Request failed");
+        renderSources(d);
+        renderOverview(d);
+        renderSales(d);
+        renderDeliveries(d);
+        renderPricing(d);
+      } catch (err) {
+        document.getElementById("statusBadge").textContent = "Error";
+        document.getElementById("statusBadge").className = "badge credentials-needed";
+        const banner = document.getElementById("sourceBanner");
+        banner.style.display = "block";
+        const msg = /permission|denied|403/i.test(err.message) ? "You need delivery read access to view business metrics."
+          : /auth|401|sign/i.test(err.message) ? "Please sign in to view business metrics."
+          : "Could not load business metrics: " + err.message;
+        banner.textContent = msg;
+        document.getElementById("ovArchiveNote").textContent = "";
+      }
+    }
+
+    loadMetrics();
   </script>
 </body>
 </html>

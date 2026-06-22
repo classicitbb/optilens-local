@@ -69,6 +69,7 @@ const {
   saveDashboardTiles
 } = require("./lib/dashboard");
 const { runMigrations } = require("./lib/migrations");
+const { getBusinessMetrics } = require("./lib/business-metrics");
 const {
   createShipmentSession,
   deleteTestShipmentSessions,
@@ -453,6 +454,13 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/dashboard/device" && req.method === "POST") {
     return sendJson(res, createDeviceRegistration((await readJsonBody(req)).deviceId), 201);
+  }
+
+  if (url.pathname === "/api/business-metrics" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return getBusinessMetrics();
+    });
   }
 
   if (url.pathname === "/api/access-import/status" && req.method === "GET") {
