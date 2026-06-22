@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
   <script src="react.production.min.js"></script>
   <script src="react-dom.production.min.js"></script>
+  <script src="vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
   <script src="support.js"></script>
   <link rel="stylesheet" href="_ds/classic-visions-design-system-e309148b-2428-4341-97fd-7a73961abd15/styles.css">
   <style>
@@ -44,7 +45,7 @@
       </div>
     </div>
     <div style="display:flex;gap:4px;background:rgba(255,255,255,.07);padding:5px;border-radius:11px">
-      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="8"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
     </div>
     <div style="display:flex;align-items:center;gap:12px;justify-content:flex-end">
       <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
@@ -60,7 +61,7 @@
           <button onClick="{{ toggleBrand }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
         </div>
         <div class="cv-scroll" style="padding:0 18px 18px;display:flex;flex-direction:column;gap:13px;max-height:calc(100vh - 120px);overflow:auto">
-          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="5">
+          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="8">
             <div>
               <div style="font:600 12px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:6px">{{ bf.label }}</div>
               <input class="cv-in" value="{{ bf.v }}" onChange="{{ bf.on }}" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d9d7cf;border-radius:9px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
@@ -73,7 +74,7 @@
 
   <!-- EMBEDDED TAB BAR (only when iframe, shown via JS) -->
   <div id="embedded-tabbar" style="display:none;height:48px;flex:none;align-items:center;background:#0B1E35;padding:0 16px;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="7"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="8"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
       <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cdd8e4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -88,7 +89,7 @@
           <button onClick="{{ toggleBrand }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
         </div>
         <div class="cv-scroll" style="padding:0 18px 18px;display:flex;flex-direction:column;gap:13px;max-height:calc(100vh - 120px);overflow:auto">
-          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="5">
+          <sc-for list="{{ brandFields }}" as="bf" hint-placeholder-count="8">
             <div>
               <div style="font:600 12px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:6px">{{ bf.label }}</div>
               <input class="cv-in" value="{{ bf.v }}" onChange="{{ bf.on }}" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #d9d7cf;border-radius:9px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s">
@@ -132,21 +133,7 @@
             <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body content</span>
             <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
           </div>
-          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
-            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
-            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
-            <button onClick="{{ fmtH2 }}" style="width: 58px; padding: 0 9px; height: 29px">H2</button>
-            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
-            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
-            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
-            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
-            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
-            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
-            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
-            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
-          </div>
-          <div ref="{{ setEmailEditor }}" contentEditable="true" data-ph="Paste your blog post or type here — it picks up the house style automatically." onInput="{{ onEmailInput }}" onPaste="{{ onEmailPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:210px;max-height:330px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
+          <div ref="{{ setEmailHost }}" class="tmce-host" style="border:1px solid #d9d7cf;border-radius:10px;overflow:hidden;background:#fff;min-height:240px"></div>
         </div>
 
         <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
@@ -263,21 +250,16 @@
             <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body</span>
             <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
           </div>
-          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
-            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
-            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
-            <button onClick="{{ fmtH2 }}" style="{{ toolBtn }};width:auto;padding:0 9px">H2</button>
-            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
-            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
-            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
-            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
-            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
-            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
-            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
-            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
+          <div ref="{{ setLetterHost }}" class="tmce-host" style="border:1px solid #d9d7cf;border-radius:10px;overflow:hidden;background:#fff;min-height:240px"></div>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Custom blocks — click to insert</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ letterheadBlocks }}" as="bk" hint-placeholder-count="6">
+              <button onClick="{{ bk.insert }}" style="background:#fff;border:1px solid #d9d7cf;border-radius:999px;padding:6px 13px;font:600 11.5px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer">+ {{ bk.label }}</button>
+            </sc-for>
           </div>
-          <div ref="{{ setLetterEditor }}" contentEditable="true" data-ph="Write or paste the letter body here…" onInput="{{ onLetterInput }}" onPaste="{{ onLetterPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:200px;max-height:320px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         </div>
 
         <sc-if value="{{ hasSnippets }}" hint-placeholder-val="{{ false }}">
@@ -403,21 +385,7 @@
             <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Body content</span>
             <button onClick="{{ saveSnippet }}" style="background:none;border:0;font:600 10.5px/1 'Plus Jakarta Sans',sans-serif;color:#1A8A9C;cursor:pointer;text-transform:uppercase;letter-spacing:.08em">+ Save selection</button>
           </div>
-          <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-            <button onClick="{{ fmtBold }}" style="{{ toolBtn }};font-weight:800">B</button>
-            <button onClick="{{ fmtItalic }}" style="{{ toolBtn }};font-style:italic">I</button>
-            <button onClick="{{ fmtP }}" style="{{ toolBtn }};width:auto;padding:0 9px">Text</button>
-            <button onClick="{{ fmtH2 }}" style="width: 58px; padding: 0 9px; height: 29px">H2</button>
-            <button onClick="{{ fmtUL }}" style="{{ toolBtn }};width:auto;padding:0 9px">List</button>
-            <button onClick="{{ fmtLink }}" style="{{ toolBtn }};width:auto;padding:0 9px">Link</button>
-            <button onClick="{{ fmtCenter }}" style="{{ toolBtn }};width:auto;padding:0 9px">Center</button>
-            <button onClick="{{ fmtJustify }}" style="{{ toolBtn }};width:auto;padding:0 9px">Justify</button>
-            <button onClick="{{ fmtImgSmaller }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img -</button>
-            <button onClick="{{ fmtImgLarger }}" style="{{ toolBtn }};width:auto;padding:0 9px">Img +</button>
-            <button onClick="{{ fmtImgRound }}" style="{{ toolBtn }};width:auto;padding:0 9px">Round</button>
-            <button onClick="{{ fmtImgShadow }}" style="{{ toolBtn }};width:auto;padding:0 9px">Shadow</button>
-          </div>
-          <div ref="{{ setSocialEditor }}" contentEditable="true" data-ph="Add the supporting post copy here." onInput="{{ onSocialInput }}" onPaste="{{ onSocialPaste }}" onClick="{{ onEditorClick }}" class="cv-scroll" style="min-height:150px;max-height:260px;overflow:auto;border:1px solid #d9d7cf;border-radius:10px;padding:14px 16px;font:400 13.5px/1.65 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;transition:.15s"></div>
+          <div ref="{{ setSocialHost }}" class="tmce-host" style="border:1px solid #d9d7cf;border-radius:10px;overflow:hidden;background:#fff;min-height:200px"></div>
         </div>
 
         <div>
@@ -540,6 +508,159 @@
       </div>
       </sc-if>
 
+      <!-- ---------- BILLING (Invoice / Quotation / Pro Forma / Receipt) ---------- -->
+      <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:16px">
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Document type</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px"><sc-for list="{{ billTypeOpts }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
+        </div>
+
+        <div style="display:flex;gap:11px">
+          <div style="flex:1">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Number</div>
+            <div style="display:flex;gap:6px">
+              <input class="cv-in" value="{{ f.blNumber.v }}" onChange="{{ f.blNumber.on }}" style="flex:1;min-width:0;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+              <button onClick="{{ nextBillNumber }}" title="Assign next number" style="flex:none;padding:0 11px;border:1px solid #0B1E35;border-radius:8px;background:#fff;color:#0B1E35;font:700 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Next #</button>
+            </div>
+          </div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Date</div><input class="cv-in" value="{{ f.blDate.v }}" onChange="{{ f.blDate.on }}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+
+        <div style="display:flex;gap:11px">
+          <sc-if value="{{ hasDue }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">{{ billDueLabel }}</div><input class="cv-in" value="{{ f.blDue.v }}" onChange="{{ f.blDue.on }}" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </sc-if>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Your ref / PO</div><input class="cv-in" value="{{ f.blPO.v }}" onChange="{{ f.blPO.on }}" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Customer</div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Company</div><input class="cv-in" value="{{ f.blToCompany.v }}" onChange="{{ f.blToCompany.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Contact name</div><input class="cv-in" value="{{ f.blToName.v }}" onChange="{{ f.blToName.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Attention</div><input class="cv-in" value="{{ f.blToAttn.v }}" onChange="{{ f.blToAttn.on }}" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" value="{{ f.blToAddr.v }}" onChange="{{ f.blToAddr.on }}" rows="2" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
+
+        <div style="border-top:1px solid #efece3;padding-top:14px;display:flex;gap:11px;align-items:flex-end">
+          <div style="flex:none">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div>
+            <div style="display:flex;gap:7px"><sc-for list="{{ billCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-bottom:9px;margin-left:auto">
+            <input type="checkbox" checked="{{ blVatEnabled }}" onChange="{{ toggleBlVat }}" style="width:16px;height:16px;accent-color:#1A8A9C">
+            <span style="font:600 12.5px/1 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Charge VAT</span>
+          </label>
+          <sc-if value="{{ blVatEnabled }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:none;width:78px"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Rate %</div><input class="cv-in" value="{{ f.blVatRate.v }}" onChange="{{ f.blVatRate.on }}" style="width:100%;box-sizing:border-box;padding:9px 9px;border:1px solid #d9d7cf;border-radius:8px;font:600 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;text-align:center"></div>
+          </sc-if>
+        </div>
+
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Line items</div>
+          <sc-for list="{{ blRowViews }}" as="r" hint-placeholder-count="1">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0ede6">
+              <div style="display:flex;gap:7px">
+                <input class="cv-in" value="{{ r.desc }}" onChange="{{ r.onDesc }}" placeholder="Description" style="flex:1;min-width:0;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+                <input class="cv-in" value="{{ r.code }}" onChange="{{ r.onCode }}" placeholder="Code" style="width:78px;flex:none;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+              </div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input class="cv-in" value="{{ r.qty }}" onChange="{{ r.onQty }}" placeholder="Qty" style="width:50px;flex:none;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;text-align:center">
+                <input class="cv-in" value="{{ r.unit }}" onChange="{{ r.onUnit }}" placeholder="Unit price" style="width:88px;flex:none;padding:7px 9px;border:1px solid #d9d7cf;border-radius:7px;font:600 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+                <span style="flex:1;min-width:0;text-align:right;font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.amount }}</span>
+                <button onClick="{{ r.toggleTax }}" title="Toggle VAT / zero-rated" style="{{ r.taxBtnStyle }}">{{ r.taxLabel }}</button>
+                <button onClick="{{ r.save }}" title="Save line item for later" style="flex:none;background:none;border:1px solid #e0ddd6;border-radius:6px;color:#C89130;cursor:pointer;padding:5px 8px;font-size:13px;line-height:1">★</button>
+                <button onClick="{{ r.del }}" title="Remove" style="flex:none;background:none;border:1px solid #e0ddd6;border-radius:6px;color:#b3aa9a;cursor:pointer;padding:5px 8px;font-size:13px;line-height:1">×</button>
+              </div>
+            </div>
+          </sc-for>
+          <button onClick="{{ addBlRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add item</button>
+        </div>
+
+        <sc-if value="{{ hasLineItemLib }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Saved line items</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">
+            <sc-for list="{{ lineItemLibViews }}" as="it" hint-placeholder-count="0">
+              <span style="display:inline-flex;align-items:center;background:#f3f1ea;border:1px solid #e3e0d6;border-radius:999px;padding:3px 5px 3px 11px;max-width:100%">
+                <button onClick="{{ it.insert }}" style="background:none;border:0;font:600 11.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.label }}</button>
+                <button onClick="{{ it.del }}" style="background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:13px;padding:2px 5px;line-height:1">×</button>
+              </span>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Discount</div><input class="cv-in" value="{{ f.blDiscount.v }}" onChange="{{ f.blDiscount.on }}" placeholder="0.00" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Shipping</div><input class="cv-in" value="{{ f.blShipping.v }}" onChange="{{ f.blShipping.on }}" placeholder="0.00" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+
+        <div style="background:#f7f5ef;border:1px solid #e7e4db;border-radius:10px;padding:13px 16px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font:500 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#5b6b7c"><span>Subtotal</span><span>{{ blSubtotalStr }}</span></div>
+          <sc-if value="{{ blVatEnabled }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;justify-content:space-between;font:500 12.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#5b6b7c"><span>{{ blVatRowLabel }}</span><span>{{ blVatStr }}</span></div>
+          </sc-if>
+          <div style="display:flex;justify-content:space-between;font:800 14px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;border-top:1px solid #e2ddd0;padding-top:6px;margin-top:2px"><span>Total</span><span>{{ blTotalStr }}</span></div>
+          <sc-if value="{{ isReceipt }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;justify-content:space-between;font:600 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#1c7a52"><span>Paid</span><span>{{ blPaidStr }}</span></div>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ isReceipt }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid #efece3;padding-top:14px;display:flex;flex-direction:column;gap:13px">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Payment received</div>
+          <div style="display:flex;gap:11px">
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Method</div><input class="cv-in" value="{{ f.blPaidMethod.v }}" onChange="{{ f.blPaidMethod.on }}" placeholder="Cash / Cheque / Card / Transfer" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Reference</div><input class="cv-in" value="{{ f.blPaidRef.v }}" onChange="{{ f.blPaidRef.on }}" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+          <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Amount paid — leave blank for full amount</div><input class="cv-in" value="{{ f.blAmountPaid.v }}" onChange="{{ f.blAmountPaid.on }}" placeholder="Full total" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ showBank }}" hint-placeholder-val="{{ true }}">
+        <div style="border-top:1px solid #efece3;padding-top:14px;display:flex;flex-direction:column;gap:11px">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Bank / payment details</div>
+          <div style="display:flex;gap:11px">
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Bank</div><input class="cv-in" value="{{ f.bkBankName.v }}" onChange="{{ f.bkBankName.on }}" placeholder="e.g. Republic Bank" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Account name</div><input class="cv-in" value="{{ f.bkAccName.v }}" onChange="{{ f.bkAccName.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+          <div style="display:flex;gap:11px">
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Account no.</div><input class="cv-in" value="{{ f.bkAccNo.v }}" onChange="{{ f.bkAccNo.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Branch / Transit</div><input class="cv-in" value="{{ f.bkBranch.v }}" onChange="{{ f.bkBranch.on }}" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+          <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">SWIFT / BIC</div><input class="cv-in" value="{{ f.bkSwift.v }}" onChange="{{ f.bkSwift.on }}" placeholder="Optional" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Payment instructions — optional</div><textarea class="cv-in" value="{{ f.bkNote.v }}" onChange="{{ f.bkNote.on }}" rows="2" placeholder="e.g. Reference the invoice number on your transfer." style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
+        </div>
+        </sc-if>
+
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Notes &amp; terms — optional</div><textarea class="cv-in" value="{{ f.blNotes.v }}" onChange="{{ f.blNotes.on }}" rows="3" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved drafts</span>
+            <button onClick="{{ saveBillDraft }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save draft</button>
+          </div>
+          <sc-if value="{{ hasBillDrafts }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ billDraftViews }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:5px 4px 5px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;min-width:0;text-align:left;background:none;border:0;cursor:pointer">
+                    <div style="font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }}</div>
+                    <div style="font:400 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:2px">{{ it.meta }}</div>
+                  </button>
+                  <button onClick="{{ it.del }}" style="flex:none;background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noBillDrafts }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved drafts yet.</div></sc-if>
+        </div>
+
+      </div>
+      </sc-if>
+
     </div>
 
         <!-- ====== RIGHT: PREVIEW ====== -->
@@ -568,6 +689,9 @@
               </sc-if>
             </div>
           </sc-if>
+          <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ saveBillDraft }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save draft</button>
+          </sc-if>
           <button onClick="{{ copyNow }}" style="height:38px;padding:0 20px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">{{ copyLabel }}</button>
         </div>
       </div>
@@ -590,12 +714,24 @@ class Component extends DCLogic {
 
   logos = null;
   logoSrc = (key) => (this.logos && this.logos[key]) ? this.logos[key] : `assets/logo_${key}.svg`;
+  // PNG raster of the logo — SVG isn't reliably rendered in email clients or pasted content, so outputs use this.
+  logoPng = (key) => (this.logosPng && this.logosPng[key]) ? this.logosPng[key] : this.logoSrc(key);
+  rasterize = (svgDataUri, w, h) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { try { const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h); resolve(c.toDataURL('image/png')); } catch (e) { reject(e); } };
+    img.onerror = reject;
+    img.src = svgDataUri;
+  });
   loadLogos = async () => {
     try {
       const base = '/ds/';
       const raw = await (await fetch(base + 'assets/logo.svg')).text();
       const mk = (c) => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(raw.replace(/fill="#[0-9A-Fa-f]{6}"/, `fill="${c}"`))));
       this.logos = { navy: mk('#0B1E35'), linen: mk('#F4F2ED'), gold: mk('#C89130'), teal: mk('#1A8A9C') };
+      this.forceUpdate();
+      // rasterize each variant to a PNG data URI for email/clipboard embedding
+      this.logosPng = {};
+      await Promise.all(Object.entries(this.logos).map(([k, uri]) => this.rasterize(uri, 132, 132).then(png => { this.logosPng[k] = png; }).catch(() => {})));
       this.forceUpdate();
     } catch (e) {}
   };
@@ -637,7 +773,21 @@ class Component extends DCLogic {
     slToName: '', slToCompany: '', slToAddr: '', slToPhone: '', slCarrier: '', slService: '', slTracking: '', slWeight: '', slDims: '', slNote: '',
     // Customer statement
     stCustomer: '', stAccount: '', stAddr: '', stFrom: '', stTo: '', stCurrency: 'BBD', stOpenBal: '0.00',
-    stRows: [{ id: '1', date: '', desc: '', debit: '', credit: '' }], stNote: ''
+    stRows: [{ id: '1', date: '', desc: '', debit: '', credit: '' }], stNote: '',
+    // Supplier identity (tax-compliance fields, shared)
+    bAddress: 'Worthing, Christ Church, Barbados', bRegNo: '', bVatReg: '',
+    // Bank details (shared, shown on invoice / quote / proforma)
+    bkBankName: '', bkAccName: 'Classic Visions', bkAccNo: '', bkBranch: '', bkSwift: '', bkNote: '',
+    // Billing — unified Invoice / Quotation / Pro Forma / Receipt
+    billType: 'invoice', blNumber: '', blDate: '', blDue: '', blPO: '',
+    blToName: '', blToCompany: '', blToAddr: '', blToAttn: '',
+    blCurrency: 'BBD', blVatEnabled: true, blVatRate: '17.5',
+    blDiscount: '', blShipping: '',
+    blRows: [{ id: '1', code: '', desc: '', qty: '1', unit: '', taxable: true }],
+    blPaidMethod: 'Bank transfer', blPaidRef: '', blAmountPaid: '',
+    blNotes: 'Thank you for your business. Please make payment by the due date shown above.',
+    billSeq: { invoice: 1, quote: 1, proforma: 1, receipt: 1 },
+    lineItemLib: [], billDrafts: []
   };
 
   componentDidMount() {
@@ -646,17 +796,18 @@ class Component extends DCLogic {
       const raw = localStorage.getItem(this.KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        this.setState(s, () => {
-          if (this.emailEditor) { this.emailEditor.innerHTML = this.state.emBody || ''; this.styleEditorImages(this.emailEditor); }
-          if (this.letterEditor) { this.letterEditor.innerHTML = this.state.ltBody || ''; this.styleEditorImages(this.letterEditor); }
-          if (this.socialEditor) { this.socialEditor.innerHTML = this.state.smBody || ''; this.styleEditorImages(this.socialEditor); }
-        });
+        this.setState(s, () => { this.refreshTinyContent(); });
       }
     } catch (e) {}
     if (!this.state.ltDate) {
       const dt = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       this.set('ltDate', dt);
     }
+    if (!this.state.blDate) {
+      const dt = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      this.set('blDate', dt);
+    }
+    if (!this.state.blNumber) this.set('blNumber', this.peekBillNumber(this.state.billType));
   }
 
   // ---------- persistence ----------
@@ -684,7 +835,25 @@ class Component extends DCLogic {
   dlEml = () => {
     this.setState({ dlOpen: false });
     const subject = (this.state.emHeading || this.state.emEyebrow || this.brand().name).replace(/[\r\n]+/g, ' ');
-    const eml = ['X-Unsent: 1', 'To: ', 'Subject: ' + subject, 'MIME-Version: 1.0', 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: 8bit', '', this.emailDocHtml()].join('\r\n');
+    let html = this.emailDocHtml();
+    // Pull every inline PNG data-URI (the logo) out into a related MIME part referenced by cid:
+    // so it embeds reliably in Outlook / Apple Mail rather than relying on data: URIs.
+    const parts = [], cidMap = {}; let n = 0;
+    html = html.replace(/data:image\/png;base64,[A-Za-z0-9+\/=]+/g, (m) => {
+      if (!cidMap[m]) { n++; const cid = 'logo' + n + '.cv@classicvisions'; cidMap[m] = cid; parts.push({ cid, b64: m.slice(m.indexOf(',') + 1) }); }
+      return 'cid:' + cidMap[m];
+    });
+    const wrap76 = (s) => s.replace(/.{1,76}/g, '$&\r\n').replace(/\r\n$/, '');
+    let eml;
+    if (parts.length) {
+      const bd = 'cv_rel_' + Date.now();
+      const lines = ['X-Unsent: 1', 'To: ', 'Subject: ' + subject, 'MIME-Version: 1.0', 'Content-Type: multipart/related; boundary="' + bd + '"', '', '--' + bd, 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: 8bit', '', html, ''];
+      parts.forEach(p => { lines.push('--' + bd, 'Content-Type: image/png', 'Content-Transfer-Encoding: base64', 'Content-ID: <' + p.cid + '>', 'Content-Disposition: inline; filename="logo.png"', '', wrap76(p.b64), ''); });
+      lines.push('--' + bd + '--', '');
+      eml = lines.join('\r\n');
+    } else {
+      eml = ['X-Unsent: 1', 'To: ', 'Subject: ' + subject, 'MIME-Version: 1.0', 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: 8bit', '', html].join('\r\n');
+    }
     this.downloadFile(this.slug(this.state.emHeading) + '.eml', eml, 'message/rfc822');
     this.toast('Downloaded .eml — open it to send');
   };
@@ -697,7 +866,46 @@ class Component extends DCLogic {
     phone2: this.state.bPhone2 || '+1 (246) 243-9703'
   });
 
-  // ---------- editors ----------
+  // ---------- TinyMCE rich text editors ----------
+  TINY = {};
+  TINY_KEYS = { email: 'emBody', letter: 'ltBody', social: 'smBody' };
+  mountTiny = (tab, node) => {
+    if (!node || typeof tinymce === 'undefined') return;
+    if (node.dataset.tmceMounted === '1') return;
+    node.dataset.tmceMounted = '1';
+    const ta = document.createElement('textarea');
+    node.appendChild(ta);
+    const self = this, key = this.TINY_KEYS[tab];
+    tinymce.init({
+      target: ta,
+      menubar: false, statusbar: false, branding: false, resize: false, toolbar_sticky: false,
+      plugins: 'lists link autolink image',
+      toolbar: 'bold italic | blocks | bullist numlist | link image | alignleft aligncenter alignjustify | removeformat',
+      toolbar_mode: 'wrap',
+      block_formats: 'Paragraph=p; Heading=h2; Subheading=h3',
+      height: tab === 'social' ? 230 : 300,
+      convert_urls: false, relative_urls: false, paste_data_images: true,
+      skin: 'oxide', content_css: false,
+      content_style: "@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:13.5px;line-height:1.65;color:#0B1E35;margin:12px 14px} h2{font-size:18px;font-weight:800;letter-spacing:-.01em} h3{font-size:15px;font-weight:700} a{color:#1A8A9C} img{max-width:100%;height:auto}",
+      setup: (ed) => {
+        self.TINY[tab] = ed;
+        ed.on('init', () => {
+          ed.setContent(self.state[key] || '');
+          const sync = () => { self.setState({ [key]: ed.getContent() }); self.persistSoon(); };
+          ed.on('input change undo redo ExecCommand', sync);
+        });
+      }
+    }).catch(() => {});
+  };
+  syncTiny = (tab) => { const ed = this.TINY[tab], key = this.TINY_KEYS[tab]; if (ed && key) { try { this.setState({ [key]: ed.getContent() }); } catch (e) {} } };
+  destroyTiny = (tab) => { const ed = this.TINY[tab]; if (ed) { try { ed.remove(); } catch (e) {} this.TINY[tab] = null; } };
+  refreshTinyContent = () => { Object.keys(this.TINY_KEYS).forEach(tab => { const ed = this.TINY[tab]; if (ed) { try { ed.setContent(this.state[this.TINY_KEYS[tab]] || ''); } catch (e) {} } }); };
+  activeTiny = () => this.TINY[this.state.tab];
+  setEmailHost = (node) => this.mountTiny('email', node);
+  setLetterHost = (node) => this.mountTiny('letter', node);
+  setSocialHost = (node) => this.mountTiny('social', node);
+
+  // ---------- editors (legacy contentEditable helpers, retained for non-body paths) ----------
   setEmailEditor = (el) => { if (el) { this.emailEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.emBody || ''; this.styleEditorImages(el); } } };
   setLetterEditor = (el) => { if (el) { this.letterEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.ltBody || ''; this.styleEditorImages(el); } } };
   setSocialEditor = (el) => { if (el) { this.socialEditor = el; if (el.dataset.i !== '1') { el.dataset.i = '1'; el.innerHTML = this.state.smBody || ''; this.styleEditorImages(el); } } };
@@ -803,7 +1011,7 @@ class Component extends DCLogic {
   smHeadlineCenter = () => this.set('smHeadlineAlign', 'center');
   smHeadlineRight = () => this.set('smHeadlineAlign', 'right');
 
-  switchTab = (k) => { this.syncActive(); this.set('tab', k); };
+  switchTab = (k) => { const cur = this.state.tab; this.syncTiny(cur); this.destroyTiny(cur); this.set('tab', k); };
 
   // ---------- sanitize / theme ----------
   sanitize = (html) => {
@@ -937,7 +1145,7 @@ class Component extends DCLogic {
     const txt = scheme === 'dark' ? '#F4F2ED' : '#0B1E35';
     const sub = scheme === 'dark' ? '#C89130' : '#1A8A9C';
     const size = big ? 58 : 48; const word = big ? '21px' : '18px';
-    const src = this.logoSrc(scheme === 'dark' ? 'linen' : 'navy');
+    const src = this.logoPng(scheme === 'dark' ? 'linen' : 'navy');
     return `<table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-block;vertical-align:middle;border-collapse:collapse"><tr><td style="vertical-align:middle"><img src="${src}" width="${size}" height="${size}" alt="Classic Visions" style="display:block;width:${size}px;height:${size}px;border:0"></td><td style="vertical-align:middle;padding-left:13px;text-align:left"><div style="font:800 ${word}/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.04em;color:${txt}">CLASSIC VISIONS</div><div style="font:700 8.5px/1.4 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.3em;color:${sub};margin-top:6px">OPTICAL · BARBADOS</div></td></tr></table>`;
   };
 
@@ -1040,7 +1248,7 @@ class Component extends DCLogic {
     const d = this.state, esc = this.esc;
     const fit = this.fitScale([d.sgName, d.sgTitle, d.sgPhone, d.sgEmail, d.sgWeb, d.sgTagline].join(' '), 160, .68);
     const nameSz = this.fitFont(16, fit, 11), bodySz = this.fitFont(12, fit, 9), labelSz = this.fitFont(10, fit, 8);
-    const mono = d.sgLogo ? `<td style="vertical-align:top;padding-right:18px"><img src="${this.logoSrc('navy')}" width="56" height="56" alt="Classic Visions" style="display:block;width:56px;height:56px;border:0"></td>` : '';
+    const mono = d.sgLogo ? `<td style="vertical-align:top;padding-right:18px"><img src="${this.logoPng('navy')}" width="56" height="56" alt="Classic Visions" style="display:block;width:56px;height:56px;border:0"></td>` : '';
     return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:520px;table-layout:fixed"><tr>
       ${mono}
       <td style="vertical-align:top;border-left:2px solid #C89130;padding-left:18px;max-width:430px">
@@ -1084,6 +1292,7 @@ class Component extends DCLogic {
     if (t === 'pricelist') { this.printDoc(this.buildPricelist(), 'Price List'); return; }
     if (t === 'shiplabel') { this.printDoc(this.buildShippingLabel(), 'Shipping Label'); return; }
     if (t === 'statement') { this.printDoc(this.buildStatement(), 'Customer Statement'); return; }
+    if (t === 'billing') { this.printDoc(this.buildBilling(), this.billMeta().title); return; }
     this.copyRich(t === 'email' ? this.buildEmail() : t === 'letter' ? this.buildLetter() : this.buildSignature());
   };
   printLetter = () => {
@@ -1096,14 +1305,21 @@ class Component extends DCLogic {
     setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 500);
   };
 
+  // ---------- letterhead custom blocks ----------
+  LH_BLOCKS = [
+    { label: 'Intro', html: '<p>Thank you for your continued partnership with Classic Visions. We are pleased to share the details below.</p>' },
+    { label: 'Payment terms', html: '<p>Payment is due within 30 days of the invoice date. Kindly reference your invoice number on all remittances.</p>' },
+    { label: 'Bank details', html: '<p>Payment may be made by bank transfer to Classic Visions. Full bank details appear on your invoice or are available on request.</p>' },
+    { label: 'Delivery', html: '<p>Goods will be dispatched within 3–5 business days of order confirmation, delivered island-wide.</p>' },
+    { label: 'Warranty', html: '<p>All products carry our standard manufacturer warranty against defects. Please retain your receipt as proof of purchase.</p>' },
+    { label: 'Sign-off', html: '<p>Please do not hesitate to contact us should you have any questions. We value your business and look forward to continuing to serve you.</p>' }
+  ];
+
   // ---------- snippets ----------
   saveSnippet = () => {
-    const ed = this.activeEditor();
+    const ed = this.activeTiny();
     let html = '';
-    const sel = window.getSelection && window.getSelection();
-    if (sel && sel.rangeCount && !sel.isCollapsed && ed && ed.contains(sel.anchorNode)) {
-      const c = document.createElement('div'); c.appendChild(sel.getRangeAt(0).cloneContents()); html = this.sanitize(c.innerHTML);
-    }
+    if (ed) { try { html = this.sanitize(ed.selection.getContent({ format: 'html' }) || ''); } catch (e) {} }
     let label;
     if (html) { label = prompt('Name this snippet:'); }
     else { const t = prompt('No text selected. Type the snippet text to save:'); if (t) { html = '<p>' + this.esc(t) + '</p>'; label = prompt('Name this snippet:') || t.slice(0, 22); } }
@@ -1111,12 +1327,12 @@ class Component extends DCLogic {
     this.setState(s => ({ snippets: [...s.snippets, { id: Date.now() + '', label, html }] }), this.persist);
     this.toast('Snippet saved');
   };
-  insertSnippet = (html) => { const ed = this.activeEditor(); if (!ed) return; ed.focus(); try { document.execCommand('insertHTML', false, html); } catch (e) { ed.innerHTML += html; } this.styleEditorImages(ed); this.syncActive(); };
+  insertSnippet = (html) => { const ed = this.activeTiny(); if (!ed) return; ed.focus(); ed.insertContent(html); };
 
   // ---------- libraries ----------
   delLib = (key, id) => { this.setState(s => ({ [key]: s[key].filter(x => x.id !== id) }), this.persist); };
-  loadEmail = (it) => { this.setState({ ...it.fields }, () => { if (this.emailEditor) { this.emailEditor.innerHTML = this.state.emBody || ''; this.styleEditorImages(this.emailEditor); } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
-  loadLetter = (it) => { this.setState({ ...it.fields }, () => { if (this.letterEditor) { this.letterEditor.innerHTML = this.state.ltBody || ''; this.styleEditorImages(this.letterEditor); } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadEmail = (it) => { this.setState({ ...it.fields }, () => { const ed = this.TINY.email; if (ed) { try { ed.setContent(this.state.emBody || ''); } catch (e) {} } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
+  loadLetter = (it) => { this.setState({ ...it.fields }, () => { const ed = this.TINY.letter; if (ed) { try { ed.setContent(this.state.ltBody || ''); } catch (e) {} } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
   loadSig = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
   saveEmail = () => {
     const name = prompt('Name this email template:'); if (!name) return;
@@ -1209,7 +1425,7 @@ class Component extends DCLogic {
     this.setState(s => ({ smPostLib: [...(s.smPostLib||[]), { id: Date.now()+'', name, fields }] }), this.persist);
     this.toast('Post saved');
   };
-  loadPost = (it) => { this.setState({ smBody: '', ...it.fields }, () => { if (this.socialEditor) { this.socialEditor.innerHTML = this.state.smBody || ''; this.styleEditorImages(this.socialEditor); } this.persist(); }); this.toast('Loaded "' + it.name + '"'); };
+  loadPost = (it) => { this.setState({ smBody: '', ...it.fields }, () => { const ed = this.TINY.social; if (ed) { try { ed.setContent(this.state.smBody || ''); } catch (e) {} } this.persist(); }); this.toast('Loaded "' + it.name + '"'); };
 
   // ---------- view helpers ----------
   tabStyle = (active) => `padding:7px 16px;border:0;border-radius:7px;cursor:pointer;font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;background:${active ? '#F4F2ED' : 'transparent'};color:${active ? '#0B1E35' : '#cdd8e4'};transition:.15s`;
@@ -1339,10 +1555,214 @@ class Component extends DCLogic {
     </div>`;
   };
 
+  // ---------- BILLING (Invoice / Quotation / Pro Forma / Receipt) ----------
+  BILL_META = {
+    invoice:  { title: 'INVOICE',           prefix: 'INV', toLabel: 'Bill to',      dueLabel: 'Due date',    showBank: true,  showPay: false, note: '' },
+    quote:    { title: 'QUOTATION',          prefix: 'QTE', toLabel: 'Prepared for', dueLabel: 'Valid until',  showBank: true,  showPay: false, note: 'This quotation is valid until the date shown above and is subject to our standard terms of sale. Prices are subject to change thereafter.' },
+    proforma: { title: 'PRO FORMA INVOICE',  prefix: 'PRF', toLabel: 'Prepared for', dueLabel: 'Valid until',  showBank: true,  showPay: false, note: 'This is a pro forma invoice for customs and quotation purposes only. It is not a tax invoice and not a demand for payment. Goods remain the property of the supplier until paid in full.' },
+    receipt:  { title: 'RECEIPT',            prefix: 'RCT', toLabel: 'Received from', dueLabel: '',            showBank: false, showPay: true,  note: '' }
+  };
+  billMeta = () => this.BILL_META[this.state.billType] || this.BILL_META.invoice;
+  peekBillNumber = (type) => { const m = this.BILL_META[type] || this.BILL_META.invoice; const seq = (this.state.billSeq && this.state.billSeq[type]) || 1; return `${m.prefix}-${String(seq).padStart(4, '0')}`; };
+  nextBillNumber = () => {
+    const type = this.state.billType, m = this.BILL_META[type] || this.BILL_META.invoice;
+    this.setState(s => { const seq = { ...(s.billSeq || {}) }; const cur = seq[type] || 1; const num = `${m.prefix}-${String(cur).padStart(4, '0')}`; seq[type] = cur + 1; return { billSeq: seq, blNumber: num }; }, this.persistSoon);
+    this.toast('New number assigned');
+  };
+  setBillType = (k) => this.setState({ billType: k }, () => {
+    const n = this.state.blNumber;
+    if (!n || /^(INV|QTE|PRF|RCT)-\d+$/.test(n)) this.set('blNumber', this.peekBillNumber(k));
+    else this.persistSoon();
+  });
+
+  addBlRow = () => this.setState(s => ({ blRows: [...(s.blRows || []), { id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }), this.persistSoon);
+  delBlRow = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r.splice(i, 1); return { blRows: r.length ? r : [{ id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }; }, this.persistSoon);
+  updateBlRow = (i, key, val) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], [key]: val }; return { blRows: r }; }, this.persistSoon);
+  toggleBlRowTax = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], taxable: r[i].taxable === false }; return { blRows: r }; }, this.persistSoon);
+
+  saveLineItem = (i) => {
+    const r = (this.state.blRows || [])[i];
+    if (!r || !(r.desc || r.code)) { this.toast('Add a description first'); return; }
+    this.setState(s => ({ lineItemLib: [...(s.lineItemLib || []), { id: Date.now() + '', code: r.code || '', desc: r.desc || '', unit: r.unit || '', taxable: r.taxable !== false }] }), this.persist);
+    this.toast('Line item saved for later');
+  };
+  insertLineItem = (it) => this.setState(s => {
+    const rows = [...(s.blRows || [])];
+    const blank = rows.length === 1 && !rows[0].desc && !rows[0].code && !rows[0].unit;
+    const row = { id: Date.now() + '', code: it.code || '', desc: it.desc || '', qty: '1', unit: it.unit || '', taxable: it.taxable !== false };
+    return { blRows: blank ? [row] : [...rows, row] };
+  }, this.persistSoon);
+
+  BILL_DRAFT_KEYS = ['billType', 'blNumber', 'blDate', 'blDue', 'blPO', 'blToName', 'blToCompany', 'blToAddr', 'blToAttn', 'blCurrency', 'blVatEnabled', 'blVatRate', 'blDiscount', 'blShipping', 'blRows', 'blPaidMethod', 'blPaidRef', 'blAmountPaid', 'blNotes'];
+  saveBillDraft = () => {
+    const def = (this.state.blNumber || this.billMeta().title) + (this.state.blToCompany ? ' — ' + this.state.blToCompany : (this.state.blToName ? ' — ' + this.state.blToName : ''));
+    const name = prompt('Name this draft:', def); if (!name) return;
+    const fields = {}; this.BILL_DRAFT_KEYS.forEach(k => fields[k] = k === 'blRows' ? (this.state.blRows || []).map(r => ({ ...r })) : this.state[k]);
+    this.setState(s => ({ billDrafts: [...(s.billDrafts || []), { id: Date.now() + '', name, type: this.state.billType, fields, savedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }] }), this.persist);
+    this.toast('Draft saved');
+  };
+  loadBillDraft = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
+
+  billTotals = () => {
+    const d = this.state, rows = (d.blRows || []);
+    let subtotal = 0, taxableSum = 0;
+    rows.forEach(r => { const amt = (parseFloat(r.qty) || 0) * (parseFloat(r.unit) || 0); subtotal += amt; if (r.taxable !== false) taxableSum += amt; });
+    const discount = parseFloat(d.blDiscount) || 0;
+    const shipping = parseFloat(d.blShipping) || 0;
+    const discTaxable = subtotal > 0 ? discount * (taxableSum / subtotal) : 0;
+    const rate = parseFloat(d.blVatRate) || 0;
+    const vatBase = Math.max(0, (taxableSum - discTaxable) + shipping);
+    const vat = d.blVatEnabled ? vatBase * rate / 100 : 0;
+    const total = subtotal - discount + shipping + vat;
+    const paidRaw = parseFloat(d.blAmountPaid);
+    const amountPaid = isNaN(paidRaw) ? (d.billType === 'receipt' ? total : 0) : paidRaw;
+    const balance = total - amountPaid;
+    return { subtotal, discount, shipping, vat, rate, total, amountPaid, balance };
+  };
+
+  buildBilling = () => {
+    const d = this.state, b = this.brand(), esc = this.esc, m = this.billMeta();
+    const cur = d.blCurrency || 'BBD';
+    const money = (n) => cur + ' ' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const t = this.billTotals();
+    const rows = (d.blRows || []).filter(r => r.desc || r.code || r.unit || (r.qty && r.qty !== '1') || parseFloat(r.unit));
+    const showZeroTag = d.blVatEnabled && (d.blRows || []).some(r => r.taxable === false);
+
+    // ---- supplier identity (right of logo) ----
+    const supplierLines = [
+      d.bAddress ? esc(d.bAddress).replace(/\n/g, '<br>') : '',
+      esc(b.phone) + (b.email ? ' &nbsp;·&nbsp; ' + esc(b.email) : ''),
+      esc(b.web)
+    ].filter(Boolean).join('<br>');
+    const supplierRegs = [
+      d.bVatReg ? `VAT Reg: ${esc(d.bVatReg)}` : '',
+      d.bRegNo ? `Reg No: ${esc(d.bRegNo)}` : ''
+    ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+    // ---- meta rows (number / date / due) ----
+    const metaRow = (l, v) => v ? `<tr><td style="font:700 9.5px/1.9 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;padding-right:14px;text-align:right;white-space:nowrap">${l}</td><td style="font:700 12.5px/1.9 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;white-space:nowrap">${esc(v)}</td></tr>` : '';
+    const metaTable = `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-left:auto;margin-top:12px">${metaRow(m.title.includes('RECEIPT') ? 'Receipt #' : (m.title.includes('QUOT') ? 'Quote #' : (m.title.includes('PRO') ? 'Pro forma #' : 'Invoice #')), d.blNumber)}${metaRow('Date', d.blDate)}${m.dueLabel ? metaRow(m.dueLabel, d.blDue) : ''}${metaRow('Your ref', d.blPO)}</table>`;
+
+    // ---- line items table ----
+    const rowsHtml = rows.length ? rows.map((r, i) => {
+      const qty = parseFloat(r.qty) || 0, unit = parseFloat(r.unit) || 0, amt = qty * unit;
+      const zr = d.blVatEnabled && r.taxable === false;
+      return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9f8f5'}">
+        <td style="padding:11px 16px;font:400 13px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;border-bottom:1px solid #f0ede6;vertical-align:top">${esc(r.desc || '')}${r.code ? `<div style="font:600 11px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:2px">${esc(r.code)}</div>` : ''}${zr ? `<span style="display:inline-block;margin-top:4px;font:700 9px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#5b6b7c;background:#eceae3;border-radius:4px;padding:3px 6px">Zero-rated</span>` : ''}</td>
+        <td style="padding:11px 16px;font:400 13px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;text-align:right;border-bottom:1px solid #f0ede6;vertical-align:top;white-space:nowrap">${r.qty ? esc(r.qty) : ''}</td>
+        <td style="padding:11px 16px;font:400 13px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#41525f;text-align:right;border-bottom:1px solid #f0ede6;vertical-align:top;white-space:nowrap">${unit ? money(unit) : ''}</td>
+        <td style="padding:11px 16px;font:600 13px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6;vertical-align:top;white-space:nowrap">${amt ? money(amt) : ''}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="4" style="padding:22px 16px;font:400 13px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#a7a596;font-style:italic">No line items added yet.</td></tr>`;
+
+    // ---- totals ----
+    const totLine = (l, v, opts) => { opts = opts || {}; return `<tr><td style="padding:${opts.big ? '12px 18px' : '6px 18px'};font:${opts.big ? '700' : '500'} ${opts.big ? '14px' : '12.5px'}/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${opts.big ? '#0B1E35' : '#5b6b7c'};text-align:right">${l}</td><td style="padding:${opts.big ? '12px 18px 12px 0' : '6px 18px 6px 0'};font:${opts.big ? '800' : '600'} ${opts.big ? '17px' : '13px'}/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:${opts.neg ? '#c0392b' : '#0B1E35'};text-align:right;white-space:nowrap">${v}</td></tr>`; };
+    let totalsRows = totLine('Subtotal', money(t.subtotal));
+    if (t.discount) totalsRows += totLine('Discount', '− ' + money(t.discount), { neg: true });
+    if (t.shipping) totalsRows += totLine('Shipping / handling', money(t.shipping));
+    if (d.blVatEnabled) totalsRows += totLine(`VAT @ ${esc(d.blVatRate)}%`, money(t.vat));
+    const totalsBlock = `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-left:auto;min-width:280px">
+      ${totalsRows}
+      <tr><td colspan="2" style="padding:0 18px"><div style="height:2px;background:#C89130"></div></td></tr>
+      ${totLine(m.showPay ? 'Total' : 'Total due', money(t.total), { big: true })}
+    </table>`;
+
+    // ---- receipt payment block ----
+    let payBlock = '';
+    if (m.showPay) {
+      const paidOff = t.balance <= 0.001;
+      payBlock = `<div style="padding:20px 52px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:#f3f7f5;border:1px solid #d8e5df;border-radius:12px"><tr>
+          <td style="padding:18px 22px;vertical-align:middle">
+            <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">Payment received</div>
+            <div style="font:800 22px/1.1 'Plus Jakarta Sans',Arial,sans-serif;color:#1c7a52">${money(t.amountPaid)}</div>
+            <div style="font:500 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:6px">${d.blPaidMethod ? 'Method: ' + esc(d.blPaidMethod) : ''}${d.blPaidRef ? ' &nbsp;·&nbsp; Ref: ' + esc(d.blPaidRef) : ''}</div>
+            ${t.balance > 0.001 ? `<div style="font:700 12.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#c0392b;margin-top:6px">Balance outstanding: ${money(t.balance)}</div>` : ''}
+          </td>
+          <td style="padding:18px 22px;text-align:right;vertical-align:middle;white-space:nowrap">
+            <div style="display:inline-block;border:2.5px solid ${paidOff ? '#1c7a52' : '#C89130'};color:${paidOff ? '#1c7a52' : '#C89130'};border-radius:10px;padding:8px 18px;font:800 19px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.16em;transform:rotate(-5deg)">${paidOff ? 'PAID' : 'PART-PAID'}</div>
+          </td>
+        </tr></table>
+      </div>`;
+    }
+
+    // ---- bank details ----
+    let bankBlock = '';
+    if (m.showBank && (d.bkBankName || d.bkAccNo || d.bkAccName || d.bkSwift)) {
+      const bankRow = (l, v) => v ? `<div style="display:flex;gap:10px;margin-bottom:4px"><span style="font:700 9.5px/1.6 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;width:120px;flex:none">${l}</span><span style="font:600 12px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(v)}</span></div>` : '';
+      bankBlock = `<div style="padding:22px 52px 0">
+        <div style="background:#f7f5ef;border:1px solid #e7e4db;border-radius:12px;padding:18px 22px">
+          <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:11px">Payment / bank details</div>
+          ${bankRow('Bank', d.bkBankName)}${bankRow('Account name', d.bkAccName)}${bankRow('Account no.', d.bkAccNo)}${bankRow('Branch / Transit', d.bkBranch)}${bankRow('SWIFT / BIC', d.bkSwift)}
+          ${d.bkNote ? `<div style="font:400 11.5px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:8px">${esc(d.bkNote).replace(/\n/g, '<br>')}</div>` : ''}
+        </div>
+      </div>`;
+    }
+
+    // ---- bill-to + summary callout ----
+    const billTo = `<div style="min-width:0;max-width:340px">
+      <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">${m.toLabel}</div>
+      ${d.blToCompany ? `<div style="font:700 14px/1.4 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.blToCompany)}</div>` : ''}
+      ${d.blToName ? `<div style="font:600 13px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${esc(d.blToName)}</div>` : ''}
+      ${d.blToAttn ? `<div style="font:400 12.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c">Attn: ${esc(d.blToAttn)}</div>` : ''}
+      ${d.blToAddr ? `<div style="font:400 12.5px/1.55 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap;margin-top:2px">${esc(d.blToAddr)}</div>` : ''}
+    </div>`;
+    const calloutLabel = m.showPay ? (t.balance <= 0.001 ? 'Amount paid' : 'Balance due') : 'Total due';
+    const calloutValue = m.showPay ? (t.balance <= 0.001 ? t.amountPaid : t.balance) : t.total;
+    const callout = `<div style="margin-left:auto;text-align:right;min-width:170px">
+      <div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">${calloutLabel}</div>
+      <div style="font:800 27px/1 'Plus Jakarta Sans',Arial,sans-serif;color:#0B1E35">${money(calloutValue)}</div>
+      ${m.dueLabel && d.blDue ? `<div style="font:500 11.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:6px">${m.dueLabel}: ${esc(d.blDue)}</div>` : ''}
+    </div>`;
+
+    const legal = m.note ? `<div style="padding:18px 52px 0"><div style="font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;font-style:italic">${esc(m.note)}</div></div>` : '';
+    const notes = d.blNotes ? `<div style="padding:18px 52px 0"><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:6px">Notes &amp; terms</div><div style="font:400 12px/1.65 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap">${esc(d.blNotes)}</div></div>` : '';
+    const vatNote = d.blVatEnabled ? '' : `<div style="padding:10px 52px 0"><div style="font:400 10.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#a7a596;font-style:italic">No VAT charged on this document.</div></div>`;
+
+    return `<div style="width:700px;max-width:700px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif;box-shadow:0 10px 40px -10px rgba(11,30,53,.18)">
+      <div style="padding:44px 52px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+          <td style="vertical-align:top">
+            ${this.lockup('light', { big: true })}
+            <div style="font:400 11px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;margin-top:14px">${supplierLines}</div>
+            ${supplierRegs ? `<div style="font:600 10.5px/1.7 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;margin-top:6px">${supplierRegs}</div>` : ''}
+          </td>
+          <td style="vertical-align:top;text-align:right">
+            <div style="font:800 22px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.01em;color:#0B1E35">${m.title}</div>
+            ${metaTable}
+          </td>
+        </tr></table>
+        <div style="height:2px;background:#C89130;margin:22px 0 0"></div>
+      </div>
+      <div style="padding:24px 52px 0;display:flex;gap:30px;align-items:flex-start">${billTo}${callout}</div>
+      <div style="padding:22px 52px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:10px;overflow:hidden">
+          <thead><tr style="background:#0B1E35">
+            <th style="padding:11px 16px;font:700 10.5px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th>
+            <th style="padding:11px 16px;font:700 10.5px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#F4F2ED;text-align:right;white-space:nowrap">Qty</th>
+            <th style="padding:11px 16px;font:700 10.5px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#F4F2ED;text-align:right;white-space:nowrap">Unit (${esc(cur)})</th>
+            <th style="padding:11px 16px;font:700 10.5px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#C89130;text-align:right;white-space:nowrap">Amount (${esc(cur)})</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="padding:18px 52px 0">${totalsBlock}</div>
+      ${showZeroTag ? `<div style="padding:8px 52px 0;text-align:right"><span style="font:400 10.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#a7a596;font-style:italic">Zero-rated items are exempt from VAT.</span></div>` : ''}
+      ${vatNote}
+      ${payBlock}
+      ${bankBlock}
+      ${notes}
+      ${legal}
+      <div style="padding:30px 52px 44px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(d.bAddress ? d.bAddress.replace(/\n/g, ', ') : '')} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)}</div></div>
+    </div>`;
+  };
+
   renderVals() {
     const d = this.state;
     const f = {};
-    ['emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltTo', 'ltFrom', 'ltRe', 'ltEyebrow', 'ltAmount', 'sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'smHeadline', 'smSub', 'smHandle', 'plCustomer', 'plAttn', 'plDate', 'plValidity', 'plNote', 'slFromName', 'slFromAddr', 'slFromPhone', 'slToName', 'slToCompany', 'slToAddr', 'slToPhone', 'slCarrier', 'slService', 'slTracking', 'slWeight', 'slDims', 'slNote', 'stCustomer', 'stAccount', 'stAddr', 'stFrom', 'stTo', 'stOpenBal', 'stNote'].forEach(k => {
+    ['emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltTo', 'ltFrom', 'ltRe', 'ltEyebrow', 'ltAmount', 'sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'smHeadline', 'smSub', 'smHandle', 'plCustomer', 'plAttn', 'plDate', 'plValidity', 'plNote', 'slFromName', 'slFromAddr', 'slFromPhone', 'slToName', 'slToCompany', 'slToAddr', 'slToPhone', 'slCarrier', 'slService', 'slTracking', 'slWeight', 'slDims', 'slNote', 'stCustomer', 'stAccount', 'stAddr', 'stFrom', 'stTo', 'stOpenBal', 'stNote',
+      'blNumber', 'blDate', 'blDue', 'blPO', 'blToName', 'blToCompany', 'blToAddr', 'blToAttn', 'blVatRate', 'blDiscount', 'blShipping', 'blPaidMethod', 'blPaidRef', 'blAmountPaid', 'blNotes',
+      'bkBankName', 'bkAccName', 'bkAccNo', 'bkBranch', 'bkSwift', 'bkNote'].forEach(k => {
       f[k] = { v: d[k] == null ? '' : d[k], on: (e) => this.set(k, e.target.value) };
     });
     const tab = d.tab;
@@ -1357,16 +1777,17 @@ class Component extends DCLogic {
         )
       );
     } else {
-      const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? this.buildStatement() : this.buildSignatureBoard();
+      const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? this.buildStatement() : tab === 'billing' ? this.buildBilling() : this.buildSignatureBoard();
       previewNode = React.createElement('div', { style: { width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }, dangerouslySetInnerHTML: { __html: html } });
     }
-    const tabs = [['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
+    const tabs = [['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
     const emailLib = (d.emailLib || []).map(it => ({ name: it.name, load: () => this.loadEmail(it), del: () => this.delLib('emailLib', it.id) }));
     const letterLib = (d.letterLib || []).map(it => ({ name: it.name, load: () => this.loadLetter(it), del: () => this.delLib('letterLib', it.id) }));
     const sigLib = (d.sigLib || []).map(it => ({ name: it.name, load: () => this.loadSig(it), del: () => this.delLib('sigLib', it.id) }));
     const snippetItems = (d.snippets || []).map(s => ({ label: s.label, insert: () => this.insertSnippet(s.html), del: () => this.delLib('snippets', s.id) }));
+    const letterheadBlocks = this.LH_BLOCKS.map(bk => ({ label: bk.label, insert: () => this.insertSnippet(bk.html) }));
     const isBizColl = d.docType === 'business' || d.docType === 'collection';
-    const brandFields = [['companyName', 'bCompany'], ['website', 'bWebsite'], ['email', 'bEmail'], ['phone', 'bPhone'], ['phone2', 'bPhone2']].map(([label, key]) => ({ label, v: d[key] == null ? '' : d[key], on: (e) => this.set(key, e.target.value) }));
+    const brandFields = [['Company name', 'bCompany'], ['Website', 'bWebsite'], ['Email', 'bEmail'], ['Phone', 'bPhone'], ['Phone 2', 'bPhone2'], ['Registered address', 'bAddress'], ['VAT registration no.', 'bVatReg'], ['Company registration no.', 'bRegNo']].map(([label, key]) => ({ label, v: d[key] == null ? '' : d[key], on: (e) => this.set(key, e.target.value) }));
     const smFormatOpts = Object.entries(this.SM_FMTS).map(([k, fmt]) => {
       const active = (d.smFormat||'instagram') === k;
       return { label: fmt.label, sz: fmt.sz, onClick: () => this.set('smFormat', k), style: `display:flex;align-items:center;gap:10px;width:100%;padding:10px 13px;border-radius:9px;border:1.5px solid ${active?'#0B1E35':'#d9d7cf'};background:${active?'#0B1E35':'#fff'};color:${active?'#F4F2ED':'#0B1E35'};cursor:pointer;transition:.12s` };
@@ -1380,12 +1801,36 @@ class Component extends DCLogic {
       return { label: o.l, onClick: () => this.set('smStyle', o.k), style: `flex:1;padding:9px 6px;border-radius:8px;border:${active?'2.5px':'1px'} solid ${active?o.ring:'#d9d7cf'};background:${o.bg};color:${o.txt};font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;text-align:center;transition:.12s` };
     });
     const smPostLib = (d.smPostLib||[]).map(it => ({ name: it.name, load: () => this.loadPost(it), del: () => this.delLib('smPostLib', it.id) }));
+    // ---- billing bindings ----
+    const bm = this.BILL_META[d.billType] || this.BILL_META.invoice;
+    const billCur = d.blCurrency || 'BBD';
+    const fmtMoney = (n) => billCur + ' ' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const bt = this.billTotals();
+    const billTypeOpts = [['invoice', 'Invoice'], ['quote', 'Quotation'], ['proforma', 'Pro forma'], ['receipt', 'Receipt']].map(([k, l]) => ({ label: l, onClick: () => this.setBillType(k), style: this.segStyle(d.billType === k) }));
+    const blRowViews = (d.blRows || []).map((r, i) => {
+      const taxable = r.taxable !== false;
+      return {
+        code: r.code, desc: r.desc, qty: r.qty, unit: r.unit,
+        amount: fmtMoney((parseFloat(r.qty) || 0) * (parseFloat(r.unit) || 0)),
+        taxLabel: taxable ? 'VAT' : 'Zero',
+        taxBtnStyle: `flex:none;padding:7px 10px;border-radius:7px;border:1px solid ${taxable ? '#1A8A9C' : '#d9d7cf'};background:${taxable ? '#e7f4f6' : '#fff'};color:${taxable ? '#127080' : '#a7a596'};font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer`,
+        onCode: (e) => this.updateBlRow(i, 'code', e.target.value),
+        onDesc: (e) => this.updateBlRow(i, 'desc', e.target.value),
+        onQty: (e) => this.updateBlRow(i, 'qty', e.target.value),
+        onUnit: (e) => this.updateBlRow(i, 'unit', e.target.value),
+        toggleTax: () => this.toggleBlRowTax(i),
+        save: () => this.saveLineItem(i),
+        del: () => this.delBlRow(i)
+      };
+    });
+    const lineItemLibViews = (d.lineItemLib || []).map(it => ({ label: (it.code ? it.code + ' · ' : '') + (it.desc || 'item'), insert: () => this.insertLineItem(it), del: () => this.delLib('lineItemLib', it.id) }));
+    const billDraftViews = (d.billDrafts || []).map(it => ({ name: it.name, meta: (this.BILL_META[it.type] ? this.BILL_META[it.type].title : '') + (it.savedAt ? ' · ' + it.savedAt : ''), load: () => this.loadBillDraft(it), del: () => this.delLib('billDrafts', it.id) }));
     return {
       tab,
-      isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement',
+      isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement', isBilling: tab === 'billing',
       f, tabs, previewNode,
-      previewTitle: tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : 'Signature preview',
-      copyLabel: tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Copy document' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : 'Copy signature',
+      previewTitle: tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : tab === 'billing' ? (this.billMeta().title.charAt(0) + this.billMeta().title.slice(1).toLowerCase() + ' preview') : 'Signature preview',
+      copyLabel: tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Copy document' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : tab === 'billing' ? 'Print / PDF' : 'Copy signature',
       copyNow: this.copyNow, printLetter: this.printLetter,
       dlOpen: d.dlOpen, toggleDl: this.toggleDl, dlHtml: this.dlHtml, dlEml: this.dlEml,
       brandOpen: d.brandOpen, toggleBrand: this.toggleBrand, brandFields,
@@ -1395,13 +1840,13 @@ class Component extends DCLogic {
       docTypeOpts: this.seg('docType', [{ k: 'business', l: 'Business' }, { k: 'announcement', l: 'Announcement' }, { k: 'collection', l: 'Collection' }, { k: 'memo', l: 'Memo' }]),
       isMemo: d.docType === 'memo', notMemo: d.docType !== 'memo', isAnnounce: d.docType === 'announcement', isBizColl, isCollection: d.docType === 'collection',
       showSubject: d.docType !== 'memo', subjectLabel: d.docType === 'announcement' ? 'Title' : 'Subject (Re:)',
-      emailLib, letterLib, sigLib, snippetItems,
+      emailLib, letterLib, sigLib, snippetItems, letterheadBlocks,
       hasEmailLib: emailLib.length > 0, noEmailLib: emailLib.length === 0,
       hasLetterLib: letterLib.length > 0, noLetterLib: letterLib.length === 0,
       hasSigLib: sigLib.length > 0, noSigLib: sigLib.length === 0,
       hasSnippets: snippetItems.length > 0,
       sgLogo: d.sgLogo, toggleLogo: this.toggleLogo,
-      setEmailEditor: this.setEmailEditor, setLetterEditor: this.setLetterEditor, setSocialEditor: this.setSocialEditor,
+      setEmailHost: this.setEmailHost, setLetterHost: this.setLetterHost, setSocialHost: this.setSocialHost,
       onEmailInput: this.onEmailInput, onLetterInput: this.onLetterInput, onSocialInput: this.onSocialInput,
       onEmailPaste: this.onEmailPaste, onLetterPaste: this.onLetterPaste, onSocialPaste: this.onSocialPaste,
       fmtBold: this.fmtBold, fmtItalic: this.fmtItalic, fmtP: this.fmtP, fmtH2: this.fmtH2, fmtUL: this.fmtUL, fmtLink: this.fmtLink,
@@ -1434,6 +1879,17 @@ class Component extends DCLogic {
         del: () => this.delStRow(i)
       })),
       addStRow: this.addStRow,
+      // ---- billing ----
+      billTypeOpts, billTitle: bm.title, isReceipt: d.billType === 'receipt', notReceipt: d.billType !== 'receipt',
+      showBank: bm.showBank, billDueLabel: bm.dueLabel || 'Valid until', hasDue: !!bm.dueLabel,
+      billCurrencyOpts: this.seg('blCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
+      blVatEnabled: d.blVatEnabled, toggleBlVat: (e) => this.set('blVatEnabled', e.target.checked),
+      blRowViews, addBlRow: this.addBlRow,
+      lineItemLibViews, hasLineItemLib: lineItemLibViews.length > 0,
+      billDraftViews, hasBillDrafts: billDraftViews.length > 0, noBillDrafts: billDraftViews.length === 0,
+      nextBillNumber: this.nextBillNumber, saveBillDraft: this.saveBillDraft,
+      blSubtotalStr: fmtMoney(bt.subtotal), blVatStr: fmtMoney(bt.vat), blTotalStr: fmtMoney(bt.total),
+      blVatRowLabel: `VAT @ ${d.blVatRate || '0'}%`, blPaidStr: fmtMoney(bt.amountPaid), blBalanceStr: fmtMoney(bt.balance),
       copied: d.copied
     };
   }
