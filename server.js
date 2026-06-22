@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
 const nodeCrypto = require("node:crypto");
+const { spawn } = require("node:child_process");
+const sql = require("mssql");
 const { getConfig } = require("./lib/config");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
@@ -61,7 +63,7 @@ function bearerToken(req) {
   return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
 }
 const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
-const { checkPsqlDatabase } = require("./lib/psql-odbc");
+const { checkPsqlConfig, checkPsqlDatabase } = require("./lib/psql-odbc");
 const {
   buildDashboard,
   createDeviceRegistration,
@@ -263,6 +265,304 @@ const mimeTypes = {
   ".ico": "image/x-icon"
 };
 
+const VAULT_CATEGORIES = ["SQL Server", "PSQL", "ODBC", "Access DB", "API Keys", "Other"];
+
+async function buildVaultConnectivityReport(data) {
+  const categories = {};
+
+  for (const category of VAULT_CATEGORIES) {
+    const entries = Array.isArray(data?.[category]) ? data[category] : [];
+    const entryReports = await Promise.all(entries.map((entry) => checkVaultEntryConnectivity(category, entry)));
+    categories[category] = summarizeConnectivityCategory(category, entryReports);
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    categories
+  };
+}
+
+function summarizeConnectivityCategory(category, entries) {
+  if (!entries.length) {
+    return {
+      state: "warning",
+      label: "No saved entries",
+      detail: `No ${category} entries are saved in the vault.`,
+      entries
+    };
+  }
+
+  const hasError = entries.some((entry) => entry.state === "error");
+  const allOnline = entries.every((entry) => entry.state === "online");
+  const onlineCount = entries.filter((entry) => entry.state === "online").length;
+
+  if (hasError) {
+    return {
+      state: "error",
+      label: "Connectivity failed",
+      detail: entries.find((entry) => entry.state === "error")?.detail || "One or more saved entries could not connect.",
+      entries
+    };
+  }
+
+  if (allOnline) {
+    return {
+      state: "online",
+      label: "Connected",
+      detail: entries.length === 1 ? entries[0].detail : `${entries.length} saved entries connected.`,
+      entries
+    };
+  }
+
+  return {
+    state: "warning",
+    label: onlineCount ? "Partially checked" : "Needs attention",
+    detail: onlineCount ? `${onlineCount} of ${entries.length} saved entries connected.` : entries[0]?.detail || "Connectivity has not been confirmed.",
+    entries
+  };
+}
+
+async function checkVaultEntryConnectivity(category, entry) {
+  try {
+    if (category === "SQL Server") return checkSqlServerVaultEntry(entry);
+    if (category === "PSQL") return checkPsqlVaultEntry(entry);
+    if (category === "ODBC") return checkOdbcVaultEntry(entry);
+    if (category === "Access DB") return checkAccessVaultEntry(entry);
+    if (category === "API Keys") return checkApiKeyVaultEntry(entry);
+    return entryConnectivity(entry, "warning", "Saved", "No connectivity check is configured for this entry type.");
+  } catch (error) {
+    return entryConnectivity(entry, "error", "Check failed", error.message || "Connectivity check failed.");
+  }
+}
+
+async function checkSqlServerVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const config = {
+    server: fields.server || fields.host || "",
+    database: fields.database || fields.db || "",
+    user: fields.username || fields.user || fields.userid || "",
+    password: fields.password || fields.pwd || "",
+    encrypt: parseBool(fields.encrypt, true),
+    trustServerCertificate: parseBool(fields.trustcert || fields.trustservercertificate, true)
+  };
+
+  const missing = [];
+  if (!config.server) missing.push("server");
+  if (!config.database) missing.push("database");
+  if (!config.user) missing.push("username");
+  if (!config.password) missing.push("password");
+
+  if (missing.length) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", `Missing ${missing.join(", ")}.`);
+  }
+
+  const pool = new sql.ConnectionPool({
+    server: config.server,
+    database: config.database,
+    user: config.user,
+    password: config.password,
+    options: {
+      encrypt: config.encrypt,
+      trustServerCertificate: config.trustServerCertificate
+    },
+    pool: {
+      max: 1,
+      min: 0,
+      idleTimeoutMillis: 1000
+    },
+    connectionTimeout: 6000,
+    requestTimeout: 8000
+  });
+
+  try {
+    await pool.connect();
+    const result = await pool.request().query("SELECT DB_NAME() AS database_name");
+    const databaseName = result.recordset?.[0]?.database_name || config.database;
+    return entryConnectivity(entry, "online", "Connected", `${config.server}/${databaseName} accepted the saved credentials.`);
+  } catch (error) {
+    return entryConnectivity(entry, "error", "Connection failed", error.message);
+  } finally {
+    try { await pool.close(); } catch {}
+  }
+}
+
+async function checkPsqlVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const base = getConfig().sourcePsql;
+  const user = fields.username || fields.user || fields.userid || "";
+  const password = fields.password || fields.pwd || "";
+  const missing = [];
+  if (!user) missing.push("username");
+  if (!password) missing.push("password");
+
+  if (missing.length) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", `Missing ${missing.join(", ")}.`);
+  }
+
+  const config = {
+    ...base,
+    dsn: fields.dsn || fields.dsnname || base.dsn,
+    driver: fields.driver || base.driver,
+    host: fields.host || fields.server || base.host,
+    port: Number(fields.port || base.port),
+    database: fields.database || fields.db || base.database,
+    user,
+    password
+  };
+  const health = await checkPsqlConfig(config);
+  return entryConnectivity(entry, health.state === "online" ? "online" : health.state === "error" ? "error" : "warning", health.state === "online" ? "Connected" : "Needs attention", health.detail);
+}
+
+async function checkOdbcVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const dsn = fields.dsn || fields.dsnname || fields.name || "";
+  const user = fields.username || fields.user || fields.uid || "";
+  const password = fields.password || fields.pwd || "";
+
+  if (!dsn) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", "Missing ODBC DSN name.");
+  }
+  if (user && !password) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", "Missing password.");
+  }
+
+  const connectionString = [
+    ["DSN", dsn],
+    user ? ["UID", user] : null,
+    password ? ["PWD", password] : null
+  ].filter(Boolean).map(([key, value]) => `${key}=${odbcValue(value)}`).join(";");
+
+  try {
+    await testOdbcConnection(connectionString);
+    return entryConnectivity(entry, "online", "Connected", `${dsn} opened successfully through ODBC.`);
+  } catch (error) {
+    return entryConnectivity(entry, "error", "Connection failed", error.message);
+  }
+}
+
+function checkAccessVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const filePath = fields.filepath || fields.path || fields.file || fields.database || "";
+  if (!filePath) {
+    return entryConnectivity(entry, "warning", "Path missing", "Add the Access database file path to confirm availability.");
+  }
+
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.isFile()) {
+      return entryConnectivity(entry, "online", "File found", `${filePath} is reachable from this machine.`);
+    }
+    return entryConnectivity(entry, "error", "Not a file", `${filePath} exists but is not a file.`);
+  } catch {
+    return entryConnectivity(entry, "error", "File not found", `${filePath} is not reachable from this machine.`);
+  }
+}
+
+function checkApiKeyVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const baseUrl = fields.baseurl || fields.url || fields.endpoint || "";
+  const apiKey = fields.apikey || fields.token || fields.key || "";
+  if (!baseUrl && !apiKey) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", "Add a base URL and API key before connectivity can be checked.");
+  }
+  return entryConnectivity(entry, "warning", "Saved", "API key entries are saved, but no safe non-destructive connectivity check is configured.");
+}
+
+function entryConnectivity(entry, state, label, detail) {
+  return {
+    name: String(entry?.name || "Untitled"),
+    state,
+    label,
+    detail
+  };
+}
+
+function vaultFieldMap(entry) {
+  return (entry?.fields || []).reduce((fields, field) => {
+    const key = normalizeVaultFieldName(field.label);
+    if (key) fields[key] = field.val;
+    return fields;
+  }, {});
+}
+
+function normalizeVaultFieldName(label) {
+  return String(label || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function parseBool(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+function odbcValue(value) {
+  const text = String(value ?? "");
+  if (!/[;{}]/.test(text)) return text;
+  return `{${text.replaceAll("}", "}}")}}`;
+}
+
+function testOdbcConnection(connectionString) {
+  const script = [
+    "$ErrorActionPreference = \"Stop\"",
+    "$inputJson = [Console]::In.ReadToEnd()",
+    "$payload = $inputJson | ConvertFrom-Json",
+    "$conn = [System.Data.Odbc.OdbcConnection]::new($payload.connectionString)",
+    "try {",
+    "  $conn.Open()",
+    "  [Console]::Out.Write(\"ok\")",
+    "}",
+    "finally {",
+    "  if ($conn.State -eq \"Open\") { $conn.Close() }",
+    "}"
+  ].join("\n");
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("powershell", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      script
+    ], {
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    });
+
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      child.kill();
+      reject(new Error("ODBC health check timed out."));
+    }, 8000);
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(cleanPowerShellError(stderr) || `ODBC health check failed with exit code ${code}.`));
+    });
+
+    child.stdin.end(JSON.stringify({ connectionString }));
+  });
+}
+
+function cleanPowerShellError(stderr) {
+  return String(stderr || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" ");
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
@@ -393,6 +693,15 @@ const server = http.createServer(async (req, res) => {
       if (!v.pinHash) throw Object.assign(new Error("Vault not initialised"), { statusCode: 404 });
       writeVault({ pinHash: v.pinHash, data });
       return { ok: true };
+    });
+  }
+
+  // Connectivity — summarizes saved vault entries as traffic-light states.
+  if (url.pathname === "/api/vault/connectivity" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      if (!validateSession(bearerToken(req))) throw Object.assign(new Error("Unauthorised"), { statusCode: 401 });
+      return buildVaultConnectivityReport(readVault().data || {});
     });
   }
 
