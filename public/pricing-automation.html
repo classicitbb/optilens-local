@@ -271,24 +271,24 @@ table.source-sup .dot { display: inline-block; width: 6px; height: 6px; border-r
 .ast.pref { background: rgba(26,138,156,0.12); color: #0f6b7a; }
 .ast.off { background: #fee2e2; color: var(--pl-danger); }
 
-/* Audit modal — size to content, but stay inside the overlay viewport */
+/* Audit modal */
 #audit-overlay { box-sizing: border-box; overflow: auto; }
 #audit-overlay *, #audit-overlay *::before, #audit-overlay *::after { box-sizing: border-box; }
-.audit-panel { width: fit-content; min-width: min(740px, 100%); max-width: 100%; overflow-x: hidden; }
+.audit-panel { width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; }
 .audit-panel .pl-panel-toolbar { min-width: 0; }
 .audit-panel .pl-panel-toolbar h3 { min-width: 0; overflow-wrap: anywhere; }
-#audit-body { max-width: 100%; min-width: 0; overflow: hidden; }
+.audit-panel .pl-panel-body { min-height: 0; overflow: auto; }
+#audit-body { max-width: 100%; min-width: 0; }
 .audit-head { border-bottom: 2px solid var(--pl-navy); padding-bottom: 8px; margin-bottom: 12px; }
 .audit-title { font-size: 16px; color: var(--pl-navy); font-weight: 700; overflow-wrap: anywhere; }
 .audit-title .lensname { font-size: 11.5px; color: var(--pl-teal); font-weight: 400; }
 .audit-sub { font-size: 9.5px; color: var(--pl-muted-fg); margin-top: 2px; overflow-wrap: anywhere; }
-/* Scroll wrapper keeps table from busting out on narrow viewports */
-.audit-sup-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 14px; }
-table.audit-sup { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.audit-sup-wrap { max-width: 100%; margin-bottom: 14px; }
+table.audit-sup { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: auto; }
 table.audit-sup th { background: #f4f2ec; padding: 5px 7px; font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--pl-navy); text-align: left; white-space: nowrap; }
 [data-theme="dark"] table.audit-sup th { background: #0e2440; }
 table.audit-sup th.num, table.audit-sup td.num { text-align: right; }
-table.audit-sup td { padding: 5px 7px; border-bottom: 1px solid #f0eee8; }
+table.audit-sup td { padding: 5px 7px; border-bottom: 1px solid #f0eee8; vertical-align: middle; overflow-wrap: anywhere; }
 [data-theme="dark"] table.audit-sup td { border-color: #1a3050; }
 table.audit-sup td.src { font-size: 9.5px; color: #444; }
 [data-theme="dark"] table.audit-sup td.src { color: #8faabb; }
@@ -404,9 +404,32 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
 @media (max-width: 600px) {
   .pl-app { grid-template-columns: 1fr; }
   .pl-sidebar { display: none; }
-  #audit-overlay { padding: 10px; }
-  .audit-panel { width: 100%; min-width: 0; }
-  table.audit-sup { min-width: 560px; }
+  #audit-overlay { padding: 8px; }
+  .audit-panel { width: 100%; max-height: calc(100dvh - 16px); border-radius: 8px; }
+  .audit-panel .pl-panel-toolbar { border-radius: 8px 8px 0 0; padding: 8px 10px; }
+  .audit-panel .pl-panel-toolbar h3 { font-size: 12px; line-height: 1.25; }
+  .audit-title { font-size: 14px; line-height: 1.25; }
+  .audit-sup-wrap { overflow: visible; }
+  table.audit-sup,
+  table.audit-sup thead,
+  table.audit-sup tbody,
+  table.audit-sup tr,
+  table.audit-sup td { display: block; width: 100%; }
+  table.audit-sup thead { display: none; }
+  table.audit-sup tr { border: 1px solid var(--pl-border); border-radius: 7px; margin-bottom: 8px; padding: 6px 8px; background: var(--pl-card); }
+  table.audit-sup td { display: grid; grid-template-columns: minmax(76px, 34%) minmax(0, 1fr); gap: 8px; padding: 4px 0; border-bottom: 0; text-align: left; }
+  table.audit-sup td::before { content: attr(data-label); color: var(--pl-muted-fg); font-size: 8px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; }
+  table.audit-sup td.num { text-align: left; }
+  table.audit-sup td:empty { display: none; }
+  table.audit-calc,
+  table.audit-calc tbody,
+  table.audit-calc tr,
+  table.audit-calc td { display: block; width: 100%; }
+  table.audit-calc tr { padding: 6px 0; border-bottom: 1px solid #f0eee8; }
+  table.audit-calc td { padding: 2px 0; border-bottom: 0; }
+  table.audit-calc td.num { text-align: left; }
+  .audit-actions { justify-content: stretch; }
+  .audit-actions .pl-btn { flex: 1 1 140px; }
   .pl-panel-body { padding: 16px; }
 }
 
