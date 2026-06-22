@@ -1658,6 +1658,46 @@ th {
   min-height: auto;
 }
 
+.module-access-grid,
+.user-module-access {
+  display: grid;
+  gap: 8px;
+}
+
+.user-module-access {
+  margin-top: 10px;
+  max-width: 460px;
+}
+
+.module-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 140px);
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.module-access-row.compact {
+  font-size: 12px;
+}
+
+.module-access-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.module-access-row select {
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+.module-access-note {
+  margin-top: 8px !important;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .admin-message {
   min-height: 18px;
   color: var(--muted);
@@ -1713,7 +1753,9 @@ th {
 
 .user-row-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: start;
+  justify-content: flex-end;
   gap: 8px;
 }
 

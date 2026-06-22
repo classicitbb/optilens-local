@@ -424,6 +424,7 @@
       <!-- ---------- PRICE LIST ---------- -->
       <sc-if value="{{ isPricelist }}" hint-placeholder-val="{{ false }}">
       <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Saved pricelist</div><select class="cv-in" value="{{ selectedPricelistId }}" onChange="{{ applySavedPricelist }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select saved pricelist</option><sc-for list="{{ savedPricelistOptions }}" as="p" hint-placeholder-count="0"><option value="{{ p.id }}">{{ p.label }}</option></sc-for></select></div>
         <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer / addressee</div><input class="cv-in" value="{{ f.plCustomer.v }}" onChange="{{ f.plCustomer.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Attention</div><input class="cv-in" value="{{ f.plAttn.v }}" onChange="{{ f.plAttn.on }}" placeholder="Buyer / contact name" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="display:flex;gap:11px">
@@ -459,6 +460,7 @@
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" value="{{ f.slFromAddr.v }}" onChange="{{ f.slFromAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Phone</div><input class="cv-in" value="{{ f.slFromPhone.v }}" onChange="{{ f.slFromPhone.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Ship to</div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Fill from company</div><select class="cv-in" value="{{ selectedShipCustomer }}" onChange="{{ applyCustomerToShipLabel }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select customer</option><sc-for list="{{ customerOptions }}" as="c" hint-placeholder-count="0"><option value="{{ c.account }}">{{ c.label }}</option></sc-for></select></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Recipient name</div><input class="cv-in" value="{{ f.slToName.v }}" onChange="{{ f.slToName.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Company</div><input class="cv-in" value="{{ f.slToCompany.v }}" onChange="{{ f.slToCompany.on }}" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Address</div><textarea class="cv-in" value="{{ f.slToAddr.v }}" onChange="{{ f.slToAddr.on }}" rows="2" style="width:100%;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
@@ -480,7 +482,7 @@
       <!-- ---------- CUSTOMER STATEMENT ---------- -->
       <sc-if value="{{ isStatement }}" hint-placeholder-val="{{ false }}">
       <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer name</div><input class="cv-in" value="{{ f.stCustomer.v }}" onChange="{{ f.stCustomer.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer name</div><select class="cv-in" value="{{ selectedStatementCustomer }}" onChange="{{ applyCustomerToStatement }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select customer</option><sc-for list="{{ customerOptions }}" as="c" hint-placeholder-count="0"><option value="{{ c.account }}">{{ c.label }}</option></sc-for></select><input class="cv-in" value="{{ f.stCustomer.v }}" onChange="{{ f.stCustomer.on }}" placeholder="Customer name" style="width:100%;margin-top:7px;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="display:flex;gap:11px">
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account #</div><input class="cv-in" value="{{ f.stAccount.v }}" onChange="{{ f.stAccount.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div><div style="display:flex;gap:7px"><sc-for list="{{ stCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div>
@@ -536,6 +538,7 @@
         </div>
 
         <div style="border-top:1px solid #efece3;padding-top:14px;font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Customer</div>
+        <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Fill from customer</div><select class="cv-in" value="{{ selectedBillingCustomer }}" onChange="{{ applyCustomerToBilling }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select customer</option><sc-for list="{{ customerOptions }}" as="c" hint-placeholder-count="0"><option value="{{ c.account }}">{{ c.label }}</option></sc-for></select></div>
         <div><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Company</div><input class="cv-in" value="{{ f.blToCompany.v }}" onChange="{{ f.blToCompany.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         <div style="display:flex;gap:11px">
           <div style="flex:1"><div style="font:600 11px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Contact name</div><input class="cv-in" value="{{ f.blToName.v }}" onChange="{{ f.blToName.on }}" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
@@ -787,7 +790,9 @@ class Component extends DCLogic {
     blPaidMethod: 'Bank transfer', blPaidRef: '', blAmountPaid: '',
     blNotes: 'Thank you for your business. Please make payment by the due date shown above.',
     billSeq: { invoice: 1, quote: 1, proforma: 1, receipt: 1 },
-    lineItemLib: [], billDrafts: []
+    lineItemLib: [], billDrafts: [],
+    dsCustomers: [], dsPricelists: [],
+    selectedStatementCustomer: '', selectedShipCustomer: '', selectedBillingCustomer: '', selectedPricelistId: ''
   };
 
   componentDidMount() {
@@ -808,10 +813,11 @@ class Component extends DCLogic {
       this.set('blDate', dt);
     }
     if (!this.state.blNumber) this.set('blNumber', this.peekBillNumber(this.state.billType));
+    this.loadDocStudioData();
   }
 
   // ---------- persistence ----------
-  persist = () => { try { const { copied, brandOpen, dlOpen, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
+  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
   persistSoon = () => { clearTimeout(this._pt); this._pt = setTimeout(this.persist, 350); };
   set = (k, v) => { this.setState({ [k]: v }, this.persistSoon); };
   toast = (m) => { this.setState({ copied: m }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ copied: '' }), 2200); };
@@ -1438,6 +1444,99 @@ class Component extends DCLogic {
   delPlRow = (i) => this.setState(s => { const r=[...(s.plRows||[])]; r.splice(i,1); return { plRows: r.length ? r : [{ id:Date.now()+'', code:'', desc:'', price:'' }] }; }, this.persistSoon);
   updatePlRow = (i, key, val) => this.setState(s => { const r=[...(s.plRows||[])]; r[i]={...r[i],[key]:val}; return { plRows:r }; }, this.persistSoon);
 
+  // ---------- customer / pricelist reference data ----------
+  loadDocStudioData = async () => {
+    const getJson = async (url, fallback) => {
+      try {
+        const r = await fetch(url, { credentials: 'same-origin' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        return Array.isArray(j) ? j : fallback;
+      } catch (e) { return fallback; }
+    };
+    const [customers, lists] = await Promise.all([
+      getJson('/api/pl/customers', []),
+      getJson('/api/pricelists', [])
+    ]);
+    this.setState({
+      dsCustomers: customers.filter(c => c && (c.account || c.name)),
+      dsPricelists: lists.filter(p => p && p.id)
+    });
+  };
+  customerLabel = (c) => `${c.name || c.customerName || c.account || 'Customer'}${c.account ? ' (' + c.account + ')' : ''}`;
+  customerAddressBlock = (c) => {
+    const lines = [
+      c.address1 || c.addressLine1 || c.street || c.street1,
+      c.address2 || c.addressLine2 || c.street2,
+      c.address3 || c.addressLine3,
+      [c.city || c.locality, c.state || c.region || c.province, c.postalCode || c.postCode || c.zip].filter(Boolean).join(', '),
+      c.country
+    ].filter(Boolean);
+    return lines.join('\n');
+  };
+  findCustomer = (account) => (this.state.dsCustomers || []).find(c => String(c.account || '') === String(account || '')) || null;
+  applyCustomerToStatement = (e) => {
+    const account = e.target.value, c = this.findCustomer(account);
+    if (!c) return this.set('selectedStatementCustomer', '');
+    this.setState({
+      selectedStatementCustomer: account,
+      stCustomer: c.name || c.customerName || '',
+      stAccount: c.account || '',
+      stAddr: this.customerAddressBlock(c)
+    }, this.persistSoon);
+  };
+  applyCustomerToShipLabel = (e) => {
+    const account = e.target.value, c = this.findCustomer(account);
+    if (!c) return this.set('selectedShipCustomer', '');
+    this.setState({
+      selectedShipCustomer: account,
+      slToCompany: c.name || c.customerName || '',
+      slToAddr: this.customerAddressBlock(c),
+      slToPhone: c.phone || c.phoneNumber || ''
+    }, this.persistSoon);
+  };
+  applyCustomerToBilling = (e) => {
+    const account = e.target.value, c = this.findCustomer(account);
+    if (!c) return this.set('selectedBillingCustomer', '');
+    this.setState({
+      selectedBillingCustomer: account,
+      blToCompany: c.name || c.customerName || '',
+      blToAddr: this.customerAddressBlock(c)
+    }, this.persistSoon);
+  };
+  applySavedPricelist = async (e) => {
+    const id = e.target.value;
+    if (!id) return this.set('selectedPricelistId', '');
+    try {
+      const r = await fetch('/api/pricelists/' + encodeURIComponent(id), { credentials: 'same-origin' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const p = await r.json();
+      const cur = p.currency || 'BBD';
+      const mode = p.priceMode === 'retail' ? 'retailUSD' : 'priceUSD';
+      const rows = Object.entries(p.prices || {}).map(([key, val], i) => {
+        const parts = key.split('||');
+        const raw = Number((val && (val[mode] || val.priceUSD || val.retailUSD)) || 0);
+        if (!raw) return null;
+        const display = cur === 'BBD' ? raw * 2 : raw;
+        return {
+          id: Date.now() + '-' + i,
+          code: parts[2] || '',
+          desc: [parts[0], parts[1], parts[2]].filter(Boolean).join(' - '),
+          price: display.toFixed(2)
+        };
+      }).filter(Boolean);
+      this.setState({
+        selectedPricelistId: id,
+        plCustomer: p.customerName || p.customer || this.state.plCustomer,
+        plCurrency: cur,
+        plRows: rows.length ? rows : [{ id: Date.now() + '', code: '', desc: '', price: '' }]
+      }, this.persistSoon);
+      this.toast('Pricelist loaded as editable items');
+    } catch (err) {
+      this.toast('Could not load pricelist');
+    }
+  };
+
   // ---------- STATEMENT rows ----------
   addStRow = () => this.setState(s => ({ stRows: [...(s.stRows||[]), { id: Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }), this.persistSoon);
   delStRow = (i) => this.setState(s => { const r=[...(s.stRows||[])]; r.splice(i,1); return { stRows: r.length ? r : [{ id:Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }; }, this.persistSoon);
@@ -1801,6 +1900,14 @@ class Component extends DCLogic {
       return { label: o.l, onClick: () => this.set('smStyle', o.k), style: `flex:1;padding:9px 6px;border-radius:8px;border:${active?'2.5px':'1px'} solid ${active?o.ring:'#d9d7cf'};background:${o.bg};color:${o.txt};font:700 12.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;text-align:center;transition:.12s` };
     });
     const smPostLib = (d.smPostLib||[]).map(it => ({ name: it.name, load: () => this.loadPost(it), del: () => this.delLib('smPostLib', it.id) }));
+    const customerOptions = (d.dsCustomers || [])
+      .slice()
+      .sort((a, b) => this.customerLabel(a).localeCompare(this.customerLabel(b)))
+      .map(c => ({ account: c.account || '', label: this.customerLabel(c) }));
+    const savedPricelistOptions = (d.dsPricelists || [])
+      .slice()
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      .map(p => ({ id: p.id, label: `${p.name || 'Saved pricelist'}${p.customerName || p.customer ? ' - ' + (p.customerName || p.customer) : ''}` }));
     // ---- billing bindings ----
     const bm = this.BILL_META[d.billType] || this.BILL_META.invoice;
     const billCur = d.blCurrency || 'BBD';
@@ -1860,6 +1967,16 @@ class Component extends DCLogic {
       smHeadlineV: d.smHeadline ?? '', smSubV: d.smSub ?? '', smHandleV: d.smHandle ?? '',
       smHeadlineOn: (e) => this.set('smHeadline', e.target.value), smSubOn: (e) => this.set('smSub', e.target.value), smHandleOn: (e) => this.set('smHandle', e.target.value),
       smHeadlineItalicToggle: this.smHeadlineItalicToggle, smHeadlineLeft: this.smHeadlineLeft, smHeadlineCenter: this.smHeadlineCenter, smHeadlineRight: this.smHeadlineRight,
+      customerOptions,
+      savedPricelistOptions,
+      selectedStatementCustomer: d.selectedStatementCustomer || '',
+      selectedShipCustomer: d.selectedShipCustomer || '',
+      selectedBillingCustomer: d.selectedBillingCustomer || '',
+      selectedPricelistId: d.selectedPricelistId || '',
+      applyCustomerToStatement: this.applyCustomerToStatement,
+      applyCustomerToShipLabel: this.applyCustomerToShipLabel,
+      applyCustomerToBilling: this.applyCustomerToBilling,
+      applySavedPricelist: this.applySavedPricelist,
       plCurrencyOpts: this.seg('plCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
       plRowViews: (d.plRows || []).map((r, i) => ({
         code: r.code, desc: r.desc, price: r.price,

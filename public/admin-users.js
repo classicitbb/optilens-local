@@ -1,5 +1,6 @@
 const adminState = {
   roles: [],
+  modules: [],
   users: []
 };
 
@@ -15,8 +16,10 @@ async function loadUsers() {
   try {
     const data = await apiJson("/api/admin/users");
     adminState.roles = data.roles || [];
+    adminState.modules = data.modules || [];
     adminState.users = data.users || [];
     renderRoles();
+    renderModuleAccessChoices();
     renderUsers();
     message.textContent = adminState.users.length ? "" : "No users have been created yet.";
     message.classList.remove("error");
@@ -41,6 +44,22 @@ function renderRoles() {
   `).join("");
 }
 
+function renderModuleAccessChoices() {
+  const target = document.querySelector("#moduleAccessChoices");
+  if (!target) return;
+
+  target.innerHTML = adminState.modules.map((module) => `
+    <label class="module-access-row">
+      <span>${escapeHtml(module.name)}</span>
+      <select name="moduleAccess" data-module="${escapeHtml(module.code)}">
+        <option value="">Off</option>
+        <option value="read">Read only</option>
+        <option value="full">Full access</option>
+      </select>
+    </label>
+  `).join("");
+}
+
 function renderUsers() {
   const target = document.querySelector("#userList");
   if (!target) return;
@@ -54,8 +73,12 @@ function renderUsers() {
         <div class="role-pills">
           ${(user.roles || []).map((role) => `<span class="role-pill">${escapeHtml(role)}</span>`).join("") || `<span class="role-pill">no roles</span>`}
         </div>
+        <div class="user-module-access">
+          ${renderUserModuleAccess(user)}
+        </div>
       </div>
       <div class="user-row-actions">
+        <button class="text-button" type="button" data-save-access="${escapeHtml(user.userId)}">Save Access</button>
         <button class="text-button" type="button" data-reset="${escapeHtml(user.userId)}">Reset Password</button>
         <button class="text-button" type="button" data-toggle="${escapeHtml(user.userId)}" data-active="${user.isActive ? "1" : "0"}">${user.isActive ? "Disable" : "Enable"}</button>
       </div>
@@ -81,12 +104,51 @@ function renderUsers() {
       }
     });
   });
+
+  target.querySelectorAll("[data-save-access]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const userId = button.dataset.saveAccess;
+      const row = button.closest(".user-row");
+      const moduleAccess = collectModuleAccess(row);
+      await updatePlatformUser(userId, { moduleAccess });
+    });
+  });
+}
+
+function renderUserModuleAccess(user) {
+  if ((user.roles || []).includes("admin")) {
+    return `<p class="module-access-note">Administrator role grants full access.</p>`;
+  }
+
+  const access = user.moduleAccess || {};
+  return adminState.modules.map((module) => `
+    <label class="module-access-row compact">
+      <span>${escapeHtml(module.name)}</span>
+      <select data-module="${escapeHtml(module.code)}">
+        <option value="" ${access[module.code] ? "" : "selected"}>Off</option>
+        <option value="read" ${access[module.code] === "read" ? "selected" : ""}>Read only</option>
+        <option value="full" ${access[module.code] === "full" ? "selected" : ""}>Full access</option>
+      </select>
+    </label>
+  `).join("");
+}
+
+function collectModuleAccess(root = document) {
+  const moduleAccess = {};
+  root.querySelectorAll("select[data-module]").forEach((select) => {
+    const level = select.value;
+    if (level) {
+      moduleAccess[select.dataset.module] = level;
+    }
+  });
+  return moduleAccess;
 }
 
 async function createPlatformUser(event) {
   event.preventDefault();
   const message = document.querySelector("#userFormMessage");
   const roles = [...document.querySelectorAll("input[name='roles']:checked")].map((input) => input.value);
+  const moduleAccess = collectModuleAccess(document.querySelector("#userForm"));
 
   message.textContent = "Creating user...";
   message.classList.remove("error");
@@ -99,7 +161,8 @@ async function createPlatformUser(event) {
         displayName: document.querySelector("#newDisplayName").value.trim(),
         email: document.querySelector("#newEmail").value.trim(),
         password: document.querySelector("#newPassword").value,
-        roles
+        roles,
+        moduleAccess
       }
     });
     event.target.reset();

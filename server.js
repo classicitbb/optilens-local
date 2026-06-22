@@ -100,6 +100,7 @@ const {
   getBootstrapState,
   getUserAccess,
   listUsers,
+  MODULE_ACCESS,
   updateUser
 } = require("./lib/auth");
 
@@ -747,7 +748,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/modules") {
-    return sendJson(res, { modules: defaultModules });
+    const user = await optionalCurrentUser(req);
+    return sendJson(res, { modules: filterModulesForUser(defaultModules, user) });
   }
 
   if (url.pathname === "/api/dashboard" && req.method === "GET") {
@@ -1214,6 +1216,9 @@ const server = http.createServer(async (req, res) => {
     if (!user) {
       return redirectToSignIn(res);
     }
+    if (!canAccessPage(url.pathname, user)) {
+      return sendText(res, "Forbidden", 403);
+    }
   }
 
   const filePath = resolveStaticPath(url.pathname);
@@ -1247,9 +1252,7 @@ function isInteractivePageRequest(requestPath) {
 function isPublicInteractivePage(requestPath) {
   const route = normalizeRoutePath(requestPath);
   return route === "/"
-    || route === "/index.html"
-    || route === "/modules/business-metrics"
-    || route === "/business-metrics.html";
+    || route === "/index.html";
 }
 
 function normalizeRoutePath(requestPath) {
@@ -1266,6 +1269,55 @@ function redirectToSignIn(res) {
     "Cache-Control": "no-store"
   });
   res.end();
+}
+
+function canAccessPage(requestPath, user) {
+  if (!user) return false;
+  const route = normalizeRoutePath(requestPath);
+  const permissions = new Set(user.permissions || []);
+  if (permissions.has("platform.admin")) return true;
+
+  const pagePermissions = {
+    "/settings": ["platform.admin"],
+    "/settings.html": ["platform.admin"],
+    "/credentials": ["credentials.manage"],
+    "/credentials.html": ["credentials.manage"],
+    "/admin/users": ["users.manage"],
+    "/admin-users.html": ["users.manage"],
+    "/modules/delivery-export": ["delivery.read"],
+    "/delivery-export.html": ["delivery.read"],
+    "/modules/pricing-automation": ["pricing.read"],
+    "/pricing-automation.html": ["pricing.read"],
+    "/modules/integrations": ["integrations.read"],
+    "/integrations.html": ["integrations.read"],
+    "/modules/automation": ["automation.read", "automation.manage"],
+    "/automation.html": ["automation.read", "automation.manage"],
+    "/modules/doc-studio": ["platform.admin"],
+    "/doc-studio.html": ["platform.admin"],
+    "/modules/business-metrics": ["platform.admin"],
+    "/business-metrics.html": ["platform.admin"]
+  };
+
+  const required = pagePermissions[route];
+  if (!required) return true;
+  return required.some((permission) => permissions.has(permission));
+}
+
+function filterModulesForUser(modules, user) {
+  if (!user) return [];
+  const permissions = new Set(user.permissions || []);
+  if (permissions.has("platform.admin")) return modules;
+
+  const accessByModule = new Map(MODULE_ACCESS.map((module) => [
+    module.code,
+    module.readPermissions.concat(module.fullPermissions)
+  ]));
+
+  return modules.filter((module) => {
+    const requiredPermissions = accessByModule.get(module.id);
+    if (!requiredPermissions) return false;
+    return requiredPermissions.some((permission) => permissions.has(permission));
+  });
 }
 
 function resolveStaticPath(requestPath) {

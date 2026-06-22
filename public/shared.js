@@ -4,33 +4,39 @@
  */
 
 const LAUNCHER_APPS = [
-  { label: "Launch Pad",        icon: "🏠", href: "/",                          color: "#1A8A9C" },
-  { label: "Delivery & Export", icon: "📦", href: "/modules/delivery-export",   color: "#C89130" },
-  { label: "Pricing",           icon: "💲", href: "/modules/pricing-automation", color: "#389457" },
-  { label: "Integrations",      icon: "🔗", href: "/modules/integrations",       color: "#0B1E35" },
-  { label: "Automation",        icon: "⚡", href: "/modules/automation",          color: "#7c3aed" },
-  { label: "Doc Studio",        icon: "📄", href: "/modules/doc-studio",          color: "#1A8A9C" },
-  { label: "Business Metrics",  icon: "📊", href: "/modules/business-metrics",   color: "#b45309" },
-  { label: "Users",             icon: "👤", href: "/admin/users",                 color: "#0B1E35" },
-  { label: "Credentials",       icon: "🔐", href: "/credentials",                color: "#64748b" },
-  { label: "Settings",          icon: "⚙",  href: "/settings",                   color: "#4b5563" }
+  { label: "Launch Pad",        icon: "🏠", href: "/",                          color: "#1A8A9C", permissions: [] },
+  { label: "Delivery & Export", icon: "📦", href: "/modules/delivery-export",   color: "#C89130", permissions: ["delivery.read", "delivery.write"] },
+  { label: "Pricing",           icon: "💲", href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
+  { label: "Integrations",      icon: "🔗", href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
+  { label: "Automation",        icon: "⚡", href: "/modules/automation",          color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
+  { label: "Doc Studio",        icon: "📄", href: "/modules/doc-studio",          color: "#1A8A9C", permissions: ["platform.admin"] },
+  { label: "Business Metrics",  icon: "📊", href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
+  { label: "Users",             icon: "👤", href: "/admin/users",                 color: "#0B1E35", permissions: ["users.manage"] },
+  { label: "Credentials",       icon: "🔐", href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
+  { label: "Settings",          icon: "⚙",  href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
 ];
 
 const SEARCH_INDEX = [
-  { label: "Dashboard",           meta: "Home",     icon: "🏠", color: "#1A8A9C", href: "/" },
-  { label: "Delivery & Export",   meta: "Module",   icon: "📦", color: "#C89130", href: "/modules/delivery-export" },
-  { label: "Pricing Automation",  meta: "Module",   icon: "💲", color: "#389457", href: "/modules/pricing-automation" },
-  { label: "Integrations",        meta: "Module",   icon: "🔗", color: "#0B1E35", href: "/modules/integrations" },
-  { label: "Automation",          meta: "Module",   icon: "⚡", color: "#7c3aed", href: "/modules/automation" },
-  { label: "Doc Studio",          meta: "Module",   icon: "📄", color: "#1A8A9C", href: "/modules/doc-studio" },
-  { label: "Business Metrics",    meta: "Module",   icon: "📊", color: "#b45309", href: "/modules/business-metrics" },
-  { label: "Users",               meta: "Admin",    icon: "👤", color: "#0B1E35", href: "/admin/users" },
-  { label: "Credentials",         meta: "Security", icon: "🔐", color: "#64748b", href: "/credentials" },
-  { label: "Settings",            meta: "Page",     icon: "⚙",  color: "#4b5563", href: "/settings" },
-  { label: "API Health",          meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health" },
-  { label: "Dashboard API",       meta: "Endpoint", icon: "📡", color: "#1A8A9C", href: "/api/dashboard" },
-  { label: "Modules API",         meta: "Endpoint", icon: "📋", color: "#1A8A9C", href: "/api/modules" }
+  { label: "Dashboard",           meta: "Home",     icon: "🏠", color: "#1A8A9C", href: "/", permissions: [] },
+  { label: "Delivery & Export",   meta: "Module",   icon: "📦", color: "#C89130", href: "/modules/delivery-export", permissions: ["delivery.read", "delivery.write"] },
+  { label: "Pricing Automation",  meta: "Module",   icon: "💲", color: "#389457", href: "/modules/pricing-automation", permissions: ["pricing.read", "pricing.write"] },
+  { label: "Integrations",        meta: "Module",   icon: "🔗", color: "#0B1E35", href: "/modules/integrations", permissions: ["integrations.read", "integrations.manage"] },
+  { label: "Automation",          meta: "Module",   icon: "⚡", color: "#7c3aed", href: "/modules/automation", permissions: ["automation.read", "automation.manage"] },
+  { label: "Doc Studio",          meta: "Module",   icon: "📄", color: "#1A8A9C", href: "/modules/doc-studio", permissions: ["platform.admin"] },
+  { label: "Business Metrics",    meta: "Module",   icon: "📊", color: "#b45309", href: "/modules/business-metrics", permissions: ["platform.admin"] },
+  { label: "Users",               meta: "Admin",    icon: "👤", color: "#0B1E35", href: "/admin/users", permissions: ["users.manage"] },
+  { label: "Credentials",         meta: "Security", icon: "🔐", color: "#64748b", href: "/credentials", permissions: ["credentials.manage"] },
+  { label: "Settings",            meta: "Page",     icon: "⚙",  color: "#4b5563", href: "/settings", permissions: ["platform.admin"] },
+  { label: "API Health",          meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health", permissions: [] },
+  { label: "Dashboard API",       meta: "Endpoint", icon: "📡", color: "#1A8A9C", href: "/api/dashboard", permissions: [] },
+  { label: "Modules API",         meta: "Endpoint", icon: "📋", color: "#1A8A9C", href: "/api/modules", permissions: [] }
 ];
+
+const AUTH_STATE = {
+  user: null,
+  needsMigration: false,
+  needsBootstrap: false
+};
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
@@ -178,14 +184,7 @@ function wireLauncher() {
   const grid    = document.querySelector("#launcherGrid");
   if (!overlay) return;
 
-  // Populate grid
-  if (grid) {
-    grid.innerHTML = LAUNCHER_APPS.map(app => `
-      <a class="launcher-tile" href="${esc(app.href)}">
-        <span class="launcher-icon" style="background:${esc(app.color)}">${app.icon}</span>
-        <span>${esc(app.label)}</span>
-      </a>`).join("");
-  }
+  renderLauncherApps();
 
   function open()  { overlay.hidden = false; document.body.style.overflow = "hidden"; btn?.setAttribute("aria-expanded","true"); }
   function close() { 
@@ -235,7 +234,8 @@ function wireSearch() {
   function renderResults(query) {
     if (!results) return;
     const q = query.trim().toLowerCase();
-    const hits = q ? SEARCH_INDEX.filter(x => x.label.toLowerCase().includes(q) || x.meta.toLowerCase().includes(q)) : SEARCH_INDEX;
+    const visibleIndex = SEARCH_INDEX.filter(canAccessSharedItem);
+    const hits = q ? visibleIndex.filter(x => x.label.toLowerCase().includes(q) || x.meta.toLowerCase().includes(q)) : visibleIndex;
     if (!hits.length) { results.innerHTML = `<div class="search-empty">No results for "${esc(query)}"</div>`; return; }
     results.innerHTML = hits.map(x => `
       <a class="search-result-item" href="${esc(x.href)}">
@@ -248,12 +248,6 @@ function wireSearch() {
 }
 
 // ─── Authentication ─────────────────────────────────────────────────────────
-
-const AUTH_STATE = {
-  user: null,
-  needsMigration: false,
-  needsBootstrap: false
-};
 
 function wireAuth() {
   const overlay = document.querySelector("#authOverlay");
@@ -405,6 +399,7 @@ async function refreshAuthState() {
   const me = await authFetch("/api/auth/me").catch(() => ({ user: null }));
   AUTH_STATE.user = me.user || null;
   renderAuthChip();
+  renderLauncherApps();
   window.dispatchEvent(new CustomEvent("optilens:auth-changed", {
     detail: {
       user: AUTH_STATE.user,
@@ -412,6 +407,25 @@ async function refreshAuthState() {
       needsBootstrap: AUTH_STATE.needsBootstrap
     }
   }));
+}
+
+function renderLauncherApps() {
+  const grid = document.querySelector("#launcherGrid");
+  if (!grid) return;
+
+  grid.innerHTML = LAUNCHER_APPS.filter(canAccessSharedItem).map(app => `
+    <a class="launcher-tile" href="${esc(app.href)}">
+      <span class="launcher-icon" style="background:${esc(app.color)}">${app.icon}</span>
+      <span>${esc(app.label)}</span>
+    </a>`).join("");
+}
+
+function canAccessSharedItem(item) {
+  const required = item.permissions || [];
+  if (!required.length) return true;
+  const permissions = AUTH_STATE.user?.permissions || [];
+  if (permissions.includes("platform.admin")) return true;
+  return required.some((permission) => permissions.includes(permission));
 }
 
 function renderAuthChip() {

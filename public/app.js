@@ -131,8 +131,8 @@ const platformApplications = [
 const moduleAccessRules = {
   "delivery-export": ["delivery.read", "delivery.write"],
   "pricing-automation": ["pricing.read", "pricing.write"],
-  "integrations": ["integrations.read", "integrations.write"],
-  "automation": ["automation.read", "automation.write"]
+  "integrations": ["integrations.read", "integrations.manage"],
+  "automation": ["automation.read", "automation.manage"]
 };
 
 // NOTE: The launcher and search are owned entirely by shared.js (LAUNCHER_APPS /
