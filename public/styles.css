@@ -1613,8 +1613,12 @@ th {
 
 .admin-grid {
   display: grid;
-  grid-template-columns: minmax(260px, .75fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(260px, .72fr) minmax(260px, .72fr) minmax(0, 1.28fr);
   gap: 18px;
+}
+
+.admin-panel-wide {
+  grid-column: 1 / -1;
 }
 
 .admin-panel {
@@ -1654,17 +1658,23 @@ th {
   font-weight: 700;
 }
 
+.checkbox-row.compact {
+  font-size: 12px;
+}
+
 .checkbox-row input {
   min-height: auto;
 }
 
 .module-access-grid,
-.user-module-access {
+.user-module-access,
+.user-role-choices {
   display: grid;
   gap: 8px;
 }
 
-.user-module-access {
+.user-module-access,
+.user-role-choices {
   margin-top: 10px;
   max-width: 460px;
 }
@@ -1714,6 +1724,38 @@ th {
   gap: 10px;
 }
 
+.role-list {
+  display: grid;
+  gap: 12px;
+}
+
+.role-editor {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+
+.role-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.role-editor h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.role-editor p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .user-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1757,6 +1799,10 @@ th {
   align-items: start;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.text-button.danger {
+  color: var(--red);
 }
 
 @media (max-width: 900px) {

@@ -96,11 +96,14 @@ const {
   authenticateUser,
   bootstrapAdmin,
   changePassword,
+  createRole,
   createUser,
+  deleteRole,
   getBootstrapState,
   getUserAccess,
   listUsers,
   MODULE_ACCESS,
+  updateRole,
   updateUser
 } = require("./lib/auth");
 
@@ -632,11 +635,33 @@ const server = http.createServer(async (req, res) => {
     }, 201);
   }
 
+  if (url.pathname === "/api/admin/roles" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "users.manage");
+      return { role: await createRole(await readJsonBody(req), actor.userId) };
+    }, 201);
+  }
+
   const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
   if (adminUserMatch && req.method === "PATCH") {
     return handleApi(res, async () => {
       const actor = await requirePermission(req, "users.manage");
       return { user: await updateUser(adminUserMatch[1], await readJsonBody(req), actor.userId) };
+    });
+  }
+
+  const adminRoleMatch = url.pathname.match(/^\/api\/admin\/roles\/([^/]+)$/);
+  if (adminRoleMatch && req.method === "PATCH") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "users.manage");
+      return { role: await updateRole(adminRoleMatch[1], await readJsonBody(req), actor.userId) };
+    });
+  }
+
+  if (adminRoleMatch && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "users.manage");
+      return deleteRole(adminRoleMatch[1], actor.userId);
     });
   }
 

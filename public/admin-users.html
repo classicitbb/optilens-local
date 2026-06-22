@@ -84,12 +84,28 @@
                 <p class="eyebrow">Roles</p>
                 <div class="checkbox-grid" id="roleChoices"></div>
               </div>
-              <div>
-                <p class="eyebrow">Module access</p>
-                <div class="module-access-grid" id="moduleAccessChoices"></div>
-              </div>
               <div class="admin-message" id="userFormMessage"></div>
               <button class="button primary" type="submit">Create user</button>
+            </div>
+          </form>
+
+          <form class="admin-panel" id="roleForm">
+            <div class="admin-panel-head">
+              <h2>Role Templates</h2>
+            </div>
+            <div class="admin-panel-body">
+              <label>Role name
+                <input id="newRoleName" autocomplete="off" required>
+              </label>
+              <label>Role code
+                <input id="newRoleCode" autocomplete="off" placeholder="shipping">
+              </label>
+              <div>
+                <p class="eyebrow">Default module access</p>
+                <div class="module-access-grid" id="newRoleModuleAccess"></div>
+              </div>
+              <div class="admin-message" id="roleFormMessage"></div>
+              <button class="button primary" type="submit">Create role</button>
             </div>
           </form>
 
@@ -100,6 +116,16 @@
             <div class="admin-panel-body">
               <div class="admin-message" id="userListMessage">Loading users...</div>
               <div class="user-list" id="userList"></div>
+            </div>
+          </section>
+
+          <section class="admin-panel admin-panel-wide">
+            <div class="admin-panel-head">
+              <h2>Role Access</h2>
+            </div>
+            <div class="admin-panel-body">
+              <div class="admin-message" id="roleListMessage"></div>
+              <div class="role-list" id="roleList"></div>
             </div>
           </section>
         </div>
