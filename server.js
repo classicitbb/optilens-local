@@ -112,13 +112,21 @@ const {
   updateUser
 } = require("./lib/auth");
 const {
+  autosaveFile,
   autosaveBillingDocument,
+  createFile,
   createBillingDocument,
+  deleteFile,
   deleteBillingDocument,
+  getFile,
   getBillingDocument,
+  listAllAccessibleFiles,
+  listFiles,
   listBillingDocuments,
+  updateFile,
   updateBillingDocument,
-  updateBillingDocumentShares
+  updateBillingDocumentShares,
+  updateUnifiedShares
 } = require("./lib/docstudio");
 
 // ─── Pricelist Builder (folded in from pricelist-automation) ─────────────────
@@ -1337,6 +1345,70 @@ const server = http.createServer(async (req, res) => {
             email: item.email || ""
           }))
       };
+    });
+  }
+
+  if (url.pathname === "/api/docstudio/my-files" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      return listAllAccessibleFiles(user.userId, { scope: url.searchParams.get("scope") || "all-accessible" });
+    });
+  }
+
+  if (url.pathname === "/api/docstudio/files" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      return listFiles(
+        user.userId,
+        url.searchParams.get("scope") || "all-accessible",
+        url.searchParams.get("type") || ""
+      );
+    });
+  }
+
+  if (url.pathname === "/api/docstudio/files" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return createFile(await readJsonBody(req), user.userId);
+    }, 201);
+  }
+
+  const docStudioFileMatch = url.pathname.match(/^\/api\/docstudio\/files\/([^/]+)$/);
+  if (docStudioFileMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      return getFile(docStudioFileMatch[1], user.userId);
+    });
+  }
+
+  if (docStudioFileMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return updateFile(docStudioFileMatch[1], await readJsonBody(req), user.userId);
+    });
+  }
+
+  if (docStudioFileMatch && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return deleteFile(docStudioFileMatch[1], user.userId);
+    });
+  }
+
+  const docStudioFileAutosaveMatch = url.pathname.match(/^\/api\/docstudio\/files\/([^/]+)\/autosave$/);
+  if (docStudioFileAutosaveMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return autosaveFile(docStudioFileAutosaveMatch[1], await readJsonBody(req), user.userId);
+    });
+  }
+
+  const docStudioUnifiedSharesMatch = url.pathname.match(/^\/api\/docstudio\/files\/(file|billing)\/([^/]+)\/shares$/);
+  if (docStudioUnifiedSharesMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      const body = await readJsonBody(req);
+      return updateUnifiedShares(docStudioUnifiedSharesMatch[1], docStudioUnifiedSharesMatch[2], body.shares || [], user.userId);
     });
   }
 

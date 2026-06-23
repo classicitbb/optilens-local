@@ -111,3 +111,60 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_docstudio_billing_document_shares_user' AND object_id = OBJECT_ID(N'docstudio.billing_document_shares'))
     CREATE INDEX IX_docstudio_billing_document_shares_user ON docstudio.billing_document_shares (shared_user_id, access_level);
 GO
+
+IF OBJECT_ID(N'docstudio.files', N'U') IS NULL
+BEGIN
+    CREATE TABLE docstudio.files (
+        file_id uniqueidentifier NOT NULL CONSTRAINT DF_docstudio_files_id DEFAULT NEWID(),
+        owner_user_id uniqueidentifier NOT NULL,
+        file_type nvarchar(24) NOT NULL,
+        file_name nvarchar(220) NOT NULL,
+        customer_name nvarchar(220) NULL,
+        customer_account nvarchar(120) NULL,
+        metadata_json nvarchar(max) NULL,
+        content_json nvarchar(max) NOT NULL,
+        rendered_html nvarchar(max) NULL,
+        latest_autosave_content_json nvarchar(max) NULL,
+        latest_autosave_rendered_html nvarchar(max) NULL,
+        latest_autosave_at datetime2(0) NULL,
+        created_by_user_id uniqueidentifier NOT NULL,
+        updated_by_user_id uniqueidentifier NOT NULL,
+        deleted_by_user_id uniqueidentifier NULL,
+        created_at datetime2(0) NOT NULL CONSTRAINT DF_docstudio_files_created DEFAULT SYSUTCDATETIME(),
+        updated_at datetime2(0) NOT NULL CONSTRAINT DF_docstudio_files_updated DEFAULT SYSUTCDATETIME(),
+        deleted_at datetime2(0) NULL,
+        file_version rowversion NOT NULL,
+        CONSTRAINT PK_docstudio_files PRIMARY KEY (file_id),
+        CONSTRAINT CK_docstudio_files_type CHECK (file_type IN (N'email', N'letter', N'signature', N'social', N'pricelist', N'shiplabel', N'statement'))
+    );
+END;
+GO
+
+IF OBJECT_ID(N'docstudio.file_shares', N'U') IS NULL
+BEGIN
+    CREATE TABLE docstudio.file_shares (
+        file_share_id uniqueidentifier NOT NULL CONSTRAINT DF_docstudio_file_shares_id DEFAULT NEWID(),
+        file_id uniqueidentifier NOT NULL,
+        shared_user_id uniqueidentifier NOT NULL,
+        access_level nvarchar(12) NOT NULL,
+        created_by_user_id uniqueidentifier NOT NULL,
+        created_at datetime2(0) NOT NULL CONSTRAINT DF_docstudio_file_shares_created DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_docstudio_file_shares PRIMARY KEY (file_share_id),
+        CONSTRAINT UQ_docstudio_file_shares_user UNIQUE (file_id, shared_user_id),
+        CONSTRAINT CK_docstudio_file_shares_access CHECK (access_level IN (N'view', N'edit')),
+        CONSTRAINT FK_docstudio_file_shares_file FOREIGN KEY (file_id) REFERENCES docstudio.files(file_id)
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_docstudio_files_owner' AND object_id = OBJECT_ID(N'docstudio.files'))
+    CREATE INDEX IX_docstudio_files_owner ON docstudio.files (owner_user_id, deleted_at, updated_at DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_docstudio_files_type' AND object_id = OBJECT_ID(N'docstudio.files'))
+    CREATE INDEX IX_docstudio_files_type ON docstudio.files (file_type, deleted_at, updated_at DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_docstudio_file_shares_user' AND object_id = OBJECT_ID(N'docstudio.file_shares'))
+    CREATE INDEX IX_docstudio_file_shares_user ON docstudio.file_shares (shared_user_id, access_level);
+GO

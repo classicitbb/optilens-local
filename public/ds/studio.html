@@ -104,7 +104,54 @@
   <div style="flex:1;min-height:0;display:flex">
 
     <!-- ====== LEFT: CONTROLS ====== -->
-    <div class="cv-scroll" style="width:396px;flex:none;background:#fff;border-right:1px solid #e7e4db;overflow:auto">
+    <div class="cv-scroll" style="{{ sidebarStyle }}">
+
+      <!-- ---------- MY FILES ---------- -->
+      <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="font:800 18px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">My Files</div>
+          <div style="font:400 12px/1.45 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:4px">Saved Doc Studio files from every editor.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select class="cv-in" value="{{ fileTypeFilter }}" onChange="{{ setFileTypeFilter }}" style="flex:1;min-width:0;padding:9px 10px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="">All types</option>
+            <sc-for list="{{ fileTypeOptions }}" as="o" hint-placeholder-count="8"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+          </select>
+          <select class="cv-in" value="{{ fileAccessFilter }}" onChange="{{ setFileAccessFilter }}" style="width:118px;flex:none;padding:9px 8px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="">All access</option>
+            <option value="owner">Owned</option>
+            <option value="shared">Shared</option>
+            <option value="edit">Can edit</option>
+            <option value="view">View only</option>
+          </select>
+        </div>
+        <button onClick="{{ refreshMyFiles }}" style="height:34px;border:1.5px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:700 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Refresh</button>
+        <sc-if value="{{ hasMyFiles }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ myFileViews }}" as="it" hint-placeholder-count="0">
+              <div style="background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:10px 10px 9px">
+                <button onClick="{{ it.open }}" style="display:block;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="{{ it.badgeStyle }}">{{ it.typeLabel }}</span>
+                    <span style="flex:1;min-width:0;font:700 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }}</span>
+                  </div>
+                  <div style="font:400 10.8px/1.4 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:5px">{{ it.meta }}</div>
+                </button>
+                <sc-if value="{{ it.canManage }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:6px;margin-top:9px">
+                    <button onClick="{{ it.rename }}" style="flex:1;height:28px;border:1px solid #d9d7cf;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Rename</button>
+                    <button onClick="{{ it.share }}" style="flex:1;height:28px;border:1px solid #d9d7cf;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Share</button>
+                    <button onClick="{{ it.del }}" style="height:28px;padding:0 9px;border:1px solid #e4c8c8;border-radius:7px;background:#fff;color:#a23b3b;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Delete</button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noMyFiles }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved database files match this filter.</div></sc-if>
+      </div>
+      </sc-if>
 
       <!-- ---------- EMAIL ---------- -->
       <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ true }}">
@@ -709,6 +756,14 @@
 
     </div>
 
+    <div
+      onMouseDown="{{ startSidebarDrag }}"
+      onTouchStart="{{ startSidebarDrag }}"
+      title="Resize editor controls"
+      tabindex="0"
+      style="{{ sidebarResizerStyle }}"
+    ></div>
+
         <!-- ====== RIGHT: PREVIEW ====== -->
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#e9e5da">
       <div style="height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#f4f2ed;border-bottom:1px solid #ded9cd">
@@ -742,6 +797,13 @@
             <button onClick="{{ renameBillingFile }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Rename</button>
             <button onClick="{{ toggleBillShare }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Share</button>
             <button onClick="{{ deleteBillingFile }}" style="height:38px;padding:0 12px;border:1.5px solid #e4c8c8;border-radius:9px;background:#fff;color:#a23b3b;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Delete</button>
+          </sc-if>
+          <sc-if value="{{ showFileActions }}" hint-placeholder-val="{{ false }}">
+            <span style="align-self:center;font:600 11.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileSaveState }}</span>
+            <button onClick="{{ saveActiveFile }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save</button>
+            <button onClick="{{ renameActiveFile }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Rename</button>
+            <button onClick="{{ shareActiveFile }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Share</button>
+            <button onClick="{{ deleteActiveFile }}" style="height:38px;padding:0 12px;border:1.5px solid #e4c8c8;border-radius:9px;background:#fff;color:#a23b3b;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Delete</button>
           </sc-if>
           <button onClick="{{ copyNow }}" style="height:38px;padding:0 20px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">{{ copyLabel }}</button>
         </div>
@@ -787,6 +849,44 @@
           </sc-for>
         </div>
         <button onClick="{{ saveBillShares }}" style="height:38px;border:0;border-radius:9px;background:#0B1E35;color:#F4F2ED;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save sharing</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ fileShareOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ toggleFileShare }}" style="position:fixed;inset:0;background:rgba(11,30,53,.32);z-index:70"></div>
+    <div style="position:fixed;top:74px;right:28px;width:360px;max-width:calc(100vw - 40px);z-index:71;background:#fff;border:1px solid #e7e4db;border-radius:14px;box-shadow:0 24px 64px -16px rgba(11,30,53,.45);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #f0ede6">
+        <div>
+          <div style="font:800 15px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Share file</div>
+          <div style="font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">{{ fileShareName }}</div>
+        </div>
+        <button onClick="{{ toggleFileShare }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:8px">
+          <select class="cv-in" value="{{ fileShareUserId }}" onChange="{{ setFileShareUser }}" style="flex:1;min-width:0;padding:9px 10px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="">Select user</option>
+            <sc-for list="{{ fileShareUserOptions }}" as="u" hint-placeholder-count="0"><option value="{{ u.userId }}">{{ u.label }}</option></sc-for>
+          </select>
+          <select class="cv-in" value="{{ fileShareAccess }}" onChange="{{ setFileShareAccess }}" style="width:86px;flex:none;padding:9px 8px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="view">View</option>
+            <option value="edit">Edit</option>
+          </select>
+          <button onClick="{{ addFileCollaborator }}" style="flex:none;padding:0 12px;border:1.5px solid #0B1E35;border-radius:8px;background:#fff;color:#0B1E35;font:700 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Add</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow:auto">
+          <sc-for list="{{ fileCollaboratorViews }}" as="c" hint-placeholder-count="0">
+            <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:8px 9px">
+              <div style="flex:1;min-width:0">
+                <div style="font:700 12px/1.25 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
+                <div style="font:500 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:2px">{{ c.access }}</div>
+              </div>
+              <button onClick="{{ c.remove }}" style="flex:none;background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+            </div>
+          </sc-for>
+        </div>
+        <button onClick="{{ saveFileShares }}" style="height:38px;border:0;border-radius:9px;background:#0B1E35;color:#F4F2ED;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save sharing</button>
       </div>
     </div>
   </sc-if>
@@ -881,6 +981,10 @@ class Component extends DCLogic {
     billingFiles: [], sharedBillingFiles: [], billingFilesLoaded: false,
     currentBillingDocumentId: '', currentBillingVersion: '', currentBillingDocumentName: '', currentBillingAccess: 'owner', currentBillingIsOwner: true,
     billSaveState: 'Local recovery only', billShareOpen: false, billShareUsers: [], billCollaborators: [], billShareUserId: '', billShareAccess: 'view',
+    sidebarWidth: 396,
+    myFiles: [], myFilesLoaded: false, fileTypeFilter: '', fileAccessFilter: '',
+    currentFileId: '', currentFileKind: '', currentFileType: '', currentFileVersion: '', currentFileName: '', currentFileAccess: 'owner', currentFileIsOwner: true,
+    fileSaveState: 'DB save ready', fileShareOpen: false, fileShareKind: '', fileShareId: '', fileShareName: '', fileShareUsers: [], fileCollaborators: [], fileShareUserId: '', fileShareAccess: 'view',
     dsCustomers: [], dsPricelists: [],
     selectedStatementCustomer: '', selectedShipCustomer: '', selectedBillingCustomer: '', selectedPricelistId: ''
   };
@@ -904,13 +1008,15 @@ class Component extends DCLogic {
     }
     if (!this.state.blNumber) this.set('blNumber', this.peekBillNumber(this.state.billType));
     this.loadDocStudioData();
+    this.loadMyFiles();
     this.loadBillingFiles();
+    this.loadFileShareUsers();
     this.loadBillShareUsers();
     setTimeout(() => { this._billingReady = true; }, 900);
   }
 
   // ---------- persistence ----------
-  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, billingFiles, sharedBillingFiles, billShareUsers, billingFilesLoaded, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
+  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, billingFiles, sharedBillingFiles, myFiles, billShareUsers, fileShareUsers, billingFilesLoaded, myFilesLoaded, fileShareOpen, billShareOpen, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
   persistSoon = () => { clearTimeout(this._pt); this._pt = setTimeout(this.persist, 350); };
   set = (k, v) => { this.setState({ [k]: v }, () => { this.persistSoon(); if (this.isBillingField(k)) this.scheduleBillingAutosave(); }); };
   toast = (m) => { this.setState({ copied: m }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ copied: '' }), 2200); };
@@ -1110,7 +1216,13 @@ class Component extends DCLogic {
   smHeadlineCenter = () => this.set('smHeadlineAlign', 'center');
   smHeadlineRight = () => this.set('smHeadlineAlign', 'right');
 
-  switchTab = (k) => { const cur = this.state.tab; this.syncTiny(cur); this.destroyTiny(cur); this.set('tab', k); };
+  switchTab = (k) => {
+    const cur = this.state.tab;
+    this.syncTiny(cur);
+    this.destroyTiny(cur);
+    const reset = (k === 'files' || k === cur) ? {} : { currentFileId: '', currentFileKind: '', currentFileType: '', currentFileVersion: '', currentFileName: '', currentFileAccess: 'owner', currentFileIsOwner: true, fileSaveState: 'DB save ready' };
+    this.setState({ tab: k, ...reset }, this.persistSoon);
+  };
 
   // ---------- sanitize / theme ----------
   sanitize = (html) => {
@@ -1387,6 +1499,7 @@ class Component extends DCLogic {
   };
   copyNow = () => {
     const t = this.state.tab;
+    if (t === 'files') { this.toast('Open a file to preview it'); return; }
     if (t === 'social') { this.openSmFull(); return; }
     if (t === 'pricelist') { this.printDoc(this.buildPricelist(), 'Price List'); return; }
     if (t === 'shiplabel') { this.printDoc(this.buildShippingLabel(), 'Shipping Label'); return; }
@@ -1434,6 +1547,8 @@ class Component extends DCLogic {
   loadLetter = (it) => { this.setState({ ...it.fields }, () => { const ed = this.TINY.letter; if (ed) { try { ed.setContent(this.state.ltBody || ''); } catch (e) {} } this.persist(); }); this.toast('Loaded “' + it.name + '”'); };
   loadSig = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
   saveEmail = () => {
+    this.saveCurrentFile('email').catch(() => {});
+    return;
     const name = prompt('Name this email template:'); if (!name) return;
     const emBody = this.emailEditor ? this.emailEditor.innerHTML : this.state.emBody;
     const k = ['emHeader', 'emFooter', 'emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer'];
@@ -1442,6 +1557,8 @@ class Component extends DCLogic {
     this.toast('Template saved');
   };
   saveLetter = () => {
+    this.saveCurrentFile('letter').catch(() => {});
+    return;
     const name = prompt('Name this letterhead template:'); if (!name) return;
     const ltBody = this.letterEditor ? this.letterEditor.innerHTML : this.state.ltBody;
     const k = ['docType', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltEyebrow', 'ltAmount', 'ltTo', 'ltFrom', 'ltRe'];
@@ -1450,6 +1567,8 @@ class Component extends DCLogic {
     this.toast('Template saved');
   };
   saveSig = () => {
+    this.saveCurrentFile('signature').catch(() => {});
+    return;
     const name = prompt('Save signature as (e.g. person name):', this.state.sgName); if (!name) return;
     const k = ['sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'sgLogo'];
     const fields = {}; k.forEach(x => fields[x] = this.state[x]);
@@ -1517,6 +1636,8 @@ class Component extends DCLogic {
     w.document.close();
   };
   savePost = () => {
+    this.saveCurrentFile('social').catch(() => {});
+    return;
     const name = prompt('Name this post:'); if (!name) return;
     this.syncActive();
     const fields = { smBody: this.socialEditor ? this.socialEditor.innerHTML : this.state.smBody };
@@ -1818,6 +1939,240 @@ class Component extends DCLogic {
     return data;
   };
 
+  TYPE_LABELS = { email: 'Email', letter: 'Letterhead', signature: 'Signature', social: 'Social', pricelist: 'Price List', shiplabel: 'Ship Label', statement: 'Statement', billing: 'Billing' };
+  FILE_KEYS = {
+    email: ['emHeader', 'emFooter', 'emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer', 'emBody'],
+    letter: ['docType', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltEyebrow', 'ltAmount', 'ltTo', 'ltFrom', 'ltRe', 'ltBody'],
+    signature: ['sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'sgLogo'],
+    social: ['smFormat', 'smStyle', 'smHeadline', 'smHeadlineAlign', 'smHeadlineItalic', 'smBody', 'smSub', 'smHandle'],
+    pricelist: ['plCustomer', 'plAttn', 'plDate', 'plValidity', 'plCurrency', 'plNote', 'plRows', 'selectedPricelistId'],
+    shiplabel: ['slFromName', 'slFromAddr', 'slFromPhone', 'slToName', 'slToCompany', 'slToAddr', 'slToPhone', 'slCarrier', 'slService', 'slTracking', 'slWeight', 'slDims', 'slNote', 'selectedShipCustomer'],
+    statement: ['stCustomer', 'stAccount', 'stAddr', 'stFrom', 'stTo', 'stCurrency', 'stOpenBal', 'stRows', 'stNote', 'selectedStatementCustomer']
+  };
+
+  loadMyFiles = async () => {
+    try {
+      const data = await this.docApi('/api/docstudio/my-files');
+      this.setState({ myFiles: data.files || [], myFilesLoaded: true, fileSaveState: 'DB save ready' });
+    } catch (e) {
+      this.setState({ myFiles: [], myFilesLoaded: false, fileSaveState: 'Local recovery only' });
+    }
+  };
+
+  refreshMyFiles = () => { this.loadMyFiles(); this.loadBillingFiles(); };
+
+  loadFileShareUsers = async () => {
+    try {
+      const data = await this.docApi('/api/docstudio/users');
+      this.setState({ fileShareUsers: data.users || [], billShareUsers: data.users || [] });
+    } catch (e) {
+      this.setState({ fileShareUsers: [], billShareUsers: [] });
+    }
+  };
+
+  fileSnapshot = (type) => {
+    if (type === 'email') this.syncTiny('email');
+    if (type === 'letter') this.syncTiny('letter');
+    if (type === 'social') this.syncTiny('social');
+    const content = {};
+    (this.FILE_KEYS[type] || []).forEach(k => {
+      const val = this.state[k];
+      content[k] = Array.isArray(val) ? val.map(x => ({ ...x })) : val;
+    });
+    return content;
+  };
+
+  defaultFileName = (type) => {
+    const d = this.state;
+    if (type === 'email') return d.emHeading || d.emEyebrow || 'Email template';
+    if (type === 'letter') return d.ltSubject || this.TYPE_LABELS.letter;
+    if (type === 'signature') return d.sgName || 'Email signature';
+    if (type === 'social') return d.smHeadline || 'Social post';
+    if (type === 'pricelist') return d.plCustomer ? 'Price list - ' + d.plCustomer : 'Price list';
+    if (type === 'shiplabel') return d.slToCompany || d.slToName ? 'Ship label - ' + (d.slToCompany || d.slToName) : 'Ship label';
+    if (type === 'statement') return d.stCustomer ? 'Statement - ' + d.stCustomer : 'Statement';
+    return 'Doc Studio file';
+  };
+
+  renderedForFile = (type) => type === 'email' ? this.buildEmail() : type === 'letter' ? this.buildLetter() : type === 'signature' ? this.buildSignature() : type === 'social' ? this.buildSocialPost() : type === 'pricelist' ? this.buildPricelist() : type === 'shiplabel' ? this.buildShippingLabel() : type === 'statement' ? this.buildStatement() : '';
+
+  filePayload = (type, name) => ({
+    fileType: type,
+    fileName: name || this.state.currentFileName || this.defaultFileName(type),
+    customerName: type === 'statement' ? this.state.stCustomer : type === 'pricelist' ? this.state.plCustomer : type === 'shiplabel' ? (this.state.slToCompany || this.state.slToName) : '',
+    customerAccount: type === 'statement' ? this.state.selectedStatementCustomer : type === 'shiplabel' ? this.state.selectedShipCustomer : '',
+    metadata: { typeLabel: this.TYPE_LABELS[type] || type },
+    content: this.fileSnapshot(type),
+    renderedHtml: this.renderedForFile(type),
+    version: this.state.currentFileVersion || ''
+  });
+
+  canEditCurrentFile = () => this.state.currentFileAccess !== 'view';
+
+  saveCurrentFile = async (type) => {
+    if (!this.canEditCurrentFile()) { this.toast('Read-only shared file'); return; }
+    const existing = this.state.currentFileKind === 'file' && this.state.currentFileType === type ? this.state.currentFileId : '';
+    const name = existing ? (this.state.currentFileName || this.defaultFileName(type)) : prompt('Save file as:', this.defaultFileName(type));
+    if (!name) return;
+    try {
+      this.setState({ fileSaveState: 'Saving...' });
+      const data = existing
+        ? await this.docApi('/api/docstudio/files/' + encodeURIComponent(existing), { method: 'PUT', body: this.filePayload(type, name) })
+        : await this.docApi('/api/docstudio/files', { method: 'POST', body: this.filePayload(type, name) });
+      this.applyFile(data.file);
+      this.loadMyFiles();
+      this.toast('File saved');
+    } catch (e) {
+      this.setState({ fileSaveState: e.status === 409 ? 'Conflict - reload needed' : 'Save failed' });
+      this.toast(e.message || 'Save failed');
+    }
+  };
+
+  applyFile = (file) => {
+    const type = file.fileType;
+    const fields = file.content || {};
+    const cur = this.state.tab;
+    this.syncTiny(cur);
+    this.destroyTiny(cur);
+    this.setState({
+      ...fields,
+      tab: type,
+      currentFileId: file.id || '',
+      currentFileKind: 'file',
+      currentFileType: type,
+      currentFileVersion: file.version || '',
+      currentFileName: file.fileName || '',
+      currentFileAccess: file.accessLevel || 'owner',
+      currentFileIsOwner: !!file.isOwner,
+      fileCollaborators: file.shares || [],
+      fileShareOpen: false,
+      fileSaveState: file.accessLevel === 'view' ? 'Read-only shared file' : (file.hasNewerAutosave ? 'Recovered latest autosave' : 'Saved')
+    }, () => { this.refreshTinyContent(); this.persist(); });
+  };
+
+  openFile = async (item) => {
+    if (item.kind === 'billing') { this.switchTab('billing'); return this.openBillingFile(item.id); }
+    try {
+      this.setState({ fileSaveState: 'Loading...' });
+      const data = await this.docApi('/api/docstudio/files/' + encodeURIComponent(item.id));
+      this.applyFile(data.file);
+    } catch (e) {
+      this.setState({ fileSaveState: 'Load failed' });
+      this.toast(e.message || 'Load failed');
+    }
+  };
+
+  renameFileFromList = async (item) => {
+    if (!item.isOwner) { this.toast('Only the owner can rename this file'); return; }
+    if (item.kind === 'billing') {
+      await this.openBillingFile(item.id);
+      return this.renameBillingFile();
+    }
+    const name = prompt('Rename file:', item.fileName || 'Doc Studio file');
+    if (!name) return;
+    try {
+      const data = await this.docApi('/api/docstudio/files/' + encodeURIComponent(item.id));
+      const file = data.file;
+      await this.docApi('/api/docstudio/files/' + encodeURIComponent(item.id), { method: 'PUT', body: { fileType: file.fileType, fileName: name, customerName: file.customerName, customerAccount: file.customerAccount, metadata: file.metadata || {}, content: file.content || {}, renderedHtml: file.renderedHtml || '', version: file.version || '' } });
+      this.loadMyFiles();
+      this.toast('File renamed');
+    } catch (e) { this.toast(e.message || 'Rename failed'); }
+  };
+
+  deleteFileFromList = async (item) => {
+    if (!item.isOwner) { this.toast('Only the owner can delete this file'); return; }
+    if (!confirm('Remove this file from your list?')) return;
+    try {
+      const url = item.kind === 'billing' ? '/api/docstudio/billing-documents/' : '/api/docstudio/files/';
+      await this.docApi(url + encodeURIComponent(item.id), { method: 'DELETE' });
+      this.refreshMyFiles();
+      this.toast('File deleted');
+    } catch (e) { this.toast(e.message || 'Delete failed'); }
+  };
+
+  openFileShare = async (item) => {
+    if (!item.isOwner) { this.toast('Only the owner can share this file'); return; }
+    try {
+      let shares = [];
+      if (item.kind === 'billing') {
+        const data = await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(item.id));
+        shares = data.document.shares || [];
+      } else {
+        const data = await this.docApi('/api/docstudio/files/' + encodeURIComponent(item.id));
+        shares = data.file.shares || [];
+      }
+      this.setState({ fileShareOpen: true, fileShareKind: item.kind, fileShareId: item.id, fileShareName: item.fileName || item.documentName || 'Doc Studio file', fileCollaborators: shares, fileShareUserId: '', fileShareAccess: 'view' });
+    } catch (e) { this.toast(e.message || 'Share failed'); }
+  };
+
+  toggleFileShare = () => this.setState(s => ({ fileShareOpen: !s.fileShareOpen }));
+  addFileCollaborator = () => {
+    const userId = this.state.fileShareUserId;
+    if (!userId) return;
+    const accessLevel = this.state.fileShareAccess === 'edit' ? 'edit' : 'view';
+    this.setState(s => {
+      const existing = (s.fileCollaborators || []).filter(x => x.userId !== userId);
+      return { fileCollaborators: [...existing, { userId, accessLevel }], fileShareUserId: '' };
+    });
+  };
+  removeFileCollaborator = (userId) => this.setState(s => ({ fileCollaborators: (s.fileCollaborators || []).filter(x => x.userId !== userId) }));
+  saveFileShares = async () => {
+    if (!this.state.fileShareKind || !this.state.fileShareId) return;
+    try {
+      const data = await this.docApi('/api/docstudio/files/' + encodeURIComponent(this.state.fileShareKind) + '/' + encodeURIComponent(this.state.fileShareId) + '/shares', { method: 'PUT', body: { shares: this.state.fileCollaborators || [] } });
+      this.setState({ fileCollaborators: data.shares || [], fileShareOpen: false });
+      this.refreshMyFiles();
+      this.toast('Sharing updated');
+    } catch (e) { this.toast(e.message || 'Sharing update failed'); }
+  };
+
+  saveActiveFile = () => this.saveCurrentFile(this.state.tab);
+  renameActiveFile = async () => {
+    if (this.state.currentFileKind !== 'file' || !this.state.currentFileId) { return this.saveActiveFile(); }
+    if (!this.state.currentFileIsOwner) { this.toast('Only the owner can rename this file'); return; }
+    const name = prompt('Rename file:', this.state.currentFileName || this.defaultFileName(this.state.tab));
+    if (!name) return;
+    this.setState({ currentFileName: name }, this.saveActiveFile);
+  };
+  shareActiveFile = () => {
+    if (this.state.currentFileKind !== 'file' || !this.state.currentFileId) { this.toast('Save this file before sharing'); return; }
+    this.openFileShare({ kind: 'file', id: this.state.currentFileId, isOwner: this.state.currentFileIsOwner, fileName: this.state.currentFileName });
+  };
+  deleteActiveFile = async () => {
+    if (this.state.currentFileKind !== 'file' || !this.state.currentFileId) { this.toast('No saved file selected'); return; }
+    await this.deleteFileFromList({ kind: 'file', id: this.state.currentFileId, isOwner: this.state.currentFileIsOwner });
+    this.setState({ currentFileId: '', currentFileKind: '', currentFileType: '', currentFileVersion: '', currentFileName: '', currentFileAccess: 'owner', currentFileIsOwner: true, fileSaveState: 'DB save ready' }, this.persistSoon);
+  };
+
+  clampSidebarWidth = (value) => {
+    const workspace = Math.max(640, window.innerWidth || 1188);
+    const max = Math.min(792, Math.max(320, workspace - 420));
+    return Math.max(320, Math.min(max, Math.round(Number(value) || 396)));
+  };
+  startSidebarDrag = (e) => {
+    const touch = e.touches && e.touches[0];
+    const startX = touch ? touch.clientX : e.clientX;
+    const startW = this.state.sidebarWidth || 396;
+    e.preventDefault();
+    this.setState({ sidebarDragging: true });
+    const move = (ev) => {
+      const mt = ev.touches && ev.touches[0];
+      const x = mt ? mt.clientX : ev.clientX;
+      this.setState({ sidebarWidth: this.clampSidebarWidth(startW + x - startX) }, this.persistSoon);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move);
+      window.removeEventListener('touchend', up);
+      this.setState({ sidebarDragging: false }, this.persistSoon);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+  };
+
   loadBillingFiles = async () => {
     try {
       const [mine, shared] = await Promise.all([
@@ -1898,6 +2253,7 @@ class Component extends DCLogic {
         : await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload() });
       this.applyBillingDocument(data.document);
       this.loadBillingFiles();
+      this.loadMyFiles();
       this.toast('Billing file saved');
     } catch (e) {
       this.setState({ billSaveState: e.status === 409 ? 'Conflict - reload needed' : 'Save failed' });
@@ -1914,6 +2270,7 @@ class Component extends DCLogic {
       const data = await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload(name) });
       this.applyBillingDocument(data.document);
       this.loadBillingFiles();
+      this.loadMyFiles();
       this.toast('Billing file saved');
     } catch (e) {
       this.setState({ billSaveState: 'Save failed' });
@@ -1936,6 +2293,7 @@ class Component extends DCLogic {
       await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(this.state.currentBillingDocumentId), { method: 'DELETE' });
       this.setState({ currentBillingDocumentId: '', currentBillingVersion: '', currentBillingDocumentName: '', currentBillingAccess: 'owner', currentBillingIsOwner: true, billCollaborators: [], billSaveState: 'Deleted' });
       this.loadBillingFiles();
+      this.loadMyFiles();
     } catch (e) {
       this.toast(e.message || 'Delete failed');
     }
@@ -1969,6 +2327,7 @@ class Component extends DCLogic {
         : await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload() });
       this.applyBillingDocument(data.document);
       this.loadBillingFiles();
+      this.loadMyFiles();
       this.setState({ billSaveState: 'Saved' });
     } catch (e) {
       this.setState({ billSaveState: e.status === 409 ? 'Conflict - reload needed' : 'Autosave failed' });
@@ -1998,6 +2357,7 @@ class Component extends DCLogic {
     try {
       const data = await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(this.state.currentBillingDocumentId) + '/shares', { method: 'PUT', body: { shares: this.state.billCollaborators || [] } });
       this.setState({ billCollaborators: data.shares || [], billShareOpen: false });
+      this.loadMyFiles();
       this.toast('Sharing updated');
     } catch (e) {
       this.toast(e.message || 'Sharing update failed');
@@ -2177,7 +2537,9 @@ class Component extends DCLogic {
     });
     const tab = d.tab;
     let previewNode;
-    if (tab === 'social') {
+    if (tab === 'files') {
+      previewNode = React.createElement('div', { style: { maxWidth:'680px', margin:'40px auto', color:'#5b6b7c', font:'600 14px/1.5 Plus Jakarta Sans, sans-serif', textAlign:'center' } }, 'Select a saved file from the left panel.');
+    } else if (tab === 'social') {
       const smFmt = this.SM_FMTS[d.smFormat||'instagram'];
       const smScale = Math.min(680/smFmt.w, 555/smFmt.h);
       const smPW = Math.round(smFmt.w*smScale), smPH = Math.round(smFmt.h*smScale);
@@ -2190,7 +2552,7 @@ class Component extends DCLogic {
       const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? this.buildStatement() : tab === 'billing' ? this.buildBilling() : this.buildSignatureBoard();
       previewNode = React.createElement('div', { style: { width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }, dangerouslySetInnerHTML: { __html: html } });
     }
-    const tabs = [['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
+    const tabs = [['files', 'My Files'], ['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
     const emailLib = (d.emailLib || []).map(it => ({ name: it.name, load: () => this.loadEmail(it), del: () => this.delLib('emailLib', it.id) }));
     const letterLib = (d.letterLib || []).map(it => ({ name: it.name, load: () => this.loadLetter(it), del: () => this.delLib('letterLib', it.id) }));
     const sigLib = (d.sigLib || []).map(it => ({ name: it.name, load: () => this.loadSig(it), del: () => this.delLib('sigLib', it.id) }));
@@ -2265,13 +2627,67 @@ class Component extends DCLogic {
         remove: () => this.removeBillCollaborator(c.userId)
       };
     });
+    const fileTypeOptions = ['email', 'letter', 'signature', 'social', 'billing', 'pricelist', 'shiplabel', 'statement'].map(value => ({ value, label: this.TYPE_LABELS[value] || value }));
+    const filteredFiles = (d.myFiles || []).filter(item => {
+      if (d.fileTypeFilter && item.fileType !== d.fileTypeFilter) return false;
+      if (d.fileAccessFilter === 'owner' && !item.isOwner) return false;
+      if (d.fileAccessFilter === 'shared' && item.isOwner) return false;
+      if (d.fileAccessFilter === 'edit' && item.accessLevel !== 'edit') return false;
+      if (d.fileAccessFilter === 'view' && item.accessLevel !== 'view') return false;
+      return true;
+    });
+    const myFileViews = filteredFiles.map(item => {
+      const when = item.latestAutosaveAt || item.updatedAt || item.createdAt || '';
+      const date = when ? new Date(when).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      const access = item.isOwner ? 'Owner' : (item.accessLevel === 'edit' ? 'Can edit' : 'View only');
+      const typeLabel = this.TYPE_LABELS[item.fileType] || item.fileType || 'File';
+      return {
+        name: item.fileName || 'Doc Studio file',
+        typeLabel,
+        badgeStyle: `flex:none;border-radius:999px;padding:4px 8px;background:${item.fileType === 'billing' ? '#e8eef5' : '#e7f4f6'};color:${item.fileType === 'billing' ? '#173d6b' : '#127080'};font:800 9.5px/1 'Plus Jakarta Sans',sans-serif;text-transform:uppercase;letter-spacing:.08em`,
+        meta: [date, access, item.customerName || '', item.metadata && item.metadata.billingNumber ? item.metadata.billingNumber : ''].filter(Boolean).join(' - '),
+        canManage: !!item.isOwner,
+        open: () => this.openFile(item),
+        rename: () => this.renameFileFromList(item),
+        share: () => this.openFileShare(item),
+        del: () => this.deleteFileFromList(item)
+      };
+    });
+    const fileUserById = new Map((d.fileShareUsers || []).map(u => [u.userId, u]));
+    const fileShareUserOptions = (d.fileShareUsers || [])
+      .filter(u => !(d.fileCollaborators || []).some(c => c.userId === u.userId))
+      .map(u => ({ userId: u.userId, label: (u.displayName || u.username || 'User') + (u.email ? ' - ' + u.email : '') }));
+    const fileCollaboratorViews = (d.fileCollaborators || []).map(c => {
+      const user = fileUserById.get(c.userId) || {};
+      return {
+        name: user.displayName || user.username || c.userId,
+        access: c.accessLevel === 'edit' ? 'Can edit' : 'View only',
+        remove: () => this.removeFileCollaborator(c.userId)
+      };
+    });
+    const sidebarWidth = this.clampSidebarWidth(d.sidebarWidth || 396);
     return {
       tab,
-      isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement', isBilling: tab === 'billing',
+      isFiles: tab === 'files', isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement', isBilling: tab === 'billing',
       f, tabs, previewNode,
-      previewTitle: tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : tab === 'billing' ? (this.billMeta().title.charAt(0) + this.billMeta().title.slice(1).toLowerCase() + ' preview') : 'Signature preview',
-      copyLabel: tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Copy document' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : tab === 'billing' ? 'Print / PDF' : 'Copy signature',
+      previewTitle: tab === 'files' ? 'File manager' : tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : tab === 'billing' ? (this.billMeta().title.charAt(0) + this.billMeta().title.slice(1).toLowerCase() + ' preview') : 'Signature preview',
+      copyLabel: tab === 'files' ? 'Open file' : tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Copy document' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : tab === 'billing' ? 'Print / PDF' : 'Copy signature',
       copyNow: this.copyNow, printLetter: this.printLetter,
+      showFileActions: ['email', 'letter', 'signature', 'social', 'pricelist', 'shiplabel', 'statement'].includes(tab),
+      fileSaveState: d.fileSaveState || '',
+      saveActiveFile: this.saveActiveFile, renameActiveFile: this.renameActiveFile, shareActiveFile: this.shareActiveFile, deleteActiveFile: this.deleteActiveFile,
+      sidebarStyle: `width:${sidebarWidth}px;flex:none;background:#fff;border-right:1px solid #e7e4db;overflow:auto`,
+      sidebarResizerStyle: `width:8px;flex:none;cursor:col-resize;background:${d.sidebarDragging ? '#1A8A9C' : '#e7e4db'};border-right:1px solid #d8d2c4;outline:none;transition:background .12s`,
+      startSidebarDrag: this.startSidebarDrag,
+      fileTypeOptions, fileTypeFilter: d.fileTypeFilter || '', fileAccessFilter: d.fileAccessFilter || '',
+      setFileTypeFilter: (e) => this.setState({ fileTypeFilter: e.target.value }),
+      setFileAccessFilter: (e) => this.setState({ fileAccessFilter: e.target.value }),
+      refreshMyFiles: this.refreshMyFiles, myFileViews, hasMyFiles: myFileViews.length > 0, noMyFiles: myFileViews.length === 0,
+      fileShareOpen: d.fileShareOpen, fileShareName: d.fileShareName || '', toggleFileShare: this.toggleFileShare,
+      fileShareUserId: d.fileShareUserId || '', fileShareAccess: d.fileShareAccess || 'view', fileShareUserOptions, fileCollaboratorViews,
+      setFileShareUser: (e) => this.setState({ fileShareUserId: e.target.value }),
+      setFileShareAccess: (e) => this.setState({ fileShareAccess: e.target.value }),
+      addFileCollaborator: this.addFileCollaborator, saveFileShares: this.saveFileShares,
       dlOpen: d.dlOpen, toggleDl: this.toggleDl, dlHtml: this.dlHtml, dlEml: this.dlEml,
       brandOpen: d.brandOpen, toggleBrand: this.toggleBrand, brandFields,
       gearStyle: `display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:0;cursor:pointer;background:${d.brandOpen ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'};transition:.15s`,
