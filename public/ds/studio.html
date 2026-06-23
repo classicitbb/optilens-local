@@ -519,6 +519,14 @@
           <div style="display:flex;flex-wrap:wrap;gap:7px"><sc-for list="{{ billTypeOpts }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
         </div>
 
+        <div style="display:flex;gap:11px;align-items:flex-end">
+          <div style="flex:1">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Paper size</div>
+            <div style="display:flex;gap:7px"><sc-for list="{{ billPaperOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
+          </div>
+          <div style="flex:1;text-align:right;font:600 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#5b6b7c">{{ billSaveState }}</div>
+        </div>
+
         <div style="display:flex;gap:11px">
           <div style="flex:1">
             <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Number</div>
@@ -642,23 +650,58 @@
 
         <div style="border-top:1px solid #efece3;padding-top:18px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
-            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Saved drafts</span>
-            <button onClick="{{ saveBillDraft }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save draft</button>
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">My billing files</span>
+            <button onClick="{{ saveBillingFileAs }}" style="height:28px;padding:0 12px;border:1.5px solid #0B1E35;border-radius:7px;background:#fff;color:#0B1E35;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ New file</button>
           </div>
-          <sc-if value="{{ hasBillDrafts }}" hint-placeholder-val="{{ false }}">
+          <sc-if value="{{ hasBillingFiles }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:6px">
-              <sc-for list="{{ billDraftViews }}" as="it" hint-placeholder-count="0">
+              <sc-for list="{{ billFileViews }}" as="it" hint-placeholder-count="0">
                 <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:5px 4px 5px 12px">
                   <button onClick="{{ it.load }}" style="flex:1;min-width:0;text-align:left;background:none;border:0;cursor:pointer">
                     <div style="font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }}</div>
                     <div style="font:400 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:2px">{{ it.meta }}</div>
+                  </button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noBillingFiles }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No DB billing files yet.</div></sc-if>
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Shared with me</div>
+          <sc-if value="{{ hasSharedBillingFiles }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ sharedBillFileViews }}" as="it" hint-placeholder-count="0">
+                <button onClick="{{ it.load }}" style="text-align:left;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:8px 12px;cursor:pointer">
+                  <div style="font:600 12.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }}</div>
+                  <div style="font:400 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:2px">{{ it.meta }}</div>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noSharedBillingFiles }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No shared billing files.</div></sc-if>
+        </div>
+
+        <div style="border-top:1px solid #efece3;padding-top:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+            <span style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C">Local recovery</span>
+            <button onClick="{{ saveBillDraft }}" style="height:28px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:7px;background:#fff;color:#5b6b7c;font:700 11px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Save local</button>
+          </div>
+          <sc-if value="{{ hasBillDrafts }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{ billDraftViews }}" as="it" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #eee9de;border-radius:8px;padding:5px 4px 5px 12px">
+                  <button onClick="{{ it.load }}" style="flex:1;min-width:0;text-align:left;background:none;border:0;cursor:pointer">
+                    <div style="font:600 12px/1.3 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.name }}</div>
+                    <div style="font:400 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#a7a596;margin-top:2px">{{ it.meta }}</div>
                   </button>
                   <button onClick="{{ it.del }}" style="flex:none;background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
                 </div>
               </sc-for>
             </div>
           </sc-if>
-          <sc-if value="{{ noBillDrafts }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">No saved drafts yet.</div></sc-if>
+          <sc-if value="{{ noBillDrafts }}" hint-placeholder-val="{{ true }}"><div style="font:400 12px/1.5 'Plus Jakarta Sans',sans-serif;color:#a7a596;font-style:italic">Browser-only fallback. DB files above are the permanent save.</div></sc-if>
         </div>
 
       </div>
@@ -693,7 +736,12 @@
             </div>
           </sc-if>
           <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
-            <button onClick="{{ saveBillDraft }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save draft</button>
+            <span style="align-self:center;font:600 11.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ billSaveState }}</span>
+            <button onClick="{{ saveBillingFile }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save</button>
+            <button onClick="{{ saveBillingFileAs }}" style="height:38px;padding:0 14px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save As</button>
+            <button onClick="{{ renameBillingFile }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Rename</button>
+            <button onClick="{{ toggleBillShare }}" style="height:38px;padding:0 12px;border:1.5px solid #d9d7cf;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Share</button>
+            <button onClick="{{ deleteBillingFile }}" style="height:38px;padding:0 12px;border:1.5px solid #e4c8c8;border-radius:9px;background:#fff;color:#a23b3b;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Delete</button>
           </sc-if>
           <button onClick="{{ copyNow }}" style="height:38px;padding:0 20px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">{{ copyLabel }}</button>
         </div>
@@ -704,6 +752,44 @@
     </div>
 
   </div>
+
+  <sc-if value="{{ billShareOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ toggleBillShare }}" style="position:fixed;inset:0;background:rgba(11,30,53,.32);z-index:70"></div>
+    <div style="position:fixed;top:74px;right:28px;width:360px;max-width:calc(100vw - 40px);z-index:71;background:#fff;border:1px solid #e7e4db;border-radius:14px;box-shadow:0 24px 64px -16px rgba(11,30,53,.45);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #f0ede6">
+        <div>
+          <div style="font:800 15px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Share billing file</div>
+          <div style="font:400 11.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">Only selected users can open this file.</div>
+        </div>
+        <button onClick="{{ toggleBillShare }}" style="background:none;border:0;color:#8a93a0;cursor:pointer;font-size:20px;line-height:1;padding:2px 6px">×</button>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:8px">
+          <select class="cv-in" value="{{ billShareUserId }}" onChange="{{ setBillShareUser }}" style="flex:1;min-width:0;padding:9px 10px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="">Select user</option>
+            <sc-for list="{{ billShareUserOptions }}" as="u" hint-placeholder-count="0"><option value="{{ u.userId }}">{{ u.label }}</option></sc-for>
+          </select>
+          <select class="cv-in" value="{{ billShareAccess }}" onChange="{{ setBillShareAccess }}" style="width:86px;flex:none;padding:9px 8px;border:1px solid #d9d7cf;border-radius:8px;background:#fff;color:#0B1E35;font:400 12.5px/1.4 'Plus Jakarta Sans',sans-serif">
+            <option value="view">View</option>
+            <option value="edit">Edit</option>
+          </select>
+          <button onClick="{{ addBillCollaborator }}" style="flex:none;padding:0 12px;border:1.5px solid #0B1E35;border-radius:8px;background:#fff;color:#0B1E35;font:700 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Add</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow:auto">
+          <sc-for list="{{ billCollaboratorViews }}" as="c" hint-placeholder-count="0">
+            <div style="display:flex;align-items:center;gap:8px;background:#f7f5ef;border:1px solid #eae6db;border-radius:8px;padding:8px 9px">
+              <div style="flex:1;min-width:0">
+                <div style="font:700 12px/1.25 'Plus Jakarta Sans',sans-serif;color:#0B1E35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
+                <div style="font:500 10.5px/1.3 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:2px">{{ c.access }}</div>
+              </div>
+              <button onClick="{{ c.remove }}" style="flex:none;background:none;border:0;color:#b3aa9a;cursor:pointer;font-size:14px;padding:4px 7px;line-height:1">×</button>
+            </div>
+          </sc-for>
+        </div>
+        <button onClick="{{ saveBillShares }}" style="height:38px;border:0;border-radius:9px;background:#0B1E35;color:#F4F2ED;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Save sharing</button>
+      </div>
+    </div>
+  </sc-if>
 
   <sc-if value="{{ copied }}" hint-placeholder-val="">
     <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#0B1E35;color:#F4F2ED;padding:12px 22px;border-radius:11px;font:600 13px/1 'Plus Jakarta Sans',sans-serif;box-shadow:0 12px 34px rgba(11,30,53,.35);z-index:60">{{ copied }}</div>
@@ -789,8 +875,12 @@ class Component extends DCLogic {
     blRows: [{ id: '1', code: '', desc: '', qty: '1', unit: '', taxable: true }],
     blPaidMethod: 'Bank transfer', blPaidRef: '', blAmountPaid: '',
     blNotes: 'Thank you for your business. Please make payment by the due date shown above.',
+    billPaperSize: 'letter',
     billSeq: { invoice: 1, quote: 1, proforma: 1, receipt: 1 },
     lineItemLib: [], billDrafts: [],
+    billingFiles: [], sharedBillingFiles: [], billingFilesLoaded: false,
+    currentBillingDocumentId: '', currentBillingVersion: '', currentBillingDocumentName: '', currentBillingAccess: 'owner', currentBillingIsOwner: true,
+    billSaveState: 'Local recovery only', billShareOpen: false, billShareUsers: [], billCollaborators: [], billShareUserId: '', billShareAccess: 'view',
     dsCustomers: [], dsPricelists: [],
     selectedStatementCustomer: '', selectedShipCustomer: '', selectedBillingCustomer: '', selectedPricelistId: ''
   };
@@ -814,12 +904,15 @@ class Component extends DCLogic {
     }
     if (!this.state.blNumber) this.set('blNumber', this.peekBillNumber(this.state.billType));
     this.loadDocStudioData();
+    this.loadBillingFiles();
+    this.loadBillShareUsers();
+    setTimeout(() => { this._billingReady = true; }, 900);
   }
 
   // ---------- persistence ----------
-  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
+  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, billingFiles, sharedBillingFiles, billShareUsers, billingFilesLoaded, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
   persistSoon = () => { clearTimeout(this._pt); this._pt = setTimeout(this.persist, 350); };
-  set = (k, v) => { this.setState({ [k]: v }, this.persistSoon); };
+  set = (k, v) => { this.setState({ [k]: v }, () => { this.persistSoon(); if (this.isBillingField(k)) this.scheduleBillingAutosave(); }); };
   toast = (m) => { this.setState({ copied: m }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ copied: '' }), 2200); };
 
   toggleBrand = () => this.setState(s => ({ brandOpen: !s.brandOpen }));
@@ -1298,7 +1391,7 @@ class Component extends DCLogic {
     if (t === 'pricelist') { this.printDoc(this.buildPricelist(), 'Price List'); return; }
     if (t === 'shiplabel') { this.printDoc(this.buildShippingLabel(), 'Shipping Label'); return; }
     if (t === 'statement') { this.printDoc(this.buildStatement(), 'Customer Statement'); return; }
-    if (t === 'billing') { this.printDoc(this.buildBilling(), this.billMeta().title); return; }
+    if (t === 'billing') { this.printDoc(this.buildBilling(), this.billMeta().title, this.state.billPaperSize || 'letter'); return; }
     this.copyRich(t === 'email' ? this.buildEmail() : t === 'letter' ? this.buildLetter() : this.buildSignature());
   };
   printLetter = () => {
@@ -1502,7 +1595,7 @@ class Component extends DCLogic {
       selectedBillingCustomer: account,
       blToCompany: c.name || c.customerName || '',
       blToAddr: this.customerAddressBlock(c)
-    }, this.persistSoon);
+    }, this.billingChanged);
   };
   applySavedPricelist = async (e) => {
     const id = e.target.value;
@@ -1543,10 +1636,11 @@ class Component extends DCLogic {
   updateStRow = (i, key, val) => this.setState(s => { const r=[...(s.stRows||[])]; r[i]={...r[i],[key]:val}; return { stRows:r }; }, this.persistSoon);
 
   // ---------- generic print ----------
-  printDoc = (html, title) => {
+  printDoc = (html, title, pageSize) => {
     const w = window.open('', '_blank', 'width=860,height=1100');
     if (!w) { this.toast('Allow pop-ups to print'); return; }
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${this.esc(title)} — Classic Visions</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif}@page{size:letter;margin:0}@media print{body{background:#fff}}</style></head><body>${html}</body></html>`);
+    const paper = String(pageSize || 'letter').toLowerCase() === 'a4' ? 'A4' : 'letter';
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${this.esc(title)} — Classic Visions</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif}@page{size:${paper};margin:6mm}@media print{body{background:#fff}.ds-bill-page{box-shadow:none!important}}</style></head><body>${html}</body></html>`);
     w.document.close();
     setTimeout(() => { try { w.focus(); w.print(); } catch(e){} }, 500);
   };
@@ -1665,19 +1759,19 @@ class Component extends DCLogic {
   peekBillNumber = (type) => { const m = this.BILL_META[type] || this.BILL_META.invoice; const seq = (this.state.billSeq && this.state.billSeq[type]) || 1; return `${m.prefix}-${String(seq).padStart(4, '0')}`; };
   nextBillNumber = () => {
     const type = this.state.billType, m = this.BILL_META[type] || this.BILL_META.invoice;
-    this.setState(s => { const seq = { ...(s.billSeq || {}) }; const cur = seq[type] || 1; const num = `${m.prefix}-${String(cur).padStart(4, '0')}`; seq[type] = cur + 1; return { billSeq: seq, blNumber: num }; }, this.persistSoon);
+    this.setState(s => { const seq = { ...(s.billSeq || {}) }; const cur = seq[type] || 1; const num = `${m.prefix}-${String(cur).padStart(4, '0')}`; seq[type] = cur + 1; return { billSeq: seq, blNumber: num }; }, this.billingChanged);
     this.toast('New number assigned');
   };
   setBillType = (k) => this.setState({ billType: k }, () => {
     const n = this.state.blNumber;
     if (!n || /^(INV|QTE|PRF|RCT)-\d+$/.test(n)) this.set('blNumber', this.peekBillNumber(k));
-    else this.persistSoon();
+    else this.billingChanged();
   });
 
-  addBlRow = () => this.setState(s => ({ blRows: [...(s.blRows || []), { id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }), this.persistSoon);
-  delBlRow = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r.splice(i, 1); return { blRows: r.length ? r : [{ id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }; }, this.persistSoon);
-  updateBlRow = (i, key, val) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], [key]: val }; return { blRows: r }; }, this.persistSoon);
-  toggleBlRowTax = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], taxable: r[i].taxable === false }; return { blRows: r }; }, this.persistSoon);
+  addBlRow = () => this.setState(s => ({ blRows: [...(s.blRows || []), { id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }), this.billingChanged);
+  delBlRow = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r.splice(i, 1); return { blRows: r.length ? r : [{ id: Date.now() + '', code: '', desc: '', qty: '1', unit: '', taxable: true }] }; }, this.billingChanged);
+  updateBlRow = (i, key, val) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], [key]: val }; return { blRows: r }; }, this.billingChanged);
+  toggleBlRowTax = (i) => this.setState(s => { const r = [...(s.blRows || [])]; r[i] = { ...r[i], taxable: r[i].taxable === false }; return { blRows: r }; }, this.billingChanged);
 
   saveLineItem = (i) => {
     const r = (this.state.blRows || [])[i];
@@ -1690,17 +1784,225 @@ class Component extends DCLogic {
     const blank = rows.length === 1 && !rows[0].desc && !rows[0].code && !rows[0].unit;
     const row = { id: Date.now() + '', code: it.code || '', desc: it.desc || '', qty: '1', unit: it.unit || '', taxable: it.taxable !== false };
     return { blRows: blank ? [row] : [...rows, row] };
-  }, this.persistSoon);
+  }, this.billingChanged);
 
-  BILL_DRAFT_KEYS = ['billType', 'blNumber', 'blDate', 'blDue', 'blPO', 'blToName', 'blToCompany', 'blToAddr', 'blToAttn', 'blCurrency', 'blVatEnabled', 'blVatRate', 'blDiscount', 'blShipping', 'blRows', 'blPaidMethod', 'blPaidRef', 'blAmountPaid', 'blNotes'];
+  BILL_FILE_KEYS = ['billType', 'blNumber', 'blDate', 'blDue', 'blPO', 'blToName', 'blToCompany', 'blToAddr', 'blToAttn', 'blCurrency', 'blVatEnabled', 'blVatRate', 'blDiscount', 'blShipping', 'blRows', 'blPaidMethod', 'blPaidRef', 'blAmountPaid', 'blNotes', 'billPaperSize', 'bAddress', 'bRegNo', 'bVatReg', 'bkBankName', 'bkAccName', 'bkAccNo', 'bkBranch', 'bkSwift', 'bkNote', 'selectedBillingCustomer'];
+  BILL_DRAFT_KEYS = this.BILL_FILE_KEYS;
+  isBillingField = (k) => this.BILL_FILE_KEYS.includes(k);
+  canEditBillingFile = () => this.state.currentBillingAccess !== 'view';
+  billingChanged = () => { this.persistSoon(); this.scheduleBillingAutosave(); };
+
   saveBillDraft = () => {
     const def = (this.state.blNumber || this.billMeta().title) + (this.state.blToCompany ? ' — ' + this.state.blToCompany : (this.state.blToName ? ' — ' + this.state.blToName : ''));
     const name = prompt('Name this draft:', def); if (!name) return;
     const fields = {}; this.BILL_DRAFT_KEYS.forEach(k => fields[k] = k === 'blRows' ? (this.state.blRows || []).map(r => ({ ...r })) : this.state[k]);
     this.setState(s => ({ billDrafts: [...(s.billDrafts || []), { id: Date.now() + '', name, type: this.state.billType, fields, savedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }] }), this.persist);
-    this.toast('Draft saved');
+    this.toast('Local recovery draft saved');
   };
-  loadBillDraft = (it) => { this.setState({ ...it.fields }, this.persist); this.toast('Loaded “' + it.name + '”'); };
+  loadBillDraft = (it) => { this.setState({ ...it.fields, currentBillingDocumentId: '', currentBillingVersion: '', currentBillingDocumentName: '', currentBillingAccess: 'owner', currentBillingIsOwner: true }, this.persist); this.toast('Loaded local draft "' + it.name + '"'); };
+
+  docApi = async (url, opts) => {
+    const options = opts || {};
+    const fetchOptions = { method: options.method || 'GET', headers: { ...(options.headers || {}) }, cache: 'no-store' };
+    if (options.body !== undefined) {
+      fetchOptions.headers['Content-Type'] = 'application/json';
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+    const res = await fetch(url, fetchOptions);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.error || 'Doc Studio request failed');
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  };
+
+  loadBillingFiles = async () => {
+    try {
+      const [mine, shared] = await Promise.all([
+        this.docApi('/api/docstudio/billing-documents?scope=mine'),
+        this.docApi('/api/docstudio/billing-documents?scope=shared')
+      ]);
+      this.setState({
+        billingFiles: mine.documents || [],
+        sharedBillingFiles: shared.documents || [],
+        billingFilesLoaded: true,
+        billSaveState: 'DB save ready'
+      });
+    } catch (e) {
+      this.setState({ billingFilesLoaded: false, billSaveState: 'Local recovery only' });
+    }
+  };
+
+  loadBillShareUsers = async () => {
+    try {
+      const data = await this.docApi('/api/docstudio/users');
+      this.setState({ billShareUsers: data.users || [] });
+    } catch (e) {
+      this.setState({ billShareUsers: [] });
+    }
+  };
+
+  billingDocumentName = () => {
+    return this.state.currentBillingDocumentName
+      || (this.state.blNumber || this.billMeta().title) + (this.state.blToCompany ? ' - ' + this.state.blToCompany : (this.state.blToName ? ' - ' + this.state.blToName : ''));
+  };
+
+  billingSnapshot = () => {
+    const content = {};
+    this.BILL_FILE_KEYS.forEach(k => content[k] = k === 'blRows' ? (this.state.blRows || []).map(r => ({ ...r })) : this.state[k]);
+    return content;
+  };
+
+  billFilePayload = (name) => ({
+    documentType: this.state.billType,
+    documentName: name || this.billingDocumentName(),
+    billingNumber: this.state.blNumber || '',
+    customerName: this.state.blToName || '',
+    customerCompany: this.state.blToCompany || '',
+    customerAccount: this.state.selectedBillingCustomer || '',
+    paperSize: this.state.billPaperSize || 'letter',
+    content: this.billingSnapshot(),
+    renderedHtml: this.buildBilling(),
+    totals: this.billTotals(),
+    version: this.state.currentBillingVersion || ''
+  });
+
+  applyBillingDocument = (doc) => {
+    const fields = doc.content || {};
+    this._suspendBillingAutosave = true;
+    this.setState({
+      ...fields,
+      currentBillingDocumentId: doc.id || '',
+      currentBillingVersion: doc.version || '',
+      currentBillingDocumentName: doc.documentName || '',
+      currentBillingAccess: doc.accessLevel || 'owner',
+      currentBillingIsOwner: !!doc.isOwner,
+      billCollaborators: doc.shares || [],
+      billShareOpen: false,
+      billSaveState: doc.accessLevel === 'view' ? 'Read-only shared file' : (doc.hasNewerAutosave ? 'Recovered latest autosave' : 'Saved')
+    }, () => {
+      this._suspendBillingAutosave = false;
+      this.persist();
+    });
+  };
+
+  saveBillingFile = async () => {
+    if (!this.canEditBillingFile()) { this.toast('Read-only shared file'); return; }
+    const id = this.state.currentBillingDocumentId;
+    try {
+      this.setState({ billSaveState: 'Saving...' });
+      const data = id
+        ? await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(id), { method: 'PUT', body: this.billFilePayload() })
+        : await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload() });
+      this.applyBillingDocument(data.document);
+      this.loadBillingFiles();
+      this.toast('Billing file saved');
+    } catch (e) {
+      this.setState({ billSaveState: e.status === 409 ? 'Conflict - reload needed' : 'Save failed' });
+      this.toast(e.message || 'Save failed');
+    }
+  };
+
+  saveBillingFileAs = async () => {
+    if (!this.canEditBillingFile()) { this.toast('Read-only shared file'); return; }
+    const name = prompt('Save billing file as:', this.billingDocumentName());
+    if (!name) return;
+    try {
+      this.setState({ billSaveState: 'Saving...' });
+      const data = await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload(name) });
+      this.applyBillingDocument(data.document);
+      this.loadBillingFiles();
+      this.toast('Billing file saved');
+    } catch (e) {
+      this.setState({ billSaveState: 'Save failed' });
+      this.toast(e.message || 'Save failed');
+    }
+  };
+
+  renameBillingFile = async () => {
+    if (!this.state.currentBillingDocumentId) { this.saveBillingFileAs(); return; }
+    if (!this.canEditBillingFile()) { this.toast('Read-only shared file'); return; }
+    const name = prompt('Rename billing file:', this.billingDocumentName());
+    if (!name) return;
+    this.setState({ currentBillingDocumentName: name }, this.saveBillingFile);
+  };
+
+  deleteBillingFile = async () => {
+    if (!this.state.currentBillingDocumentId || !this.state.currentBillingIsOwner) { this.toast('Only the owner can delete this file'); return; }
+    if (!confirm('Remove this billing file from your list?')) return;
+    try {
+      await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(this.state.currentBillingDocumentId), { method: 'DELETE' });
+      this.setState({ currentBillingDocumentId: '', currentBillingVersion: '', currentBillingDocumentName: '', currentBillingAccess: 'owner', currentBillingIsOwner: true, billCollaborators: [], billSaveState: 'Deleted' });
+      this.loadBillingFiles();
+    } catch (e) {
+      this.toast(e.message || 'Delete failed');
+    }
+  };
+
+  openBillingFile = async (id) => {
+    try {
+      this.setState({ billSaveState: 'Loading...' });
+      const data = await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(id));
+      this.applyBillingDocument(data.document);
+    } catch (e) {
+      this.setState({ billSaveState: 'Load failed' });
+      this.toast(e.message || 'Load failed');
+    }
+  };
+
+  scheduleBillingAutosave = () => {
+    if (!this._billingReady || this._suspendBillingAutosave || this.state.tab !== 'billing' || !this.canEditBillingFile()) return;
+    clearTimeout(this._billAutosaveTimer);
+    this.setState({ billSaveState: this.state.currentBillingDocumentId ? 'Unsaved' : 'Unsaved local draft' });
+    this._billAutosaveTimer = setTimeout(this.autosaveBillingFile, 1600);
+  };
+
+  autosaveBillingFile = async () => {
+    if (!this.canEditBillingFile()) return;
+    try {
+      this.setState({ billSaveState: 'Saving...' });
+      const id = this.state.currentBillingDocumentId;
+      const data = id
+        ? await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(id) + '/autosave', { method: 'PUT', body: this.billFilePayload() })
+        : await this.docApi('/api/docstudio/billing-documents', { method: 'POST', body: this.billFilePayload() });
+      this.applyBillingDocument(data.document);
+      this.loadBillingFiles();
+      this.setState({ billSaveState: 'Saved' });
+    } catch (e) {
+      this.setState({ billSaveState: e.status === 409 ? 'Conflict - reload needed' : 'Autosave failed' });
+    }
+  };
+
+  toggleBillShare = () => {
+    if (!this.state.currentBillingDocumentId) { this.toast('Save this file before sharing'); return; }
+    if (!this.state.currentBillingIsOwner) { this.toast('Only the owner can share this file'); return; }
+    this.setState(s => ({ billShareOpen: !s.billShareOpen }));
+  };
+
+  addBillCollaborator = () => {
+    const userId = this.state.billShareUserId;
+    if (!userId) return;
+    const accessLevel = this.state.billShareAccess === 'edit' ? 'edit' : 'view';
+    this.setState(s => {
+      const existing = (s.billCollaborators || []).filter(x => x.userId !== userId);
+      return { billCollaborators: [...existing, { userId, accessLevel }], billShareUserId: '' };
+    });
+  };
+
+  removeBillCollaborator = (userId) => this.setState(s => ({ billCollaborators: (s.billCollaborators || []).filter(x => x.userId !== userId) }));
+
+  saveBillShares = async () => {
+    if (!this.state.currentBillingDocumentId || !this.state.currentBillingIsOwner) return;
+    try {
+      const data = await this.docApi('/api/docstudio/billing-documents/' + encodeURIComponent(this.state.currentBillingDocumentId) + '/shares', { method: 'PUT', body: { shares: this.state.billCollaborators || [] } });
+      this.setState({ billCollaborators: data.shares || [], billShareOpen: false });
+      this.toast('Sharing updated');
+    } catch (e) {
+      this.toast(e.message || 'Sharing update failed');
+    }
+  };
 
   billTotals = () => {
     const d = this.state, rows = (d.blRows || []);
@@ -1721,6 +2023,11 @@ class Component extends DCLogic {
 
   buildBilling = () => {
     const d = this.state, b = this.brand(), esc = this.esc, m = this.billMeta();
+    const paper = (d.billPaperSize || 'letter') === 'a4' ? 'a4' : 'letter';
+    const pageW = paper === 'a4' ? 660 : 680;
+    const pagePad = paper === 'a4' ? 34 : 38;
+    const topPad = paper === 'a4' ? 34 : 38;
+    const bottomPad = paper === 'a4' ? 34 : 38;
     const cur = d.blCurrency || 'BBD';
     const money = (n) => cur + ' ' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const t = this.billTotals();
@@ -1818,7 +2125,7 @@ class Component extends DCLogic {
     const notes = d.blNotes ? `<div style="padding:18px 52px 0"><div style="font:700 10px/1 'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C;margin-bottom:6px">Notes &amp; terms</div><div style="font:400 12px/1.65 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;white-space:pre-wrap">${esc(d.blNotes)}</div></div>` : '';
     const vatNote = d.blVatEnabled ? '' : `<div style="padding:10px 52px 0"><div style="font:400 10.5px/1.5 'Plus Jakarta Sans',Arial,sans-serif;color:#a7a596;font-style:italic">No VAT charged on this document.</div></div>`;
 
-    return `<div style="width:700px;max-width:700px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif;box-shadow:0 10px 40px -10px rgba(11,30,53,.18)">
+    let billHtml = `<div class="ds-bill-page" style="width:${pageW}px;max-width:${pageW}px;margin:0 auto;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif;box-shadow:0 10px 40px -10px rgba(11,30,53,.18)">
       <div style="padding:44px 52px 0">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
           <td style="vertical-align:top">
@@ -1854,6 +2161,10 @@ class Component extends DCLogic {
       ${legal}
       <div style="padding:30px 52px 44px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 11px/1.6 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(d.bAddress ? d.bAddress.replace(/\n/g, ', ') : '')} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)}</div></div>
     </div>`;
+    return billHtml
+      .replaceAll('52px', pagePad + 'px')
+      .replaceAll('44px', bottomPad + 'px')
+      .replace('padding:' + bottomPad + 'px ' + pagePad + 'px 0', 'padding:' + topPad + 'px ' + pagePad + 'px 0');
   };
 
   renderVals() {
@@ -1932,6 +2243,28 @@ class Component extends DCLogic {
     });
     const lineItemLibViews = (d.lineItemLib || []).map(it => ({ label: (it.code ? it.code + ' · ' : '') + (it.desc || 'item'), insert: () => this.insertLineItem(it), del: () => this.delLib('lineItemLib', it.id) }));
     const billDraftViews = (d.billDrafts || []).map(it => ({ name: it.name, meta: (this.BILL_META[it.type] ? this.BILL_META[it.type].title : '') + (it.savedAt ? ' · ' + it.savedAt : ''), load: () => this.loadBillDraft(it), del: () => this.delLib('billDrafts', it.id) }));
+    const billPaperOpts = [['letter', 'Letter'], ['a4', 'A4']].map(([k, l]) => ({ label: l, onClick: () => this.set('billPaperSize', k), style: this.segStyle((d.billPaperSize || 'letter') === k) }));
+    const billFileMeta = (doc) => {
+      const title = this.BILL_META[doc.documentType] ? this.BILL_META[doc.documentType].title : String(doc.documentType || '').toUpperCase();
+      const when = doc.latestAutosaveAt || doc.updatedAt || doc.createdAt || '';
+      const date = when ? new Date(when).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+      const who = doc.accessLevel === 'owner' ? 'Owner' : (doc.accessLevel === 'edit' ? 'Can edit' : 'View only');
+      return [title, doc.billingNumber || '', doc.customerCompany || doc.customerName || '', date, who].filter(Boolean).join(' - ');
+    };
+    const billFileViews = (d.billingFiles || []).map(doc => ({ name: doc.documentName || doc.billingNumber || 'Billing file', meta: billFileMeta(doc), load: () => this.openBillingFile(doc.id) }));
+    const sharedBillFileViews = (d.sharedBillingFiles || []).map(doc => ({ name: doc.documentName || doc.billingNumber || 'Shared billing file', meta: billFileMeta(doc), load: () => this.openBillingFile(doc.id) }));
+    const userById = new Map((d.billShareUsers || []).map(u => [u.userId, u]));
+    const billShareUserOptions = (d.billShareUsers || [])
+      .filter(u => !(d.billCollaborators || []).some(c => c.userId === u.userId))
+      .map(u => ({ userId: u.userId, label: (u.displayName || u.username || 'User') + (u.email ? ' - ' + u.email : '') }));
+    const billCollaboratorViews = (d.billCollaborators || []).map(c => {
+      const user = userById.get(c.userId) || {};
+      return {
+        name: user.displayName || user.username || c.userId,
+        access: c.accessLevel === 'edit' ? 'Can edit' : 'View only',
+        remove: () => this.removeBillCollaborator(c.userId)
+      };
+    });
     return {
       tab,
       isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement', isBilling: tab === 'billing',
@@ -2004,7 +2337,18 @@ class Component extends DCLogic {
       blRowViews, addBlRow: this.addBlRow,
       lineItemLibViews, hasLineItemLib: lineItemLibViews.length > 0,
       billDraftViews, hasBillDrafts: billDraftViews.length > 0, noBillDrafts: billDraftViews.length === 0,
+      billPaperOpts,
+      billFileViews, sharedBillFileViews,
+      hasBillingFiles: billFileViews.length > 0, noBillingFiles: billFileViews.length === 0,
+      hasSharedBillingFiles: sharedBillFileViews.length > 0, noSharedBillingFiles: sharedBillFileViews.length === 0,
+      billSaveState: d.billSaveState || '',
+      billShareOpen: d.billShareOpen, billShareUserId: d.billShareUserId || '', billShareAccess: d.billShareAccess || 'view',
+      billShareUserOptions, billCollaboratorViews,
+      setBillShareUser: (e) => this.setState({ billShareUserId: e.target.value }),
+      setBillShareAccess: (e) => this.setState({ billShareAccess: e.target.value }),
+      addBillCollaborator: this.addBillCollaborator, saveBillShares: this.saveBillShares, toggleBillShare: this.toggleBillShare,
       nextBillNumber: this.nextBillNumber, saveBillDraft: this.saveBillDraft,
+      saveBillingFile: this.saveBillingFile, saveBillingFileAs: this.saveBillingFileAs, renameBillingFile: this.renameBillingFile, deleteBillingFile: this.deleteBillingFile,
       blSubtotalStr: fmtMoney(bt.subtotal), blVatStr: fmtMoney(bt.vat), blTotalStr: fmtMoney(bt.total),
       blVatRowLabel: `VAT @ ${d.blVatRate || '0'}%`, blPaidStr: fmtMoney(bt.amountPaid), blBalanceStr: fmtMoney(bt.balance),
       copied: d.copied

@@ -86,9 +86,9 @@ const platformApplications = [
     name: "Doc Studio",
     href: "/modules/doc-studio",
     summary: "Document and template workspace for operational output.",
-    status: "planned",
+    status: "active",
     icon: "DS",
-    permissions: ["platform.admin"]
+    permissions: ["docstudio.read", "docstudio.write"]
   },
   {
     id: "business-metrics",

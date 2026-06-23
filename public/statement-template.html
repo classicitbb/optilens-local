@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classic Visions — Statement</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       CLASSIC VISIONS — "Meridian Precision" Design System
+       Statement Template — Print-ready, A4
+       ============================================================ */
+
+    :root {
+      --navy:        #0B1E35;
+      --navy-700:    #14304f;
+      --teal:        #1A8A9C;
+      --teal-light:  #e8f5f7;
+      --gold:        #C89130;
+      --gold-light:  #fdf6e3;
+      --linen:       #F4F2ED;
+      --linen-deep:  #e9e5da;
+      --ink:         #0B1E35;
+      --muted:       #5a7490;
+      --border:      #c9d4de;
+      --paper:       #ffffff;
+      --font:        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 8.5pt;
+      color: var(--ink);
+      background: #d0d5dc;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ---- Page shell ---- */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      background: var(--paper);
+      box-shadow: 0 4px 30px rgba(11,30,53,0.18);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ============================================================
+       HEADER BAND
+       ============================================================ */
+    .doc-header {
+      background: var(--navy);
+      padding: 18px 24px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .doc-header__logo-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-header__logo {
+      height: 44px;
+      width: auto;
+      /* SVG is navy — invert to white for dark background */
+      filter: brightness(0) invert(1);
+    }
+
+    .doc-header__address {
+      color: rgba(244,242,237,0.75);
+      font-size: 6.5pt;
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+    }
+    .doc-header__address a { color: var(--teal); text-decoration: none; }
+
+    .doc-header__title-block {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .doc-header__title {
+      font-size: 32pt;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: rgba(244,242,237,0.15);
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .doc-header__label {
+      font-size: 6pt;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--teal);
+    }
+
+    /* Gold rule below header */
+    .doc-header-rule {
+      height: 3px;
+      background: linear-gradient(90deg, var(--gold) 0%, rgba(200,145,48,0.2) 100%);
+    }
+
+    /* ============================================================
+       BODY AREA
+       ============================================================ */
+    .doc-body {
+      padding: 18px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ============================================================
+       CUSTOMER / META ROW
+       ============================================================ */
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    /* Left: Statement meta fields */
+    .meta-fields {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-left: 3px solid var(--gold);
+      border-radius: 4px;
+      padding: 10px 12px;
+      background: var(--linen);
+    }
+
+    .meta-field {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 4px;
+      padding: 2.5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-field:last-child { border-bottom: none; }
+
+    .meta-field__label {
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .meta-field__value {
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* Right: Customer address + summary */
+    .meta-right {
+      width: 210px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .customer-block {
+      text-align: right;
+    }
+    .customer-block__name {
+      font-size: 9pt;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+    }
+    .customer-block__address {
+      font-size: 7pt;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* Summary box */
+    .summary-box {
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .summary-box__head {
+      background: var(--navy);
+      color: var(--linen);
+      font-size: 6pt;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 7pt;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row--highlight {
+      background: var(--teal-light);
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .summary-row--balance {
+      background: var(--navy);
+      color: var(--linen);
+      font-weight: 700;
+    }
+    .summary-row__label { color: inherit; }
+    .summary-row__value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      min-width: 70px;
+      text-align: right;
+    }
+    .summary-row--balance .summary-row__value { color: var(--gold); font-size: 8pt; }
+
+    /* ============================================================
+       SECTION TITLES
+       ============================================================ */
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--teal);
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ============================================================
+       AGEING TABLE
+       ============================================================ */
+    .ageing-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .ageing-table thead tr {
+      background: var(--navy);
+      color: var(--linen);
+    }
+
+    .ageing-table thead th {
+      padding: 6px 10px;
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: center;
+      border-right: 1px solid rgba(244,242,237,0.12);
+    }
+    .ageing-table thead th:last-child { border-right: none; }
+    .ageing-table thead th:first-child { text-align: left; }
+
+    /* Sub-header (column category labels) */
+    .ageing-table .subhead th {
+      background: var(--navy-700);
+      color: var(--teal);
+      font-size: 5.5pt;
+      letter-spacing: 0.12em;
+      padding: 3px 10px;
+      border-top: 1px solid rgba(244,242,237,0.08);
+    }
+
+    .ageing-table tbody tr {
+      background: var(--linen);
+    }
+    .ageing-table tbody tr:nth-child(even) { background: var(--linen-deep); }
+
+    .ageing-table tbody td {
+      padding: 5px 10px;
+      font-size: 7.5pt;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+    }
+    .ageing-table tbody td:last-child { border-right: none; }
+    .ageing-table tbody td:first-child { text-align: left; font-weight: 600; }
+
+    /* Overdue column highlight */
+    .ageing-table .overdue { color: #c0392b; font-weight: 700; }
+
+    /* ============================================================
+       DETAIL TABLE
+       ============================================================ */
+    .detail-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .detail-table thead tr {
+      background: var(--navy);
+      color: var(--linen);
+    }
+    .detail-table thead th {
+      padding: 6px 8px;
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: left;
+      border-right: 1px solid rgba(244,242,237,0.1);
+    }
+    .detail-table thead th:last-child { text-align: right; border-right: none; }
+
+    /* Group header row */
+    .detail-table .group-header td {
+      background: var(--teal-light);
+      border-top: 1.5px solid var(--teal);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 8px;
+      font-size: 6.5pt;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: 0.05em;
+    }
+
+    /* Detail rows */
+    .detail-table .detail-row td {
+      padding: 4px 8px;
+      font-size: 7pt;
+      border-bottom: 1px solid var(--border);
+      color: var(--ink);
+    }
+    .detail-table .detail-row:nth-child(odd) td { background: var(--paper); }
+    .detail-table .detail-row:nth-child(even) td { background: var(--linen); }
+
+    .detail-table .detail-row td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    /* Credit rows */
+    .detail-table .detail-row.credit td:last-child { color: #c0392b; }
+    .detail-table .detail-row.debit td:last-child { color: var(--navy); }
+
+    /* New balance row */
+    .detail-table .balance-row td {
+      background: var(--navy);
+      color: var(--linen);
+      padding: 6px 8px;
+      font-size: 7.5pt;
+      font-weight: 700;
+    }
+    .detail-table .balance-row td:last-child {
+      text-align: right;
+      color: var(--gold);
+      font-size: 8.5pt;
+    }
+
+    /* ============================================================
+       TOTALS BAND
+       ============================================================ */
+    .totals-band {
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .totals-band__inner {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+    .totals-col {
+      padding: 8px 10px;
+      border-right: 1px solid var(--border);
+    }
+    .totals-col:last-child { border-right: none; }
+    .totals-col__row {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+    .totals-col__label { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .totals-col__value { font-size: 7pt; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+    .totals-col__count { font-size: 6pt; color: var(--muted); }
+
+    .totals-band__note {
+      background: var(--gold-light);
+      border-top: 2px solid var(--gold);
+      padding: 5px 12px;
+      font-size: 6.5pt;
+      font-weight: 700;
+      color: var(--gold);
+      text-align: right;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .doc-footer {
+      margin-top: auto;
+      padding: 0 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .terms-block {
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      background: var(--linen);
+      border-left: 3px solid var(--teal);
+    }
+    .terms-block__text {
+      font-size: 6.5pt;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .terms-block__thankyou {
+      font-size: 7pt;
+      font-weight: 600;
+      color: var(--teal);
+      font-style: italic;
+      margin-top: 6px;
+    }
+
+    .bank-block {
+      background: var(--navy);
+      border-radius: 4px;
+      padding: 8px 14px;
+    }
+    .bank-block__title {
+      font-size: 5.5pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 4px;
+    }
+    .bank-block__text {
+      font-size: 6.5pt;
+      color: rgba(244,242,237,0.8);
+      line-height: 1.7;
+    }
+    .bank-block__text strong { color: var(--linen); font-weight: 600; }
+
+    /* Page footer bar */
+    .page-footer {
+      background: var(--navy);
+      padding: 5px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .page-footer__text {
+      font-size: 6pt;
+      color: rgba(244,242,237,0.5);
+      letter-spacing: 0.06em;
+    }
+    .page-footer__page {
+      font-size: 6pt;
+      color: rgba(244,242,237,0.5);
+    }
+
+    /* Gold accent line above page footer */
+    .page-footer-rule {
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold) 40%, transparent);
+    }
+
+    /* ============================================================
+       PRINT STYLES
+       ============================================================ */
+    @media print {
+      body { background: none; }
+      .page { margin: 0; box-shadow: none; width: 100%; min-height: 100vh; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ===== HEADER BAND ===== -->
+  <div class="doc-header">
+    <div class="doc-header__logo-block">
+      <img class="doc-header__logo" src="/assets/logo/logo_linen.svg" alt="Classic Visions">
+      <div class="doc-header__address">
+        Uplands, St. John &nbsp;·&nbsp; Barbados &nbsp;·&nbsp; BB20031<br>
+        TIN# 1000006494000<br>
+        Tel: 246-433-4928 &nbsp;·&nbsp; Fax: 246-433-4927<br>
+        <a href="#">www.classicvisions.net</a>
+      </div>
+    </div>
+    <div class="doc-header__title-block">
+      <div class="doc-header__label">Account Statement</div>
+      <div class="doc-header__title">Statement</div>
+    </div>
+  </div>
+  <div class="doc-header-rule"></div>
+
+  <!-- ===== BODY ===== -->
+  <div class="doc-body">
+
+    <!-- META + CUSTOMER ROW -->
+    <div class="meta-row">
+
+      <!-- Statement meta fields -->
+      <div class="meta-fields">
+        <div class="meta-field">
+          <span class="meta-field__label">Statement ID</span>
+          <span class="meta-field__value">{{FinARStatementID}}</span>
+        </div>
+        <div class="meta-field">
+          <span class="meta-field__label">Date as of</span>
+          <span class="meta-field__value">{{ToDate}}</span>
+        </div>
+        <div class="meta-field">
+          <span class="meta-field__label">Customer</span>
+          <span class="meta-field__value">{{CustomerName}}</span>
+        </div>
+        <div class="meta-field">
+          <span class="meta-field__label">Account</span>
+          <span class="meta-field__value">{{AccountNumber}}</span>
+        </div>
+      </div>
+
+      <!-- Customer block + summary -->
+      <div class="meta-right">
+        <div class="customer-block">
+          <div class="customer-block__name">{{CustomerName}}</div>
+          <div class="customer-block__address">
+            {{AddressLine1}}<br>
+            {{AddressLine2}}<br>
+            {{AddressLine3}}<br>
+            {{AddressLine4}}
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-box__head">Account Summary</div>
+          <div class="summary-row">
+            <span class="summary-row__label">Opening Balance</span>
+            <span class="summary-row__value">{{OpeningBalance}}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Invoices / Credits</span>
+            <span class="summary-row__value">{{Transactions}}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Finance Charges</span>
+            <span class="summary-row__value">{{FinanceCharges}}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Payments Received</span>
+            <span class="summary-row__value">{{Payments}}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Discounts / Allowance</span>
+            <span class="summary-row__value">{{Discount}}</span>
+          </div>
+          <div class="summary-row summary-row--balance">
+            <span class="summary-row__label">New Balance</span>
+            <span class="summary-row__value">{{ClosingBalance}}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row__label">Volume Discount</span>
+            <span class="summary-row__value">{{EligibleDiscount}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGEING SECTION -->
+    <div class="section-title">Ageing</div>
+    <table class="ageing-table">
+      <thead>
+        <tr>
+          <th>Current</th>
+          <th>30 September</th>
+          <th>60 September</th>
+          <th>90 September</th>
+          <th class="overdue">Overdue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{CurrentDue}}</td>
+          <td>{{AgingAmount1}}</td>
+          <td>{{AgingAmount2}}</td>
+          <td>{{AgingAmount3}}</td>
+          <td class="overdue">{{AgingAmount4}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- TRANSACTION DETAIL SECTION -->
+    <div class="section-title">Transaction Detail</div>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th style="width:58px">Date</th>
+          <th style="width:72px">Description</th>
+          <th style="width:52px">Invoice</th>
+          <th style="width:84px">Reference</th>
+          <th>Patient Name</th>
+          <th style="width:62px">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Group header — repeats per statement group -->
+        <tr class="group-header">
+          <td>{{TransactionDate}}</td>
+          <td>{{TypeName}}</td>
+          <td>{{InvoiceID}}</td>
+          <td>{{Reference}}</td>
+          <td>{{Patient}}</td>
+          <td style="text-align:right">{{Amount}}</td>
+        </tr>
+        <!-- Sample detail rows (populated by report engine) -->
+        <tr class="detail-row debit">
+          <td>14/08/2024</td>
+          <td>Payment</td>
+          <td></td>
+          <td>10995</td>
+          <td></td>
+          <td>-1,208.50</td>
+        </tr>
+        <tr class="detail-row credit">
+          <td>12/08/2024</td>
+          <td>Rx</td>
+          <td>68893</td>
+          <td></td>
+          <td>POLLARD, JULIET</td>
+          <td>399.50</td>
+        </tr>
+        <tr class="detail-row debit">
+          <td>23/08/2024</td>
+          <td>Rx</td>
+          <td>69374</td>
+          <td></td>
+          <td>BOURNE, MONICA</td>
+          <td>296.70</td>
+        </tr>
+        <tr class="detail-row credit">
+          <td>23/08/2024</td>
+          <td>Rx</td>
+          <td>69395</td>
+          <td>SLU PATIENT</td>
+          <td>ST JUSTE MARY</td>
+          <td>268.00</td>
+        </tr>
+        <tr class="detail-row debit">
+          <td>26/08/2024</td>
+          <td>Rx</td>
+          <td>69419</td>
+          <td></td>
+          <td>SCOTT, SHIRLEY</td>
+          <td>184.00</td>
+        </tr>
+        <tr class="detail-row credit">
+          <td>27/08/2024</td>
+          <td>Rx</td>
+          <td>69467</td>
+          <td>96735 CAVE SHEPHERD</td>
+          <td>PIERCE, LUCIA</td>
+          <td>296.70</td>
+        </tr>
+        <tr class="detail-row debit">
+          <td>28/08/2024</td>
+          <td>Rx</td>
+          <td>69530</td>
+          <td>76917 [SHER]</td>
+          <td>WILTSHIRE, JEHU</td>
+          <td>355.50</td>
+        </tr>
+        <tr class="detail-row credit">
+          <td>30/08/2024</td>
+          <td>Fulfillment</td>
+          <td>69608</td>
+          <td></td>
+          <td></td>
+          <td>134.00</td>
+        </tr>
+        <!-- New Balance row -->
+        <tr class="balance-row">
+          <td colspan="5" style="text-align:right;letter-spacing:0.06em;text-transform:uppercase;font-size:6.5pt;">New Balance</td>
+          <td>{{ClosingBalance}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- TOTALS BAND -->
+    <div class="totals-band">
+      <div class="totals-band__inner">
+        <div class="totals-col">
+          <div class="totals-col__row">
+            <span class="totals-col__label">Invoices</span>
+            <span class="totals-col__value">{{TotalInvoices}} <span class="totals-col__count">{{InvoiceCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">Credits</span>
+            <span class="totals-col__value">{{TotalCredits}} <span class="totals-col__count">{{CreditCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">Debits</span>
+            <span class="totals-col__value" style="color:#c0392b">{{TotalDebits}} <span class="totals-col__count">{{DebitCount}}</span></span>
+          </div>
+        </div>
+        <div class="totals-col">
+          <div class="totals-col__row">
+            <span class="totals-col__label">Regular</span>
+            <span class="totals-col__value">{{TotalRegular}} <span class="totals-col__count">{{RegularCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">Net</span>
+            <span class="totals-col__value">{{TotalNet}} <span class="totals-col__count">{{NetCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">SuperNet</span>
+            <span class="totals-col__value">{{TotalSuperNet}} <span class="totals-col__count">{{SuperNetCount}}</span></span>
+          </div>
+        </div>
+        <div class="totals-col">
+          <div class="totals-col__row">
+            <span class="totals-col__label">Rx</span>
+            <span class="totals-col__value">{{TotalRx}} <span class="totals-col__count">{{RxCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">Stock</span>
+            <span class="totals-col__value">{{TotalStock}} <span class="totals-col__count">{{StockCount}}</span></span>
+          </div>
+          <div class="totals-col__row">
+            <span class="totals-col__label">Tax Amount</span>
+            <span class="totals-col__value">{{TaxAmount}}</span>
+          </div>
+        </div>
+      </div>
+      <div class="totals-band__note">Please Deduct</div>
+    </div>
+
+  </div><!-- /.doc-body -->
+
+  <!-- ===== FOOTER ===== -->
+  <div class="doc-footer">
+    <div class="terms-block">
+      <div class="terms-block__text">
+        Account due when rendered. 1.5% Finance Charge per month will be made on accounts not cleared within terms stated above.
+        In the event of non-payment of this account, the Account Holder becomes liable for all collection fees &amp; expenses.
+      </div>
+      <div class="terms-block__thankyou">Thank you for your business!</div>
+    </div>
+
+    <div class="bank-block">
+      <div class="bank-block__title">Bank Transfer Information</div>
+      <div class="bank-block__text">
+        <strong>Bank:</strong> Bank of Nova Scotia &nbsp;·&nbsp;
+        <strong>SWIFT/BIC:</strong> NOSCBBBB &nbsp;·&nbsp;
+        <strong>Account No.:</strong> 448873<br>
+        <strong>Account Type:</strong> Chequing &nbsp;·&nbsp;
+        <strong>Account Name:</strong> Classic Visions &nbsp;·&nbsp;
+        <strong>Payment due:</strong> 30 days from date of invoice
+      </div>
+    </div>
+  </div>
+
+  <!-- Page footer bar -->
+  <div class="page-footer-rule"></div>
+  <div class="page-footer">
+    <span class="page-footer__text">Version 1.8 &nbsp;·&nbsp; Print Date: {{PrintDate}}</span>
+    <span class="page-footer__page">Page {{PageNum}} of {{PageTotal}}</span>
+  </div>
+
+</div><!-- /.page -->
+
+</body>
+</html>

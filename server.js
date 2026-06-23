@@ -111,6 +111,15 @@ const {
   updateRole,
   updateUser
 } = require("./lib/auth");
+const {
+  autosaveBillingDocument,
+  createBillingDocument,
+  deleteBillingDocument,
+  getBillingDocument,
+  listBillingDocuments,
+  updateBillingDocument,
+  updateBillingDocumentShares
+} = require("./lib/docstudio");
 
 // ─── Pricelist Builder (folded in from pricelist-automation) ─────────────────
 const PE = require("./lib/pricing-engine");
@@ -1312,6 +1321,78 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // ── Doc Studio API ────────────────────────────────────────────────────────
+
+  if (url.pathname === "/api/docstudio/users" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      const data = await listUsers();
+      return {
+        users: data.users
+          .filter((item) => item.isActive && item.userId !== user.userId)
+          .map((item) => ({
+            userId: item.userId,
+            username: item.username,
+            displayName: item.displayName,
+            email: item.email || ""
+          }))
+      };
+    });
+  }
+
+  if (url.pathname === "/api/docstudio/billing-documents" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      return listBillingDocuments(user.userId, url.searchParams.get("scope") || "all-accessible");
+    });
+  }
+
+  if (url.pathname === "/api/docstudio/billing-documents" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return createBillingDocument(await readJsonBody(req), user.userId);
+    }, 201);
+  }
+
+  const docStudioBillingMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)$/);
+  if (docStudioBillingMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.read");
+      return getBillingDocument(docStudioBillingMatch[1], user.userId);
+    });
+  }
+
+  if (docStudioBillingMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return updateBillingDocument(docStudioBillingMatch[1], await readJsonBody(req), user.userId);
+    });
+  }
+
+  if (docStudioBillingMatch && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return deleteBillingDocument(docStudioBillingMatch[1], user.userId);
+    });
+  }
+
+  const docStudioAutosaveMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)\/autosave$/);
+  if (docStudioAutosaveMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      return autosaveBillingDocument(docStudioAutosaveMatch[1], await readJsonBody(req), user.userId);
+    });
+  }
+
+  const docStudioSharesMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)\/shares$/);
+  if (docStudioSharesMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "docstudio.write");
+      const body = await readJsonBody(req);
+      return updateBillingDocumentShares(docStudioSharesMatch[1], body.shares || [], user.userId);
+    });
+  }
+
   if (url.pathname.startsWith("/api/")) {
     return sendJson(res, { error: "Not found" }, 404);
   }
@@ -1397,8 +1478,8 @@ function canAccessPage(requestPath, user) {
     "/integrations.html": ["integrations.read"],
     "/modules/automation": ["automation.read", "automation.manage"],
     "/automation.html": ["automation.read", "automation.manage"],
-    "/modules/doc-studio": ["platform.admin"],
-    "/doc-studio.html": ["platform.admin"],
+    "/modules/doc-studio": ["docstudio.read", "docstudio.write"],
+    "/doc-studio.html": ["docstudio.read", "docstudio.write"],
     "/modules/business-metrics": ["platform.admin"],
     "/business-metrics.html": ["platform.admin"]
   };
