@@ -85,6 +85,7 @@ const {
 } = require("./lib/delivery");
 const {
   findInvoiceItem,
+  getStatement,
   listCustomers,
   listDispatchers,
   listExportCustomers,
@@ -1462,6 +1463,16 @@ const server = http.createServer(async (req, res) => {
       const user = await requirePermission(req, "docstudio.write");
       const body = await readJsonBody(req);
       return updateBillingDocumentShares(docStudioSharesMatch[1], body.shares || [], user.userId);
+    });
+  }
+
+  // ── Statement API ──────────────────────────────────────────────────────────
+  const statementMatch = url.pathname.match(/^\/api\/statement\/([^/]+)$/);
+  if (statementMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "docstudio.read");
+      const data = await getStatement(statementMatch[1]);
+      return data;
     });
   }
 
