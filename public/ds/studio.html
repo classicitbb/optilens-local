@@ -2074,7 +2074,6 @@ class Component extends DCLogic {
     const FF = "'Plus Jakarta Sans',Arial,sans-serif";
     const rows = d.stRows || [];
     let bal = parseFloat(d.stOpenBal) || 0;
-    const linenLogoSrc = (this.logos && this.logos.linen) ? this.logos.linen : '/ds/assets/logo_linen.svg';
     const currentDue = parseFloat(d.stCurrentDue) || 0;
     const aging1 = parseFloat(d.stAging1) || 0;
     const aging2 = parseFloat(d.stAging2) || 0;
@@ -2107,17 +2106,16 @@ class Component extends DCLogic {
     const ageRow = (label, val, isOverdue) => val ? `<tr><td style="padding:7px 16px;font:400 11.5px/1.3 ${FF};color:${isOverdue?'#c0392b':'#5b6b7c'};border-bottom:1px solid #f0ede6">${label}</td><td style="padding:7px 16px;font:600 12px/1.3 ${FF};color:${isOverdue?'#c0392b':'#0B1E35'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${fmt(val)}</td></tr>` : '';
     const totCell = (label, val) => `<div style="flex:1;text-align:center;padding:10px 6px;border-right:1px solid #e7e4db"><div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;margin-bottom:5px">${label}</div><div style="font:700 12.5px/1 ${FF};color:#0B1E35">${fmt(val)}</div></div>`;
     return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 10px 40px -10px rgba(11,30,53,.22)">
-      <div style="background:#0B1E35;padding:26px 36px 22px;display:flex;align-items:flex-start;justify-content:space-between">
-        <div style="display:flex;align-items:center;gap:14px">
-          <img src="${linenLogoSrc}" width="48" height="48" alt="Classic Visions" style="display:block;width:48px;height:48px">
-          <div><div style="font:800 15px/1 ${FF};letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 8px/1 ${FF};letter-spacing:.28em;color:#C89130;margin-top:5px">OPTICAL · BARBADOS</div></div>
-        </div>
-        <div style="text-align:right">
-          <div style="font:800 20px/1 ${FF};letter-spacing:.08em;color:#F4F2ED;margin-bottom:4px">ACCOUNT STATEMENT</div>
-          ${d.stFrom||d.stTo?`<div style="font:400 11.5px/1.5 ${FF};color:rgba(244,242,237,.65)">${esc(d.stFrom||'')}${d.stFrom&&d.stTo?' — ':''}${esc(d.stTo||'')}</div>`:''}
-        </div>
+      <div style="padding:28px 36px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+          <td style="vertical-align:middle">${this.lockup('light', { big: true })}</td>
+          <td style="vertical-align:middle;text-align:right">
+            <div style="font:800 20px/1 ${FF};letter-spacing:.07em;color:#0B1E35;margin-bottom:5px">ACCOUNT STATEMENT</div>
+            ${d.stFrom||d.stTo?`<div style="font:400 11.5px/1.5 ${FF};color:#5b6b7c">${esc(d.stFrom||'')}${d.stFrom&&d.stTo?' — ':''}${esc(d.stTo||'')}</div>`:''}
+          </td>
+        </tr></table>
+        <div style="height:2px;background:#C89130;margin:20px 0 0;font-size:0;line-height:0">&nbsp;</div>
       </div>
-      <div style="height:3px;background:linear-gradient(90deg,#C89130 0%,#e8c06a 50%,#C89130 100%)"></div>
       <div style="display:flex">
         <div style="flex:1;padding:20px 24px;border-right:1px solid #e7e4db;border-left:3px solid #C89130;background:#fdfcf9">
           ${d.stStatementDate||d.stStatementNo||d.stAccount?`<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px">
