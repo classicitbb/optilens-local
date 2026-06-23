@@ -529,17 +529,93 @@
       <!-- ---------- CUSTOMER STATEMENT ---------- -->
       <sc-if value="{{ isStatement }}" hint-placeholder-val="{{ false }}">
       <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer name</div><select class="cv-in" value="{{ selectedStatementCustomer }}" onChange="{{ applyCustomerToStatement }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select customer</option><sc-for list="{{ customerOptions }}" as="c" hint-placeholder-count="0"><option value="{{ c.account }}">{{ c.label }}</option></sc-for></select><input class="cv-in" value="{{ f.stCustomer.v }}" onChange="{{ f.stCustomer.on }}" placeholder="Customer name" style="width:100%;margin-top:7px;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+
+        <!-- Statement type -->
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Statement type</div>
+          <div style="display:flex;gap:7px"><sc-for list="{{ stTypeOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
+        </div>
+
+        <!-- Customer -->
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer</div>
+          <select class="cv-in" value="{{ selectedStatementCustomer }}" onChange="{{ applyCustomerToStatement }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"><option value="">Select customer</option><sc-for list="{{ customerOptions }}" as="c" hint-placeholder-count="0"><option value="{{ c.account }}">{{ c.label }}</option></sc-for></select>
+          <input class="cv-in" value="{{ f.stCustomer.v }}" onChange="{{ f.stCustomer.on }}" placeholder="Customer name" style="width:100%;margin-top:7px;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+        </div>
+
+        <!-- DB Populate -->
+        <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;background:#f7f5ef;border-radius:9px;border:1.5px dashed #c8c4bb">
+          <div style="flex:1;min-width:0">
+            <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;margin-bottom:4px">Populate from database</div>
+            <div style="font:400 11px/1.5 'Plus Jakarta Sans',sans-serif;color:#5b6b7c">{{ stDbStatusLabel }}</div>
+          </div>
+          <button onClick="{{ promptStatementDb }}" style="flex:none;padding:8px 14px;border:1px solid #0B1E35;border-radius:8px;background:#0B1E35;color:#F4F2ED;font:700 11.5px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">{{ stDbBtnLabel }}</button>
+          <sc-if value="{{ stHasDbData }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ clearStatementDb }}" title="Clear DB data" style="flex:none;padding:8px 11px;border:1px solid #e7e4db;border-radius:8px;background:#fff;color:#b3aa9a;font:700 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">✕</button>
+          </sc-if>
+        </div>
+
+        <!-- DB + manual rows warning -->
+        <sc-if value="{{ stDbDataAndRows }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:10px 14px;background:#fff8ec;border-left:3px solid #C89130;border-radius:0 8px 8px 0">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8a6500;margin-bottom:4px">⚠ Manual transactions added to DB statement</div>
+          <div style="font:400 11px/1.5 'Plus Jakarta Sans',sans-serif;color:#7a5c00">Adding manual transactions to a database-populated statement changes the running balance. Verify amounts carefully before printing.</div>
+        </div>
+        </sc-if>
+
         <div style="display:flex;gap:11px">
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Account #</div><input class="cv-in" value="{{ f.stAccount.v }}" onChange="{{ f.stAccount.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Currency</div><div style="display:flex;gap:7px"><sc-for list="{{ stCurrencyOpts }}" as="o" hint-placeholder-count="2"><button onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div>
         </div>
+
         <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Customer address</div><textarea class="cv-in" value="{{ f.stAddr.v }}" onChange="{{ f.stAddr.on }}" rows="2" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13px/1.5 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;resize:vertical"></textarea></div>
+
         <div style="display:flex;gap:11px">
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period from</div><input class="cv-in" value="{{ f.stFrom.v }}" onChange="{{ f.stFrom.on }}" placeholder="1 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
           <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Period to</div><input class="cv-in" value="{{ f.stTo.v }}" onChange="{{ f.stTo.on }}" placeholder="30 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
         </div>
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Opening balance</div><input class="cv-in" value="{{ f.stOpenBal.v }}" onChange="{{ f.stOpenBal.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+
+        <div style="display:flex;gap:11px">
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Opening balance <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#8a93a0">(ignored if DB loaded)</span></div><input class="cv-in" value="{{ f.stOpenBal.v }}" onChange="{{ f.stOpenBal.on }}" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:600 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          <div style="flex:1"><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Statement date</div><input class="cv-in" value="{{ f.stStatementDate.v }}" onChange="{{ f.stStatementDate.on }}" placeholder="e.g. 30 June 2025" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </div>
+
+        <!-- Advanced-only: Ageing -->
+        <sc-if value="{{ isAdvancedStatement }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid #efece3;padding-top:14px">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Account Summary — Ageing</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:74px"><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Current</div><input class="cv-in" value="{{ f.stCurrentDue.v }}" onChange="{{ f.stCurrentDue.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1;min-width:74px"><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#c0392b;margin-bottom:5px">30 Days</div><input class="cv-in" value="{{ f.stAging1.v }}" onChange="{{ f.stAging1.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1;min-width:74px"><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#c0392b;margin-bottom:5px">60 Days</div><input class="cv-in" value="{{ f.stAging2.v }}" onChange="{{ f.stAging2.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1;min-width:74px"><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#c0392b;margin-bottom:5px">90 Days</div><input class="cv-in" value="{{ f.stAging3.v }}" onChange="{{ f.stAging3.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div style="flex:1;min-width:74px"><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#c0392b;margin-bottom:5px">120+ Days</div><input class="cv-in" value="{{ f.stAging4.v }}" onChange="{{ f.stAging4.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:9px;align-items:center">
+            <div style="font:700 10px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#0B1E35">New Balance</div>
+            <input class="cv-in" value="{{ f.stNewBalance.v }}" onChange="{{ f.stNewBalance.on }}" placeholder="0.00" style="width:110px;padding:7px 9px;border:1px solid #0B1E35;border-radius:7px;font:700 13px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none">
+          </div>
+        </div>
+
+        <!-- Advanced-only: Summary totals -->
+        <div style="border-top:1px solid #efece3;padding-top:14px">
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Summary totals</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Invoices</div><input class="cv-in" value="{{ f.stInvTotal.v }}" onChange="{{ f.stInvTotal.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Credits</div><input class="cv-in" value="{{ f.stCreditTotal.v }}" onChange="{{ f.stCreditTotal.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Debits</div><input class="cv-in" value="{{ f.stDebitTotal.v }}" onChange="{{ f.stDebitTotal.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Regular Bal</div><input class="cv-in" value="{{ f.stRegularBal.v }}" onChange="{{ f.stRegularBal.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Net Balance</div><input class="cv-in" value="{{ f.stNetAmount.v }}" onChange="{{ f.stNetAmount.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Super Net</div><input class="cv-in" value="{{ f.stSuperNetAmount.v }}" onChange="{{ f.stSuperNetAmount.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Rx Amount</div><input class="cv-in" value="{{ f.stRxAmount.v }}" onChange="{{ f.stRxAmount.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Stock Amount</div><input class="cv-in" value="{{ f.stStockAmount.v }}" onChange="{{ f.stStockAmount.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+            <div><div style="font:600 10px/1 'Plus Jakarta Sans',sans-serif;color:#5b6b7c;margin-bottom:5px">Tax Amount</div><input class="cv-in" value="{{ f.stTaxAmount.v }}" onChange="{{ f.stTaxAmount.on }}" placeholder="0.00" style="width:100%;padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 12px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- Transactions — Simple -->
+        <sc-if value="{{ isSimpleStatement }}" hint-placeholder-val="{{ true }}">
         <div>
           <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Transactions</div>
           <sc-for list="{{ stRowViews }}" as="r" hint-placeholder-count="1">
@@ -553,7 +629,27 @@
           </sc-for>
           <button onClick="{{ addStRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add transaction</button>
         </div>
-        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note — optional</div><input class="cv-in" value="{{ f.stNote.v }}" onChange="{{ f.stNote.on }}" placeholder="Payment due within 30 days…" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
+        </sc-if>
+
+        <!-- Transactions — Advanced (with Patient column) -->
+        <sc-if value="{{ isAdvancedStatement }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:9px">Transactions</div>
+          <sc-for list="{{ stRowViews }}" as="r" hint-placeholder-count="1">
+            <div style="display:grid;grid-template-columns:90px 1fr 2fr 80px 80px auto;gap:5px;margin-bottom:7px;align-items:center">
+              <input class="cv-in" value="{{ r.date }}" onChange="{{ r.onDate }}" placeholder="Date" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.patient }}" onChange="{{ r.onPatient }}" placeholder="Patient" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.desc }}" onChange="{{ r.onDesc }}" placeholder="Description" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.debit }}" onChange="{{ r.onDebit }}" placeholder="Debit" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <input class="cv-in" value="{{ r.credit }}" onChange="{{ r.onCredit }}" placeholder="Credit" style="padding:7px 8px;border:1px solid #d9d7cf;border-radius:7px;font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none;width:100%">
+              <button onClick="{{ r.del }}" style="background:none;border:1px solid #e0ddd6;border-radius:6px;color:#b3aa9a;cursor:pointer;padding:5px 8px;font-size:13px;line-height:1">×</button>
+            </div>
+          </sc-for>
+          <button onClick="{{ addStRow }}" style="width:100%;padding:8px;border:1.5px dashed #c8c4bb;border-radius:8px;background:none;color:#5b6b7c;font:600 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">+ Add transaction</button>
+        </div>
+        </sc-if>
+
+        <div><div style="font:700 11px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#1A8A9C;margin-bottom:7px">Footer note / terms — optional</div><input class="cv-in" value="{{ f.stNote.v }}" onChange="{{ f.stNote.on }}" placeholder="Payment due within 30 days…" style="width:100%;padding:9px 11px;border:1px solid #d9d7cf;border-radius:8px;font:400 13.5px/1.4 'Plus Jakarta Sans',sans-serif;color:#0B1E35;background:#fff;outline:none"></div>
       </div>
       </sc-if>
 
@@ -962,7 +1058,11 @@ class Component extends DCLogic {
     slToName: '', slToCompany: '', slToAddr: '', slToPhone: '', slCarrier: '', slService: '', slTracking: '', slWeight: '', slDims: '', slNote: '',
     // Customer statement
     stCustomer: '', stAccount: '', stAddr: '', stFrom: '', stTo: '', stCurrency: 'BBD', stOpenBal: '0.00',
-    stRows: [{ id: '1', date: '', desc: '', debit: '', credit: '' }], stNote: '',
+    stRows: [{ id: '1', date: '', desc: '', patient: '', debit: '', credit: '' }], stNote: '',
+    stType: 'simple', stDbId: '', stDbData: null, stDbLoading: false, stStatementDate: '', stStatementNo: '',
+    stCurrentDue: '', stAging1: '', stAging2: '', stAging3: '', stAging4: '', stNewBalance: '',
+    stInvTotal: '', stCreditTotal: '', stDebitTotal: '', stRegularBal: '',
+    stRxAmount: '', stStockAmount: '', stNetAmount: '', stSuperNetAmount: '', stTaxAmount: '',
     // Supplier identity (tax-compliance fields, shared)
     bAddress: 'Worthing, Christ Church, Barbados', bRegNo: '', bVatReg: '',
     // Bank details (shared, shown on invoice / quote / proforma)
@@ -1503,7 +1603,7 @@ class Component extends DCLogic {
     if (t === 'social') { this.openSmFull(); return; }
     if (t === 'pricelist') { this.printDoc(this.buildPricelist(), 'Price List'); return; }
     if (t === 'shiplabel') { this.printDoc(this.buildShippingLabel(), 'Shipping Label'); return; }
-    if (t === 'statement') { this.printDoc(this.buildStatement(), 'Customer Statement'); return; }
+    if (t === 'statement') { this.printDoc(this.state.stType === 'advanced' ? this.buildAdvancedStatement() : this.buildStatement(), 'Customer Statement'); return; }
     if (t === 'billing') { this.printDoc(this.buildBilling(), this.billMeta().title, this.state.billPaperSize || 'letter'); return; }
     this.copyRich(t === 'email' ? this.buildEmail() : t === 'letter' ? this.buildLetter() : this.buildSignature());
   };
@@ -1752,9 +1852,64 @@ class Component extends DCLogic {
   };
 
   // ---------- STATEMENT rows ----------
-  addStRow = () => this.setState(s => ({ stRows: [...(s.stRows||[]), { id: Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }), this.persistSoon);
-  delStRow = (i) => this.setState(s => { const r=[...(s.stRows||[])]; r.splice(i,1); return { stRows: r.length ? r : [{ id:Date.now()+'', date:'', desc:'', debit:'', credit:'' }] }; }, this.persistSoon);
+  addStRow = () => this.setState(s => ({ stRows: [...(s.stRows||[]), { id: Date.now()+'', date:'', desc:'', patient:'', debit:'', credit:'' }] }), this.persistSoon);
+  delStRow = (i) => this.setState(s => { const r=[...(s.stRows||[])]; r.splice(i,1); return { stRows: r.length ? r : [{ id:Date.now()+'', date:'', desc:'', patient:'', debit:'', credit:'' }] }; }, this.persistSoon);
   updateStRow = (i, key, val) => this.setState(s => { const r=[...(s.stRows||[])]; r[i]={...r[i],[key]:val}; return { stRows:r }; }, this.persistSoon);
+
+  // ---------- STATEMENT db populate ----------
+  promptStatementDb = () => {
+    const id = prompt('Enter Statement ID to load from database:', this.state.stDbId || '');
+    if (id === null) return;
+    if (!id.trim()) { this.clearStatementDb(); return; }
+    this.populateStatementFromDb(id.trim());
+  };
+  clearStatementDb = () => {
+    this.setState({ stDbId: '', stDbData: null, stDbLoading: false }, this.persistSoon);
+    this.toast('Database data cleared — using manual fields');
+  };
+  populateStatementFromDb = async (id) => {
+    this.setState({ stDbLoading: true, stDbId: id });
+    try {
+      const r = await fetch('/api/statement/' + encodeURIComponent(id), { credentials: 'same-origin' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      const d = data.statement || data;
+      this.setState({
+        stDbLoading: false, stDbData: d,
+        stCustomer: d.customerName || d.customer || this.state.stCustomer,
+        stAccount: d.accountNumber || d.account || this.state.stAccount,
+        stAddr: d.address || this.state.stAddr,
+        stFrom: d.periodFrom || d.statementFrom || this.state.stFrom,
+        stTo: d.periodTo || d.statementTo || this.state.stTo,
+        stOpenBal: d.openingBalance != null ? String(d.openingBalance) : this.state.stOpenBal,
+        stStatementNo: d.statementNumber || d.statementNo || id,
+        stStatementDate: d.statementDate || d.date || '',
+        stCurrentDue: d.currentDue != null ? String(d.currentDue) : '',
+        stAging1: d.aging1 != null ? String(d.aging1) : (d.agingAmount1 != null ? String(d.agingAmount1) : ''),
+        stAging2: d.aging2 != null ? String(d.aging2) : (d.agingAmount2 != null ? String(d.agingAmount2) : ''),
+        stAging3: d.aging3 != null ? String(d.aging3) : (d.agingAmount3 != null ? String(d.agingAmount3) : ''),
+        stAging4: d.aging4 != null ? String(d.aging4) : (d.agingAmount4 != null ? String(d.agingAmount4) : ''),
+        stNewBalance: d.newBalance != null ? String(d.newBalance) : '',
+        stInvTotal: d.invoiceTotal != null ? String(d.invoiceTotal) : '',
+        stCreditTotal: d.creditTotal != null ? String(d.creditTotal) : '',
+        stDebitTotal: d.debitTotal != null ? String(d.debitTotal) : '',
+        stRegularBal: d.regularBalance != null ? String(d.regularBalance) : '',
+        stRxAmount: d.rxAmount != null ? String(d.rxAmount) : '',
+        stStockAmount: d.stockAmount != null ? String(d.stockAmount) : '',
+        stNetAmount: d.netAmount != null ? String(d.netAmount) : '',
+        stSuperNetAmount: d.superNetAmount != null ? String(d.superNetAmount) : '',
+        stTaxAmount: d.taxAmount != null ? String(d.taxAmount) : '',
+        stRows: Array.isArray(d.transactions) ? d.transactions.map((t, idx) => ({
+          id: String(idx + 1), date: t.date || '', desc: t.description || t.desc || '',
+          patient: t.patientName || t.patient || '', debit: t.debit != null ? String(t.debit) : '', credit: t.credit != null ? String(t.credit) : ''
+        })) : this.state.stRows
+      }, this.persistSoon);
+      this.toast('Statement ' + id + ' loaded from database');
+    } catch (e) {
+      this.setState({ stDbLoading: false });
+      this.toast('Could not load statement: ' + (e.message || 'check connection'));
+    }
+  };
 
   // ---------- generic print ----------
   printDoc = (html, title, pageSize) => {
@@ -1866,6 +2021,125 @@ class Component extends DCLogic {
       </div>
       ${d.stNote?`<div style="padding:${Math.round(14*fit)}px 52px 0;font:400 ${this.fitFont(12, fit, 8)}px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#5b6b7c;font-style:italic;${this.clampTextStyle()}">${esc(d.stNote)}</div>`:''}
       <div style="padding:${Math.round(34*fit)}px 52px ${Math.round(44*fit)}px"><div style="height:1px;background:#e7e4db;margin-bottom:14px"></div><div style="text-align:center;font:400 ${this.fitFont(11, fit, 7)}px/1.45 'Plus Jakarta Sans',Arial,sans-serif;color:#8a93a0;${this.clampTextStyle()}">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
+    </div>`;
+  };
+
+  // ---------- ADVANCED STATEMENT build ----------
+  buildAdvancedStatement = () => {
+    const d = this.state, b = this.brand(), esc = this.esc;
+    const cur = d.stCurrency || 'BBD';
+    const fmt = (n) => { const v = parseFloat(n); return isNaN(v) ? '0.00' : v.toFixed(2); };
+    const FF = "'Plus Jakarta Sans',Arial,sans-serif";
+    const rows = d.stRows || [];
+    let bal = parseFloat(d.stOpenBal) || 0;
+    const linenLogoSrc = (this.logos && this.logos.linen) ? this.logos.linen : '/ds/assets/logo_linen.svg';
+    const currentDue = parseFloat(d.stCurrentDue) || 0;
+    const aging1 = parseFloat(d.stAging1) || 0;
+    const aging2 = parseFloat(d.stAging2) || 0;
+    const aging3 = parseFloat(d.stAging3) || 0;
+    const aging4 = parseFloat(d.stAging4) || 0;
+    const newBalance = parseFloat(d.stNewBalance) || (currentDue + aging1 + aging2 + aging3 + aging4);
+    const invTotal = parseFloat(d.stInvTotal) || 0;
+    const creditTotal = parseFloat(d.stCreditTotal) || 0;
+    const debitTotal = parseFloat(d.stDebitTotal) || 0;
+    const regularBal = parseFloat(d.stRegularBal) || 0;
+    const rxAmount = parseFloat(d.stRxAmount) || 0;
+    const stockAmount = parseFloat(d.stStockAmount) || 0;
+    const netAmount = parseFloat(d.stNetAmount) || (invTotal - creditTotal);
+    const superNetAmount = parseFloat(d.stSuperNetAmount) || 0;
+    const taxAmount = parseFloat(d.stTaxAmount) || 0;
+    let rowsHtml = '';
+    rows.forEach((r, i) => {
+      const debit = parseFloat(r.debit) || 0, credit = parseFloat(r.credit) || 0;
+      bal += debit - credit;
+      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}">
+        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#5b6b7c;border-bottom:1px solid #f0ede6">${esc(r.date)}</td>
+        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.patient||'')}</td>
+        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.desc)}</td>
+        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:${debit?'#c0392b':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${debit?fmt(debit):''}</td>
+        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:${credit?'#1c7a52':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${credit?fmt(credit):''}</td>
+        <td style="padding:8px 10px;font:600 11.5px/1.3 ${FF};color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${fmt(bal)}</td>
+      </tr>`;
+    });
+    if (!rowsHtml) rowsHtml = `<tr><td colspan="6" style="padding:18px 10px;font:400 12px/1.4 ${FF};color:#a7a596;font-style:italic">No transactions — add manually or populate from database.</td></tr>`;
+    const ageRow = (label, val, isOverdue) => val ? `<tr><td style="padding:7px 16px;font:400 11.5px/1.3 ${FF};color:${isOverdue?'#c0392b':'#5b6b7c'};border-bottom:1px solid #f0ede6">${label}</td><td style="padding:7px 16px;font:600 12px/1.3 ${FF};color:${isOverdue?'#c0392b':'#0B1E35'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${fmt(val)}</td></tr>` : '';
+    const totCell = (label, val) => `<div style="flex:1;text-align:center;padding:10px 6px;border-right:1px solid #e7e4db"><div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;margin-bottom:5px">${label}</div><div style="font:700 12.5px/1 ${FF};color:#0B1E35">${fmt(val)}</div></div>`;
+    return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 10px 40px -10px rgba(11,30,53,.22)">
+      <div style="background:#0B1E35;padding:26px 36px 22px;display:flex;align-items:flex-start;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:14px">
+          <img src="${linenLogoSrc}" width="48" height="48" alt="Classic Visions" style="display:block;width:48px;height:48px">
+          <div><div style="font:800 15px/1 ${FF};letter-spacing:.06em;color:#F4F2ED">CLASSIC VISIONS</div><div style="font:700 8px/1 ${FF};letter-spacing:.28em;color:#C89130;margin-top:5px">OPTICAL · BARBADOS</div></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font:800 20px/1 ${FF};letter-spacing:.08em;color:#F4F2ED;margin-bottom:4px">ACCOUNT STATEMENT</div>
+          ${d.stFrom||d.stTo?`<div style="font:400 11.5px/1.5 ${FF};color:rgba(244,242,237,.65)">${esc(d.stFrom||'')}${d.stFrom&&d.stTo?' — ':''}${esc(d.stTo||'')}</div>`:''}
+        </div>
+      </div>
+      <div style="height:3px;background:linear-gradient(90deg,#C89130 0%,#e8c06a 50%,#C89130 100%)"></div>
+      <div style="display:flex">
+        <div style="flex:1;padding:20px 24px;border-right:1px solid #e7e4db;border-left:3px solid #C89130;background:#fdfcf9">
+          ${d.stStatementDate||d.stStatementNo||d.stAccount?`<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px">
+            ${d.stStatementDate?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Date</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stStatementDate)}</td></tr>`:''}
+            ${d.stAccount?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Account</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stAccount)}</td></tr>`:''}
+            ${d.stStatementNo?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Statement #</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stStatementNo)}</td></tr>`:''}
+          </table>`:''}
+          <div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;margin-bottom:5px">Statement To</div>
+          <div style="font:700 14px/1.4 ${FF};color:#0B1E35">${esc(d.stCustomer||'Customer Name')}</div>
+          ${d.stAddr?`<div style="font:400 11.5px/1.6 ${FF};color:#5b6b7c;white-space:pre-wrap;margin-top:3px">${esc(d.stAddr)}</div>`:''}
+        </div>
+        <div style="min-width:210px;max-width:240px">
+          <div style="background:#0B1E35;padding:9px 16px"><div style="font:700 10px/1 ${FF};letter-spacing:.16em;text-transform:uppercase;color:#C89130">Account Summary</div></div>
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
+            ${ageRow('Current Due', currentDue, false)}
+            ${ageRow('30 Days', aging1, true)}
+            ${ageRow('60 Days', aging2, true)}
+            ${ageRow('90 Days', aging3, true)}
+            ${ageRow('120+ Days', aging4, true)}
+          </table>
+          <div style="background:#0B1E35;padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font:700 9px/1 ${FF};letter-spacing:.12em;text-transform:uppercase;color:#C89130">New Balance</div>
+            <div style="font:800 14px/1 ${FF};color:#F4F2ED">${cur} ${fmt(newBalance)}</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 24px 0">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:8px;overflow:hidden">
+          <thead><tr style="background:#0B1E35">
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Date</th>
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Patient</th>
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th>
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#c0392b;text-align:right">Debit</th>
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Credit</th>
+            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:right">Balance</th>
+          </tr></thead>
+          <tbody>
+            <tr style="background:#f7f5ef"><td colspan="5" style="padding:7px 10px;font:600 11.5px/1.3 ${FF};color:#5b6b7c">Opening balance</td><td style="padding:7px 10px;font:700 12px/1 ${FF};color:#0B1E35;text-align:right;white-space:nowrap">${fmt(parseFloat(d.stOpenBal)||0)}</td></tr>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin:16px 24px 0;border:1px solid #e7e4db;border-radius:8px;overflow:hidden">
+        <div style="display:flex;background:#fdfcf9">
+          ${totCell('Invoices', invTotal)}
+          ${totCell('Credits', creditTotal)}
+          ${totCell('Debits', debitTotal)}
+          ${totCell('Regular Bal', regularBal)}
+          <div style="flex:1;text-align:center;padding:10px 6px;border-right:1px solid #e7e4db"><div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;margin-bottom:5px">Net Balance</div><div style="font:800 12.5px/1 ${FF};color:#0B1E35">${fmt(netAmount)}</div></div>
+          ${totCell('Super Net', superNetAmount)}
+        </div>
+        <div style="display:flex;background:#fff;border-top:1px solid #e7e4db">
+          ${totCell('Rx Amount', rxAmount)}
+          ${totCell('Stock Amount', stockAmount)}
+          ${totCell('Tax Amount', taxAmount)}
+          <div style="flex:3;text-align:right;padding:10px 18px;display:flex;align-items:center;justify-content:flex-end;gap:12px">
+            <div style="font:700 10px/1 ${FF};letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C">Balance Due</div>
+            <div style="font:800 17px/1 ${FF};color:#0B1E35">${cur} ${fmt(newBalance)}</div>
+          </div>
+        </div>
+      </div>
+      ${creditTotal?`<div style="margin:0 24px;background:#C89130;padding:7px 16px;text-align:right;border-radius:0 0 6px 6px"><span style="font:700 10px/1 ${FF};letter-spacing:.14em;text-transform:uppercase;color:#0B1E35">Please Deduct &nbsp;</span><span style="font:800 13px/1 ${FF};color:#0B1E35">${cur} ${fmt(creditTotal)}</span></div>`:''}
+      ${d.stNote?`<div style="margin:16px 24px 0;padding:11px 15px;border-left:3px solid #1A8A9C;background:#f0f9fb;border-radius:0 8px 8px 0"><div style="font:400 12px/1.6 ${FF};color:#0B1E35">${esc(d.stNote)}</div></div>`:''}
+      <div style="padding:20px 24px 36px"><div style="height:1px;background:#e7e4db;margin-bottom:12px"></div><div style="text-align:center;font:400 10.5px/1.6 ${FF};color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
     </div>`;
   };
 
@@ -2532,7 +2806,9 @@ class Component extends DCLogic {
     const f = {};
     ['emEyebrow', 'emPreheader', 'emHeading', 'emCta', 'emCtaUrl', 'emHeroUrl', 'emTagline', 'emDisclaimer', 'ltDate', 'ltRecipient', 'ltSubject', 'ltSignName', 'ltSignTitle', 'ltTo', 'ltFrom', 'ltRe', 'ltEyebrow', 'ltAmount', 'sgName', 'sgTitle', 'sgPhone', 'sgEmail', 'sgWeb', 'sgTagline', 'smHeadline', 'smSub', 'smHandle', 'plCustomer', 'plAttn', 'plDate', 'plValidity', 'plNote', 'slFromName', 'slFromAddr', 'slFromPhone', 'slToName', 'slToCompany', 'slToAddr', 'slToPhone', 'slCarrier', 'slService', 'slTracking', 'slWeight', 'slDims', 'slNote', 'stCustomer', 'stAccount', 'stAddr', 'stFrom', 'stTo', 'stOpenBal', 'stNote',
       'blNumber', 'blDate', 'blDue', 'blPO', 'blToName', 'blToCompany', 'blToAddr', 'blToAttn', 'blVatRate', 'blDiscount', 'blShipping', 'blPaidMethod', 'blPaidRef', 'blAmountPaid', 'blNotes',
-      'bkBankName', 'bkAccName', 'bkAccNo', 'bkBranch', 'bkSwift', 'bkNote'].forEach(k => {
+      'bkBankName', 'bkAccName', 'bkAccNo', 'bkBranch', 'bkSwift', 'bkNote',
+      'stStatementDate', 'stStatementNo', 'stCurrentDue', 'stAging1', 'stAging2', 'stAging3', 'stAging4', 'stNewBalance',
+      'stInvTotal', 'stCreditTotal', 'stDebitTotal', 'stRegularBal', 'stRxAmount', 'stStockAmount', 'stNetAmount', 'stSuperNetAmount', 'stTaxAmount'].forEach(k => {
       f[k] = { v: d[k] == null ? '' : d[k], on: (e) => this.set(k, e.target.value) };
     });
     const tab = d.tab;
@@ -2549,7 +2825,7 @@ class Component extends DCLogic {
         )
       );
     } else {
-      const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? this.buildStatement() : tab === 'billing' ? this.buildBilling() : this.buildSignatureBoard();
+      const html = tab === 'email' ? this.buildEmail() : tab === 'letter' ? this.buildLetter() : tab === 'pricelist' ? this.buildPricelist() : tab === 'shiplabel' ? this.buildShippingLabel() : tab === 'statement' ? (d.stType === 'advanced' ? this.buildAdvancedStatement() : this.buildStatement()) : tab === 'billing' ? this.buildBilling() : this.buildSignatureBoard();
       previewNode = React.createElement('div', { style: { width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }, dangerouslySetInnerHTML: { __html: html } });
     }
     const tabs = [['files', 'My Files'], ['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
@@ -2736,10 +3012,21 @@ class Component extends DCLogic {
       })),
       addPlRow: this.addPlRow,
       stCurrencyOpts: this.seg('stCurrency', [{ k: 'BBD', l: 'BBD' }, { k: 'USD', l: 'USD' }]),
+      stTypeOpts: [{ k: 'simple', l: 'Simple Statement' }, { k: 'advanced', l: 'Advanced Statement' }].map(o => ({ label: o.l, onClick: () => this.set('stType', o.k), style: this.segStyle(d.stType === o.k) })),
+      isSimpleStatement: d.stType !== 'advanced',
+      isAdvancedStatement: d.stType === 'advanced',
+      stHasDbData: !!d.stDbData,
+      stDbLoading: d.stDbLoading || false,
+      stDbStatusLabel: d.stDbData ? ('Loaded: Statement ' + (d.stDbId || '')) : (d.stDbId ? 'Statement ' + d.stDbId + ' — not yet loaded' : 'No data loaded — fields are manual'),
+      stDbBtnLabel: d.stDbLoading ? 'Loading…' : (d.stDbData ? 'Change ID' : 'Enter ID'),
+      stDbDataAndRows: !!d.stDbData && (d.stRows || []).some(r => r.date || r.desc || r.debit || r.credit),
+      promptStatementDb: this.promptStatementDb,
+      clearStatementDb: this.clearStatementDb,
       stRowViews: (d.stRows || []).map((r, i) => ({
-        date: r.date, desc: r.desc, debit: r.debit, credit: r.credit,
+        date: r.date, desc: r.desc, patient: r.patient || '', debit: r.debit, credit: r.credit,
         onDate: (e) => this.updateStRow(i, 'date', e.target.value),
         onDesc: (e) => this.updateStRow(i, 'desc', e.target.value),
+        onPatient: (e) => this.updateStRow(i, 'patient', e.target.value),
         onDebit: (e) => this.updateStRow(i, 'debit', e.target.value),
         onCredit: (e) => this.updateStRow(i, 'credit', e.target.value),
         del: () => this.delStRow(i)
