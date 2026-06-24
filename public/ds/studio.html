@@ -2154,24 +2154,24 @@ class Component extends DCLogic {
     // ── print date ──────────────────────────────────────────────────────────
     const printDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 10px 40px -10px rgba(11,30,53,.22)">
+    return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 4px 24px -6px rgba(11,30,53,.1);border:1px solid #dde3ea">
 
-      <!-- ═══ HEADER ═══ -->
-      <div style="background:#0B1E35;padding:18px 24px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
-        <div style="display:flex;flex-direction:column;gap:7px">
-          <img src="${this.logoSrc('linen')}" height="42" style="height:42px;width:auto;display:block" alt="${esc(b.name||'Classic Visions')}">
-          <div style="color:rgba(244,242,237,.65);font:400 6.5pt/1.65 ${FF};letter-spacing:.01em">
+      <!-- ═══ HEADER — light ═══ -->
+      <div style="padding:18px 24px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e4e9ee">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${this.lockup('light', { big: true })}
+          <div style="font:400 6.5pt/1.65 ${FF};color:#8a9aaa;letter-spacing:.01em;margin-top:2px">
             ${esc(b.address||'Uplands, St. John · Barbados')}<br>
             ${[b.phone, b.phone2].filter(Boolean).map(esc).join(' · ')}<br>
             ${[b.email, b.web].filter(Boolean).map(esc).join(' · ')}
           </div>
         </div>
-        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
           <div style="font:700 6pt/1 ${FF};letter-spacing:.22em;text-transform:uppercase;color:#1A8A9C">Account Statement</div>
-          <div style="font:800 36pt/1 ${FF};letter-spacing:-.03em;color:rgba(244,242,237,.1);text-transform:uppercase;line-height:.9">Statement</div>
+          <div style="font:800 36pt/1 ${FF};letter-spacing:-.03em;color:rgba(11,30,53,.07);text-transform:uppercase;line-height:.9;user-select:none">Statement</div>
         </div>
       </div>
-      <div style="height:3px;background:linear-gradient(90deg,#C89130 0%,rgba(200,145,48,.15) 100%)"></div>
+      <div style="height:2px;background:linear-gradient(90deg,#C89130 0%,rgba(200,145,48,.15) 100%)"></div>
 
       <!-- ═══ BODY ═══ -->
       <div style="padding:16px 24px;display:flex;flex-direction:column;gap:14px">
@@ -2180,7 +2180,7 @@ class Component extends DCLogic {
         <div style="display:flex;gap:16px;align-items:flex-start">
 
           <!-- Left: statement meta fields -->
-          <div style="flex:1;border:1.5px solid #c9d4de;border-left:3px solid #C89130;border-radius:4px;padding:10px 12px;background:#F4F2ED">
+          <div style="flex:1;border:1px solid #dde3ea;border-left:3px solid #C89130;border-radius:4px;padding:10px 12px;background:#fafaf8">
             ${metaRow('Statement ID', d.stStatementNo)}
             ${metaRow('Date as of',   d.stTo || d.stStatementDate)}
             ${metaRow('Period',       d.stFrom && d.stTo ? `${d.stFrom} — ${d.stTo}` : (d.stFrom || d.stTo || ''))}
@@ -2193,100 +2193,102 @@ class Component extends DCLogic {
           <div style="width:220px;flex:none;display:flex;flex-direction:column;gap:10px">
             <div style="text-align:right">
               <div style="font:800 9pt/1.1 ${FF};color:#0B1E35;letter-spacing:-.02em;margin-bottom:3px">${esc(d.stCustomer||'')}</div>
-              ${d.stAddr?`<div style="font:400 7pt/1.65 ${FF};color:#5a7490;white-space:pre-line">${esc(d.stAddr)}</div>`:''}
+              ${d.stAddr?`<div style="font:400 7pt/1.65 ${FF};color:#6b7f93;white-space:pre-line">${esc(d.stAddr)}</div>`:''}
             </div>
-            <div style="border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden">
-              <div style="background:#0B1E35;color:#F4F2ED;font:700 6pt/1 ${FF};letter-spacing:.18em;text-transform:uppercase;padding:5px 10px">Account Summary</div>
-              ${sumRow('Opening Balance',     openBal,      false, false)}
-              ${sumRow('Invoices / Credits',  invTotal,     false, false)}
-              ${sumRow('Finance Charges',     0,            false, false)}
-              ${sumRow('Payments Received',   creditTotal,  false, false)}
-              ${sumRow('Discounts / Allowance', 0,          false, false)}
-              ${sumRow('New Balance',         newBalance,   false, true)}
+            <!-- Account summary box — light -->
+            <div style="border:1px solid #dde3ea;border-radius:4px;overflow:hidden">
+              <div style="background:#f2f6f8;border-bottom:1px solid #dde3ea;font:700 6pt/1 ${FF};letter-spacing:.18em;text-transform:uppercase;padding:5px 10px;color:#1A8A9C">Account Summary</div>
+              ${sumRow('Opening Balance',      openBal,      false, false)}
+              ${sumRow('Invoices / Credits',   invTotal,     false, false)}
+              ${sumRow('Finance Charges',      0,            false, false)}
+              ${sumRow('Payments Received',    creditTotal,  false, false)}
+              ${sumRow('Discounts / Allowance',0,            false, false)}
+              ${sumRow('New Balance',          newBalance,   false, true)}
             </div>
           </div>
         </div>
 
         <!-- AGEING -->
         ${secTitle('Ageing')}
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden;margin-top:-4px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #dde3ea;border-radius:4px;overflow:hidden;margin-top:-4px">
           <thead>
-            <tr style="background:#0B1E35;color:#F4F2ED">
-              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">Current</th>
-              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc1}</th>
-              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc2}</th>
-              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc3}</th>
-              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#c0392b">Overdue (${agDesc4})</th>
+            <tr style="background:#f2f6f8">
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#0B1E35;border-right:1px solid #dde3ea;border-bottom:1px solid #dde3ea">Current</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#0B1E35;border-right:1px solid #dde3ea;border-bottom:1px solid #dde3ea">${agDesc1}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#0B1E35;border-right:1px solid #dde3ea;border-bottom:1px solid #dde3ea">${agDesc2}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#0B1E35;border-right:1px solid #dde3ea;border-bottom:1px solid #dde3ea">${agDesc3}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#a83220;border-bottom:1px solid #dde3ea">Overdue (${agDesc4})</th>
             </tr>
           </thead>
           <tbody>
-            <tr style="background:#F4F2ED">
-              <td style="padding:7px 10px;font:700 8pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(currentDue)}</td>
-              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging1)}</td>
-              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging2)}</td>
-              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging3)}</td>
-              <td style="padding:7px 10px;font:700 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#c0392b">${fmtC(aging4)}</td>
+            <tr style="background:#fff">
+              <td style="padding:7px 10px;font:700 8pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#0B1E35;border-right:1px solid #dde3ea">${fmtC(currentDue)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#3b5268;border-right:1px solid #dde3ea">${fmtC(aging1)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#3b5268;border-right:1px solid #dde3ea">${fmtC(aging2)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#3b5268;border-right:1px solid #dde3ea">${fmtC(aging3)}</td>
+              <td style="padding:7px 10px;font:700 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#a83220">${fmtC(aging4)}</td>
             </tr>
           </tbody>
         </table>
 
         <!-- TRANSACTION DETAIL -->
         ${secTitle('Transaction Detail')}
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:-4px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #dde3ea;overflow:hidden;margin-top:-4px">
           <thead>
-            <tr style="background:#0B1E35;color:#F4F2ED">
-              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1);width:68px">Date</th>
-              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1);width:100px">Patient</th>
-              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1)">Description</th>
-              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;border-right:1px solid rgba(244,242,237,.1);width:86px;color:#c0392b">Debit</th>
-              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;width:86px;color:#C89130">Credit</th>
+            <tr style="background:#f2f6f8;border-bottom:1px solid #dde3ea">
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid #dde3ea;width:68px;color:#3b5268">Date</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid #dde3ea;width:100px;color:#3b5268">Patient</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid #dde3ea;color:#3b5268">Description</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;border-right:1px solid #dde3ea;width:86px;color:#a83220">Debit</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;width:86px;color:#1A8A9C">Credit</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml}
-            <tr style="background:#0B1E35">
-              <td colspan="4" style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.06em;text-transform:uppercase;text-align:right;color:#F4F2ED">New Balance</td>
+            <tr style="background:#fafaf8;border-top:1.5px solid #dde3ea">
+              <td colspan="4" style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.06em;text-transform:uppercase;text-align:right;color:#0B1E35">New Balance</td>
               <td style="padding:6px 8px;font:700 9pt/1 ${FF};text-align:right;color:#C89130;font-variant-numeric:tabular-nums">${fmtC(newBalance)}</td>
             </tr>
           </tbody>
         </table>
 
         <!-- TOTALS BAND -->
-        <div style="border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #c9d4de">
+        <div style="border:1px solid #dde3ea;border-radius:4px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #dde3ea">
             ${totCol([['Invoices', invTotal, false],['Credits', creditTotal, false],['Debits', debitTotal, true]], true)}
             ${totCol([['Regular', regularBal, false],['Net', netAmount, false],['SuperNet', superNetAmount, false]], true)}
             ${totCol([['Rx', rxAmount, false],['Stock', stockAmount, false],['Tax Amount', taxAmount, false]], false)}
           </div>
-          <div style="background:#fdf6e3;border-top:2px solid #C89130;padding:5px 12px;font:700 6.5pt/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Please Deduct</div>
+          <div style="background:#fdf6e3;border-top:1.5px solid #C89130;padding:5px 12px;font:700 6.5pt/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Please Deduct</div>
         </div>
 
       </div><!-- /.doc-body -->
 
       <!-- ═══ FOOTER ═══ -->
       <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:10px">
-        <div style="border:1.5px solid #c9d4de;border-left:3px solid #1A8A9C;border-radius:4px;padding:10px 14px;background:#F4F2ED">
-          <div style="font:400 6.5pt/1.6 ${FF};color:#5a7490">${esc(d.stNote||'Account due when rendered. 1.5% Finance Charge per month will be made on accounts not cleared within terms stated above. In the event of non-payment of this account, the Account Holder becomes liable for all collection fees &amp; expenses.')}</div>
+        <div style="border:1px solid #dde3ea;border-left:3px solid #1A8A9C;border-radius:4px;padding:10px 14px;background:#fafaf8">
+          <div style="font:400 6.5pt/1.6 ${FF};color:#6b7f93">${esc(d.stNote||'Account due when rendered. 1.5% Finance Charge per month will be made on accounts not cleared within terms stated above. In the event of non-payment of this account, the Account Holder becomes liable for all collection fees &amp; expenses.')}</div>
           <div style="font:600 7pt/1 ${FF};color:#1A8A9C;font-style:italic;margin-top:6px">Thank you for your business!</div>
         </div>
-        <div style="background:#0B1E35;border-radius:4px;padding:8px 14px">
+        <!-- Bank block — light -->
+        <div style="border:1px solid #dde3ea;border-top:2px solid #C89130;border-radius:4px;padding:8px 14px;background:#fdf6e3">
           <div style="font:700 5.5pt/1 ${FF};letter-spacing:.2em;text-transform:uppercase;color:#C89130;margin-bottom:5px">Bank Transfer Information</div>
-          <div style="font:400 6.5pt/1.7 ${FF};color:rgba(244,242,237,.8)">
-            <strong style="color:#F4F2ED">Bank:</strong> ${bankName} &nbsp;·&nbsp;
-            <strong style="color:#F4F2ED">SWIFT/BIC:</strong> ${bankSwift} &nbsp;·&nbsp;
-            <strong style="color:#F4F2ED">Account No.:</strong> ${bankAccNo}<br>
-            <strong style="color:#F4F2ED">Account Type:</strong> ${bankBranch} &nbsp;·&nbsp;
-            <strong style="color:#F4F2ED">Account Name:</strong> ${bankAccName} &nbsp;·&nbsp;
-            <strong style="color:#F4F2ED">Payment due:</strong> 30 days from date of statement
+          <div style="font:400 6.5pt/1.7 ${FF};color:#3b5268">
+            <strong style="color:#0B1E35">Bank:</strong> ${bankName} &nbsp;·&nbsp;
+            <strong style="color:#0B1E35">SWIFT/BIC:</strong> ${bankSwift} &nbsp;·&nbsp;
+            <strong style="color:#0B1E35">Account No.:</strong> ${bankAccNo}<br>
+            <strong style="color:#0B1E35">Account Type:</strong> ${bankBranch} &nbsp;·&nbsp;
+            <strong style="color:#0B1E35">Account Name:</strong> ${bankAccName} &nbsp;·&nbsp;
+            <strong style="color:#0B1E35">Payment due:</strong> 30 days from date of statement
           </div>
         </div>
       </div>
 
-      <!-- ═══ PAGE FOOTER BAR ═══ -->
-      <div style="height:2px;background:linear-gradient(90deg,transparent,#C89130 40%,transparent);font-size:0;line-height:0">&nbsp;</div>
-      <div style="background:#0B1E35;padding:5px 24px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font:400 6pt/1 ${FF};letter-spacing:.06em;color:rgba(244,242,237,.45)">${esc(b.name||'Classic Visions')} &nbsp;·&nbsp; ${esc(b.address||'Barbados')}</span>
-        <span style="font:400 6pt/1 ${FF};color:rgba(244,242,237,.45)">Printed: ${printDate}</span>
+      <!-- ═══ PAGE FOOTER BAR — light ═══ -->
+      <div style="height:1px;background:linear-gradient(90deg,transparent,#c9d4de 30%,#c9d4de 70%,transparent);font-size:0;line-height:0">&nbsp;</div>
+      <div style="padding:5px 24px;display:flex;justify-content:space-between;align-items:center;background:#fafaf8">
+        <span style="font:400 6pt/1 ${FF};letter-spacing:.06em;color:#8a9aaa">${esc(b.name||'Classic Visions')} &nbsp;·&nbsp; ${esc(b.address||'Barbados')}</span>
+        <span style="font:400 6pt/1 ${FF};color:#8a9aaa">Printed: ${printDate}</span>
       </div>
 
     </div>`;
