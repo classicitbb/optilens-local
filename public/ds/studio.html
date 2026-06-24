@@ -3166,7 +3166,7 @@ class Component extends DCLogic {
         const counts = {};
         (d.myFiles || []).forEach(f => { counts[f.fileType] = (counts[f.fileType] || 0) + 1; });
         const total = (d.myFiles || []).length;
-        const types = [['', 'All types', total, '&#9783;'], ['email','Email',counts.email||0,'✉'], ['letter','Letterhead',counts.letter||0,'&#9635;'], ['billing','Billing',counts.billing||0,'&#9632;'], ['pricelist','Price list',counts.pricelist||0,'&#9678;'], ['shiplabel','Ship label',counts.shiplabel||0,'&#9654;'], ['signature','Signature',counts.signature||0,'&#9998;'], ['social','Social',counts.social||0,'&#9670;'], ['statement','Statement',counts.statement||0,'&#9636;']];
+        const types = [['', 'All types', total, '☷'], ['email','Email',counts.email||0,'✉'], ['letter','Letterhead',counts.letter||0,'▣'], ['billing','Billing',counts.billing||0,'■'], ['pricelist','Price list',counts.pricelist||0,'◎'], ['shiplabel','Ship label',counts.shiplabel||0,'▶'], ['signature','Signature',counts.signature||0,'✎'], ['social','Social',counts.social||0,'◆'], ['statement','Statement',counts.statement||0,'▤']];
         return types.map(([type, label, count, icon]) => {
           const active = (d.fileTypeFilter || '') === type;
           return {
