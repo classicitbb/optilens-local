@@ -2155,12 +2155,16 @@ class Component extends DCLogic {
     const printDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
     return `<style>
-      @page { size: A4; margin: 14mm 18mm 22mm; }
+      /* All pages: 0.25 in top, room at bottom for footer */
+      @page           { size: A4; margin: 6.35mm 18mm 22mm; }
+      /* First page: no extra top margin — the document header fills it */
+      @page :first    { margin-top: 0; margin-bottom: 6.35mm; }
       @media print {
         body { margin: 0; }
         .cv-doc { box-shadow: none !important; border: none !important; }
         .cv-footer { position: fixed; bottom: 0; left: 0; right: 0; }
       }
+      /* Built-in CSS page counters — no JS needed, auto-calculated by print engine */
       .cv-pg::before  { content: counter(page); }
       .cv-pgs::before { content: counter(pages); }
     </style>
