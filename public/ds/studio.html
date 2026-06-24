@@ -2176,10 +2176,10 @@ class Component extends DCLogic {
       <!-- ═══ BODY ═══ -->
       <div style="padding:16px 24px;display:flex;flex-direction:column;gap:14px">
 
-        <!-- META + CUSTOMER ROW -->
+        <!-- META + ACCOUNT SUMMARY ROW -->
         <div style="display:flex;gap:16px;align-items:flex-start">
 
-          <!-- Left: statement meta fields -->
+          <!-- Left: statement meta fields (includes address) -->
           <div style="flex:1;border:1px solid #dde3ea;border-left:3px solid #C89130;border-radius:4px;padding:10px 12px;background:#fafaf8">
             ${metaRow('Statement ID', d.stStatementNo)}
             ${metaRow('Date as of',   d.stTo || d.stStatementDate)}
@@ -2187,15 +2187,11 @@ class Component extends DCLogic {
             ${metaRow('Due date',     d.stStatementDate)}
             ${metaRow('Customer',     d.stCustomer)}
             ${metaRow('Account #',    d.stAccount)}
+            ${d.stAddr ? metaRow('Address', d.stAddr) : ''}
           </div>
 
-          <!-- Right: customer block + account summary -->
-          <div style="width:220px;flex:none;display:flex;flex-direction:column;gap:10px">
-            <div style="text-align:right">
-              <div style="font:800 9pt/1.1 ${FF};color:#0B1E35;letter-spacing:-.02em;margin-bottom:3px">${esc(d.stCustomer||'')}</div>
-              ${d.stAddr?`<div style="font:400 7pt/1.65 ${FF};color:#6b7f93;white-space:pre-line">${esc(d.stAddr)}</div>`:''}
-            </div>
-            <!-- Account summary box — light -->
+          <!-- Right: account summary only -->
+          <div style="width:220px;flex:none">
             <div style="border:1px solid #dde3ea;border-radius:4px;overflow:hidden">
               <div style="background:#f2f6f8;border-bottom:1px solid #dde3ea;font:700 6pt/1 ${FF};letter-spacing:.18em;text-transform:uppercase;padding:5px 10px;color:#1A8A9C">Account Summary</div>
               ${sumRow('Opening Balance',      openBal,      false, false)}
