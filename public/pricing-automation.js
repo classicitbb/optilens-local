@@ -12,18 +12,20 @@ const TIER_DISPLAY = {
   'Progressive - Best':        { grade: 'Best',          name: 'Endless Steady' },
   'Progressive - Better':      { grade: 'Better',        name: 'Essential Steady' },
   'Progressive - Good':        { grade: 'Good',          name: 'Classic PAL' },
+  'Progressive - Adept':       { grade: 'Adept',         name: 'Adept PAL' },
   'Specific Use - Office':     { grade: 'Office',        name: 'Endless Office' },
   'Specific Use - Sport':      { grade: 'Sport',         name: 'Endless Sport' },
   'Anti-Fatigue':              { grade: 'Anti-Fatigue',  name: 'Endless Anti-Fatigue' },
   'Single Vision - HD':        { grade: 'Single Vision', name: 'Endless SV' },
   'Single Vision - Regular':   { grade: 'Single Vision', name: 'Conventional Single Vision' },
   'Specific Use - Bifocal':    { grade: 'Bifocal',       name: 'Endless BF' },
+  'Specific Use - Adept Bifocal': { grade: 'Adept Bifocal', name: 'Adept BF' },
 };
 
 const TIER_ORDER = [
-  'Progressive - Best', 'Progressive - Better', 'Progressive - Good',
+  'Progressive - Best', 'Progressive - Better', 'Progressive - Good', 'Progressive - Adept',
   'Specific Use - Office', 'Specific Use - Sport', 'Anti-Fatigue',
-  'Single Vision - HD', 'Single Vision - Regular', 'Specific Use - Bifocal',
+  'Single Vision - HD', 'Single Vision - Regular', 'Specific Use - Bifocal', 'Specific Use - Adept Bifocal',
 ];
 
 const TREATMENT_ORDER = [
@@ -38,12 +40,27 @@ const SUPPLIER_COLORS = {
   'Vision Rx Lab':      '#2563eb',
   'Optex Laboratories': '#C89130',
   'SkyLab':             '#9333ea',
+  'Essilor':            '#16a34a',
+  'Essilor Lab':        '#15803d',
+  'Hoya':               '#dc2626',
+  'East Optical':       '#ea580c',
+  'Younger':            '#ca8a04',
+  'Shore Lens':         '#0891b2',
+  'Lab-Tech':           '#7c3aed',
+  'Quest Optical':      '#db2777',
+  'IOT America':        '#475569',
+  'Youli Optics':       '#65a30d',
+  'TOG USA':            '#0d9488',
 };
 const SUP_ABBR = {
   'TOG Rx Lab': 'TOG', 'Vision Rx Lab': 'VisionRx',
   'Optex Laboratories': 'Optex', 'SkyLab': 'SkyLab',
+  'Essilor': 'Essilor', 'Essilor Lab': 'EssLab', 'Hoya': 'Hoya',
+  'East Optical': 'East', 'Younger': 'Younger', 'Shore Lens': 'Shore',
+  'Lab-Tech': 'LabTech', 'Quest Optical': 'Quest', 'IOT America': 'IOT',
+  'Youli Optics': 'Youli', 'TOG USA': 'TOG-US',
 };
-const DEFAULT_PRIORITY = ['TOG Rx Lab', 'Vision Rx Lab', 'Optex Laboratories', 'SkyLab'];
+const DEFAULT_PRIORITY = ['TOG Rx Lab', 'Vision Rx Lab', 'Optex Laboratories', 'SkyLab', 'Essilor', 'Essilor Lab', 'Hoya', 'East Optical', 'Younger', 'Shore Lens', 'Lab-Tech', 'Quest Optical', 'IOT America', 'Youli Optics', 'TOG USA'];
 
 const ADDONS = [
   { label: 'Super AR+ (Blue Hue)', price: 25 },
