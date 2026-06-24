@@ -2154,7 +2154,17 @@ class Component extends DCLogic {
     // ── print date ──────────────────────────────────────────────────────────
     const printDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 4px 24px -6px rgba(11,30,53,.1);border:1px solid #dde3ea">
+    return `<style>
+      @page { size: A4; margin: 14mm 18mm 22mm; }
+      @media print {
+        body { margin: 0; }
+        .cv-doc { box-shadow: none !important; border: none !important; }
+        .cv-footer { position: fixed; bottom: 0; left: 0; right: 0; }
+      }
+      .cv-pg::before  { content: counter(page); }
+      .cv-pgs::before { content: counter(pages); }
+    </style>
+    <div class="cv-doc" style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 4px 24px -6px rgba(11,30,53,.1);border:1px solid #dde3ea;padding-bottom:32px">
 
       <!-- ═══ HEADER — light ═══ -->
       <div style="padding:18px 24px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e4e9ee">
@@ -2280,11 +2290,14 @@ class Component extends DCLogic {
         </div>
       </div>
 
-      <!-- ═══ PAGE FOOTER BAR — light ═══ -->
-      <div style="height:1px;background:linear-gradient(90deg,transparent,#c9d4de 30%,#c9d4de 70%,transparent);font-size:0;line-height:0">&nbsp;</div>
-      <div style="padding:5px 24px;display:flex;justify-content:space-between;align-items:center;background:#fafaf8">
-        <span style="font:400 6pt/1 ${FF};letter-spacing:.06em;color:#8a9aaa">${esc(b.name||'Classic Visions')} &nbsp;·&nbsp; ${esc(b.address||'Barbados')}</span>
-        <span style="font:400 6pt/1 ${FF};color:#8a9aaa">Printed: ${printDate}</span>
+      <!-- ═══ REPEATING PAGE FOOTER (fixed — prints on every page) ═══ -->
+      <div class="cv-footer" style="left:0;right:0;bottom:0;background:#fff">
+        <div style="height:1px;background:linear-gradient(90deg,transparent,#c9d4de 25%,#c9d4de 75%,transparent)"></div>
+        <div style="padding:4px 24px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font:400 6pt/1 ${FF};letter-spacing:.05em;color:#9aabb8">${esc(b.name||'Classic Visions')} &nbsp;·&nbsp; ${esc(b.address||'Barbados')}</span>
+          <span style="font:400 6pt/1 ${FF};color:#9aabb8">Page <span class="cv-pg"></span> of <span class="cv-pgs"></span></span>
+          <span style="font:400 6pt/1 ${FF};color:#9aabb8">Printed: ${printDate}</span>
+        </div>
       </div>
 
     </div>`;
