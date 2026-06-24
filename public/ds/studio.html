@@ -2070,116 +2070,225 @@ class Component extends DCLogic {
   buildAdvancedStatement = () => {
     const d = this.state, b = this.brand(), esc = this.esc;
     const cur = d.stCurrency || 'BBD';
-    const fmt = (n) => { const v = parseFloat(n); return isNaN(v) ? '0.00' : v.toFixed(2); };
+    const fmt  = (n) => { const v = parseFloat(n); return isNaN(v) ? '0.00' : v.toFixed(2); };
+    const fmtC = (n) => `${cur} ${fmt(n)}`;
     const FF = "'Plus Jakarta Sans',Arial,sans-serif";
     const rows = d.stRows || [];
-    let bal = parseFloat(d.stOpenBal) || 0;
-    const currentDue = parseFloat(d.stCurrentDue) || 0;
-    const aging1 = parseFloat(d.stAging1) || 0;
-    const aging2 = parseFloat(d.stAging2) || 0;
-    const aging3 = parseFloat(d.stAging3) || 0;
-    const aging4 = parseFloat(d.stAging4) || 0;
-    const newBalance = parseFloat(d.stNewBalance) || (currentDue + aging1 + aging2 + aging3 + aging4);
-    const invTotal = parseFloat(d.stInvTotal) || 0;
-    const creditTotal = parseFloat(d.stCreditTotal) || 0;
-    const debitTotal = parseFloat(d.stDebitTotal) || 0;
-    const regularBal = parseFloat(d.stRegularBal) || 0;
-    const rxAmount = parseFloat(d.stRxAmount) || 0;
-    const stockAmount = parseFloat(d.stStockAmount) || 0;
-    const netAmount = parseFloat(d.stNetAmount) || (invTotal - creditTotal);
+
+    // ── numeric fields ──────────────────────────────────────────────────────
+    const openBal      = parseFloat(d.stOpenBal)      || 0;
+    const currentDue   = parseFloat(d.stCurrentDue)   || 0;
+    const aging1       = parseFloat(d.stAging1)        || 0;
+    const aging2       = parseFloat(d.stAging2)        || 0;
+    const aging3       = parseFloat(d.stAging3)        || 0;
+    const aging4       = parseFloat(d.stAging4)        || 0;
+    const newBalance   = parseFloat(d.stNewBalance)    || (currentDue + aging1 + aging2 + aging3 + aging4);
+    const invTotal     = parseFloat(d.stInvTotal)      || 0;
+    const creditTotal  = parseFloat(d.stCreditTotal)   || 0;
+    const debitTotal   = parseFloat(d.stDebitTotal)    || 0;
+    const regularBal   = parseFloat(d.stRegularBal)    || 0;
+    const rxAmount     = parseFloat(d.stRxAmount)      || 0;
+    const stockAmount  = parseFloat(d.stStockAmount)   || 0;
+    const netAmount    = parseFloat(d.stNetAmount)     || (invTotal - creditTotal);
     const superNetAmount = parseFloat(d.stSuperNetAmount) || 0;
-    const taxAmount = parseFloat(d.stTaxAmount) || 0;
+    const taxAmount    = parseFloat(d.stTaxAmount)     || 0;
+
+    // ── aging labels ────────────────────────────────────────────────────────
+    const agDesc1 = esc(d.stAgingDesc1 || '30 Days');
+    const agDesc2 = esc(d.stAgingDesc2 || '60 Days');
+    const agDesc3 = esc(d.stAgingDesc3 || '90 Days');
+    const agDesc4 = esc(d.stAgingDesc4 || '120+ Days');
+
+    // ── helper: section title with extending rule ───────────────────────────
+    const secTitle = (label) =>
+      `<div style="display:flex;align-items:center;gap:8px;font:700 6.5pt/1 ${FF};letter-spacing:.2em;text-transform:uppercase;color:#1A8A9C;margin-bottom:8px">
+        ${label}<div style="flex:1;height:1px;background:#c9d4de;margin-left:4px"></div></div>`;
+
+    // ── helper: meta field row ──────────────────────────────────────────────
+    const metaRow = (label, val) => !val ? '' :
+      `<div style="display:grid;grid-template-columns:90px 1fr;gap:4px;padding:2.5px 0;border-bottom:1px solid #c9d4de">
+        <span style="font:700 6.5pt/1.65 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#5a7490">${label}</span>
+        <span style="font:600 7.5pt/1.65 ${FF};color:#0B1E35">${esc(val)}</span></div>`;
+
+    // ── helper: summary row ─────────────────────────────────────────────────
+    const sumRow = (label, val, highlight, balance) => {
+      const bg   = balance ? '#0B1E35' : highlight ? '#e8f5f7' : '';
+      const lCol = balance ? '#F4F2ED' : '#0B1E35';
+      const vCol = balance ? '#C89130' : '#0B1E35';
+      const vFnt = balance ? `font:700 8pt/1 ${FF}` : `font:600 7pt/1 ${FF}`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 10px;border-bottom:1px solid #c9d4de;${bg?`background:${bg};`:''}">
+        <span style="font:${highlight||balance?'700':'400'} 7pt/1 ${FF};color:${lCol}">${label}</span>
+        <span style="${vFnt};color:${vCol};font-variant-numeric:tabular-nums;min-width:80px;text-align:right">${fmtC(val)}</span></div>`;
+    };
+
+    // ── helper: totals column ───────────────────────────────────────────────
+    const totCol = (items, borderRight) =>
+      `<div style="padding:8px 10px;${borderRight?'border-right:1px solid #c9d4de;':''}">
+        ${items.map(([l,v,red])=>`<div style="display:flex;justify-content:space-between;gap:4px;margin-bottom:3px">
+          <span style="font:700 6.5pt/1 ${FF};letter-spacing:.06em;text-transform:uppercase;color:#5a7490">${l}</span>
+          <span style="font:700 7pt/1 ${FF};font-variant-numeric:tabular-nums;color:${red?'#c0392b':'#0B1E35'}">${fmtC(v)}</span>
+        </div>`).join('')}</div>`;
+
+    // ── transaction rows ────────────────────────────────────────────────────
     let rowsHtml = '';
     rows.forEach((r, i) => {
-      const debit = parseFloat(r.debit) || 0, credit = parseFloat(r.credit) || 0;
-      bal += debit - credit;
-      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#f9f8f5'}">
-        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#5b6b7c;border-bottom:1px solid #f0ede6">${esc(r.date)}</td>
-        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.patient||'')}</td>
-        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #f0ede6">${esc(r.desc)}</td>
-        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:${debit?'#c0392b':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${debit?fmt(debit):''}</td>
-        <td style="padding:8px 10px;font:400 11.5px/1.3 ${FF};color:${credit?'#1c7a52':'#a7a596'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${credit?fmt(credit):''}</td>
-        <td style="padding:8px 10px;font:600 11.5px/1.3 ${FF};color:#0B1E35;text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${fmt(bal)}</td>
+      const debit  = parseFloat(r.debit)  || 0;
+      const credit = parseFloat(r.credit) || 0;
+      rowsHtml += `<tr style="background:${i%2===0?'#fff':'#F4F2ED'}">
+        <td style="padding:4px 8px;font:400 7pt/1.3 ${FF};color:#5a7490;border-bottom:1px solid #c9d4de;white-space:nowrap">${esc(r.date)}</td>
+        <td style="padding:4px 8px;font:400 7pt/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #c9d4de">${esc(r.patient||'')}</td>
+        <td style="padding:4px 8px;font:400 7pt/1.3 ${FF};color:#0B1E35;border-bottom:1px solid #c9d4de">${esc(r.desc)}</td>
+        <td style="padding:4px 8px;font:600 7pt/1.3 ${FF};color:${debit?'#c0392b':'#b0b8c4'};text-align:right;border-bottom:1px solid #c9d4de;font-variant-numeric:tabular-nums;white-space:nowrap">${debit?fmtC(debit):''}</td>
+        <td style="padding:4px 8px;font:600 7pt/1.3 ${FF};color:${credit?'#1c7a52':'#b0b8c4'};text-align:right;border-bottom:1px solid #c9d4de;font-variant-numeric:tabular-nums;white-space:nowrap">${credit?fmtC(credit):''}</td>
       </tr>`;
     });
-    if (!rowsHtml) rowsHtml = `<tr><td colspan="6" style="padding:18px 10px;font:400 12px/1.4 ${FF};color:#a7a596;font-style:italic">No transactions — add manually or populate from database.</td></tr>`;
-    const ageRow = (label, val, isOverdue) => val ? `<tr><td style="padding:7px 16px;font:400 11.5px/1.3 ${FF};color:${isOverdue?'#c0392b':'#5b6b7c'};border-bottom:1px solid #f0ede6">${label}</td><td style="padding:7px 16px;font:600 12px/1.3 ${FF};color:${isOverdue?'#c0392b':'#0B1E35'};text-align:right;border-bottom:1px solid #f0ede6;white-space:nowrap">${fmt(val)}</td></tr>` : '';
-    const totCell = (label, val) => `<div style="flex:1;text-align:center;padding:10px 6px;border-right:1px solid #e7e4db"><div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;margin-bottom:5px">${label}</div><div style="font:700 12.5px/1 ${FF};color:#0B1E35">${fmt(val)}</div></div>`;
+    if (!rowsHtml) rowsHtml = `<tr><td colspan="5" style="padding:14px 8px;font:400 7pt/1.4 ${FF};color:#a7a596;font-style:italic">No transactions recorded.</td></tr>`;
+
+    // ── bank details (use billing bank fields if set, else CV defaults) ─────
+    const bankName    = esc(d.bkBankName  || 'Bank of Nova Scotia');
+    const bankAccName = esc(d.bkAccName   || 'Classic Visions');
+    const bankAccNo   = esc(d.bkAccNo     || '448873');
+    const bankSwift   = esc(d.bkSwift     || 'NOSCBBBB');
+    const bankBranch  = esc(d.bkBranch    || 'Chequing');
+
+    // ── print date ──────────────────────────────────────────────────────────
+    const printDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
     return `<div style="width:780px;max-width:780px;margin:0 auto;background:#fff;font-family:${FF};box-shadow:0 10px 40px -10px rgba(11,30,53,.22)">
-      <div style="padding:28px 36px 0">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
-          <td style="vertical-align:middle">${this.lockup('light', { big: true })}</td>
-          <td style="vertical-align:middle;text-align:right">
-            <div style="font:800 20px/1 ${FF};letter-spacing:.07em;color:#0B1E35;margin-bottom:5px">ACCOUNT STATEMENT</div>
-            ${d.stFrom||d.stTo?`<div style="font:400 11.5px/1.5 ${FF};color:#5b6b7c">${esc(d.stFrom||'')}${d.stFrom&&d.stTo?' — ':''}${esc(d.stTo||'')}</div>`:''}
-          </td>
-        </tr></table>
-        <div style="height:2px;background:#C89130;margin:20px 0 0;font-size:0;line-height:0">&nbsp;</div>
-      </div>
-      <div style="display:flex">
-        <div style="flex:1;padding:20px 24px;border-right:1px solid #e7e4db;border-left:3px solid #C89130;background:#fdfcf9">
-          ${d.stStatementDate||d.stStatementNo||d.stAccount?`<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px">
-            ${d.stStatementDate?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Date</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stStatementDate)}</td></tr>`:''}
-            ${d.stAccount?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Account</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stAccount)}</td></tr>`:''}
-            ${d.stStatementNo?`<tr><td style="font:700 9px/1.9 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;padding-right:14px">Statement #</td><td style="font:600 12px/1.9 ${FF};color:#0B1E35">${esc(d.stStatementNo)}</td></tr>`:''}
-          </table>`:''}
-          <div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#1A8A9C;margin-bottom:5px">Statement To</div>
-          <div style="font:700 14px/1.4 ${FF};color:#0B1E35">${esc(d.stCustomer||'Customer Name')}</div>
-          ${d.stAddr?`<div style="font:400 11.5px/1.6 ${FF};color:#5b6b7c;white-space:pre-wrap;margin-top:3px">${esc(d.stAddr)}</div>`:''}
-        </div>
-        <div style="min-width:210px;max-width:240px">
-          <div style="background:#0B1E35;padding:9px 16px"><div style="font:700 10px/1 ${FF};letter-spacing:.16em;text-transform:uppercase;color:#C89130">Account Summary</div></div>
-          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
-            ${ageRow('Current Due', currentDue, false)}
-            ${ageRow('30 Days', aging1, true)}
-            ${ageRow('60 Days', aging2, true)}
-            ${ageRow('90 Days', aging3, true)}
-            ${ageRow('120+ Days', aging4, true)}
-          </table>
-          <div style="background:#0B1E35;padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
-            <div style="font:700 9px/1 ${FF};letter-spacing:.12em;text-transform:uppercase;color:#C89130">New Balance</div>
-            <div style="font:800 14px/1 ${FF};color:#F4F2ED">${cur} ${fmt(newBalance)}</div>
+
+      <!-- ═══ HEADER ═══ -->
+      <div style="background:#0B1E35;padding:18px 24px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <img src="${this.logoSrc('linen')}" height="42" style="height:42px;width:auto;display:block" alt="${esc(b.name||'Classic Visions')}">
+          <div style="color:rgba(244,242,237,.65);font:400 6.5pt/1.65 ${FF};letter-spacing:.01em">
+            ${esc(b.address||'Uplands, St. John · Barbados')}<br>
+            ${[b.phone, b.phone2].filter(Boolean).map(esc).join(' · ')}<br>
+            ${[b.email, b.web].filter(Boolean).map(esc).join(' · ')}
           </div>
         </div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div style="font:700 6pt/1 ${FF};letter-spacing:.22em;text-transform:uppercase;color:#1A8A9C">Account Statement</div>
+          <div style="font:800 36pt/1 ${FF};letter-spacing:-.03em;color:rgba(244,242,237,.1);text-transform:uppercase;line-height:.9">Statement</div>
+        </div>
       </div>
-      <div style="padding:16px 24px 0">
-        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e7e4db;border-radius:8px;overflow:hidden">
-          <thead><tr style="background:#0B1E35">
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Date</th>
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Patient</th>
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:left">Description</th>
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#c0392b;text-align:right">Debit</th>
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Credit</th>
-            <th style="padding:8px 10px;font:700 9.5px/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#F4F2ED;text-align:right">Balance</th>
-          </tr></thead>
+      <div style="height:3px;background:linear-gradient(90deg,#C89130 0%,rgba(200,145,48,.15) 100%)"></div>
+
+      <!-- ═══ BODY ═══ -->
+      <div style="padding:16px 24px;display:flex;flex-direction:column;gap:14px">
+
+        <!-- META + CUSTOMER ROW -->
+        <div style="display:flex;gap:16px;align-items:flex-start">
+
+          <!-- Left: statement meta fields -->
+          <div style="flex:1;border:1.5px solid #c9d4de;border-left:3px solid #C89130;border-radius:4px;padding:10px 12px;background:#F4F2ED">
+            ${metaRow('Statement ID', d.stStatementNo)}
+            ${metaRow('Date as of',   d.stTo || d.stStatementDate)}
+            ${metaRow('Period',       d.stFrom && d.stTo ? `${d.stFrom} — ${d.stTo}` : (d.stFrom || d.stTo || ''))}
+            ${metaRow('Due date',     d.stStatementDate)}
+            ${metaRow('Customer',     d.stCustomer)}
+            ${metaRow('Account #',    d.stAccount)}
+          </div>
+
+          <!-- Right: customer block + account summary -->
+          <div style="width:220px;flex:none;display:flex;flex-direction:column;gap:10px">
+            <div style="text-align:right">
+              <div style="font:800 9pt/1.1 ${FF};color:#0B1E35;letter-spacing:-.02em;margin-bottom:3px">${esc(d.stCustomer||'')}</div>
+              ${d.stAddr?`<div style="font:400 7pt/1.65 ${FF};color:#5a7490;white-space:pre-line">${esc(d.stAddr)}</div>`:''}
+            </div>
+            <div style="border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden">
+              <div style="background:#0B1E35;color:#F4F2ED;font:700 6pt/1 ${FF};letter-spacing:.18em;text-transform:uppercase;padding:5px 10px">Account Summary</div>
+              ${sumRow('Opening Balance',     openBal,      false, false)}
+              ${sumRow('Invoices / Credits',  invTotal,     false, false)}
+              ${sumRow('Finance Charges',     0,            false, false)}
+              ${sumRow('Payments Received',   creditTotal,  false, false)}
+              ${sumRow('Discounts / Allowance', 0,          false, false)}
+              ${sumRow('New Balance',         newBalance,   false, true)}
+            </div>
+          </div>
+        </div>
+
+        <!-- AGEING -->
+        ${secTitle('Ageing')}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden;margin-top:-4px">
+          <thead>
+            <tr style="background:#0B1E35;color:#F4F2ED">
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">Current</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc1}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc2}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;border-right:1px solid rgba(244,242,237,.12)">${agDesc3}</th>
+              <th style="padding:6px 10px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:center;color:#c0392b">Overdue (${agDesc4})</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr style="background:#f7f5ef"><td colspan="5" style="padding:7px 10px;font:600 11.5px/1.3 ${FF};color:#5b6b7c">Opening balance</td><td style="padding:7px 10px;font:700 12px/1 ${FF};color:#0B1E35;text-align:right;white-space:nowrap">${fmt(parseFloat(d.stOpenBal)||0)}</td></tr>
-            ${rowsHtml}
+            <tr style="background:#F4F2ED">
+              <td style="padding:7px 10px;font:700 8pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(currentDue)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging1)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging2)}</td>
+              <td style="padding:7px 10px;font:400 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;border-right:1px solid #c9d4de">${fmtC(aging3)}</td>
+              <td style="padding:7px 10px;font:700 7.5pt/1 ${FF};text-align:center;font-variant-numeric:tabular-nums;color:#c0392b">${fmtC(aging4)}</td>
+            </tr>
           </tbody>
         </table>
-      </div>
-      <div style="margin:16px 24px 0;border:1px solid #e7e4db;border-radius:8px;overflow:hidden">
-        <div style="display:flex;background:#fdfcf9">
-          ${totCell('Invoices', invTotal)}
-          ${totCell('Credits', creditTotal)}
-          ${totCell('Debits', debitTotal)}
-          ${totCell('Regular Bal', regularBal)}
-          <div style="flex:1;text-align:center;padding:10px 6px;border-right:1px solid #e7e4db"><div style="font:700 9px/1 ${FF};letter-spacing:.1em;text-transform:uppercase;color:#8a93a0;margin-bottom:5px">Net Balance</div><div style="font:800 12.5px/1 ${FF};color:#0B1E35">${fmt(netAmount)}</div></div>
-          ${totCell('Super Net', superNetAmount)}
+
+        <!-- TRANSACTION DETAIL -->
+        ${secTitle('Transaction Detail')}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:-4px">
+          <thead>
+            <tr style="background:#0B1E35;color:#F4F2ED">
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1);width:68px">Date</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1);width:100px">Patient</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:left;border-right:1px solid rgba(244,242,237,.1)">Description</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;border-right:1px solid rgba(244,242,237,.1);width:86px;color:#c0392b">Debit</th>
+              <th style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.1em;text-transform:uppercase;text-align:right;width:86px;color:#C89130">Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+            <tr style="background:#0B1E35">
+              <td colspan="4" style="padding:6px 8px;font:700 6.5pt/1 ${FF};letter-spacing:.06em;text-transform:uppercase;text-align:right;color:#F4F2ED">New Balance</td>
+              <td style="padding:6px 8px;font:700 9pt/1 ${FF};text-align:right;color:#C89130;font-variant-numeric:tabular-nums">${fmtC(newBalance)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- TOTALS BAND -->
+        <div style="border:1.5px solid #c9d4de;border-radius:4px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #c9d4de">
+            ${totCol([['Invoices', invTotal, false],['Credits', creditTotal, false],['Debits', debitTotal, true]], true)}
+            ${totCol([['Regular', regularBal, false],['Net', netAmount, false],['SuperNet', superNetAmount, false]], true)}
+            ${totCol([['Rx', rxAmount, false],['Stock', stockAmount, false],['Tax Amount', taxAmount, false]], false)}
+          </div>
+          <div style="background:#fdf6e3;border-top:2px solid #C89130;padding:5px 12px;font:700 6.5pt/1 ${FF};letter-spacing:.08em;text-transform:uppercase;color:#C89130;text-align:right">Please Deduct</div>
         </div>
-        <div style="display:flex;background:#fff;border-top:1px solid #e7e4db">
-          ${totCell('Rx Amount', rxAmount)}
-          ${totCell('Stock Amount', stockAmount)}
-          ${totCell('Tax Amount', taxAmount)}
-          <div style="flex:3;text-align:right;padding:10px 18px;display:flex;align-items:center;justify-content:flex-end;gap:12px">
-            <div style="font:700 10px/1 ${FF};letter-spacing:.14em;text-transform:uppercase;color:#1A8A9C">Balance Due</div>
-            <div style="font:800 17px/1 ${FF};color:#0B1E35">${cur} ${fmt(newBalance)}</div>
+
+      </div><!-- /.doc-body -->
+
+      <!-- ═══ FOOTER ═══ -->
+      <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:10px">
+        <div style="border:1.5px solid #c9d4de;border-left:3px solid #1A8A9C;border-radius:4px;padding:10px 14px;background:#F4F2ED">
+          <div style="font:400 6.5pt/1.6 ${FF};color:#5a7490">${esc(d.stNote||'Account due when rendered. 1.5% Finance Charge per month will be made on accounts not cleared within terms stated above. In the event of non-payment of this account, the Account Holder becomes liable for all collection fees &amp; expenses.')}</div>
+          <div style="font:600 7pt/1 ${FF};color:#1A8A9C;font-style:italic;margin-top:6px">Thank you for your business!</div>
+        </div>
+        <div style="background:#0B1E35;border-radius:4px;padding:8px 14px">
+          <div style="font:700 5.5pt/1 ${FF};letter-spacing:.2em;text-transform:uppercase;color:#C89130;margin-bottom:5px">Bank Transfer Information</div>
+          <div style="font:400 6.5pt/1.7 ${FF};color:rgba(244,242,237,.8)">
+            <strong style="color:#F4F2ED">Bank:</strong> ${bankName} &nbsp;·&nbsp;
+            <strong style="color:#F4F2ED">SWIFT/BIC:</strong> ${bankSwift} &nbsp;·&nbsp;
+            <strong style="color:#F4F2ED">Account No.:</strong> ${bankAccNo}<br>
+            <strong style="color:#F4F2ED">Account Type:</strong> ${bankBranch} &nbsp;·&nbsp;
+            <strong style="color:#F4F2ED">Account Name:</strong> ${bankAccName} &nbsp;·&nbsp;
+            <strong style="color:#F4F2ED">Payment due:</strong> 30 days from date of statement
           </div>
         </div>
       </div>
-      ${creditTotal?`<div style="margin:0 24px;background:#C89130;padding:7px 16px;text-align:right;border-radius:0 0 6px 6px"><span style="font:700 10px/1 ${FF};letter-spacing:.14em;text-transform:uppercase;color:#0B1E35">Please Deduct &nbsp;</span><span style="font:800 13px/1 ${FF};color:#0B1E35">${cur} ${fmt(creditTotal)}</span></div>`:''}
-      ${d.stNote?`<div style="margin:16px 24px 0;padding:11px 15px;border-left:3px solid #1A8A9C;background:#f0f9fb;border-radius:0 8px 8px 0"><div style="font:400 12px/1.6 ${FF};color:#0B1E35">${esc(d.stNote)}</div></div>`:''}
-      <div style="padding:20px 24px 36px"><div style="height:1px;background:#e7e4db;margin-bottom:12px"></div><div style="text-align:center;font:400 10.5px/1.6 ${FF};color:#8a93a0">${esc(b.name)} &nbsp;·&nbsp; ${esc(b.phone)} &nbsp;·&nbsp; ${esc(b.email)} &nbsp;·&nbsp; ${esc(b.web)}</div></div>
+
+      <!-- ═══ PAGE FOOTER BAR ═══ -->
+      <div style="height:2px;background:linear-gradient(90deg,transparent,#C89130 40%,transparent);font-size:0;line-height:0">&nbsp;</div>
+      <div style="background:#0B1E35;padding:5px 24px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font:400 6pt/1 ${FF};letter-spacing:.06em;color:rgba(244,242,237,.45)">${esc(b.name||'Classic Visions')} &nbsp;·&nbsp; ${esc(b.address||'Barbados')}</span>
+        <span style="font:400 6pt/1 ${FF};color:rgba(244,242,237,.45)">Printed: ${printDate}</span>
+      </div>
+
     </div>`;
   };
 
