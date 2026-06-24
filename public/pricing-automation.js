@@ -792,6 +792,7 @@ function rePrice() {
 
 // ── Sourcing Review ────────────────────────────────────────────────────
 function buildSourcingView() {
+  loadClassify();
   const rows = Object.entries(prices).map(([key, p]) => {
     const c = comboByKey[key]; if (!c) return null;
     return { key, p, c, single: c.supplierCount === 1, constrained: !!p.constraintSupplier };
@@ -821,6 +822,68 @@ function buildSourcingView() {
       <td>${flag}</td>
     </tr>`;
   }).join('');
+}
+
+// ── Classify catalog (tag pills) ───────────────────────────────────────
+let classifyTypes = [], classifyTiers = [], classifyGroups = [];
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tierGrade = (ti) => { const d = TIER_DISPLAY[ti]; return d ? `${d.grade} (${d.name})` : (ti || '—'); };
+
+async function loadClassify() {
+  try {
+    const d = await fetch('/api/v2/catalog-types').then(r => r.json());
+    if (d && d.error) throw new Error(d.error);
+    classifyTypes = d.types || []; classifyTiers = d.tiers || []; classifyGroups = d.groups || [];
+    renderClassify();
+  } catch (e) {
+    $('classify-body').innerHTML = `<div class="pl-empty-state">Catalog types unavailable. Pull the catalog first, then reopen.</div>`;
+    $('classify-count').textContent = '';
+  }
+}
+
+function renderClassify() {
+  if (!$('classify-body')) return;
+  const unOnly = $('classify-unonly') && $('classify-unonly').checked;
+  const uncl = classifyTypes.filter(t => !t.classified).length;
+  $('classify-count').textContent = `· ${classifyTypes.length} types · ${uncl} unclassified`;
+  let list = unOnly ? classifyTypes.filter(t => !t.classified) : classifyTypes;
+  if (!list.length) { $('classify-body').innerHTML = `<div class="pl-empty-state">${unOnly ? 'Everything is classified. 🎉' : 'No catalog types loaded.'}</div>`; return; }
+  $('classify-body').innerHTML = list.map(t => {
+    const tierOpts = ['<option value="">— unclassified —</option>']
+      .concat(classifyTiers.map(o => `<option value="${esc(o)}" ${o === t.tier ? 'selected' : ''}>${esc(tierGrade(o))}</option>`)).join('');
+    const grpOpts = ['<option value="">auto (from name)</option>']
+      .concat(classifyGroups.map(o => `<option value="${esc(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${esc(o)}</option>`)).join('');
+    const groupPills = t.groups.map(g => `<span class="tagpill ${t.treatmentOverride === g ? 'tagpill-ov' : ''}">${esc(g)}</span>`).join('');
+    const sup = t.suppliers.map(s => SUP_ABBR[s] || s).join(', ');
+    return `<div class="cls-row ${t.classified ? '' : 'cls-unclassified'}">
+      <div class="cls-main">
+        <div class="cls-type">${esc(t.mftype)} · <b>${esc(t.lenstype)}</b> ${t.tierOverridden ? '<span class="tagpill tagpill-ov">manual</span>' : ''}</div>
+        <div class="cls-sub muted">${t.rows} rows · ${esc(sup)}</div>
+        <div class="cls-sample muted">${esc(t.samples[0] || '')}</div>
+      </div>
+      <div class="cls-tags">${groupPills}</div>
+      <div class="cls-ctl">
+        <label class="cls-lbl">Category</label>
+        <select onchange="classifyType('${esc(t.typeKey)}','tier',this.value)">${tierOpts}</select>
+        <label class="cls-lbl">Group</label>
+        <select onchange="classifyType('${esc(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function classifyType(typeKey, field, value) {
+  const body = { typeKey }; body[field] = value;
+  try {
+    const d = await fetch('/api/v2/classify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (d && d.error) { toast(d.error); return; }
+    classifyTypes = d.types || classifyTypes;
+    // Refresh combos so the builder matrix prices the reclassified lines.
+    combos = await fetch('/api/v2/combos').then(x => x.json());
+    comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+    renderClassify();
+    toast(`Reclassified · ${d.combos} priced combos`);
+  } catch (e) { toast('Classify failed: ' + e.message); }
 }
 
 // ── Connectors ─────────────────────────────────────────────────────────

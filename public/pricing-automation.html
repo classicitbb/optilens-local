@@ -209,6 +209,25 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .pl-empty-state { text-align: center; padding: 40px; color: var(--pl-muted-fg); }
 
 /* Sourcing summary */
+.classify-panel { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 12px 14px; margin-bottom: 16px; }
+[data-theme="dark"] .classify-panel { background: #14304f; border-color: #1e3a5c; }
+.classify-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.classify-toggle { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.classify-list { display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; }
+.cls-row { display: grid; grid-template-columns: minmax(220px,1.4fr) 1fr auto; gap: 12px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--pl-border); border-radius: 8px; background: var(--pl-bg); }
+[data-theme="dark"] .cls-row { background: #0f2740; border-color: #1e3a5c; }
+.cls-row.cls-unclassified { border-color: var(--pl-gold); box-shadow: inset 3px 0 0 var(--pl-gold); }
+.cls-type { font-size: 13px; }
+.cls-sub, .cls-sample { font-size: 11px; }
+.cls-sample { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+.cls-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.cls-ctl { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; align-items: center; min-width: 230px; }
+.cls-ctl select { font-size: 12px; padding: 3px 5px; border: 1px solid var(--pl-border); border-radius: 6px; background: var(--pl-card); max-width: 200px; }
+.cls-lbl { font-size: 11px; color: var(--pl-muted, #789); }
+.tagpill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: var(--pl-bg); border: 1px solid var(--pl-border); }
+.tagpill-ov { background: var(--pl-teal); color: #fff; border-color: var(--pl-teal); }
 .sourcing-summary { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .src-stat { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 9px 14px; min-width: 130px; }
 [data-theme="dark"] .src-stat { background: #14304f; border-color: #1e3a5c; }
@@ -609,6 +628,13 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
 
       <!-- Sourcing Review -->
       <div id="view-sourcing" style="display:none">
+        <div class="classify-panel">
+          <div class="classify-hdr">
+            <div><b>Classify catalog</b> <span class="muted" id="classify-count"></span></div>
+            <label class="classify-toggle"><input type="checkbox" id="classify-unonly" onchange="renderClassify()"> Unclassified only</label>
+          </div>
+          <div id="classify-body" class="classify-list"><div class="pl-empty-state">Loading catalog…</div></div>
+        </div>
         <div class="sourcing-summary" id="sourcing-summary"></div>
         <table class="sourcing-table">
           <thead><tr>

@@ -145,6 +145,20 @@ const PL_OVERRIDES = path.join(PL_DIR, "catalog-overrides.json");
 const PL_LISTS    = path.join(PL_DIR, "saved-pricelists.json");
 const PL_CUSTOMERS = path.join(PL_DIR, "customers.json");
 const PL_SOURCE_MODE = path.join(PL_DIR, "source-mode.json");
+const PL_ROWS      = path.join(PL_DIR, "catalog-rows.generated.json");   // raw mapped rows (for reclassify)
+const PL_CLASS_OV  = path.join(PL_DIR, "classification-overrides.json"); // user tag-pill classifications
+const plClassifier = require("./lib/lens-classifier");
+
+// Vocabulary for the Sourcing Review classify pills.
+const PL_TIER_OPTIONS = [
+  'Progressive - Best', 'Progressive - Better', 'Progressive - Good', 'Progressive - Adept',
+  'Specific Use - Office', 'Specific Use - Sport', 'Anti-Fatigue',
+  'Single Vision - HD', 'Single Vision - Regular', 'Specific Use - Bifocal', 'Specific Use - Adept Bifocal',
+];
+const PL_GROUP_OPTIONS = [
+  'Clear', 'UV420', 'Photochromic - Gray', 'Photochromic - Brown',
+  'Trans Gen S™', 'Trans® XtrActive® New Gen', 'Trans® XtrActive® Polarized', 'Polarized',
+];
 
 function plReadJSON(p, dflt) {
   try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return dflt; }
@@ -195,6 +209,59 @@ function plReloadCombos() {
   plCombos = plLoaded.combos;
   plComboByKey = Object.fromEntries(plCombos.map(c => [c.key, c]));
   return plLoaded;
+}
+
+// ── Classification overrides (Sourcing Review tag pills) ────────────────────
+function plReadOverrides() {
+  const o = plReadJSON(PL_CLASS_OV, null) || {};
+  return { tierByType: o.tierByType || {}, treatmentByType: o.treatmentByType || {} };
+}
+function plWriteOverrides(o) { plWriteJSON(PL_CLASS_OV, o); }
+function plReadRawRows() { return plReadJSON(PL_ROWS, null); }
+
+// Re-bucket the saved raw catalog rows with current overrides → regenerate combos.
+// Works offline (no re-pull); a later live pull re-applies the same overrides.
+function plReclassify() {
+  const rows = plReadRawRows();
+  if (!Array.isArray(rows) || !rows.length) {
+    const e = new Error("No raw catalog rows saved yet — pull the catalog first."); e.statusCode = 409; throw e;
+  }
+  const { combos, coverage } = plConnector.combosFromRows(rows, plReadOverrides());
+  plWriteJSON(PL_GEN, combos);
+  plWriteJSON(path.join(PL_DIR, "supplier-coverage.generated.json"), coverage);
+  if (plSourceMode() === "fallback") plSetSourceMode("auto");
+  plReloadCombos();
+  return combos.length;
+}
+
+// Catalog grouped by lens TYPE (MF|LensType) — drives the classify list + pills.
+// Unclassified types (no tier) sort first so they're easy to find and fix.
+function plCatalogTypes() {
+  const rows = plReadRawRows() || [];
+  const ov = plReadOverrides();
+  const types = {};
+  for (const r of rows) {
+    if (!plClassifier.APPROVED.includes(r.supplier)) continue;
+    if (r.active === false) continue;
+    const lk = `${r.mftype}|${r.lenstype}`;
+    const t = types[lk] || (types[lk] = { typeKey: lk, mftype: r.mftype, lenstype: r.lenstype, rows: 0, suppliers: {}, samples: [], treatments: {} });
+    t.rows++;
+    t.suppliers[r.supplier] = (t.suppliers[r.supplier] || 0) + 1;
+    if (t.samples.length < 4) t.samples.push(r.name);
+    const trt = ov.treatmentByType[lk] || plClassifier.normTreatment(r.name);
+    t.treatments[trt] = (t.treatments[trt] || 0) + 1;
+  }
+  return Object.values(types).map(t => {
+    const tier = ov.tierByType[t.typeKey] || plClassifier.TIER_MAP[t.typeKey] || null;
+    return {
+      typeKey: t.typeKey, mftype: t.mftype, lenstype: t.lenstype, rows: t.rows,
+      suppliers: Object.keys(t.suppliers), supplierCount: Object.keys(t.suppliers).length,
+      samples: t.samples, tier, classified: !!tier,
+      tierOverridden: !!ov.tierByType[t.typeKey],
+      treatmentOverride: ov.treatmentByType[t.typeKey] || null,
+      groups: Object.keys(t.treatments),
+    };
+  }).sort((a, b) => (a.classified - b.classified) || a.mftype.localeCompare(b.mftype) || (b.rows - a.rows));
 }
 
 function plSourceStatus() {
@@ -1057,6 +1124,28 @@ const server = http.createServer(async (req, res) => {
       return plSourceStatus();
     });
   }
+  // All lens TYPES with their current category/group + the editable vocabulary.
+  if (url.pathname === "/api/v2/catalog-types" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return { types: plCatalogTypes(), tiers: PL_TIER_OPTIONS, groups: PL_GROUP_OPTIONS, overrides: plReadOverrides() };
+    });
+  }
+  // Tag-pill classify: set/clear a type's category (tier) and/or group (treatment), then re-bucket + re-price.
+  if (url.pathname === "/api/v2/classify" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.write");
+      const body = await readJsonBody(req);
+      const typeKey = body && body.typeKey;
+      if (!typeKey) { const e = new Error("typeKey required."); e.statusCode = 400; throw e; }
+      const ov = plReadOverrides();
+      if ('tier' in body) { if (body.tier) ov.tierByType[typeKey] = body.tier; else delete ov.tierByType[typeKey]; }
+      if ('treatment' in body) { if (body.treatment) ov.treatmentByType[typeKey] = body.treatment; else delete ov.treatmentByType[typeKey]; }
+      plWriteOverrides(ov);
+      const count = plReclassify();
+      return { ok: true, combos: count, types: plCatalogTypes(), overrides: ov };
+    });
+  }
   if (url.pathname === "/api/v2/overrides" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
@@ -1280,7 +1369,7 @@ const server = http.createServer(async (req, res) => {
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getCvApi(body.token);
-      const summary = await plCvConnector.pull(creds, { write: true });
+      const summary = await plCvConnector.pull(creds, { write: true, overrides: plReadOverrides() });
       // Live pull wrote the generated catalog — return to it unless fallback is forced.
       if (plSourceMode() === "fallback") plSetSourceMode("auto");
       plReloadCombos();
@@ -1309,7 +1398,7 @@ const server = http.createServer(async (req, res) => {
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getOptilens(body.token, { needService: false });
-      const summary = await plConnector.pull(creds, { write: true });
+      const summary = await plConnector.pull(creds, { write: true, overrides: plReadOverrides() });
       // A successful pull writes the generated catalog; switch back to it
       // automatically (unless the user has explicitly forced fallback) and
       // reload combos in memory.
