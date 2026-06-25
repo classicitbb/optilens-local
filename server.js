@@ -211,6 +211,11 @@ function plReloadCombos() {
   return plLoaded;
 }
 
+function plRefreshCombos() {
+  // The builder catalog is file-backed, so refresh before serving read paths.
+  return plReloadCombos();
+}
+
 // ── Classification overrides (Sourcing Review tag pills) ────────────────────
 function plReadOverrides() {
   const o = plReadJSON(PL_CLASS_OV, null) || {};
@@ -265,6 +270,7 @@ function plCatalogTypes() {
 }
 
 function plSourceStatus() {
+  plRefreshCombos();
   const exists = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
   const { active, mode } = plLoaded;
   return {
@@ -1094,6 +1100,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/v2/combos" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
+      plRefreshCombos();
       return plCombos;
     });
   }
@@ -1128,6 +1135,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/v2/catalog-types" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
+      plRefreshCombos();
       return { types: plCatalogTypes(), tiers: PL_TIER_OPTIONS, groups: PL_GROUP_OPTIONS, overrides: plReadOverrides() };
     });
   }
@@ -1161,6 +1169,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/v2/price" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
+      plRefreshCombos();
       const settings = await readJsonBody(req);
       if (!settings.disabled) settings.disabled = plLoadOverrides();
       return { settings, rows: plPricedMatrix(plCombos, settings) };
@@ -1169,6 +1178,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/v2/override" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
+      plRefreshCombos();
       const body = await readJsonBody(req);
       const combo = plComboByKey[body.key];
       if (!combo) { const e = new Error("combo not found"); e.statusCode = 404; throw e; }

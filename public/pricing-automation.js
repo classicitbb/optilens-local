@@ -84,6 +84,7 @@ let currentCustomer = null;
 let currentPricelistId = null;
 let currentPricelistName = null;
 let currentAuditKey = null;
+let loadError = null;
 let overrides = { combos: [], suppliers: {} };
 let sources = { sources: [], live: [] };
 let collapsed = {};
@@ -125,25 +126,55 @@ function toast(msg) {
   setTimeout(() => el.classList.remove('show'), 2600);
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+async function fetchJson(url, fallback) {
+  const res = await fetch(url, { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    if (fallback !== undefined && res.status !== 401 && res.status !== 403) return fallback;
+    throw err;
+  }
+  return data;
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────
 // Note: applyTheme / wireThemeToggle are provided by shared.js (loaded before this file)
 async function boot() {
-  const [cb, cs, ov, sr] = await Promise.all([
-    fetch('/api/v2/combos').then(r => r.json()).catch(() => []),
-    fetch('/api/pl/customers').then(r => r.json()).catch(() => []),
-    fetch('/api/v2/overrides').then(r => r.json()).catch(() => ({ combos: [], suppliers: {} })),
-    fetch('/api/v2/sources').then(r => r.json()).catch(() => ({ sources: [], live: [] })),
-  ]);
-  combos = Array.isArray(cb) ? cb : [];
-  comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
-  customers = Array.isArray(cs) ? cs : [];
-  overrides = ov && ov.combos ? ov : { combos: [], suppliers: {} };
-  sources = sr || { sources: [], live: [] };
-  populateCustomers();
-  buildSupplierPanel();
-  syncSettingsInputs();
-  buildMatrix();
-  updateEditingIndicator();
+  try {
+    const cb = await fetchJson('/api/v2/combos');
+    const [cs, ov, sr] = await Promise.all([
+      fetchJson('/api/pl/customers', []),
+      fetchJson('/api/v2/overrides', { combos: [], suppliers: {} }),
+      fetchJson('/api/v2/sources', { sources: [], live: [] }),
+    ]);
+    combos = Array.isArray(cb) ? cb : [];
+    comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+    customers = Array.isArray(cs) ? cs : [];
+    overrides = ov && ov.combos ? ov : { combos: [], suppliers: {} };
+    sources = sr || { sources: [], live: [] };
+    loadError = null;
+    populateCustomers();
+    buildSupplierPanel();
+    syncSettingsInputs();
+    buildMatrix();
+    updateEditingIndicator();
+  } catch (error) {
+    loadError = error;
+    const message = error.status === 401 || error.status === 403
+      ? 'Sign in with a pricing account to load the lens grid.'
+      : (error.message || 'Could not load the lens grid.');
+    $('matrix-container').innerHTML = `<div class="pl-empty-state">${escapeHtml(message)}</div>`;
+    toast(message);
+  }
 }
 
 function populateCustomers() {
@@ -322,6 +353,13 @@ function activeMaterials(treatment) {
 function buildMatrix() {
   const container = $('matrix-container');
   container.innerHTML = '';
+  if (loadError) {
+    const message = loadError.status === 401 || loadError.status === 403
+      ? 'Sign in with a pricing account to load the lens grid.'
+      : (loadError.message || 'Could not load the lens grid.');
+    container.innerHTML = `<div class="pl-empty-state">${escapeHtml(message)}</div>`;
+    return;
+  }
   TREATMENT_ORDER.forEach(treatment => {
     const tiers = TIER_ORDER.filter(ti => MATERIALS.some(m => getCombo(treatment, ti, m)));
     if (!tiers.length) return;
