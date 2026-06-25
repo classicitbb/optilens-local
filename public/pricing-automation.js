@@ -864,7 +864,7 @@ function buildSourcingView() {
 
 // ── Classify catalog (tag pills) ───────────────────────────────────────
 let classifyTypes = [], classifyTiers = [], classifyGroups = [];
-const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tierGrade = (ti) => { const d = TIER_DISPLAY[ti]; return d ? `${d.grade} (${d.name})` : (ti || '—'); };
 
 async function loadClassify() {
@@ -888,23 +888,23 @@ function renderClassify() {
   if (!list.length) { $('classify-body').innerHTML = `<div class="pl-empty-state">${unOnly ? 'Everything is classified. 🎉' : 'No catalog types loaded.'}</div>`; return; }
   $('classify-body').innerHTML = list.map(t => {
     const tierOpts = ['<option value="">— unclassified —</option>']
-      .concat(classifyTiers.map(o => `<option value="${esc(o)}" ${o === t.tier ? 'selected' : ''}>${esc(tierGrade(o))}</option>`)).join('');
+      .concat(classifyTiers.map(o => `<option value="${escHtml(o)}" ${o === t.tier ? 'selected' : ''}>${escHtml(tierGrade(o))}</option>`)).join('');
     const grpOpts = ['<option value="">auto (from name)</option>']
-      .concat(classifyGroups.map(o => `<option value="${esc(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${esc(o)}</option>`)).join('');
-    const groupPills = t.groups.map(g => `<span class="tagpill ${t.treatmentOverride === g ? 'tagpill-ov' : ''}">${esc(g)}</span>`).join('');
+      .concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
+    const groupPills = t.groups.map(g => `<span class="tagpill ${t.treatmentOverride === g ? 'tagpill-ov' : ''}">${escHtml(g)}</span>`).join('');
     const sup = t.suppliers.map(s => SUP_ABBR[s] || s).join(', ');
     return `<div class="cls-row ${t.classified ? '' : 'cls-unclassified'}">
       <div class="cls-main">
-        <div class="cls-type">${esc(t.mftype)} · <b>${esc(t.lenstype)}</b> ${t.tierOverridden ? '<span class="tagpill tagpill-ov">manual</span>' : ''}</div>
-        <div class="cls-sub muted">${t.rows} rows · ${esc(sup)}</div>
-        <div class="cls-sample muted">${esc(t.samples[0] || '')}</div>
+        <div class="cls-type">${escHtml(t.mftype)} · <b>${escHtml(t.lenstype)}</b> ${t.tierOverridden ? '<span class="tagpill tagpill-ov">manual</span>' : ''}</div>
+        <div class="cls-sub muted">${t.rows} rows · ${escHtml(sup)}</div>
+        <div class="cls-sample muted">${escHtml(t.samples[0] || '')}</div>
       </div>
       <div class="cls-tags">${groupPills}</div>
       <div class="cls-ctl">
         <label class="cls-lbl">Category</label>
-        <select onchange="classifyType('${esc(t.typeKey)}','tier',this.value)">${tierOpts}</select>
+        <select onchange="classifyType('${escHtml(t.typeKey)}','tier',this.value)">${tierOpts}</select>
         <label class="cls-lbl">Group</label>
-        <select onchange="classifyType('${esc(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+        <select onchange="classifyType('${escHtml(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
       </div>
     </div>`;
   }).join('');
