@@ -1,0 +1,8 @@
+model_providers:
+  - name: ollama-local
+    api_base: http://localhost:11434/v1
+    api_key: ollama
+    models:
+      - qwen2.5-coder:7b
+      - gemma:7b
+

@@ -91,6 +91,8 @@ let overrides = createDefaultOverrides();
 let classOverrides = createDefaultClassOverrides();
 let sources = { sources: [], live: [] };
 let collapsed = {};
+let auditDrag = null;
+let auditEditDraft = null;
 
 let settings = createDefaultSettings();
 
@@ -557,6 +559,7 @@ function landedCalc(fob, supplier) {
 function openAudit(key) {
   const c = comboByKey[key];
   if (!c) return;
+  const wasOpen = $('audit-overlay').classList.contains('open');
   currentAuditKey = key;
   const [t, ti, m] = key.split('||');
   const disp = TIER_DISPLAY[ti] || { grade: ti, name: '' };
@@ -572,6 +575,9 @@ function openAudit(key) {
 
   const avail = supRows.filter(r => !r.excluded && !r.disabled);
   const anchor = avail.length ? avail.reduce((a, b) => (b.lc.landed > a.lc.landed ? b : a)) : null;
+  const existingWholesale = p && Number.isFinite(Number(p.priceUSD)) ? Number(p.priceUSD) : '';
+  const existingRetail = p && Number.isFinite(Number(p.retailUSD)) ? Number(p.retailUSD) : '';
+  auditEditDraft = { key, wholesaleUSD: existingWholesale, retailUSD: existingRetail, retailTouched: false };
 
   const supTable = supRows.map(r => {
     const status = r.disabled ? '<span class="ast off">disabled</span>'
@@ -592,19 +598,33 @@ function openAudit(key) {
     </tr>`;
   }).join('');
 
-  let calc = '<p class="muted">No price computed yet — run Auto-Price.</p>';
-  if (p && anchor) {
-    const raw = anchor.lc.landed / (1 - settings.floorMargin);
-    calc = `<table class="audit-calc">
+  const raw = anchor ? anchor.lc.landed / (1 - settings.floorMargin) : 0;
+  const suggested = raw && settings.rounding ? Math.ceil(raw / settings.rounding) * settings.rounding : raw;
+  const editWholesale = existingWholesale || suggested || '';
+  const editRetail = existingRetail || (editWholesale ? Math.round(editWholesale * (1 + settings.markup.value / 100) * 100) / 100 : '');
+  const calcRows = anchor ? `<table class="audit-calc">
       <tr><td>Anchor (worst-case lab)</td><td class="num"><b>${SUP_ABBR[anchor.sup]||anchor.sup}</b> · landed $${anchor.lc.landed.toFixed(2)}</td></tr>
       <tr><td>÷ (1 − floor ${Math.round(settings.floorMargin*100)}%)</td><td class="num">$${raw.toFixed(2)}</td></tr>
-      <tr><td>round up to $${settings.rounding}${p.smoothed?' + gap-smoothing':''}</td><td class="num">$${p.priceUSD.toFixed(2)}</td></tr>
-      <tr class="hl"><td>Wholesale price (USD)</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
-      <tr><td>Retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
-      <tr><td>Worst-case / preferred (${SUP_ABBR[p.preferredSupplier]||p.preferredSupplier})</td><td class="num">${(p.floorMargin*100).toFixed(0)}% / ${(p.preferredMargin*100).toFixed(0)}%</td></tr>
-    </table>
-    <p class="audit-note">Every figure is derived: source rows from <b>${srcName}</b>; landed cost adds freight + levy + clearance (VAT excluded); the price covers the most expensive available lab at your floor margin.</p>`;
-  }
+      <tr><td>round up to $${settings.rounding}${p && p.smoothed?' + gap-smoothing':''}</td><td class="num">$${suggested.toFixed(2)}</td></tr>
+      ${p ? `<tr class="hl"><td>Current wholesale (USD)</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
+      <tr><td>Current retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
+      <tr><td>Worst-case / preferred (${SUP_ABBR[p.preferredSupplier]||p.preferredSupplier})</td><td class="num">${(p.floorMargin*100).toFixed(0)}% / ${(p.preferredMargin*100).toFixed(0)}%</td></tr>` : ''}
+    </table>` : '<p class="muted">No available supplier remains for this line.</p>';
+  const calc = `<div class="audit-pricing">
+    <div class="audit-card">
+      <div class="audit-section-title">Calculation</div>
+      ${calcRows}
+    </div>
+    <div class="audit-card audit-edit-card">
+      <div class="audit-section-title">Edit price</div>
+      <div class="audit-edit-grid">
+        <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)"></label>
+        <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)"></label>
+      </div>
+      <div class="audit-edit-note">Edits apply when this audit window closes. Blank retail uses the current ${settings.markup.value}% markup.</div>
+    </div>
+  </div>
+  <p class="audit-note">Every figure is derived: source rows from <b>${srcName}</b>; landed cost adds freight + levy + clearance (VAT excluded); the price covers the most expensive available lab at your floor margin.</p>`;
 
   const kEsc = key.replace(/'/g, "\\'");
   $('audit-body').innerHTML = `
@@ -618,20 +638,111 @@ function openAudit(key) {
       ${comboDisabled
         ? `<button class="pl-btn pl-btn-teal" onclick="toggleDisableCombo('${kEsc}')">↩ Restore</button>`
         : `<button class="pl-btn pl-btn-danger" onclick="toggleDisableCombo('${kEsc}')">✕ Discontinue</button>`}
-      <button class="pl-btn pl-btn-secondary" onclick="closeAudit()">Close</button>
+      <button class="pl-btn pl-btn-primary" onclick="closeAudit()">Save & Close</button>
     </div>`;
+  if (!wasOpen) resetAuditPanelPosition();
   $('audit-overlay').classList.add('open');
 }
 function closeAuditClick(e) { if (e.target === $('audit-overlay')) closeAudit(); }
-function closeAudit() { currentAuditKey = null; $('audit-overlay').classList.remove('open'); }
+function closeAudit() {
+  currentAuditKey = null;
+  applyAuditEdits();
+  auditEditDraft = null;
+  $('audit-overlay').classList.remove('open');
+  resetAuditPanelPosition();
+}
 function refreshAudit() {
   if (currentAuditKey && $('audit-overlay').classList.contains('open')) openAudit(currentAuditKey);
+}
+
+function setAuditDraft(field, value, retailTouched = false) {
+  if (!auditEditDraft) return;
+  const n = parseFloat(value);
+  auditEditDraft[field] = Number.isFinite(n) && n > 0 ? n : null;
+  if (retailTouched) auditEditDraft.retailTouched = true;
+}
+
+function applyAuditEdits() {
+  if (!auditEditDraft || !auditEditDraft.key) return;
+  const combo = comboByKey[auditEditDraft.key];
+  if (!combo) return;
+  const existing = prices[auditEditDraft.key] || {};
+  const wholesale = auditEditDraft.wholesaleUSD;
+  const retail = auditEditDraft.retailUSD;
+  const wholesaleChanged = Number.isFinite(Number(wholesale)) && Math.abs(Number(wholesale) - Number(existing.priceUSD || 0)) > 0.004;
+  const retailChanged = auditEditDraft.retailTouched && Number.isFinite(Number(retail)) && Math.abs(Number(retail) - Number(existing.retailUSD || 0)) > 0.004;
+  if (!wholesaleChanged && !retailChanged) return;
+
+  if (wholesaleChanged) {
+    storeManual(auditEditDraft.key, Number(wholesale), combo, existing.constraintSupplier || null);
+  } else if (!prices[auditEditDraft.key]) {
+    prices[auditEditDraft.key] = {};
+  }
+
+  if (retailChanged) {
+    prices[auditEditDraft.key].retailUSD = Number(retail);
+    prices[auditEditDraft.key].manual = true;
+  }
+  buildMatrix();
+  updateEditingIndicator();
+  toast('Audit price edits saved');
+}
+
+function resetAuditPanelPosition() {
+  const panel = document.querySelector('.audit-panel');
+  if (!panel) return;
+  panel.classList.remove('is-dragging');
+  panel.style.position = '';
+  panel.style.left = '';
+  panel.style.top = '';
+  panel.style.margin = '';
+}
+
+function initAuditDrag() {
+  const handle = $('audit-drag-handle');
+  const panel = document.querySelector('.audit-panel');
+  if (!handle || !panel) return;
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.target.closest('button')) return;
+    const rect = panel.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.margin = '0';
+    panel.classList.add('is-dragging');
+    auditDrag = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+    handle.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener('pointermove', (event) => {
+    if (!auditDrag || auditDrag.pointerId !== event.pointerId) return;
+    const panelRect = panel.getBoundingClientRect();
+    const pad = 8;
+    const maxLeft = Math.max(pad, window.innerWidth - panelRect.width - pad);
+    const maxTop = Math.max(pad, window.innerHeight - panelRect.height - pad);
+    const left = Math.min(Math.max(pad, event.clientX - auditDrag.offsetX), maxLeft);
+    const top = Math.min(Math.max(pad, event.clientY - auditDrag.offsetY), maxTop);
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  });
+  const endDrag = (event) => {
+    if (!auditDrag || auditDrag.pointerId !== event.pointerId) return;
+    auditDrag = null;
+    panel.classList.remove('is-dragging');
+    try { handle.releasePointerCapture(event.pointerId); } catch {}
+  };
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
 }
 
 async function persistOverrides() {
   overrides = normalizeOverrides(overrides);
 }
 async function toggleDisableCombo(key) {
+  applyAuditEdits();
   const i = overrides.combos.indexOf(key);
   if (i >= 0) overrides.combos.splice(i, 1); else overrides.combos.push(key);
   await persistOverrides();
@@ -639,6 +750,7 @@ async function toggleDisableCombo(key) {
   openAudit(key);
 }
 async function toggleDisableSupplier(key, sup) {
+  applyAuditEdits();
   const arr = overrides.suppliers[key] || (overrides.suppliers[key] = []);
   const i = arr.indexOf(sup);
   if (i >= 0) arr.splice(i, 1); else arr.push(sup);
@@ -1395,4 +1507,7 @@ function showView(view) {
   if (view === 'connectors') buildConnectorsView();
 }
 
-window.addEventListener('DOMContentLoaded', boot);
+window.addEventListener('DOMContentLoaded', () => {
+  initAuditDrag();
+  boot();
+});
