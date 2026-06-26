@@ -117,6 +117,7 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 .pl-topbar { background: var(--pl-card); border-bottom: 1px solid var(--pl-border); padding: 8px 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
 [data-theme="dark"] .pl-topbar { background: #14304f; border-color: #1e3a5c; }
 .pl-topbar h2 { font-size: 15px; font-weight: 700; min-width: 100px; color: var(--pl-navy); margin: 0; }
+.pl-builder-action { display: none; }
 .editing-pill { margin-right: auto; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
 .editing-pill.editing { background: rgba(26,138,156,0.12); color: #0f6b7a; }
 .editing-pill.new { background: var(--pl-muted); color: var(--pl-muted-fg); }
@@ -230,12 +231,25 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .cls-sub, .cls-sample { font-size: 11px; }
 .cls-sample { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
 .cls-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.cls-classifications { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .cls-ctl { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; align-items: center; min-width: 230px; }
 .cls-ctl select { font-size: 12px; padding: 3px 5px; border: 1px solid var(--pl-border); border-radius: 6px; background: var(--pl-card); max-width: 200px; }
 .cls-lbl { font-size: 11px; color: var(--pl-muted, #789); }
 .tagpill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
   background: var(--pl-bg); border: 1px solid var(--pl-border); }
 .tagpill-ov { background: var(--pl-teal); color: #fff; border-color: var(--pl-teal); }
+.class-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 2px 7px; border: 1px solid var(--pl-border); border-radius: 999px; background: var(--pl-bg); color: var(--pl-navy); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.class-chip span { overflow: hidden; text-overflow: ellipsis; }
+.class-chip small { font-size: 9px; color: var(--pl-muted-fg); font-weight: 700; text-transform: uppercase; }
+.class-chip-select { max-width: 142px; border: 0; background: transparent; color: inherit; font: inherit; padding: 0 2px; outline: none; }
+.class-chip-select option { color: #0B1E35; background: #fff; }
+.class-chip button { width: 15px; height: 15px; border: 0; border-radius: 50%; background: rgba(11, 30, 53, 0.08); color: inherit; cursor: pointer; font: 700 11px/1 Arial, sans-serif; padding: 0; }
+.class-chip button:hover { background: rgba(204, 54, 43, 0.15); color: var(--pl-danger); }
+.class-chip.class-missing { border-color: var(--pl-gold); color: var(--pl-gold); background: #fff8ea; }
+.class-chip.class-treatment { border-color: rgba(26,138,156,0.35); }
+.class-chip.class-tier { border-color: rgba(200,145,48,0.38); }
+.src-classes { min-width: 170px; }
+.src-classes .class-chip { margin: 1px 3px 1px 0; }
 .sourcing-summary { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .src-stat { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 9px 14px; min-width: 130px; }
 [data-theme="dark"] .src-stat { background: #14304f; border-color: #1e3a5c; }
@@ -557,8 +571,8 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
     </div>
 
     <div class="pl-sb-section">Workspace</div>
-    <div class="pl-sb-item active" onclick="showView('builder')" id="nav-builder">⚡ Build Pricelist</div>
-    <div class="pl-sb-item" onclick="showView('saved')" id="nav-saved">📂 Saved Pricelists</div>
+    <div class="pl-sb-item active" onclick="showView('saved')" id="nav-saved">📂 Saved Pricelists</div>
+    <div class="pl-sb-item" onclick="showView('builder')" id="nav-builder">⚡ Build Pricelist</div>
     <div class="pl-sb-item" onclick="showView('sourcing')" id="nav-sourcing">🔍 Sourcing Review</div>
     <div class="pl-sb-item" onclick="showView('sources')" id="nav-sources">🗄 Data Sources</div>
     <div class="pl-sb-item" onclick="showView('connectors')" id="nav-connectors">🔌 Connectors</div>
@@ -598,22 +612,22 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   <!-- Main -->
   <div class="pl-main">
     <div class="pl-topbar">
-      <h2 id="topbar-title">Build Pricelist</h2>
+      <h2 id="topbar-title">Saved Pricelists</h2>
       <span id="editing-status" class="editing-pill new">New — unsaved</span>
-      <button class="pl-btn pl-btn-secondary" onclick="collapseAll(true)">⊖ Collapse</button>
-      <button class="pl-btn pl-btn-secondary" onclick="collapseAll(false)">⊕ Expand</button>
-      <button class="pl-btn pl-btn-gold" onclick="autoPrice()">✦ Auto-Price</button>
-      <button class="pl-btn pl-btn-secondary" onclick="resetPrices()">↺ Reset</button>
-      <button class="pl-btn pl-btn-secondary" onclick="showPreview()">◉ Preview</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="collapseAll(true)">⊖ Collapse</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="collapseAll(false)">⊕ Expand</button>
+      <button class="pl-btn pl-btn-gold pl-builder-action" onclick="autoPrice()">✦ Auto-Price</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="resetPrices()">↺ Reset</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="showPreview()">◉ Preview</button>
       <button class="pl-btn pl-btn-secondary" onclick="newBlankPricelist()">New Blank</button>
-      <button class="pl-btn pl-btn-primary" onclick="savePricelist()">Save</button>
-      <button class="pl-btn pl-btn-secondary" onclick="saveAsNewPricelist()" title="Create a separate new copy">Save As New</button>
-      <button class="pl-btn pl-btn-teal" onclick="showPreview(true)">↓ Export</button>
+      <button class="pl-btn pl-btn-primary pl-builder-action" onclick="savePricelist()">Save</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="saveAsNewPricelist()" title="Create a separate new copy">Save As New</button>
+      <button class="pl-btn pl-btn-teal pl-builder-action" onclick="showPreview(true)">↓ Export</button>
     </div>
 
     <div class="pl-content">
       <!-- Builder view -->
-      <div id="view-builder">
+      <div id="view-builder" style="display:none">
         <div class="pl-customer-bar">
           <label>Customer</label>
           <select id="customer-select" onchange="onCustomerChange()" style="min-width:190px">
@@ -637,7 +651,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
       </div>
 
       <!-- Saved -->
-      <div id="view-saved" style="display:none"><div id="saved-list"></div></div>
+      <div id="view-saved"><div id="saved-list"></div></div>
 
       <!-- Sourcing Review -->
       <div id="view-sourcing" style="display:none">
@@ -654,7 +668,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
         <div class="sourcing-summary" id="sourcing-summary"></div>
         <table class="sourcing-table">
           <thead><tr>
-            <th>Line</th><th class="num">Wholesale</th><th>Anchor (worst case)</th><th>Preferred source</th><th>Labs</th><th>Flag</th>
+            <th>Line</th><th>Classification</th><th class="num">Wholesale</th><th>Anchor (worst case)</th><th>Preferred source</th><th>Labs</th><th>Flag</th>
           </tr></thead>
           <tbody id="sourcing-body"></tbody>
         </table>

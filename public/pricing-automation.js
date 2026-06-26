@@ -88,6 +88,7 @@ let currentPricelistName = null;
 let currentAuditKey = null;
 let loadError = null;
 let overrides = createDefaultOverrides();
+let classOverrides = createDefaultClassOverrides();
 let sources = { sources: [], live: [] };
 let collapsed = {};
 
@@ -129,6 +130,19 @@ function createDefaultSettings() {
 
 function createDefaultOverrides() {
   return { combos: [], suppliers: {} };
+}
+
+function createDefaultClassOverrides() {
+  return { tierByType: {}, treatmentByType: {}, materialByType: {} };
+}
+
+function normalizeClassOverrides(value) {
+  const input = value && typeof value === 'object' ? value : {};
+  return {
+    tierByType: { ...(input.tierByType || {}) },
+    treatmentByType: { ...(input.treatmentByType || {}) },
+    materialByType: { ...(input.materialByType || {}) },
+  };
 }
 
 function normalizeOverrides(value) {
@@ -226,6 +240,7 @@ async function boot() {
     comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
     customers = Array.isArray(cs) ? cs : [];
     overrides = createDefaultOverrides();
+    classOverrides = createDefaultClassOverrides();
     sources = sr || { sources: [], live: [] };
     loadError = null;
     populateCustomers();
@@ -235,6 +250,7 @@ async function boot() {
     syncSettingsInputs();
     buildMatrix();
     updateEditingIndicator();
+    showView('saved');
   } catch (error) {
     loadError = error;
     const message = error.status === 401 || error.status === 403
@@ -242,6 +258,7 @@ async function boot() {
       : (error.message || 'Could not load the lens grid.');
     $('matrix-container').innerHTML = `<div class="pl-empty-state">${escapeHtml(message)}</div>`;
     toast(message);
+    showView('saved');
   }
 }
 
@@ -327,9 +344,10 @@ function setMode(m) {
 async function autoPrice() {
   readSettings();
   overrides = normalizeOverrides(overrides);
+  await refreshClassifiedCatalog({ render: false, reprice: false, build: false });
   const res = await fetch('/api/v2/price', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...settings, disabled: overrides }),
+    body: JSON.stringify({ ...settings, disabled: overrides, classOverrides }),
   }).then(r => r.json());
   let filled = 0;
   res.rows.forEach(row => {
@@ -371,9 +389,10 @@ async function onCellEdit(key, rawVal) {
     buildMatrix();
     return;
   }
+  await refreshClassifiedCatalog({ render: false, reprice: false, build: false });
   const ev = await fetch('/api/v2/override', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings }),
+    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings, classOverrides }),
   }).then(r => r.json());
   const combo = comboByKey[key];
   if (ev.ok) { storeManual(key, enteredUSD, combo, null); buildMatrix(); return; }
@@ -809,6 +828,7 @@ function pricelistPayload(name) {
     priceMode,
     settings: normalizeSettings(settings),
     overrides: normalizeOverrides(overrides),
+    classOverrides: normalizeClassOverrides(classOverrides),
     prices: deepClone(prices),
   };
 }
@@ -835,6 +855,7 @@ function applyPricelistState(p, { asCopy = false } = {}) {
   prices = deepClone(loaded.prices || {});
   settings = normalizeSettings(loaded.settings);
   overrides = normalizeOverrides(loaded.overrides);
+  classOverrides = normalizeClassOverrides(loaded.classOverrides);
   currency = loaded.currency || 'USD';
   priceMode = loaded.priceMode || 'wholesale';
   collapsed = {};
@@ -860,6 +881,7 @@ function applyPricelistState(p, { asCopy = false } = {}) {
   buildGroupPanel();
   setCurrency(currency);
   setMode(priceMode);
+  refreshClassifiedCatalog({ render: false, reprice: false }).catch(e => toast('Classifications unavailable: ' + e.message));
   updateEditingIndicator();
 }
 
@@ -873,6 +895,7 @@ function newBlankPricelist() {
     priceMode: 'wholesale',
     settings: createDefaultSettings(),
     overrides: createDefaultOverrides(),
+    classOverrides: createDefaultClassOverrides(),
     prices: {},
   }, { asCopy: true });
   showView('builder');
@@ -999,8 +1022,8 @@ function rePrice() {
 }
 
 // ── Sourcing Review ────────────────────────────────────────────────────
-function buildSourcingView() {
-  loadClassify();
+async function buildSourcingView() {
+  await loadClassify();
   const rows = Object.entries(prices).map(([key, p]) => {
     if (isComboDisabled(key)) return null;
     const c = comboByKey[key]; if (!c) return null;
@@ -1016,8 +1039,8 @@ function buildSourcingView() {
     <div class="src-stat"><div class="ss-num">${priced}</div><div class="ss-lbl">Priced lines</div></div>
     <div class="src-stat"><div class="ss-num" style="color:var(--pl-gold)">${single.length}</div><div class="ss-lbl">Single-source</div></div>
     <div class="src-stat"><div class="ss-num" style="color:var(--pl-teal)">${constrained.length}</div><div class="ss-lbl">Source-constrained</div></div>`;
-  if (!priced) { $('sourcing-body').innerHTML = '<tr><td colspan="6" class="pl-empty-state">Run Auto-Price first.</td></tr>'; return; }
-  if (!flagged.length) { $('sourcing-body').innerHTML = '<tr><td colspan="6" class="pl-empty-state">All clear — every priced line has multi-supplier fallback.</td></tr>'; return; }
+  if (!priced) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">Run Auto-Price first.</td></tr>'; return; }
+  if (!flagged.length) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">All clear — every priced line has multi-supplier fallback.</td></tr>'; return; }
   $('sourcing-body').innerHTML = flagged.map(r => {
     const [t,ti,m] = r.key.split('||');
     const flag = r.constrained
@@ -1025,6 +1048,7 @@ function buildSourcingView() {
       : `<span class="flag flag-sin">single-source</span>`;
     return `<tr>
       <td>${fmt(t,ti,m)}</td>
+      <td class="src-classes">${lineClassificationChips(r.c)}</td>
       <td class="num">${sym()}${toDisplay(r.p.priceUSD).toFixed(2)}</td>
       <td>${SUP_ABBR[r.p.anchorSupplier]||r.p.anchorSupplier} <span class="muted">${(r.p.floorMargin*100).toFixed(0)}%</span></td>
       <td>${SUP_ABBR[r.p.preferredSupplier]||r.p.preferredSupplier} <span class="muted">${(r.p.preferredMargin*100).toFixed(0)}%</span></td>
@@ -1035,20 +1059,109 @@ function buildSourcingView() {
 }
 
 // ── Classify catalog (tag pills) ───────────────────────────────────────
-let classifyTypes = [], classifyTiers = [], classifyGroups = [];
+let classifyTypes = [], classifyTiers = [], classifyGroups = [], classifyMaterials = [];
 const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tierGrade = (ti) => { const d = TIER_DISPLAY[ti]; return d ? `${d.grade} (${d.name})` : (ti || '—'); };
+const encodeTypeKeys = (keys) => encodeURIComponent(JSON.stringify((keys || []).filter(Boolean)));
+const jsAttrArg = (s) => escHtml(jsArg(s));
+
+function categoryClassLabel(tier) {
+  if (!tier) return '';
+  if (/best/i.test(tier)) return 'Best';
+  if (/better/i.test(tier)) return 'Better';
+  if (/good/i.test(tier)) return 'Good';
+  if (/adept/i.test(tier)) return /bifocal/i.test(tier) ? 'Adept Bifocal / Conventional' : 'Adept / Conventional';
+  if (/regular/i.test(tier)) return 'Conventional';
+  const d = TIER_DISPLAY[tier];
+  return d ? d.grade : tier;
+}
+
+function chipOptions(field, value, allowAuto = true) {
+  const source = field === 'tier' ? classifyTiers : field === 'treatment' ? classifyGroups : classifyMaterials;
+  const opts = [];
+  if (allowAuto && field !== 'tier') opts.push(`<option value="__auto">auto</option>`);
+  opts.push('<option value="">missing</option>');
+  for (const option of source) opts.push(`<option value="${escHtml(option)}" ${option === value ? 'selected' : ''}>${escHtml(field === 'tier' ? categoryClassLabel(option) : option)}</option>`);
+  return opts.join('');
+}
+
+function classificationChip(kind, label, detail, typeKeys, field, missing) {
+  const keys = (typeKeys || []).filter(Boolean);
+  const encoded = encodeTypeKeys(keys);
+  const value = missing ? '' : (field === 'tier' ? detail : label);
+  const select = keys.length
+    ? `<select class="class-chip-select" title="Set ${escHtml(kind.toLowerCase())} classification" onchange="classifyEncodedTypes('${encoded}','${field}',this.value)">${chipOptions(field, value, true)}</select>`
+    : `<span>${escHtml(label)}</span>`;
+  const remove = !missing && keys.length
+    ? `<button type="button" title="Remove ${escHtml(kind.toLowerCase())} classification" onclick="event.stopPropagation(); unclassifyTypes('${encodeTypeKeys(keys)}','${field}')">×</button>`
+    : '';
+  return `<span class="class-chip class-${escHtml(field)}${missing ? ' class-missing' : ''}">
+    <small>${escHtml(kind)}</small>${select}${detail && field !== 'tier' ? `<span class="muted">${escHtml(detail)}</span>` : ''}${remove}
+  </span>`;
+}
+
+function typeClassificationChips(t) {
+  const keys = [t.typeKey];
+  const chips = [];
+  if (t.treatmentMissing) {
+    chips.push(classificationChip('Group', 'Missing classification', '', keys, 'treatment', true));
+  } else {
+    const groups = t.treatmentOverride ? [t.treatmentOverride] : (t.groups || []);
+    const label = groups.length ? groups.join(' / ') : 'Missing classification';
+    chips.push(classificationChip('Group', label, t.treatmentOverridden ? 'manual' : 'auto', keys, 'treatment', !groups.length));
+  }
+  if (t.tierMissing || !t.tier) {
+    chips.push(classificationChip('Category', 'Missing classification', '', keys, 'tier', true));
+  } else {
+    chips.push(classificationChip('Category', categoryClassLabel(t.tier), t.tier, keys, 'tier', false));
+  }
+  if (t.materialMissing) {
+    chips.push(classificationChip('Material', 'Missing classification', '', keys, 'material', true));
+  } else {
+    const materials = t.materialOverride ? [t.materialOverride] : (t.materials || []);
+    const label = materials.length ? materials.join(' / ') : 'Missing classification';
+    chips.push(classificationChip('Material', label, t.materialOverridden ? 'manual' : 'auto', keys, 'material', !materials.length));
+  }
+  return chips.join('');
+}
+
+function lineClassificationChips(combo) {
+  const types = Array.isArray(combo.types) ? combo.types : [];
+  const keys = types.map(t => t.typeKey).filter(Boolean);
+  const typeDetail = keys.length > 1 ? `${keys.length} catalog types` : '';
+  return [
+    classificationChip('Group', combo.treatment || 'Missing classification', typeDetail, keys, 'treatment', !combo.treatment),
+    classificationChip('Category', categoryClassLabel(combo.tier) || 'Missing classification', combo.tier || typeDetail, keys, 'tier', !combo.tier),
+    classificationChip('Material', combo.material || 'Missing classification', typeDetail, keys, 'material', !combo.material),
+  ].join('');
+}
 
 async function loadClassify() {
   try {
-    const d = await fetch('/api/v2/catalog-types').then(r => r.json());
-    if (d && d.error) throw new Error(d.error);
-    classifyTypes = d.types || []; classifyTiers = d.tiers || []; classifyGroups = d.groups || [];
-    renderClassify();
+    await refreshClassifiedCatalog({ render: true, reprice: false });
   } catch (e) {
     $('classify-body').innerHTML = `<div class="pl-empty-state">Catalog types unavailable. Pull the catalog first, then reopen.</div>`;
     $('classify-count').textContent = '';
   }
+}
+
+async function refreshClassifiedCatalog({ render = true, reprice = false, build = true } = {}) {
+  const d = await fetch('/api/v2/classification-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ classOverrides }),
+  }).then(r => r.json());
+  if (d && d.error) throw new Error(d.error);
+  classifyTypes = d.types || [];
+  classifyTiers = d.tiers || [];
+  classifyGroups = d.groups || [];
+  classifyMaterials = d.materials || MATERIALS;
+  combos = d.combos || combos;
+  comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+  if (reprice && Object.keys(prices).length) await autoPrice();
+  else if (build) buildMatrix();
+  if (render) renderClassify();
+  return d;
 }
 
 function renderClassify() {
@@ -1064,22 +1177,29 @@ function renderClassify() {
   $('classify-body').innerHTML = list.map(t => {
     const tierOpts = ['<option value="">— unclassified —</option>']
       .concat(classifyTiers.map(o => `<option value="${escHtml(o)}" ${o === t.tier ? 'selected' : ''}>${escHtml(tierGrade(o))}</option>`)).join('');
-    const grpOpts = ['<option value="">auto (from name)</option>']
-      .concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
-    const groupPills = t.groups.map(g => `<span class="tagpill ${t.treatmentOverride === g ? 'tagpill-ov' : ''}">${escHtml(g)}</span>`).join('');
+    const grpOpts = [
+      `<option value="__auto" ${t.treatmentOverridden ? '' : 'selected'}>auto (from name)</option>`,
+      `<option value="" ${t.treatmentMissing ? 'selected' : ''}>— unclassified —</option>`,
+    ].concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
+    const matOpts = [
+      `<option value="__auto" ${t.materialOverridden ? '' : 'selected'}>auto (from source)</option>`,
+      `<option value="" ${t.materialMissing ? 'selected' : ''}>— unclassified —</option>`,
+    ].concat(classifyMaterials.map(o => `<option value="${escHtml(o)}" ${o === t.materialOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
     const sup = t.suppliers.map(s => SUP_ABBR[s] || s).join(', ');
     return `<div class="cls-row ${t.classified ? '' : 'cls-unclassified'}">
       <div class="cls-main">
-        <div class="cls-type">${escHtml(t.mftype)} · <b>${escHtml(t.lenstype)}</b> ${t.tierOverridden ? '<span class="tagpill tagpill-ov">manual</span>' : ''}</div>
+        <div class="cls-type">${escHtml(t.mftype)} · <b>${escHtml(t.lenstype)}</b> ${t.tierOverridden && !t.tierMissing ? '<span class="tagpill tagpill-ov">manual</span>' : ''} ${t.materialOverridden && !t.materialMissing ? '<span class="tagpill tagpill-ov">material</span>' : ''}</div>
         <div class="cls-sub muted">${t.rows} rows · ${escHtml(sup)}</div>
         <div class="cls-sample muted">${escHtml(t.samples[0] || '')}</div>
       </div>
-      <div class="cls-tags">${groupPills}</div>
+      <div class="cls-classifications">${typeClassificationChips(t)}</div>
       <div class="cls-ctl">
         <label class="cls-lbl">Category</label>
-        <select onchange="classifyType('${escHtml(t.typeKey)}','tier',this.value)">${tierOpts}</select>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','tier',this.value)">${tierOpts}</select>
         <label class="cls-lbl">Group</label>
-        <select onchange="classifyType('${escHtml(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+        <label class="cls-lbl">Material</label>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','material',this.value)">${matOpts}</select>
       </div>
     </div>`;
   }).join('');
@@ -1091,16 +1211,36 @@ function isAdeptCandidate(t) {
 }
 
 async function classifyType(typeKey, field, value) {
-  const body = { typeKey }; body[field] = value;
+  return classifyTypeKeys([typeKey], field, value);
+}
+
+async function unclassifyTypes(encodedTypeKeys, field) {
+  let typeKeys = [];
+  try { typeKeys = JSON.parse(decodeURIComponent(encodedTypeKeys)); } catch { typeKeys = []; }
+  if (!typeKeys.length) return toast('No catalog types found for that line');
+  return classifyTypeKeys(typeKeys, field, '');
+}
+
+async function classifyEncodedTypes(encodedTypeKeys, field, value) {
+  let typeKeys = [];
+  try { typeKeys = JSON.parse(decodeURIComponent(encodedTypeKeys)); } catch { typeKeys = []; }
+  if (!typeKeys.length) return toast('No catalog types found for that line');
+  return classifyTypeKeys(typeKeys, field, value);
+}
+
+async function classifyTypeKeys(typeKeys, field, value) {
   try {
-    const d = await fetch('/api/v2/classify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
-    if (d && d.error) { toast(d.error); return; }
+    const bucket = `${field}ByType`;
+    classOverrides = normalizeClassOverrides(classOverrides);
+    for (const typeKey of typeKeys) {
+      if (value === '__auto') delete classOverrides[bucket][typeKey];
+      else classOverrides[bucket][typeKey] = value || null;
+    }
+    const d = await refreshClassifiedCatalog({ render: false, reprice: true });
     classifyTypes = d.types || classifyTypes;
-    // Refresh combos so the builder matrix prices the reclassified lines.
-    combos = await fetch('/api/v2/combos').then(x => x.json());
-    comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
     renderClassify();
-    toast(`Reclassified · ${d.combos} priced combos`);
+    if ($('view-sourcing') && $('view-sourcing').style.display !== 'none') buildSourcingView();
+    toast(`Reclassified · ${(d.combos || []).length} priced combos`);
   } catch (e) { toast('Classify failed: ' + e.message); }
 }
 
@@ -1248,6 +1388,7 @@ function showView(view) {
     const nav = $(`nav-${v}`); if (nav) nav.classList.toggle('active', v === view);
   });
   $('topbar-title').textContent = VIEW_TITLES[view] || view;
+  document.querySelectorAll('.pl-builder-action').forEach(el => { el.style.display = view === 'saved' ? 'none' : 'inline-flex'; });
   if (view === 'saved') loadSavedList();
   if (view === 'sourcing') buildSourcingView();
   if (view === 'sources') buildSourcesView();
