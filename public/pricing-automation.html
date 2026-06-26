@@ -103,6 +103,13 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 .sup-ctrls .mini.exc { color: var(--pl-teal); }
 .sup-ctrls .mini.exc.on { color: #fca5a5; border-color: rgba(252,165,165,0.35); }
 
+.pl-group-box { padding: 0 10px 6px 14px; }
+.pl-group-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 11px; color: rgba(255,255,255,0.78); }
+.pl-group-row.hidden { opacity: 0.45; }
+.pl-group-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-group-toggle { width: 48px; height: 18px; padding: 0; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); background: rgba(26,138,156,0.4); color: #fff; font-size: 8px; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+.pl-group-toggle.off { background: rgba(220,38,38,0.18); color: #fca5a5; border-color: rgba(252,165,165,0.25); }
+
 /* ── Main column ── */
 .pl-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--pl-linen); }
 
@@ -212,6 +219,7 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .classify-panel { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 12px 14px; margin-bottom: 16px; }
 [data-theme="dark"] .classify-panel { background: #14304f; border-color: #1e3a5c; }
 .classify-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.classify-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .classify-toggle { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .classify-list { display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; }
 .cls-row { display: grid; grid-template-columns: minmax(220px,1.4fr) 1fr auto; gap: 12px; align-items: center;
@@ -579,6 +587,10 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
     </div>
     <div class="pl-sb-divider"></div>
 
+    <div class="pl-sb-section">Pricelist Groupings</div>
+    <div id="group-visibility" class="pl-group-box"></div>
+    <div class="pl-sb-divider"></div>
+
     <div class="pl-sb-section">Suppliers</div>
     <div id="sup-legend"></div>
   </div>
@@ -593,6 +605,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
       <button class="pl-btn pl-btn-gold" onclick="autoPrice()">✦ Auto-Price</button>
       <button class="pl-btn pl-btn-secondary" onclick="resetPrices()">↺ Reset</button>
       <button class="pl-btn pl-btn-secondary" onclick="showPreview()">◉ Preview</button>
+      <button class="pl-btn pl-btn-secondary" onclick="newBlankPricelist()">New Blank</button>
       <button class="pl-btn pl-btn-primary" onclick="savePricelist()">Save</button>
       <button class="pl-btn pl-btn-secondary" onclick="saveAsNewPricelist()" title="Create a separate new copy">Save As New</button>
       <button class="pl-btn pl-btn-teal" onclick="showPreview(true)">↓ Export</button>
@@ -631,7 +644,10 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
         <div class="classify-panel">
           <div class="classify-hdr">
             <div><b>Classify catalog</b> <span class="muted" id="classify-count"></span></div>
-            <label class="classify-toggle"><input type="checkbox" id="classify-unonly" onchange="renderClassify()"> Unclassified only</label>
+            <div class="classify-actions">
+              <label class="classify-toggle"><input type="checkbox" id="classify-unonly" onchange="renderClassify()"> Unclassified only</label>
+              <label class="classify-toggle"><input type="checkbox" id="classify-adeptonly" onchange="renderClassify()"> ADEPT / conventional</label>
+            </div>
           </div>
           <div id="classify-body" class="classify-list"><div class="pl-empty-state">Loading catalog…</div></div>
         </div>
