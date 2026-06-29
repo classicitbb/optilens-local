@@ -12,14 +12,14 @@ const TIER_DISPLAY = {
   'Progressive - Best':        { grade: 'Best',          name: 'Endless Steady' },
   'Progressive - Better':      { grade: 'Better',        name: 'Essential Steady' },
   'Progressive - Good':        { grade: 'Good',          name: 'Classic PAL' },
-  'Progressive - Adept':       { grade: 'Adept',         name: 'Adept PAL' },
+  'Progressive - Adept':       { grade: 'Adept / Conventional', name: 'Conventional PAL' },
   'Specific Use - Office':     { grade: 'Office',        name: 'Endless Office' },
   'Specific Use - Sport':      { grade: 'Sport',         name: 'Endless Sport' },
   'Anti-Fatigue':              { grade: 'Anti-Fatigue',  name: 'Endless Anti-Fatigue' },
   'Single Vision - HD':        { grade: 'Single Vision', name: 'Endless SV' },
   'Single Vision - Regular':   { grade: 'Single Vision', name: 'Conventional Single Vision' },
   'Specific Use - Bifocal':    { grade: 'Bifocal',       name: 'Endless BF' },
-  'Specific Use - Adept Bifocal': { grade: 'Adept Bifocal', name: 'Adept BF' },
+  'Specific Use - Adept Bifocal': { grade: 'Adept Bifocal / Conventional', name: 'Conventional BF/TF' },
 };
 
 const TIER_ORDER = [
@@ -27,6 +27,8 @@ const TIER_ORDER = [
   'Specific Use - Office', 'Specific Use - Sport', 'Anti-Fatigue',
   'Single Vision - HD', 'Single Vision - Regular', 'Specific Use - Bifocal', 'Specific Use - Adept Bifocal',
 ];
+
+const ADEPT_CANDIDATE_RE = /\b(physio|ovation|shoreview|ideal|qlds|omnilux|image|accolade|small fit|brilliance|comfort|precise|novel|flat top|round|executive|trifocal|c25|c28|d45|nupolar ft28)\b/i;
 
 const TREATMENT_ORDER = [
   'Clear', 'UV420',
@@ -88,27 +90,14 @@ let auditWindowMode = 'normal';
 let auditWindowBounds = null;
 let auditResizeState = null;
 let loadError = null;
-let overrides = { combos: [], suppliers: {} };
+let overrides = createDefaultOverrides();
+let classOverrides = createDefaultClassOverrides();
 let sources = { sources: [], live: [] };
 let collapsed = {};
+let auditDrag = null;
+let auditEditDraft = null;
 
-const settings = {
-  floorMargin: 0.15,
-  minMargin: 0.15,
-  rounding: 0.5,
-  wholesaleFloor: 10,
-  priority: DEFAULT_PRIORITY.slice(),
-  excluded: [],
-  markup: { type: 'pct', value: 100 },
-  smooth: true,
-  costModel: {
-    freightPct: { default: 0.12, 'TOG Rx Lab': 0.12, 'Vision Rx Lab': 0.12, 'Optex Laboratories': 0.10, 'SkyLab': 0.10 },
-    dutyPct: 0,
-    leviesPct: 0.01,
-    clearancePct: 0.03,
-    brokeragePerPair: 0.50,
-  },
-};
+let settings = createDefaultSettings();
 
 // ── Helpers ────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -117,6 +106,100 @@ const toDisplay = (usd) => (currency === 'BBD' ? usd * BBD_RATE : usd);
 const toUSD = (val) => (currency === 'BBD' ? val / BBD_RATE : val);
 const getKey = (t, ti, m) => `${t}||${ti}||${m}`;
 const getCombo = (t, ti, m) => comboByKey[getKey(t, ti, m)];
+const jsArg = (s) => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createDefaultSettings() {
+  return {
+    floorMargin: 0.15,
+    minMargin: 0.15,
+    rounding: 0.5,
+    wholesaleFloor: 10,
+    priority: DEFAULT_PRIORITY.slice(),
+    excluded: [],
+    markup: { type: 'pct', value: 100 },
+    smooth: true,
+    costModel: {
+      freightPct: { default: 0.12, 'TOG Rx Lab': 0.12, 'Vision Rx Lab': 0.12, 'Optex Laboratories': 0.10, 'SkyLab': 0.10 },
+      dutyPct: 0,
+      leviesPct: 0.01,
+      clearancePct: 0.03,
+      brokeragePerPair: 0.50,
+    },
+    hiddenGroups: [],
+  };
+}
+
+function createDefaultOverrides() {
+  return { combos: [], suppliers: {} };
+}
+
+function createDefaultClassOverrides() {
+  return { tierByType: {}, treatmentByType: {}, materialByType: {} };
+}
+
+function normalizeClassOverrides(value) {
+  const input = value && typeof value === 'object' ? value : {};
+  return {
+    tierByType: { ...(input.tierByType || {}) },
+    treatmentByType: { ...(input.treatmentByType || {}) },
+    materialByType: { ...(input.materialByType || {}) },
+  };
+}
+
+function normalizeOverrides(value) {
+  const input = value && typeof value === 'object' ? value : {};
+  const suppliers = {};
+  Object.entries(input.suppliers || {}).forEach(([key, list]) => {
+    if (!Array.isArray(list)) return;
+    const clean = Array.from(new Set(list.filter(Boolean).map(String)));
+    if (clean.length) suppliers[key] = clean;
+  });
+  return {
+    combos: Array.from(new Set(Array.isArray(input.combos) ? input.combos.filter(Boolean).map(String) : [])),
+    suppliers,
+  };
+}
+
+function normalizeSettings(value) {
+  const base = createDefaultSettings();
+  if (!value || typeof value !== 'object') return base;
+  const merged = { ...base, ...deepClone(value) };
+  merged.markup = { ...base.markup, ...(value.markup || {}) };
+  merged.costModel = { ...base.costModel, ...(value.costModel || {}) };
+  merged.costModel.freightPct = { ...base.costModel.freightPct, ...((value.costModel && value.costModel.freightPct) || {}) };
+  if (!Array.isArray(merged.priority)) merged.priority = DEFAULT_PRIORITY.slice();
+  if (!Array.isArray(merged.excluded)) merged.excluded = [];
+  if (!Array.isArray(merged.hiddenGroups)) merged.hiddenGroups = [];
+  return merged;
+}
+
+function ensureSettingsShape() {
+  if (!Array.isArray(settings.hiddenGroups)) settings.hiddenGroups = [];
+  if (!Array.isArray(settings.priority)) settings.priority = DEFAULT_PRIORITY.slice();
+  if (!Array.isArray(settings.excluded)) settings.excluded = [];
+  overrides = normalizeOverrides(overrides);
+}
+
+function isGroupVisible(treatment) {
+  ensureSettingsShape();
+  return !settings.hiddenGroups.includes(treatment);
+}
+
+function visibleTreatments() {
+  return TREATMENT_ORDER.filter(isGroupVisible);
+}
+
+function visiblePriceEntries() {
+  return Object.entries(prices).filter(([key]) => isGroupVisible(key.split('||')[0]) && !isComboDisabled(key));
+}
+
+function isComboDisabled(key) {
+  return normalizeOverrides(overrides).combos.includes(key);
+}
 
 function marginClass(m) {
   return m >= 0.45 ? 'm-ok' : m >= 0.30 ? 'm-thin' : m >= 0.15 ? 'm-floor' : 'm-low';
@@ -154,22 +237,25 @@ async function fetchJson(url, fallback) {
 async function boot() {
   try {
     const cb = await fetchJson('/api/v2/combos');
-    const [cs, ov, sr] = await Promise.all([
+    const [cs, sr] = await Promise.all([
       fetchJson('/api/pl/customers', []),
-      fetchJson('/api/v2/overrides', { combos: [], suppliers: {} }),
       fetchJson('/api/v2/sources', { sources: [], live: [] }),
     ]);
     combos = Array.isArray(cb) ? cb : [];
     comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
     customers = Array.isArray(cs) ? cs : [];
-    overrides = ov && ov.combos ? ov : { combos: [], suppliers: {} };
+    overrides = createDefaultOverrides();
+    classOverrides = createDefaultClassOverrides();
     sources = sr || { sources: [], live: [] };
     loadError = null;
     populateCustomers();
+    ensureSettingsShape();
     buildSupplierPanel();
+    buildGroupPanel();
     syncSettingsInputs();
     buildMatrix();
     updateEditingIndicator();
+    showView('saved');
   } catch (error) {
     loadError = error;
     const message = error.status === 401 || error.status === 403
@@ -177,6 +263,7 @@ async function boot() {
       : (error.message || 'Could not load the lens grid.');
     $('matrix-container').innerHTML = `<div class="pl-empty-state">${escapeHtml(message)}</div>`;
     toast(message);
+    showView('saved');
   }
 }
 
@@ -211,6 +298,7 @@ function onCustomerChange() {
 const FREIGHT_INPUTS = { 'set-fr-tog': 'TOG Rx Lab', 'set-fr-vrx': 'Vision Rx Lab', 'set-fr-optex': 'Optex Laboratories', 'set-fr-sky': 'SkyLab' };
 
 function syncSettingsInputs() {
+  ensureSettingsShape();
   $('set-floor').value = Math.round(settings.floorMargin * 100);
   $('set-markup').value = settings.markup.value;
   const cm = settings.costModel;
@@ -260,9 +348,11 @@ function setMode(m) {
 // ── Auto-price ─────────────────────────────────────────────────────────
 async function autoPrice() {
   readSettings();
+  overrides = normalizeOverrides(overrides);
+  await refreshClassifiedCatalog({ render: false, reprice: false, build: false });
   const res = await fetch('/api/v2/price', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...settings, disabled: overrides }),
+    body: JSON.stringify({ ...settings, disabled: overrides, classOverrides }),
   }).then(r => r.json());
   let filled = 0;
   res.rows.forEach(row => {
@@ -304,9 +394,10 @@ async function onCellEdit(key, rawVal) {
     buildMatrix();
     return;
   }
+  await refreshClassifiedCatalog({ render: false, reprice: false, build: false });
   const ev = await fetch('/api/v2/override', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings }),
+    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings, classOverrides }),
   }).then(r => r.json());
   const combo = comboByKey[key];
   if (ev.ok) { storeManual(key, enteredUSD, combo, null); buildMatrix(); return; }
@@ -363,7 +454,7 @@ function buildMatrix() {
     container.innerHTML = `<div class="pl-empty-state">${escapeHtml(message)}</div>`;
     return;
   }
-  TREATMENT_ORDER.forEach(treatment => {
+  visibleTreatments().forEach(treatment => {
     const tiers = TIER_ORDER.filter(ti => MATERIALS.some(m => getCombo(treatment, ti, m)));
     if (!tiers.length) return;
     const mats = activeMaterials(treatment);
@@ -397,7 +488,7 @@ function buildMatrix() {
         const key = getKey(treatment, ti, m);
         if (!combo) { td.className = 'dash-cell'; td.textContent = '·'; tr.appendChild(td); return; }
         const kEsc = key.replace(/'/g, "\\'");
-        if (overrides.combos.includes(key)) {
+        if (isComboDisabled(key)) {
           td.innerHTML = `<div class="price-cell off">
             <span class="off-tag">discontinued</span>
             <button class="audit-btn" onclick="openAudit('${kEsc}')">🔍</button></div>`;
@@ -445,12 +536,16 @@ function buildMatrix() {
     card.appendChild(leg);
     container.appendChild(card);
   });
-  if (!container.children.length) container.innerHTML = '<div class="pl-empty-state">No catalog data loaded.</div>';
+  if (!container.children.length) {
+    container.innerHTML = settings.hiddenGroups.length >= TREATMENT_ORDER.length
+      ? '<div class="pl-empty-state">All groupings are hidden for this pricelist. Show at least one grouping in the sidebar.</div>'
+      : '<div class="pl-empty-state">No catalog data loaded.</div>';
+  }
   refreshAudit();
 }
 
 function toggleCollapse(t) { collapsed[t] = !collapsed[t]; buildMatrix(); }
-function collapseAll(v) { TREATMENT_ORDER.forEach(t => collapsed[t] = v); buildMatrix(); }
+function collapseAll(v) { visibleTreatments().forEach(t => collapsed[t] = v); buildMatrix(); }
 
 // ── Landed-cost calc (for audit view) ─────────────────────────────────
 function landedCalc(fob, supplier) {
@@ -467,11 +562,12 @@ function landedCalc(fob, supplier) {
 function openAudit(key) {
   const c = comboByKey[key];
   if (!c) return;
+  const wasOpen = $('audit-overlay').classList.contains('open');
   currentAuditKey = key;
   const [t, ti, m] = key.split('||');
   const disp = TIER_DISPLAY[ti] || { grade: ti, name: '' };
   const p = prices[key];
-  const comboDisabled = overrides.combos.includes(key);
+  const comboDisabled = isComboDisabled(key);
   const supDis = overrides.suppliers[key] || [];
   const srcName = (sources.sources && sources.sources[0]) ? sources.sources[0].name : 'master catalog';
 
@@ -482,6 +578,9 @@ function openAudit(key) {
 
   const avail = supRows.filter(r => !r.excluded && !r.disabled);
   const anchor = avail.length ? avail.reduce((a, b) => (b.lc.landed > a.lc.landed ? b : a)) : null;
+  const existingWholesale = p && Number.isFinite(Number(p.priceUSD)) ? Number(p.priceUSD) : '';
+  const existingRetail = p && Number.isFinite(Number(p.retailUSD)) ? Number(p.retailUSD) : '';
+  auditEditDraft = { key, wholesaleUSD: existingWholesale, retailUSD: existingRetail, retailTouched: false };
 
   const supTable = supRows.map(r => {
     const status = r.disabled ? '<span class="ast off">disabled</span>'
@@ -502,19 +601,33 @@ function openAudit(key) {
     </tr>`;
   }).join('');
 
-  let calc = '<p class="muted">No price computed yet — run Auto-Price.</p>';
-  if (p && anchor) {
-    const raw = anchor.lc.landed / (1 - settings.floorMargin);
-    calc = `<table class="audit-calc">
+  const raw = anchor ? anchor.lc.landed / (1 - settings.floorMargin) : 0;
+  const suggested = raw && settings.rounding ? Math.ceil(raw / settings.rounding) * settings.rounding : raw;
+  const editWholesale = existingWholesale || suggested || '';
+  const editRetail = existingRetail || (editWholesale ? Math.round(editWholesale * (1 + settings.markup.value / 100) * 100) / 100 : '');
+  const calcRows = anchor ? `<table class="audit-calc">
       <tr><td>Anchor (worst-case lab)</td><td class="num"><b>${SUP_ABBR[anchor.sup]||anchor.sup}</b> · landed $${anchor.lc.landed.toFixed(2)}</td></tr>
       <tr><td>÷ (1 − floor ${Math.round(settings.floorMargin*100)}%)</td><td class="num">$${raw.toFixed(2)}</td></tr>
-      <tr><td>round up to $${settings.rounding}${p.smoothed?' + gap-smoothing':''}</td><td class="num">$${p.priceUSD.toFixed(2)}</td></tr>
-      <tr class="hl"><td>Wholesale price (USD)</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
-      <tr><td>Retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
-      <tr><td>Worst-case / preferred (${SUP_ABBR[p.preferredSupplier]||p.preferredSupplier})</td><td class="num">${(p.floorMargin*100).toFixed(0)}% / ${(p.preferredMargin*100).toFixed(0)}%</td></tr>
-    </table>
-    <p class="audit-note">Every figure is derived: source rows from <b>${srcName}</b>; landed cost adds freight + levy + clearance (VAT excluded); the price covers the most expensive available lab at your floor margin.</p>`;
-  }
+      <tr><td>round up to $${settings.rounding}${p && p.smoothed?' + gap-smoothing':''}</td><td class="num">$${suggested.toFixed(2)}</td></tr>
+      ${p ? `<tr class="hl"><td>Current wholesale (USD)</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
+      <tr><td>Current retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
+      <tr><td>Worst-case / preferred (${SUP_ABBR[p.preferredSupplier]||p.preferredSupplier})</td><td class="num">${(p.floorMargin*100).toFixed(0)}% / ${(p.preferredMargin*100).toFixed(0)}%</td></tr>` : ''}
+    </table>` : '<p class="muted">No available supplier remains for this line.</p>';
+  const calc = `<div class="audit-pricing">
+    <div class="audit-card">
+      <div class="audit-section-title">Calculation</div>
+      ${calcRows}
+    </div>
+    <div class="audit-card audit-edit-card">
+      <div class="audit-section-title">Edit price</div>
+      <div class="audit-edit-grid">
+        <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)"></label>
+        <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)"></label>
+      </div>
+      <div class="audit-edit-note">Edits apply when this audit window closes. Blank retail uses the current ${settings.markup.value}% markup.</div>
+    </div>
+  </div>
+  <p class="audit-note">Every figure is derived: source rows from <b>${srcName}</b>; landed cost adds freight + levy + clearance (VAT excluded); the price covers the most expensive available lab at your floor margin.</p>`;
 
   const kEsc = key.replace(/'/g, "\\'");
   $('audit-body').innerHTML = `
@@ -528,8 +641,9 @@ function openAudit(key) {
       ${comboDisabled
         ? `<button class="pl-btn pl-btn-teal" onclick="toggleDisableCombo('${kEsc}')">↩ Restore</button>`
         : `<button class="pl-btn pl-btn-danger" onclick="toggleDisableCombo('${kEsc}')">✕ Discontinue</button>`}
-      <button class="pl-btn pl-btn-secondary" onclick="closeAudit()">Close</button>
+      <button class="pl-btn pl-btn-primary" onclick="closeAudit()">Save & Close</button>
     </div>`;
+  if (!wasOpen) resetAuditPanelPosition();
   $('audit-overlay').classList.add('open');
   applyAuditWindowState();
   wireAuditResizeHandle();
@@ -537,118 +651,103 @@ function openAudit(key) {
 function closeAuditClick(e) { if (e.target === $('audit-overlay')) closeAudit(); }
 function closeAudit() {
   currentAuditKey = null;
-  auditWindowMode = 'normal';
-  auditWindowBounds = null;
+  applyAuditEdits();
+  auditEditDraft = null;
   $('audit-overlay').classList.remove('open');
-  applyAuditWindowState();
+  resetAuditPanelPosition();
 }
 function refreshAudit() {
   if (currentAuditKey && $('audit-overlay').classList.contains('open')) openAudit(currentAuditKey);
 }
 
-function applyAuditWindowState() {
+function setAuditDraft(field, value, retailTouched = false) {
+  if (!auditEditDraft) return;
+  const n = parseFloat(value);
+  auditEditDraft[field] = Number.isFinite(n) && n > 0 ? n : null;
+  if (retailTouched) auditEditDraft.retailTouched = true;
+}
+
+function applyAuditEdits() {
+  if (!auditEditDraft || !auditEditDraft.key) return;
+  const combo = comboByKey[auditEditDraft.key];
+  if (!combo) return;
+  const existing = prices[auditEditDraft.key] || {};
+  const wholesale = auditEditDraft.wholesaleUSD;
+  const retail = auditEditDraft.retailUSD;
+  const wholesaleChanged = Number.isFinite(Number(wholesale)) && Math.abs(Number(wholesale) - Number(existing.priceUSD || 0)) > 0.004;
+  const retailChanged = auditEditDraft.retailTouched && Number.isFinite(Number(retail)) && Math.abs(Number(retail) - Number(existing.retailUSD || 0)) > 0.004;
+  if (!wholesaleChanged && !retailChanged) return;
+
+  if (wholesaleChanged) {
+    storeManual(auditEditDraft.key, Number(wholesale), combo, existing.constraintSupplier || null);
+  } else if (!prices[auditEditDraft.key]) {
+    prices[auditEditDraft.key] = {};
+  }
+
+  if (retailChanged) {
+    prices[auditEditDraft.key].retailUSD = Number(retail);
+    prices[auditEditDraft.key].manual = true;
+  }
+  buildMatrix();
+  updateEditingIndicator();
+  toast('Audit price edits saved');
+}
+
+function resetAuditPanelPosition() {
   const panel = document.querySelector('.audit-panel');
   if (!panel) return;
-  panel.classList.toggle('is-minimized', auditWindowMode === 'minimized');
-  panel.classList.toggle('is-maximized', auditWindowMode === 'maximized');
-  panel.classList.toggle('is-resizing', !!auditResizeState);
-
-  if (auditWindowMode === 'maximized') {
-    if (!auditWindowBounds) rememberAuditBounds(panel);
-    panel.style.width = 'calc(100vw - 40px)';
-    panel.style.height = 'calc(100dvh - 40px)';
-  } else if (auditWindowMode === 'minimized') {
-    if (!auditWindowBounds) rememberAuditBounds(panel);
-    panel.style.width = 'min(520px, calc(100vw - 40px))';
-    panel.style.height = '';
-  } else if (auditWindowBounds) {
-    panel.style.width = auditWindowBounds.width;
-    panel.style.height = auditWindowBounds.height;
-  } else {
-    panel.style.width = '';
-    panel.style.height = '';
-  }
+  panel.classList.remove('is-dragging');
+  panel.style.position = '';
+  panel.style.left = '';
+  panel.style.top = '';
+  panel.style.margin = '';
 }
 
-function toggleAuditMinimize(event) {
-  event?.stopPropagation();
-  auditWindowMode = auditWindowMode === 'minimized' ? 'normal' : 'minimized';
-  applyAuditWindowState();
-}
-
-function toggleAuditMaximize(event) {
-  event?.stopPropagation();
-  auditWindowMode = auditWindowMode === 'maximized' ? 'normal' : 'maximized';
-  applyAuditWindowState();
-}
-
-function rememberAuditBounds(panel) {
-  const rect = panel.getBoundingClientRect();
-  auditWindowBounds = {
-    width: `${Math.round(rect.width)}px`,
-    height: `${Math.round(rect.height)}px`,
-  };
-}
-
-function wireAuditResizeHandle() {
-  const handle = document.querySelector('.audit-resize-handle');
-  if (!handle || handle.dataset.wired === 'true') return;
-  handle.dataset.wired = 'true';
-
+function initAuditDrag() {
+  const handle = $('audit-drag-handle');
+  const panel = document.querySelector('.audit-panel');
+  if (!handle || !panel) return;
   handle.addEventListener('pointerdown', (event) => {
-    if (auditWindowMode === 'minimized') return;
-    const panel = document.querySelector('.audit-panel');
-    if (!panel) return;
-    rememberAuditBounds(panel);
-    auditResizeState = {
-      panel,
-      startX: event.clientX,
-      startY: event.clientY,
-      startWidth: panel.getBoundingClientRect().width,
-      startHeight: panel.getBoundingClientRect().height,
+    if (event.button !== 0 || event.target.closest('button')) return;
+    const rect = panel.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.margin = '0';
+    panel.classList.add('is-dragging');
+    auditDrag = {
       pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
     };
-    panel.classList.add('is-resizing');
-    panel.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-    event.stopPropagation();
+    handle.setPointerCapture(event.pointerId);
   });
-
-  document.addEventListener('pointermove', (event) => {
-    if (!auditResizeState || auditResizeState.pointerId !== event.pointerId) return;
-    if (auditWindowMode === 'maximized') return;
-    const minWidth = 640;
-    const minHeight = 360;
-    const maxWidth = Math.max(minWidth, window.innerWidth - 32);
-    const maxHeight = Math.max(minHeight, window.innerHeight - 40);
-    const nextWidth = Math.min(maxWidth, Math.max(minWidth, auditResizeState.startWidth + (event.clientX - auditResizeState.startX)));
-    const nextHeight = Math.min(maxHeight, Math.max(minHeight, auditResizeState.startHeight + (event.clientY - auditResizeState.startY)));
-    auditResizeState.panel.style.width = `${Math.round(nextWidth)}px`;
-    auditResizeState.panel.style.height = `${Math.round(nextHeight)}px`;
-    auditWindowBounds = {
-      width: `${Math.round(nextWidth)}px`,
-      height: `${Math.round(nextHeight)}px`,
-    };
-    event.preventDefault();
+  handle.addEventListener('pointermove', (event) => {
+    if (!auditDrag || auditDrag.pointerId !== event.pointerId) return;
+    const panelRect = panel.getBoundingClientRect();
+    const pad = 8;
+    const maxLeft = Math.max(pad, window.innerWidth - panelRect.width - pad);
+    const maxTop = Math.max(pad, window.innerHeight - panelRect.height - pad);
+    const left = Math.min(Math.max(pad, event.clientX - auditDrag.offsetX), maxLeft);
+    const top = Math.min(Math.max(pad, event.clientY - auditDrag.offsetY), maxTop);
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
   });
-
-  const finishResize = (event) => {
-    if (!auditResizeState || auditResizeState.pointerId !== event.pointerId) return;
-    auditResizeState.panel.classList.remove('is-resizing');
-    try { auditResizeState.panel.releasePointerCapture?.(event.pointerId); } catch {}
-    auditResizeState = null;
-    applyAuditWindowState();
-    event.preventDefault();
+  const endDrag = (event) => {
+    if (!auditDrag || auditDrag.pointerId !== event.pointerId) return;
+    auditDrag = null;
+    panel.classList.remove('is-dragging');
+    try { handle.releasePointerCapture(event.pointerId); } catch {}
   };
-
-  document.addEventListener('pointerup', finishResize);
-  document.addEventListener('pointercancel', finishResize);
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
 }
 
 async function persistOverrides() {
-  await fetch('/api/v2/overrides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(overrides) });
+  overrides = normalizeOverrides(overrides);
 }
 async function toggleDisableCombo(key) {
+  applyAuditEdits();
   const i = overrides.combos.indexOf(key);
   if (i >= 0) overrides.combos.splice(i, 1); else overrides.combos.push(key);
   await persistOverrides();
@@ -656,6 +755,7 @@ async function toggleDisableCombo(key) {
   openAudit(key);
 }
 async function toggleDisableSupplier(key, sup) {
+  applyAuditEdits();
   const arr = overrides.suppliers[key] || (overrides.suppliers[key] = []);
   const i = arr.indexOf(sup);
   if (i >= 0) arr.splice(i, 1); else arr.push(sup);
@@ -686,7 +786,7 @@ async function buildSourcesView() {
   const live = (sources.live && sources.live.length)
     ? sources.live.map(l => `<div class="source-card"><h3>${l.name}</h3><div class="source-meta">${l.status||''}</div></div>`).join('')
     : `<div class="source-card empty"><h3>Live connections</h3><div class="source-meta">None yet. Connect via Connectors → Pull catalog.</div></div>`;
-  const disc = overrides.combos.length;
+  const disc = normalizeOverrides(overrides).combos.length;
   let srcBanner = '';
   if (ss) {
     const onFallback = ss.active === 'fallback';
@@ -759,15 +859,24 @@ function showPreview(forPrint = false) {
 
   // ── Price sections ──
   let sections = '';
-  TREATMENT_ORDER.forEach(treatment => {
-    const tiers = TIER_ORDER.filter(ti => MATERIALS.some(m => { const p = prices[getKey(treatment,ti,m)]; return p && field(p) > 0; }));
+  visibleTreatments().forEach(treatment => {
+    const tiers = TIER_ORDER.filter(ti => MATERIALS.some(m => {
+      const key = getKey(treatment, ti, m);
+      const p = prices[key];
+      return p && !isComboDisabled(key) && field(p) > 0;
+    }));
     if (!tiers.length) return;
-    const mats = MATERIALS.filter(m => tiers.some(ti => { const p = prices[getKey(treatment,ti,m)]; return p && field(p) > 0; }));
+    const mats = MATERIALS.filter(m => tiers.some(ti => {
+      const key = getKey(treatment, ti, m);
+      const p = prices[key];
+      return p && !isComboDisabled(key) && field(p) > 0;
+    }));
     let rows = '';
     tiers.forEach(ti => {
       const disp = TIER_DISPLAY[ti] || { grade: ti, name: '' };
       const cells = mats.map(m => {
-        const p = prices[getKey(treatment,ti,m)];
+        const key = getKey(treatment, ti, m);
+        const p = isComboDisabled(key) ? null : prices[key];
         const v = p ? field(p) : 0;
         return v > 0
           ? `<td><strong>${s}${toDisplay(v).toFixed(2)}</strong></td>`
@@ -828,7 +937,17 @@ function closePreviewClick(e) { if (e.target === $('preview-overlay')) $('previe
 
 // ── Save / Load ────────────────────────────────────────────────────────
 function pricelistPayload(name) {
-  return { name, customer: currentCustomer?.account||null, customerName: currentCustomer?.name||null, currency, priceMode, settings, prices };
+  return {
+    name,
+    customer: currentCustomer?.account || null,
+    customerName: currentCustomer?.name || null,
+    currency,
+    priceMode,
+    settings: normalizeSettings(settings),
+    overrides: normalizeOverrides(overrides),
+    classOverrides: normalizeClassOverrides(classOverrides),
+    prices: deepClone(prices),
+  };
 }
 
 function updateEditingIndicator() {
@@ -843,6 +962,61 @@ function updateEditingIndicator() {
     el.className = 'editing-pill new';
     el.title = 'Not yet saved.';
   }
+}
+
+function applyPricelistState(p, { asCopy = false } = {}) {
+  const loaded = p || {};
+  currentPricelistId = asCopy ? null : (loaded.id || null);
+  currentPricelistName = asCopy ? null : (loaded.name || '');
+  $('pricelist-name').value = asCopy && loaded.name ? `${loaded.name} Copy` : (loaded.name || '');
+  prices = deepClone(loaded.prices || {});
+  settings = normalizeSettings(loaded.settings);
+  overrides = normalizeOverrides(loaded.overrides);
+  classOverrides = normalizeClassOverrides(loaded.classOverrides);
+  currency = loaded.currency || 'USD';
+  priceMode = loaded.priceMode || 'wholesale';
+  collapsed = {};
+  currentAuditKey = null;
+
+  const customerSelect = $('customer-select');
+  if (customerSelect) customerSelect.value = loaded.customer || '';
+  currentCustomer = loaded.customer
+    ? customers.find(c => c.account === loaded.customer) || null
+    : null;
+  const pill = $('customer-pill');
+  if (pill) {
+    if (currentCustomer) {
+      pill.textContent = `${currentCustomer.buyingGroup || '—'} · ${currentCustomer.priceList || 'No list assigned'}`;
+      pill.style.display = '';
+    } else {
+      pill.style.display = 'none';
+    }
+  }
+
+  syncSettingsInputs();
+  buildSupplierPanel();
+  buildGroupPanel();
+  setCurrency(currency);
+  setMode(priceMode);
+  refreshClassifiedCatalog({ render: false, reprice: false }).catch(e => toast('Classifications unavailable: ' + e.message));
+  updateEditingIndicator();
+}
+
+function newBlankPricelist() {
+  if (!confirm('Start a blank pricelist? Unsaved changes on this screen will be lost.')) return;
+  applyPricelistState({
+    id: null,
+    name: '',
+    customer: null,
+    currency: 'USD',
+    priceMode: 'wholesale',
+    settings: createDefaultSettings(),
+    overrides: createDefaultOverrides(),
+    classOverrides: createDefaultClassOverrides(),
+    prices: {},
+  }, { asCopy: true });
+  showView('builder');
+  toast('Blank pricelist ready — all groups, suppliers, and lenses are enabled');
 }
 
 async function savePricelist() {
@@ -880,20 +1054,22 @@ async function loadSavedList() {
   el.innerHTML = list.sort((a,b) => new Date(b.updatedAt)-new Date(a.updatedAt)).map(p => `
     <div class="saved-item">
       <div><div class="si-name">${p.name}</div><div class="si-meta">${p.customerName||p.customer||'No customer'} · ${new Date(p.updatedAt).toLocaleDateString()}</div></div>
-      <div class="si-actions"><button class="pl-btn pl-btn-secondary" onclick="loadPricelist('${p.id}')">Open</button><button class="pl-btn pl-btn-danger" onclick="deletePricelist('${p.id}')">✕</button></div>
+      <div class="si-actions"><button class="pl-btn pl-btn-secondary" onclick="loadPricelist('${p.id}')">Open</button><button class="pl-btn pl-btn-secondary" onclick="loadPricelistCopy('${p.id}')">Open Copy</button><button class="pl-btn pl-btn-danger" onclick="deletePricelist('${p.id}')">✕</button></div>
     </div>`).join('');
 }
 
 async function loadPricelist(id) {
   const p = await fetch(`/api/pricelists/${id}`).then(r => r.json());
-  currentPricelistId = id; currentPricelistName = p.name||'';
-  $('pricelist-name').value = p.name||'';
-  prices = p.prices||{}; currency = p.currency||'USD'; priceMode = p.priceMode||'wholesale';
-  if (p.settings) Object.assign(settings, p.settings);
-  if (p.customer) { $('customer-select').value = p.customer; onCustomerChange(); }
-  syncSettingsInputs(); setCurrency(currency); setMode(priceMode); updateEditingIndicator();
+  applyPricelistState({ ...p, id });
   showView('builder');
   toast(`Loaded "${p.name||'pricelist'}" — Save updates it, Save As New copies it`);
+}
+
+async function loadPricelistCopy(id) {
+  const p = await fetch(`/api/pricelists/${id}`).then(r => r.json());
+  applyPricelistState(p, { asCopy: true });
+  showView('builder');
+  toast(`Loaded copy of "${p.name||'pricelist'}" — Save creates a separate list`);
 }
 
 async function deletePricelist(id) {
@@ -902,6 +1078,30 @@ async function deletePricelist(id) {
   if (currentPricelistId === id) { currentPricelistId = null; currentPricelistName = null; updateEditingIndicator(); }
   loadSavedList();
   toast('Deleted');
+}
+
+// ── Pricelist grouping visibility ──────────────────────────────────────
+function buildGroupPanel() {
+  const el = $('group-visibility');
+  if (!el) return;
+  ensureSettingsShape();
+  el.innerHTML = TREATMENT_ORDER.map(name => {
+    const visible = isGroupVisible(name);
+    return `<div class="pl-group-row ${visible ? '' : 'hidden'}">
+      <span class="pl-group-name" title="${name}">${name}</span>
+      <button class="pl-group-toggle ${visible ? '' : 'off'}" onclick="toggleGroupVisibility('${jsArg(name)}')">${visible ? 'hide' : 'show'}</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleGroupVisibility(name) {
+  ensureSettingsShape();
+  const idx = settings.hiddenGroups.indexOf(name);
+  if (idx >= 0) settings.hiddenGroups.splice(idx, 1);
+  else settings.hiddenGroups.push(name);
+  buildGroupPanel();
+  buildMatrix();
+  toast(`${name} ${isGroupVisible(name) ? 'included' : 'hidden'} in this pricelist`);
 }
 
 // ── Supplier panel ─────────────────────────────────────────────────────
@@ -939,10 +1139,12 @@ function rePrice() {
 }
 
 // ── Sourcing Review ────────────────────────────────────────────────────
-function buildSourcingView() {
-  loadClassify();
+async function buildSourcingView() {
+  await loadClassify();
   const rows = Object.entries(prices).map(([key, p]) => {
+    if (isComboDisabled(key)) return null;
     const c = comboByKey[key]; if (!c) return null;
+    if (!isGroupVisible(c.treatment)) return null;
     return { key, p, c, single: c.supplierCount === 1, constrained: !!p.constraintSupplier };
   }).filter(Boolean);
   const priced = rows.length;
@@ -954,8 +1156,8 @@ function buildSourcingView() {
     <div class="src-stat"><div class="ss-num">${priced}</div><div class="ss-lbl">Priced lines</div></div>
     <div class="src-stat"><div class="ss-num" style="color:var(--pl-gold)">${single.length}</div><div class="ss-lbl">Single-source</div></div>
     <div class="src-stat"><div class="ss-num" style="color:var(--pl-teal)">${constrained.length}</div><div class="ss-lbl">Source-constrained</div></div>`;
-  if (!priced) { $('sourcing-body').innerHTML = '<tr><td colspan="6" class="pl-empty-state">Run Auto-Price first.</td></tr>'; return; }
-  if (!flagged.length) { $('sourcing-body').innerHTML = '<tr><td colspan="6" class="pl-empty-state">All clear — every priced line has multi-supplier fallback.</td></tr>'; return; }
+  if (!priced) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">Run Auto-Price first.</td></tr>'; return; }
+  if (!flagged.length) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">All clear — every priced line has multi-supplier fallback.</td></tr>'; return; }
   $('sourcing-body').innerHTML = flagged.map(r => {
     const [t,ti,m] = r.key.split('||');
     const flag = r.constrained
@@ -963,6 +1165,7 @@ function buildSourcingView() {
       : `<span class="flag flag-sin">single-source</span>`;
     return `<tr>
       <td>${fmt(t,ti,m)}</td>
+      <td class="src-classes">${lineClassificationChips(r.c)}</td>
       <td class="num">${sym()}${toDisplay(r.p.priceUSD).toFixed(2)}</td>
       <td>${SUP_ABBR[r.p.anchorSupplier]||r.p.anchorSupplier} <span class="muted">${(r.p.floorMargin*100).toFixed(0)}%</span></td>
       <td>${SUP_ABBR[r.p.preferredSupplier]||r.p.preferredSupplier} <span class="muted">${(r.p.preferredMargin*100).toFixed(0)}%</span></td>
@@ -973,64 +1176,188 @@ function buildSourcingView() {
 }
 
 // ── Classify catalog (tag pills) ───────────────────────────────────────
-let classifyTypes = [], classifyTiers = [], classifyGroups = [];
+let classifyTypes = [], classifyTiers = [], classifyGroups = [], classifyMaterials = [];
 const escHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tierGrade = (ti) => { const d = TIER_DISPLAY[ti]; return d ? `${d.grade} (${d.name})` : (ti || '—'); };
+const encodeTypeKeys = (keys) => encodeURIComponent(JSON.stringify((keys || []).filter(Boolean)));
+const jsAttrArg = (s) => escHtml(jsArg(s));
+
+function categoryClassLabel(tier) {
+  if (!tier) return '';
+  if (/best/i.test(tier)) return 'Best';
+  if (/better/i.test(tier)) return 'Better';
+  if (/good/i.test(tier)) return 'Good';
+  if (/adept/i.test(tier)) return /bifocal/i.test(tier) ? 'Adept Bifocal / Conventional' : 'Adept / Conventional';
+  if (/regular/i.test(tier)) return 'Conventional';
+  const d = TIER_DISPLAY[tier];
+  return d ? d.grade : tier;
+}
+
+function chipOptions(field, value, allowAuto = true) {
+  const source = field === 'tier' ? classifyTiers : field === 'treatment' ? classifyGroups : classifyMaterials;
+  const opts = [];
+  if (allowAuto && field !== 'tier') opts.push(`<option value="__auto">auto</option>`);
+  opts.push('<option value="">missing</option>');
+  for (const option of source) opts.push(`<option value="${escHtml(option)}" ${option === value ? 'selected' : ''}>${escHtml(field === 'tier' ? categoryClassLabel(option) : option)}</option>`);
+  return opts.join('');
+}
+
+function classificationChip(kind, label, detail, typeKeys, field, missing) {
+  const keys = (typeKeys || []).filter(Boolean);
+  const encoded = encodeTypeKeys(keys);
+  const value = missing ? '' : (field === 'tier' ? detail : label);
+  const select = keys.length
+    ? `<select class="class-chip-select" title="Set ${escHtml(kind.toLowerCase())} classification" onchange="classifyEncodedTypes('${encoded}','${field}',this.value)">${chipOptions(field, value, true)}</select>`
+    : `<span>${escHtml(label)}</span>`;
+  const remove = !missing && keys.length
+    ? `<button type="button" title="Remove ${escHtml(kind.toLowerCase())} classification" onclick="event.stopPropagation(); unclassifyTypes('${encodeTypeKeys(keys)}','${field}')">×</button>`
+    : '';
+  return `<span class="class-chip class-${escHtml(field)}${missing ? ' class-missing' : ''}">
+    <small>${escHtml(kind)}</small>${select}${detail && field !== 'tier' ? `<span class="muted">${escHtml(detail)}</span>` : ''}${remove}
+  </span>`;
+}
+
+function typeClassificationChips(t) {
+  const keys = [t.typeKey];
+  const chips = [];
+  if (t.treatmentMissing) {
+    chips.push(classificationChip('Group', 'Missing classification', '', keys, 'treatment', true));
+  } else {
+    const groups = t.treatmentOverride ? [t.treatmentOverride] : (t.groups || []);
+    const label = groups.length ? groups.join(' / ') : 'Missing classification';
+    chips.push(classificationChip('Group', label, t.treatmentOverridden ? 'manual' : 'auto', keys, 'treatment', !groups.length));
+  }
+  if (t.tierMissing || !t.tier) {
+    chips.push(classificationChip('Category', 'Missing classification', '', keys, 'tier', true));
+  } else {
+    chips.push(classificationChip('Category', categoryClassLabel(t.tier), t.tier, keys, 'tier', false));
+  }
+  if (t.materialMissing) {
+    chips.push(classificationChip('Material', 'Missing classification', '', keys, 'material', true));
+  } else {
+    const materials = t.materialOverride ? [t.materialOverride] : (t.materials || []);
+    const label = materials.length ? materials.join(' / ') : 'Missing classification';
+    chips.push(classificationChip('Material', label, t.materialOverridden ? 'manual' : 'auto', keys, 'material', !materials.length));
+  }
+  return chips.join('');
+}
+
+function lineClassificationChips(combo) {
+  const types = Array.isArray(combo.types) ? combo.types : [];
+  const keys = types.map(t => t.typeKey).filter(Boolean);
+  const typeDetail = keys.length > 1 ? `${keys.length} catalog types` : '';
+  return [
+    classificationChip('Group', combo.treatment || 'Missing classification', typeDetail, keys, 'treatment', !combo.treatment),
+    classificationChip('Category', categoryClassLabel(combo.tier) || 'Missing classification', combo.tier || typeDetail, keys, 'tier', !combo.tier),
+    classificationChip('Material', combo.material || 'Missing classification', typeDetail, keys, 'material', !combo.material),
+  ].join('');
+}
 
 async function loadClassify() {
   try {
-    const d = await fetch('/api/v2/catalog-types').then(r => r.json());
-    if (d && d.error) throw new Error(d.error);
-    classifyTypes = d.types || []; classifyTiers = d.tiers || []; classifyGroups = d.groups || [];
-    renderClassify();
+    await refreshClassifiedCatalog({ render: true, reprice: false });
   } catch (e) {
     $('classify-body').innerHTML = `<div class="pl-empty-state">Catalog types unavailable. Pull the catalog first, then reopen.</div>`;
     $('classify-count').textContent = '';
   }
 }
 
+async function refreshClassifiedCatalog({ render = true, reprice = false, build = true } = {}) {
+  const d = await fetch('/api/v2/classification-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ classOverrides }),
+  }).then(r => r.json());
+  if (d && d.error) throw new Error(d.error);
+  classifyTypes = d.types || [];
+  classifyTiers = d.tiers || [];
+  classifyGroups = d.groups || [];
+  classifyMaterials = d.materials || MATERIALS;
+  combos = d.combos || combos;
+  comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+  if (reprice && Object.keys(prices).length) await autoPrice();
+  else if (build) buildMatrix();
+  if (render) renderClassify();
+  return d;
+}
+
 function renderClassify() {
   if (!$('classify-body')) return;
   const unOnly = $('classify-unonly') && $('classify-unonly').checked;
+  const adeptOnly = $('classify-adeptonly') && $('classify-adeptonly').checked;
   const uncl = classifyTypes.filter(t => !t.classified).length;
-  $('classify-count').textContent = `· ${classifyTypes.length} types · ${uncl} unclassified`;
+  const adept = classifyTypes.filter(isAdeptCandidate).length;
+  $('classify-count').textContent = `· ${classifyTypes.length} types · ${uncl} unclassified · ${adept} ADEPT candidates`;
   let list = unOnly ? classifyTypes.filter(t => !t.classified) : classifyTypes;
-  if (!list.length) { $('classify-body').innerHTML = `<div class="pl-empty-state">${unOnly ? 'Everything is classified. 🎉' : 'No catalog types loaded.'}</div>`; return; }
+  if (adeptOnly) list = list.filter(isAdeptCandidate);
+  if (!list.length) { $('classify-body').innerHTML = `<div class="pl-empty-state">${unOnly || adeptOnly ? 'No types match this filter.' : 'No catalog types loaded.'}</div>`; return; }
   $('classify-body').innerHTML = list.map(t => {
     const tierOpts = ['<option value="">— unclassified —</option>']
       .concat(classifyTiers.map(o => `<option value="${escHtml(o)}" ${o === t.tier ? 'selected' : ''}>${escHtml(tierGrade(o))}</option>`)).join('');
-    const grpOpts = ['<option value="">auto (from name)</option>']
-      .concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
-    const groupPills = t.groups.map(g => `<span class="tagpill ${t.treatmentOverride === g ? 'tagpill-ov' : ''}">${escHtml(g)}</span>`).join('');
+    const grpOpts = [
+      `<option value="__auto" ${t.treatmentOverridden ? '' : 'selected'}>auto (from name)</option>`,
+      `<option value="" ${t.treatmentMissing ? 'selected' : ''}>— unclassified —</option>`,
+    ].concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
+    const matOpts = [
+      `<option value="__auto" ${t.materialOverridden ? '' : 'selected'}>auto (from source)</option>`,
+      `<option value="" ${t.materialMissing ? 'selected' : ''}>— unclassified —</option>`,
+    ].concat(classifyMaterials.map(o => `<option value="${escHtml(o)}" ${o === t.materialOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
     const sup = t.suppliers.map(s => SUP_ABBR[s] || s).join(', ');
     return `<div class="cls-row ${t.classified ? '' : 'cls-unclassified'}">
       <div class="cls-main">
-        <div class="cls-type">${escHtml(t.mftype)} · <b>${escHtml(t.lenstype)}</b> ${t.tierOverridden ? '<span class="tagpill tagpill-ov">manual</span>' : ''}</div>
+        <div class="cls-type">${escHtml(t.mftype)} · <b>${escHtml(t.lenstype)}</b> ${t.tierOverridden && !t.tierMissing ? '<span class="tagpill tagpill-ov">manual</span>' : ''} ${t.materialOverridden && !t.materialMissing ? '<span class="tagpill tagpill-ov">material</span>' : ''}</div>
         <div class="cls-sub muted">${t.rows} rows · ${escHtml(sup)}</div>
         <div class="cls-sample muted">${escHtml(t.samples[0] || '')}</div>
       </div>
-      <div class="cls-tags">${groupPills}</div>
+      <div class="cls-classifications">${typeClassificationChips(t)}</div>
       <div class="cls-ctl">
         <label class="cls-lbl">Category</label>
-        <select onchange="classifyType('${escHtml(t.typeKey)}','tier',this.value)">${tierOpts}</select>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','tier',this.value)">${tierOpts}</select>
         <label class="cls-lbl">Group</label>
-        <select onchange="classifyType('${escHtml(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
+        <label class="cls-lbl">Material</label>
+        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','material',this.value)">${matOpts}</select>
       </div>
     </div>`;
   }).join('');
 }
 
+function isAdeptCandidate(t) {
+  return /adept/i.test(t.tier || '')
+    || ADEPT_CANDIDATE_RE.test(`${t.mftype || ''} ${t.lenstype || ''} ${(t.samples || []).join(' ')}`);
+}
+
 async function classifyType(typeKey, field, value) {
-  const body = { typeKey }; body[field] = value;
+  return classifyTypeKeys([typeKey], field, value);
+}
+
+async function unclassifyTypes(encodedTypeKeys, field) {
+  let typeKeys = [];
+  try { typeKeys = JSON.parse(decodeURIComponent(encodedTypeKeys)); } catch { typeKeys = []; }
+  if (!typeKeys.length) return toast('No catalog types found for that line');
+  return classifyTypeKeys(typeKeys, field, '');
+}
+
+async function classifyEncodedTypes(encodedTypeKeys, field, value) {
+  let typeKeys = [];
+  try { typeKeys = JSON.parse(decodeURIComponent(encodedTypeKeys)); } catch { typeKeys = []; }
+  if (!typeKeys.length) return toast('No catalog types found for that line');
+  return classifyTypeKeys(typeKeys, field, value);
+}
+
+async function classifyTypeKeys(typeKeys, field, value) {
   try {
-    const d = await fetch('/api/v2/classify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
-    if (d && d.error) { toast(d.error); return; }
+    const bucket = `${field}ByType`;
+    classOverrides = normalizeClassOverrides(classOverrides);
+    for (const typeKey of typeKeys) {
+      if (value === '__auto') delete classOverrides[bucket][typeKey];
+      else classOverrides[bucket][typeKey] = value || null;
+    }
+    const d = await refreshClassifiedCatalog({ render: false, reprice: true });
     classifyTypes = d.types || classifyTypes;
-    // Refresh combos so the builder matrix prices the reclassified lines.
-    combos = await fetch('/api/v2/combos').then(x => x.json());
-    comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
     renderClassify();
-    toast(`Reclassified · ${d.combos} priced combos`);
+    if ($('view-sourcing') && $('view-sourcing').style.display !== 'none') buildSourcingView();
+    toast(`Reclassified · ${(d.combos || []).length} priced combos`);
   } catch (e) { toast('Classify failed: ' + e.message); }
 }
 
@@ -1162,7 +1489,7 @@ async function connPull() {
   toast('Live catalog synced');
 }
 async function connPushDryRun() {
-  const rows = Object.entries(prices).map(([key,p]) => { const c = comboByKey[key]||{}; return { key, treatment: c.treatment, tier: c.tier, material: c.material, available: true, priceUSD: p.priceUSD, retailUSD: p.retailUSD }; });
+  const rows = visiblePriceEntries().map(([key,p]) => { const c = comboByKey[key]||{}; return { key, treatment: c.treatment, tier: c.tier, material: c.material, available: true, priceUSD: p.priceUSD, retailUSD: p.retailUSD }; });
   if (!rows.length) return toast('Run Auto-Price first');
   const r = await cpost('push', { token: connToken, pricedRows: rows, commit: false });
   if (r.error) { $('conn-result').innerHTML = `<span class="conn-err">${r.error}</span>`; return; }
@@ -1178,10 +1505,14 @@ function showView(view) {
     const nav = $(`nav-${v}`); if (nav) nav.classList.toggle('active', v === view);
   });
   $('topbar-title').textContent = VIEW_TITLES[view] || view;
+  document.querySelectorAll('.pl-builder-action').forEach(el => { el.style.display = view === 'saved' ? 'none' : 'inline-flex'; });
   if (view === 'saved') loadSavedList();
   if (view === 'sourcing') buildSourcingView();
   if (view === 'sources') buildSourcesView();
   if (view === 'connectors') buildConnectorsView();
 }
 
-window.addEventListener('DOMContentLoaded', boot);
+window.addEventListener('DOMContentLoaded', () => {
+  initAuditDrag();
+  boot();
+});

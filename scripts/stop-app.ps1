@@ -4,8 +4,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$owners = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique
+function Get-ListeningPortOwners {
+    param([int] $TargetPort)
+
+    $owners = Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+
+    if ($owners) {
+        return $owners
+    }
+
+    $pattern = ":$TargetPort\s+.*LISTENING\s+(\d+)"
+    return netstat -ano |
+        Select-String -Pattern $pattern |
+        ForEach-Object { [regex]::Match($_.Line, $pattern).Groups[1].Value } |
+        Sort-Object -Unique
+}
+
+$owners = Get-ListeningPortOwners -TargetPort $Port
 
 foreach ($owner in $owners) {
     if ($owner -and $owner -ne 0) {

@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "dev:watch": "node --watch server.js",
     "check": "node --check server.js",
     "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-app.ps1",
     "app:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-app.ps1",

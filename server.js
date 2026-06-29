@@ -180,10 +180,22 @@ function plSetSourceMode(mode) {
 }
 
 // Load combos once at startup, reload after a live pull or a mode switch.
+function plWithTypeMetadata(combos) {
+  if (!Array.isArray(combos) || combos.every(c => Array.isArray(c.types))) return combos;
+  const rows = plReadRawRows();
+  if (!Array.isArray(rows) || !rows.length) return combos;
+  try {
+    const rebuilt = plConnector.combosFromRows(rows, plReadOverrides()).combos;
+    return rebuilt.length ? rebuilt : combos;
+  } catch {
+    return combos;
+  }
+}
+
 function plLoadCombos() {
   const tryFile = (p) => { try { const d = JSON.parse(fs.readFileSync(p, "utf8")); return Array.isArray(d) && d.length ? d : null; } catch { return null; } };
   const mode = plSourceMode();
-  const gen = tryFile(PL_GEN);
+  const gen = plWithTypeMetadata(tryFile(PL_GEN));
   const fb = tryFile(PL_FALLBACK);
   // Forced bundled fallback.
   if (mode === "fallback") {
@@ -216,13 +228,38 @@ function plRefreshCombos() {
   return plReloadCombos();
 }
 
+function plCombosForClassOverrides(classOverrides) {
+  const rows = plReadRawRows();
+  if (!classOverrides || !Array.isArray(rows) || !rows.length) {
+    plRefreshCombos();
+    return plCombos;
+  }
+  return plConnector.combosFromRows(rows, plMergedClassOverrides(classOverrides)).combos;
+}
+
 // ── Classification overrides (Sourcing Review tag pills) ────────────────────
 function plReadOverrides() {
   const o = plReadJSON(PL_CLASS_OV, null) || {};
-  return { tierByType: o.tierByType || {}, treatmentByType: o.treatmentByType || {} };
+  return { tierByType: o.tierByType || {}, treatmentByType: o.treatmentByType || {}, materialByType: o.materialByType || {} };
 }
 function plWriteOverrides(o) { plWriteJSON(PL_CLASS_OV, o); }
 function plReadRawRows() { return plReadJSON(PL_ROWS, null); }
+function plNormalizeClassOverrides(o) {
+  return {
+    tierByType: o && typeof o.tierByType === "object" ? o.tierByType : {},
+    treatmentByType: o && typeof o.treatmentByType === "object" ? o.treatmentByType : {},
+    materialByType: o && typeof o.materialByType === "object" ? o.materialByType : {},
+  };
+}
+function plMergedClassOverrides(local) {
+  const base = plReadOverrides();
+  const scoped = plNormalizeClassOverrides(local);
+  return {
+    tierByType: { ...base.tierByType, ...scoped.tierByType },
+    treatmentByType: { ...base.treatmentByType, ...scoped.treatmentByType },
+    materialByType: { ...base.materialByType, ...scoped.materialByType },
+  };
+}
 
 // Re-bucket the saved raw catalog rows with current overrides → regenerate combos.
 // Works offline (no re-pull); a later live pull re-applies the same overrides.
@@ -241,32 +278,47 @@ function plReclassify() {
 
 // Catalog grouped by lens TYPE (MF|LensType) — drives the classify list + pills.
 // Unclassified types (no tier) sort first so they're easy to find and fix.
-function plCatalogTypes() {
+function plCatalogTypes(classOverrides) {
   const rows = plReadRawRows() || [];
-  const ov = plReadOverrides();
+  const ov = classOverrides ? plMergedClassOverrides(classOverrides) : plReadOverrides();
+  const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
   const types = {};
   for (const r of rows) {
     if (!plClassifier.APPROVED.includes(r.supplier)) continue;
     if (r.active === false) continue;
+    if (!r.mftype || !r.lenstype) continue;
     const lk = `${r.mftype}|${r.lenstype}`;
     const t = types[lk] || (types[lk] = { typeKey: lk, mftype: r.mftype, lenstype: r.lenstype, rows: 0, suppliers: {}, samples: [], treatments: {} });
     t.rows++;
     t.suppliers[r.supplier] = (t.suppliers[r.supplier] || 0) + 1;
     if (t.samples.length < 4) t.samples.push(r.name);
-    const trt = ov.treatmentByType[lk] || plClassifier.normTreatment(r.name);
-    t.treatments[trt] = (t.treatments[trt] || 0) + 1;
+    const trt = hasOwn(ov.treatmentByType, lk) ? ov.treatmentByType[lk] : plClassifier.normTreatment(r.name);
+    if (trt) t.treatments[trt] = (t.treatments[trt] || 0) + 1;
+    const mat = hasOwn(ov.materialByType, lk) ? ov.materialByType[lk] : plClassifier.normMaterial(r.name, r.material);
+    if (mat) t.materials = { ...(t.materials || {}), [mat]: ((t.materials && t.materials[mat]) || 0) + 1 };
   }
   return Object.values(types).map(t => {
-    const tier = ov.tierByType[t.typeKey] || plClassifier.TIER_MAP[t.typeKey] || null;
+    const tierHasOverride = hasOwn(ov.tierByType, t.typeKey);
+    const treatmentHasOverride = hasOwn(ov.treatmentByType, t.typeKey);
+    const materialHasOverride = hasOwn(ov.materialByType, t.typeKey);
+    const tier = tierHasOverride ? ov.tierByType[t.typeKey] : plClassifier.TIER_MAP[t.typeKey] || null;
+    const treatmentOverride = treatmentHasOverride ? ov.treatmentByType[t.typeKey] : null;
+    const materialOverride = materialHasOverride ? ov.materialByType[t.typeKey] : null;
+    const treatmentClassified = treatmentHasOverride ? !!treatmentOverride : Object.keys(t.treatments).length > 0;
+    const materialClassified = materialHasOverride ? !!materialOverride : Object.keys(t.materials || {}).length > 0;
     return {
       typeKey: t.typeKey, mftype: t.mftype, lenstype: t.lenstype, rows: t.rows,
       suppliers: Object.keys(t.suppliers), supplierCount: Object.keys(t.suppliers).length,
-      samples: t.samples, tier, classified: !!tier,
-      tierOverridden: !!ov.tierByType[t.typeKey],
-      treatmentOverride: ov.treatmentByType[t.typeKey] || null,
+      samples: t.samples, tier, classified: !!tier && treatmentClassified && materialClassified,
+      tierMissing: !tier, treatmentMissing: !treatmentClassified, materialMissing: !materialClassified,
+      tierOverridden: tierHasOverride,
+      treatmentOverridden: treatmentHasOverride,
+      materialOverridden: materialHasOverride,
+      treatmentOverride, materialOverride,
       groups: Object.keys(t.treatments),
+      materials: Object.keys(t.materials || {}),
     };
-  }).sort((a, b) => (a.classified - b.classified) || a.mftype.localeCompare(b.mftype) || (b.rows - a.rows));
+  }).sort((a, b) => (a.classified - b.classified) || String(a.mftype || "").localeCompare(String(b.mftype || "")) || (b.rows - a.rows));
 }
 
 function plSourceStatus() {
@@ -1136,7 +1188,16 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
       plRefreshCombos();
-      return { types: plCatalogTypes(), tiers: PL_TIER_OPTIONS, groups: PL_GROUP_OPTIONS, overrides: plReadOverrides() };
+      return { types: plCatalogTypes(), tiers: PL_TIER_OPTIONS, groups: PL_GROUP_OPTIONS, materials: PL_MAT_ORDER, overrides: plReadOverrides() };
+    });
+  }
+  if (url.pathname === "/api/v2/classification-preview" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      const body = await readJsonBody(req);
+      const classOverrides = plNormalizeClassOverrides(body && body.classOverrides);
+      const combos = plCombosForClassOverrides(classOverrides);
+      return { combos, types: plCatalogTypes(classOverrides), tiers: PL_TIER_OPTIONS, groups: PL_GROUP_OPTIONS, materials: PL_MAT_ORDER, overrides: classOverrides };
     });
   }
   // Tag-pill classify: set/clear a type's category (tier) and/or group (treatment), then re-bucket + re-price.
@@ -1144,11 +1205,19 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.write");
       const body = await readJsonBody(req);
-      const typeKey = body && body.typeKey;
-      if (!typeKey) { const e = new Error("typeKey required."); e.statusCode = 400; throw e; }
+      const typeKeys = Array.isArray(body && body.typeKeys)
+        ? body.typeKeys.filter(Boolean)
+        : [body && body.typeKey].filter(Boolean);
+      if (!typeKeys.length) { const e = new Error("typeKey required."); e.statusCode = 400; throw e; }
       const ov = plReadOverrides();
-      if ('tier' in body) { if (body.tier) ov.tierByType[typeKey] = body.tier; else delete ov.tierByType[typeKey]; }
-      if ('treatment' in body) { if (body.treatment) ov.treatmentByType[typeKey] = body.treatment; else delete ov.treatmentByType[typeKey]; }
+      for (const typeKey of typeKeys) {
+        if (body.tierAuto) delete ov.tierByType[typeKey];
+        else if ('tier' in body) ov.tierByType[typeKey] = body.tier || null;
+        if (body.treatmentAuto) delete ov.treatmentByType[typeKey];
+        else if ('treatment' in body) ov.treatmentByType[typeKey] = body.treatment || null;
+        if (body.materialAuto) delete ov.materialByType[typeKey];
+        else if ('material' in body) ov.materialByType[typeKey] = body.material || null;
+      }
       plWriteOverrides(ov);
       const count = plReclassify();
       return { ok: true, combos: count, types: plCatalogTypes(), overrides: ov };
@@ -1169,18 +1238,18 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/v2/price" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
-      plRefreshCombos();
       const settings = await readJsonBody(req);
       if (!settings.disabled) settings.disabled = plLoadOverrides();
-      return { settings, rows: plPricedMatrix(plCombos, settings) };
+      const priceCombos = plCombosForClassOverrides(settings.classOverrides);
+      return { settings, rows: plPricedMatrix(priceCombos, settings) };
     });
   }
   if (url.pathname === "/api/v2/override" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
-      plRefreshCombos();
       const body = await readJsonBody(req);
-      const combo = plComboByKey[body.key];
+      const overrideCombos = plCombosForClassOverrides(body.classOverrides);
+      const combo = Object.fromEntries(overrideCombos.map(c => [c.key, c]))[body.key];
       if (!combo) { const e = new Error("combo not found"); e.statusCode = 404; throw e; }
       return PE.evaluateOverride(combo, Number(body.enteredPriceUSD), body);
     });
