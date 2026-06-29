@@ -6,7 +6,9 @@
 
 const BBD_RATE = 2.0;
 
-const MATERIALS = ['1.50', '1.56', 'TRIVEX', 'POLY', '1.60', '1.67', '1.74'];
+// Material columns ordered cheapest → priciest (matches smoothLadder enforcement).
+// POLY (polycarbonate, commodity) precedes TRIVEX (premium MR-7) — standard optical pricing convention.
+const MATERIALS = ['1.50', '1.56', 'POLY', 'TRIVEX', '1.60', '1.67', '1.74'];
 
 const TIER_DISPLAY = {
   'Progressive - Best':        { grade: 'Best',          name: 'Endless Steady' },
@@ -418,21 +420,51 @@ async function onCellEdit(key, rawVal) {
 }
 
 function storeManual(key, enteredUSD, combo, constraintSupplier) {
-  const anchorCost = combo ? combo.anchorCost : 0;
-  const floorMargin = anchorCost ? (enteredUSD - anchorCost) / enteredUSD : 0;
-  let preferred = null;
+  // Compute landed costs for all available (non-excluded) suppliers,
+  // matching the pricing engine so manual-entry margins align with auto-priced margins.
+  const supEntries = Object.entries(combo ? (combo.suppliers || {}) : {})
+    .filter(([s]) => !settings.excluded.includes(s))
+    .map(([s, fob]) => ({ s, fob: Number(fob), landed: landedCalc(Number(fob), s).landed }))
+    .filter(r => r.landed > 0 && Number.isFinite(r.landed));
+
+  // Anchor = most expensive landed cost (worst-case — the one that sets the floor)
+  const anchorEntry = supEntries.length
+    ? supEntries.reduce((a, b) => b.landed > a.landed ? b : a)
+    : null;
+  const anchorLanded = anchorEntry ? anchorEntry.landed : 0;
+  const floorMargin = (anchorLanded > 0 && enteredUSD > 0)
+    ? (enteredUSD - anchorLanded) / enteredUSD : 0;
+
+  // Preferred = first in priority order that is available
+  let preferredSup = null;
   for (const s of settings.priority) {
-    if (combo && combo.suppliers[s] != null && !settings.excluded.includes(s)) { preferred = s; break; }
+    if (combo && combo.suppliers[s] != null && !settings.excluded.includes(s)) { preferredSup = s; break; }
   }
-  const preferredCost = preferred ? combo.suppliers[preferred] : anchorCost;
+  const preferredEntry = preferredSup
+    ? (supEntries.find(r => r.s === preferredSup) || anchorEntry)
+    : anchorEntry;
+  const preferredLanded = preferredEntry ? preferredEntry.landed : anchorLanded;
+  const preferredMargin = (preferredLanded > 0 && enteredUSD > 0)
+    ? (enteredUSD - preferredLanded) / enteredUSD : 0;
+
+  // When a constraint supplier is imposed, report margin on its landed cost
+  const effectiveSup = constraintSupplier || preferredSup;
+  const effectiveEntry = constraintSupplier
+    ? (supEntries.find(r => r.s === constraintSupplier) || null)
+    : preferredEntry;
+  const effectiveLanded = effectiveEntry ? effectiveEntry.landed : preferredLanded;
+  const effectiveMargin = (effectiveLanded > 0 && enteredUSD > 0)
+    ? (enteredUSD - effectiveLanded) / enteredUSD : preferredMargin;
+
   prices[key] = {
     priceUSD: enteredUSD,
     retailUSD: Math.round(enteredUSD * (1 + settings.markup.value / 100) * 100) / 100,
-    anchorSupplier: combo ? combo.anchorSupplier : null,
-    anchorCost, floorMargin,
-    preferredSupplier: constraintSupplier || preferred,
-    preferredCost: constraintSupplier ? combo.suppliers[constraintSupplier] : preferredCost,
-    preferredMargin: preferredCost ? (enteredUSD - (constraintSupplier ? combo.suppliers[constraintSupplier] : preferredCost)) / enteredUSD : 0,
+    anchorSupplier: anchorEntry ? anchorEntry.s : (combo ? combo.anchorSupplier : null),
+    anchorCost: anchorLanded,
+    floorMargin,
+    preferredSupplier: effectiveSup,
+    preferredCost: effectiveLanded,
+    preferredMargin: effectiveMargin,
     safe: floorMargin >= settings.floorMargin - 1e-6,
     manual: true,
     constraintSupplier: constraintSupplier || null,
@@ -506,20 +538,22 @@ function buildMatrix() {
           const prAbbr = SUP_ABBR[p.preferredSupplier] || '';
           const constrained = p.constraintSupplier ? ' constrained' : '';
           infoHtml = `<div class="cell-info${constrained}">
-            <span class="mtag ${marginClass(fm)}" title="worst-case margin">⚓${aAbbr} ${(fm*100).toFixed(0)}%</span>
-            <span class="mtag ${marginClass(pm)}" title="preferred margin">▶${prAbbr} ${(pm*100).toFixed(0)}%</span>
+            <span class="mtag ${marginClass(fm)}" title="Anchor (${aAbbr}) worst-case: ${(fm*100).toFixed(0)}% margin">⚓ ${(fm*100).toFixed(0)}%</span>
+            <span class="mtag ${marginClass(pm)}" title="Preferred source (${prAbbr}): ${(pm*100).toFixed(0)}% margin">▶ ${(pm*100).toFixed(0)}%</span>
           </div>`;
         } else if (combo) {
           const aAbbr = SUP_ABBR[combo.anchorSupplier] || '';
           const dot = SUPPLIER_COLORS[combo.anchorSupplier] || '#888';
-          infoHtml = `<div class="cell-info"><span class="cost-hint"><span class="dot" style="background:${dot}"></span>${aAbbr} ${sym()}${toDisplay(combo.anchorCost).toFixed(2)} max</span></div>`;
+          infoHtml = `<div class="cell-info"><span class="cost-hint"><span class="dot" style="background:${dot}"></span>${aAbbr} ${sym()}${toDisplay(combo.anchorCost).toFixed(2)}</span></div>`;
         }
         td.innerHTML = `<div class="price-cell">
-          <input type="number" class="price-input ${isSet?'set':''} ${p&&p.constraintSupplier?'constrained':''}"
-            data-key="${key}" value="${dispVal}" placeholder="${sym()}0" min="0" step="0.5"
-            onchange="onCellEdit('${kEsc}',this.value)" onfocus="this.select()">
+          <div class="price-input-row">
+            <input type="number" class="price-input ${isSet?'set':''} ${p&&p.constraintSupplier?'constrained':''}"
+              data-key="${key}" value="${dispVal}" placeholder="${sym()}0" min="0" step="0.5"
+              onchange="onCellEdit('${kEsc}',this.value)" onfocus="this.select()">
+            <button class="audit-btn" onclick="openAudit('${kEsc}')" title="Audit: sources, costs &amp; price edit" aria-label="Audit this lens line">🔍</button>
+          </div>
           ${infoHtml}
-          <button class="audit-btn" onclick="openAudit('${kEsc}')">🔍 audit</button>
         </div>`;
         tr.appendChild(td);
       });
@@ -582,22 +616,27 @@ function openAudit(key) {
   const existingRetail = p && Number.isFinite(Number(p.retailUSD)) ? Number(p.retailUSD) : '';
   auditEditDraft = { key, wholesaleUSD: existingWholesale, retailUSD: existingRetail, retailTouched: false };
 
+  const kEsc = key.replace(/'/g, "\\'");
   const supTable = supRows.map(r => {
     const status = r.disabled ? '<span class="ast off">disabled</span>'
       : r.excluded ? '<span class="ast off">excluded</span>'
       : (anchor && r.sup === anchor.sup) ? '<span class="ast anc">⚓ anchor</span>'
       : (p && r.sup === p.preferredSupplier) ? '<span class="ast pref">▶ preferred</span>' : '';
-    const kEsc = key.replace(/'/g, "\\'");
     const btn = r.disabled
       ? `<button class="mini-btn" onclick="toggleDisableSupplier('${kEsc}','${r.sup}')">enable</button>`
       : `<button class="mini-btn off" onclick="toggleDisableSupplier('${kEsc}','${r.sup}')">disable</button>`;
+    const suppMargin = (p && p.priceUSD > 0 && r.lc.landed > 0)
+      ? (p.priceUSD - r.lc.landed) / p.priceUSD : null;
+    const margTag = suppMargin != null
+      ? `<span class="mtag ${marginClass(suppMargin)}" title="${(suppMargin*100).toFixed(1)}% margin at current price">${(suppMargin*100).toFixed(0)}%</span>`
+      : '<span class="muted">—</span>';
     return `<tr class="${(r.disabled||r.excluded)?'dim':''}">
-      <td data-label="Supplier"><span class="dot" style="background:${SUPPLIER_COLORS[r.sup]||'#888'}"></span>${SUP_ABBR[r.sup]||r.sup}</td>
-      <td data-label="Source row" class="src">${r.pr.sourceName}${r.pr.rowCount>1?` <span class="muted">(+${r.pr.rowCount-1} more)</span>`:''}</td>
+      <td data-label="Supplier"><span class="dot" style="background:${SUPPLIER_COLORS[r.sup]||'#888'}"></span>${escapeHtml(SUP_ABBR[r.sup]||r.sup)}</td>
+      <td data-label="Source row" class="src">${escapeHtml(r.pr.sourceName)}${r.pr.rowCount>1?` <span class="muted">(+${r.pr.rowCount-1} more)</span>`:''}</td>
       <td data-label="FOB" class="num">$${r.pr.sourceCost.toFixed(2)}</td>
       <td data-label="Freight" class="num">+${(r.lc.freight*100).toFixed(0)}%</td>
       <td data-label="Landed" class="num">$${r.lc.landed.toFixed(2)}</td>
-      <td data-label="Role">${status}</td><td data-label="Action">${btn}</td>
+      <td data-label="Margin" class="num">${margTag}</td><td data-label="Role">${status}</td><td data-label="Action">${btn}</td>
     </tr>`;
   }).join('');
 
@@ -605,43 +644,66 @@ function openAudit(key) {
   const suggested = raw && settings.rounding ? Math.ceil(raw / settings.rounding) * settings.rounding : raw;
   const editWholesale = existingWholesale || suggested || '';
   const editRetail = existingRetail || (editWholesale ? Math.round(editWholesale * (1 + settings.markup.value / 100) * 100) / 100 : '');
-  const calcRows = anchor ? `<table class="audit-calc">
-      <tr><td>Anchor (worst-case lab)</td><td class="num"><b>${SUP_ABBR[anchor.sup]||anchor.sup}</b> · landed $${anchor.lc.landed.toFixed(2)}</td></tr>
-      <tr><td>÷ (1 − floor ${Math.round(settings.floorMargin*100)}%)</td><td class="num">$${raw.toFixed(2)}</td></tr>
-      <tr><td>round up to $${settings.rounding}${p && p.smoothed?' + gap-smoothing':''}</td><td class="num">$${suggested.toFixed(2)}</td></tr>
-      ${p ? `<tr class="hl"><td>Current wholesale (USD)</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
-      <tr><td>Current retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
-      <tr><td>Worst-case / preferred (${SUP_ABBR[p.preferredSupplier]||p.preferredSupplier})</td><td class="num">${(p.floorMargin*100).toFixed(0)}% / ${(p.preferredMargin*100).toFixed(0)}%</td></tr>` : ''}
-    </table>` : '<p class="muted">No available supplier remains for this line.</p>';
-  const calc = `<div class="audit-pricing">
-    <div class="audit-card">
-      <div class="audit-section-title">Calculation</div>
-      ${calcRows}
-    </div>
-    <div class="audit-card audit-edit-card">
-      <div class="audit-section-title">Edit price</div>
-      <div class="audit-edit-grid">
-        <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)"></label>
-        <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)"></label>
-      </div>
-      <div class="audit-edit-note">Edits apply when this audit window closes. Blank retail uses the current ${settings.markup.value}% markup.</div>
-    </div>
-  </div>
-  <p class="audit-note">Every figure is derived: source rows from <b>${srcName}</b>; landed cost adds freight + levy + clearance (VAT excluded); the price covers the most expensive available lab at your floor margin.</p>`;
+  const deltaAmt = (p && suggested > 0) ? (p.priceUSD - suggested) : null;
+  const deltaTag = deltaAmt != null
+    ? `<span class="audit-delta ${deltaAmt >= 0 ? 'delta-pos' : 'delta-neg'}" title="${deltaAmt >= 0 ? 'Above' : 'Below'} auto-suggested">${deltaAmt >= 0 ? '+' : ''}$${Math.abs(deltaAmt).toFixed(2)}</span>`
+    : '';
 
-  const kEsc = key.replace(/'/g, "\\'");
+  const calcRows = anchor ? `<table class="audit-calc">
+      <tr><td>Anchor lab (worst-case)</td><td class="num"><b>${escapeHtml(SUP_ABBR[anchor.sup]||anchor.sup)}</b> · landed $${anchor.lc.landed.toFixed(2)}</td></tr>
+      <tr><td>÷ (1 − floor ${Math.round(settings.floorMargin*100)}%)</td><td class="num">$${raw.toFixed(2)}</td></tr>
+      <tr><td>↑ round up to nearest $${settings.rounding}${p && p.smoothed ? ' · gap-smoothed' : ''}</td><td class="num">$${suggested.toFixed(2)}</td></tr>
+      ${p ? `<tr class="hl"><td>${p.manual ? '<span class="audit-manual-badge">manual</span> ' : ''}Wholesale USD ${deltaTag}</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
+      <tr><td>Retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
+      <tr><td><span class="mtag ${marginClass(p.floorMargin||0)}" title="Worst-case: selling above anchor (${escapeHtml(SUP_ABBR[p.anchorSupplier]||p.anchorSupplier||'—')}) landed cost">⚓ ${((p.floorMargin||0)*100).toFixed(0)}%</span> &nbsp; <span class="mtag ${marginClass(p.preferredMargin||0)}" title="Preferred source (${escapeHtml(SUP_ABBR[p.preferredSupplier]||p.preferredSupplier||'—')}) margin">▶ ${((p.preferredMargin||0)*100).toFixed(0)}%</span></td><td class="num" style="font-size:9px;color:var(--pl-muted-fg)">worst / preferred</td></tr>` : ''}
+    </table>` : '<p class="muted">No available supplier remains for this line.</p>';
+
   $('audit-body').innerHTML = `
     <div class="audit-head">
-      <div class="audit-title">${t} · <b>${disp.grade}</b> <span class="lensname">${disp.name}</span> · ${m}</div>
-      <div class="audit-sub">Source: ${srcName} · ${supRows.length} supplier${supRows.length!==1?'s':''} offer this lens</div>
+      <div class="audit-title">${escapeHtml(t)} · <b>${escapeHtml(disp.grade)}</b> <span class="lensname">${escapeHtml(disp.name)}</span> · ${escapeHtml(m)}</div>
+      <div class="audit-sub">Source: ${escapeHtml(srcName)} · ${supRows.length} supplier${supRows.length!==1?'s':''} · ${avail.length} available</div>
     </div>
-    <div class="audit-sup-wrap"><table class="audit-sup"><thead><tr><th>Supplier</th><th>Source row</th><th class="num">FOB</th><th class="num">Freight</th><th class="num">Landed</th><th>Role</th><th></th></tr></thead><tbody>${supTable}</tbody></table></div>
-    ${calc}
+
+    <div class="audit-section-lbl">Suppliers &amp; landed costs</div>
+    <div class="audit-sup-wrap">
+      <table class="audit-sup">
+        <thead><tr>
+          <th>Supplier</th><th>Source row</th>
+          <th class="num">FOB</th><th class="num">Freight</th><th class="num">Landed</th>
+          <th class="num">Margin</th><th>Role</th><th></th>
+        </tr></thead>
+        <tbody>${supTable}</tbody>
+      </table>
+    </div>
+
+    <div class="audit-section-lbl">Pricing walkthrough</div>
+    <div class="audit-pricing">
+      <div class="audit-card">
+        <div class="audit-section-title">Calculation</div>
+        ${calcRows}
+      </div>
+      <div class="audit-card audit-edit-card">
+        <div class="audit-section-title">Edit price</div>
+        <div class="audit-edit-grid">
+          <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)"></label>
+          <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)"></label>
+        </div>
+        <div class="audit-edit-note">Edits apply on close. Blank retail applies the ${settings.markup.value}% markup.</div>
+      </div>
+    </div>
+
+    <div class="audit-basis-note">
+      <span class="audit-basis-label">Business basis</span>
+      Price covers the <b>most expensive available lab at your floor margin</b> — guaranteeing minimum margin regardless of which lab fills the order.
+      <span class="audit-formula-line">CIF = FOB × (1 + freight) &nbsp;·&nbsp; Landed = CIF × (1 + duty + levy + clearance) + brokerage &nbsp;·&nbsp; Price = Landed ÷ (1 − ${Math.round(settings.floorMargin*100)}%) → rounded up to $${settings.rounding}</span>
+      <span class="audit-formula-line" style="opacity:0.7">Source: <b>${escapeHtml(srcName)}</b> &nbsp;·&nbsp; VAT excluded (recoverable input credit)</span>
+    </div>
+
     <div class="audit-actions">
       ${comboDisabled
-        ? `<button class="pl-btn pl-btn-teal" onclick="toggleDisableCombo('${kEsc}')">↩ Restore</button>`
+        ? `<button class="pl-btn pl-btn-teal" onclick="toggleDisableCombo('${kEsc}')">↩ Restore line</button>`
         : `<button class="pl-btn pl-btn-danger" onclick="toggleDisableCombo('${kEsc}')">✕ Discontinue</button>`}
-      <button class="pl-btn pl-btn-primary" onclick="closeAudit()">Save & Close</button>
+      <button class="pl-btn pl-btn-primary" onclick="closeAudit()">Save &amp; Close</button>
     </div>`;
   if (!wasOpen) resetAuditPanelPosition();
   $('audit-overlay').classList.add('open');
