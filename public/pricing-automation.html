@@ -225,7 +225,7 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .classify-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .classify-toggle { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .classify-list { display: flex; flex-direction: column; gap: 6px; max-height: 460px; overflow-y: auto; }
-.cls-row { display: grid; grid-template-columns: minmax(220px,1.4fr) 1fr auto; gap: 12px; align-items: center;
+.cls-row { display: grid; grid-template-columns: minmax(220px,1.2fr) minmax(280px,1.5fr); gap: 12px; align-items: center;
   padding: 8px 10px; border: 1px solid var(--pl-border); border-radius: 8px; background: var(--pl-bg); }
 [data-theme="dark"] .cls-row { background: #0f2740; border-color: #1e3a5c; }
 .cls-row.cls-unclassified { border-color: var(--pl-gold); box-shadow: inset 3px 0 0 var(--pl-gold); }
@@ -234,9 +234,6 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .cls-sample { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
 .cls-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .cls-classifications { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.cls-ctl { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; align-items: center; min-width: 230px; }
-.cls-ctl select { font-size: 12px; padding: 3px 5px; border: 1px solid var(--pl-border); border-radius: 6px; background: var(--pl-card); max-width: 200px; }
-.cls-lbl { font-size: 11px; color: var(--pl-muted, #789); }
 .tagpill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
   background: var(--pl-bg); border: 1px solid var(--pl-border); }
 .tagpill-ov { background: var(--pl-teal); color: #fff; border-color: var(--pl-teal); }
@@ -260,6 +257,8 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 table.sourcing-table { width: 100%; border-collapse: collapse; background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); overflow: hidden; }
 [data-theme="dark"] table.sourcing-table { background: #14304f; border-color: #1e3a5c; }
 table.sourcing-table th { background: var(--pl-navy); color: #fff; padding: 7px 10px; font-size: 9.5px; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; }
+table.sourcing-table th button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font: inherit; text-transform: inherit; letter-spacing: inherit; }
+table.sourcing-table th button:hover { color: #f5d99d; }
 table.sourcing-table th.num, table.sourcing-table td.num { text-align: right; }
 table.sourcing-table td { padding: 6px 10px; border-bottom: 1px solid #f0eee8; font-size: 11.5px; }
 [data-theme="dark"] table.sourcing-table td { border-color: #1a3050; }
@@ -268,6 +267,7 @@ table.sourcing-table .muted { color: var(--pl-muted-fg); font-size: 9.5px; }
 .flag { font-size: 8.5px; font-weight: 700; padding: 2px 6px; border-radius: 10px; white-space: nowrap; }
 .flag-con { background: #fdf6e9; color: var(--pl-gold); }
 .flag-sin { background: rgba(26,138,156,0.12); color: #0f6b7a; }
+.flag-low { background: #fee2e2; color: var(--pl-danger); }
 
 /* Data Sources */
 .source-card { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 12px 14px; margin-bottom: 10px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.05); }
@@ -284,8 +284,22 @@ table.source-sup th.num, table.source-sup td.num { text-align: right; }
 table.source-sup td { padding: 4px 7px; border-bottom: 1px solid #f4f2ec; }
 [data-theme="dark"] table.source-sup td { border-color: #1a3050; }
 table.source-sup .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+table.source-sup tr.source-supplier-row { cursor: pointer; }
+table.source-sup tr.source-supplier-row:hover td { background: var(--pl-row-hover); }
 .source-note { font-size: 10px; color: var(--pl-muted-fg); line-height: 1.5; margin-top: 4px; }
 .src-h4 { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--pl-muted-fg); margin: 14px 0 8px; }
+.source-rows-panel { width: min(1100px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); overflow: hidden; display: flex; flex-direction: column; }
+.source-rows-panel .pl-panel-body { overflow: auto; min-height: 0; }
+.source-rows-meta { font-size: 10.5px; color: var(--pl-muted-fg); margin-bottom: 8px; }
+table.source-rows-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.source-rows-table th { position: sticky; top: 0; background: var(--pl-navy); color: #fff; padding: 6px 8px; text-align: left; font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.4px; }
+table.source-rows-table td { padding: 5px 8px; border-bottom: 1px solid #f0eee8; vertical-align: top; }
+[data-theme="dark"] table.source-rows-table td { border-color: #1a3050; }
+table.source-rows-table td.num { text-align: right; white-space: nowrap; }
+table.source-rows-table tr.dim { opacity: 0.68; }
+.row-status { display: inline-block; font-size: 8.5px; font-weight: 800; border-radius: 999px; padding: 2px 7px; white-space: nowrap; }
+.row-status.ok { background: rgba(22,163,74,0.12); color: var(--pl-success); }
+.row-status.off { background: #fff2df; color: var(--pl-gold); }
 
 /* Connectors */
 .conn-card { background: var(--pl-card); border: 1px solid var(--pl-border); border-radius: var(--pl-radius); padding: 14px 16px; margin-bottom: 10px; max-width: 580px; }
@@ -709,9 +723,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
         </div>
         <div class="sourcing-summary" id="sourcing-summary"></div>
         <table class="sourcing-table">
-          <thead><tr>
-            <th>Line</th><th>Classification</th><th class="num">Wholesale</th><th>Anchor (worst case)</th><th>Preferred source</th><th>Labs</th><th>Flag</th>
-          </tr></thead>
+          <thead id="sourcing-head"></thead>
           <tbody id="sourcing-body"></tbody>
         </table>
       </div>
@@ -721,6 +733,24 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
 
       <!-- Connectors -->
       <div id="view-connectors" style="display:none"><div id="connectors-body"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Source rows overlay -->
+<div class="pl-overlay" id="source-rows-overlay" onclick="closeSourceRowsClick(event)">
+  <div class="pl-panel source-rows-panel">
+    <div class="pl-panel-toolbar">
+      <h3 id="source-rows-title">Catalog rows</h3>
+      <button class="pl-btn pl-btn-danger" onclick="document.getElementById('source-rows-overlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="pl-panel-body">
+      <div class="source-rows-meta" id="source-rows-meta"></div>
+      <table class="source-rows-table">
+        <thead><tr><th>Status</th><th>Catalog row</th><th>Type</th><th>Material</th><th class="num">Cost</th><th>Classification</th></tr></thead>
+        <tbody id="source-rows-body"></tbody>
+      </table>
+      <div class="source-rows-meta" id="source-rows-limit"></div>
     </div>
   </div>
 </div>

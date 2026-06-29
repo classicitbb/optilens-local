@@ -98,6 +98,7 @@ let sources = { sources: [], live: [] };
 let collapsed = {};
 let auditDrag = null;
 let auditEditDraft = null;
+let sourcingSort = { field: 'flag', dir: 'desc' };
 
 let settings = createDefaultSettings();
 
@@ -199,12 +200,22 @@ function visiblePriceEntries() {
   return Object.entries(prices).filter(([key]) => isGroupVisible(key.split('||')[0]) && !isComboDisabled(key));
 }
 
+function unsafePriceEntries() {
+  return visiblePriceEntries().filter(([, p]) => !isPriceProfitable(p));
+}
+
 function isComboDisabled(key) {
   return normalizeOverrides(overrides).combos.includes(key);
 }
 
 function marginClass(m) {
   return m >= 0.45 ? 'm-ok' : m >= 0.30 ? 'm-thin' : m >= 0.15 ? 'm-floor' : 'm-low';
+}
+
+function isPriceProfitable(p) {
+  if (!p || !(Number(p.priceUSD) > 0)) return false;
+  if (p.constraintSupplier) return Number(p.preferredMargin) >= settings.minMargin - 1e-6;
+  return p.safe !== false && Number(p.floorMargin) >= settings.floorMargin - 1e-6;
 }
 
 function toast(msg) {
@@ -411,12 +422,46 @@ async function onCellEdit(key, rawVal) {
       `Source only from ${ev.constraint.supplier} (or cheaper) at ${Math.round(ev.constraint.margin * 100)}% margin?\n\n` +
       `OK = accept as source-constrained · Cancel = revert`
     );
-    if (ok) { storeManual(key, enteredUSD, combo, ev.constraint.supplier); toast(`Line constrained to ${SUP_ABBR[ev.constraint.supplier] || ev.constraint.supplier}`); }
+    if (ok && storeManual(key, enteredUSD, combo, ev.constraint.supplier)) toast(`Line constrained to ${SUP_ABBR[ev.constraint.supplier] || ev.constraint.supplier}`);
     buildMatrix();
     return;
   }
   alert(ev.message || 'That price is a loss at every approved supplier.');
   buildMatrix();
+}
+
+function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
+  const supEntries = Object.entries(combo ? (combo.suppliers || {}) : {})
+    .filter(([s]) => !settings.excluded.includes(s))
+    .map(([s, fob]) => ({ s, fob: Number(fob), landed: landedCalc(Number(fob), s).landed }))
+    .filter(r => r.landed > 0 && Number.isFinite(r.landed));
+  if (!supEntries.length || !(enteredUSD > 0)) return { ok: false, message: 'No available supplier remains for that price.' };
+  const marginFor = (entry) => (enteredUSD - entry.landed) / enteredUSD;
+  const anchor = supEntries.reduce((a, b) => b.landed > a.landed ? b : a);
+  const anchorMargin = marginFor(anchor);
+  if (anchorMargin >= settings.floorMargin - 1e-6) return { ok: true, constraintSupplier: null };
+  if (existingConstraint) {
+    const existing = supEntries.find(r => r.s === existingConstraint);
+    if (existing && marginFor(existing) >= settings.minMargin - 1e-6) {
+      return { ok: true, constraintSupplier: existingConstraint };
+    }
+  }
+  const acceptable = supEntries
+    .filter(r => marginFor(r) >= settings.minMargin - 1e-6)
+    .sort((a, b) => a.landed - b.landed);
+  if (acceptable.length) {
+    return {
+      ok: false,
+      needsConfirmation: true,
+      constraintSupplier: acceptable[0].s,
+      margin: marginFor(acceptable[0]),
+      anchorMargin,
+    };
+  }
+  return {
+    ok: false,
+    message: `That price is a loss or below the ${Math.round(settings.minMargin * 100)}% floor at every available supplier.`,
+  };
 }
 
 function storeManual(key, enteredUSD, combo, constraintSupplier) {
@@ -456,6 +501,13 @@ function storeManual(key, enteredUSD, combo, constraintSupplier) {
   const effectiveMargin = (effectiveLanded > 0 && enteredUSD > 0)
     ? (enteredUSD - effectiveLanded) / enteredUSD : preferredMargin;
 
+  const allowedMargin = constraintSupplier ? effectiveMargin : floorMargin;
+  const requiredMargin = constraintSupplier ? settings.minMargin : settings.floorMargin;
+  if (!(allowedMargin >= requiredMargin - 1e-6)) {
+    alert(`Price not saved: it does not clear the ${Math.round(requiredMargin * 100)}% margin floor.`);
+    return false;
+  }
+
   prices[key] = {
     priceUSD: enteredUSD,
     retailUSD: Math.round(enteredUSD * (1 + settings.markup.value / 100) * 100) / 100,
@@ -465,10 +517,11 @@ function storeManual(key, enteredUSD, combo, constraintSupplier) {
     preferredSupplier: effectiveSup,
     preferredCost: effectiveLanded,
     preferredMargin: effectiveMargin,
-    safe: floorMargin >= settings.floorMargin - 1e-6,
+    safe: allowedMargin >= requiredMargin - 1e-6,
     manual: true,
     constraintSupplier: constraintSupplier || null,
   };
+  return true;
 }
 
 // ── Matrix ─────────────────────────────────────────────────────────────
@@ -741,7 +794,20 @@ function applyAuditEdits() {
   if (!wholesaleChanged && !retailChanged) return;
 
   if (wholesaleChanged) {
-    storeManual(auditEditDraft.key, Number(wholesale), combo, existing.constraintSupplier || null);
+    const decision = manualPriceDecision(combo, Number(wholesale), existing.constraintSupplier || null);
+    let constraintSupplier = decision.constraintSupplier || null;
+    if (decision.needsConfirmation) {
+      const ok = confirm(
+        `$${Number(wholesale).toFixed(2)} does not clear the ${Math.round(settings.floorMargin * 100)}% anchor floor.\n\n` +
+        `Source only from ${decision.constraintSupplier} at ${Math.round(decision.margin * 100)}% margin?\n\n` +
+        `OK = save as source-constrained · Cancel = keep existing price`
+      );
+      if (!ok) return;
+    } else if (!decision.ok) {
+      alert(decision.message || 'Price not saved: it would not make money.');
+      return;
+    }
+    if (!storeManual(auditEditDraft.key, Number(wholesale), combo, constraintSupplier)) return;
   } else if (!prices[auditEditDraft.key]) {
     prices[auditEditDraft.key] = {};
   }
@@ -838,9 +904,9 @@ async function buildSourcesView() {
       <table class="source-sup"><thead><tr><th>Supplier</th><th class="num">Catalog rows</th><th>In pricing</th></tr></thead><tbody>
         ${(s.suppliers||[]).map(su => {
           const excluded = settings.excluded.includes(su.name);
-          return `<tr><td><span class="dot" style="background:${SUPPLIER_COLORS[su.name]||'#888'}"></span>${SUP_ABBR[su.name]||su.name}</td>
+          return `<tr class="source-supplier-row" onclick="openSourceRows('${jsAttrArg(su.name)}')"><td><span class="dot" style="background:${SUPPLIER_COLORS[su.name]||'#888'}"></span>${escHtml(SUP_ABBR[su.name]||su.name)}</td>
             <td class="num">${su.rows}</td>
-            <td><button class="mini-btn ${excluded?'off':''}" onclick="toggleExclude('${su.name}');buildSourcesView()">${excluded?'excluded':'included'}</button></td></tr>`;
+            <td><button class="mini-btn ${excluded?'off':''}" onclick="event.stopPropagation();toggleExclude('${jsAttrArg(su.name)}');buildSourcesView()">${excluded?'excluded':'included'}</button></td></tr>`;
         }).join('')}
       </tbody></table>
       <p class="source-note">${s.note||''}</p>
@@ -879,6 +945,38 @@ async function buildSourcesView() {
     ${cards}
     <h4 class="src-h4">Live / external feeds</h4>
     ${live}`;
+}
+
+async function openSourceRows(supplier) {
+  try {
+    const data = await fetchJson(`/api/v2/catalog-source-rows?supplier=${encodeURIComponent(supplier)}`);
+    const rows = data.rows || [];
+    const maxRows = 350;
+    const rendered = rows.slice(0, maxRows).map(r => {
+      const status = r.included ? '<span class="row-status ok">included</span>' : `<span class="row-status off">${escHtml(r.reason)}</span>`;
+      const cls = r.classification || {};
+      const classification = [cls.treatment, cls.tier ? categoryClassLabel(cls.tier) : '', cls.material].filter(Boolean).join(' · ');
+      return `<tr class="${r.included ? '' : 'dim'}">
+        <td>${status}</td>
+        <td>${escHtml(r.name)}</td>
+        <td>${escHtml(r.mftype)} · ${escHtml(r.lenstype)}</td>
+        <td>${escHtml(r.material)}</td>
+        <td class="num">${r.cost == null ? '—' : '$' + Number(r.cost).toFixed(2)}</td>
+        <td>${escHtml(classification || r.reason)}</td>
+      </tr>`;
+    }).join('');
+    $('source-rows-title').textContent = `${SUP_ABBR[supplier] || supplier} catalog rows`;
+    $('source-rows-meta').textContent = `${data.count || 0} loaded · ${data.included || 0} included in pricing · ${data.excluded || 0} excluded`;
+    $('source-rows-body').innerHTML = rendered || '<tr><td colspan="6" class="pl-empty-state">No rows loaded for this supplier.</td></tr>';
+    $('source-rows-limit').textContent = rows.length > maxRows ? `Showing first ${maxRows} rows.` : '';
+    $('source-rows-overlay').classList.add('open');
+  } catch (e) {
+    toast('Could not load source rows: ' + e.message);
+  }
+}
+
+function closeSourceRowsClick(e) {
+  if (e.target === $('source-rows-overlay')) $('source-rows-overlay').classList.remove('open');
 }
 
 // Switch the catalog data source (auto / live / fallback). The server reloads
@@ -1084,6 +1182,8 @@ function newBlankPricelist() {
 async function savePricelist() {
   const name = $('pricelist-name').value.trim();
   if (!name) { toast('Enter a pricelist name first'); return; }
+  const unsafe = unsafePriceEntries();
+  if (unsafe.length) { toast(`Cannot save: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`); return; }
   const payload = pricelistPayload(name);
   if (currentPricelistId) {
     await fetch(`/api/pricelists/${currentPricelistId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1100,6 +1200,8 @@ async function savePricelist() {
 async function saveAsNewPricelist() {
   const name = $('pricelist-name').value.trim();
   if (!name) { toast('Enter a pricelist name first'); return; }
+  const unsafe = unsafePriceEntries();
+  if (unsafe.length) { toast(`Cannot save: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`); return; }
   if (currentPricelistId && name === currentPricelistName) {
     if (!confirm('This will create a separate new copy with the same name. Continue?')) return;
   }
@@ -1201,32 +1303,90 @@ function rePrice() {
 }
 
 // ── Sourcing Review ────────────────────────────────────────────────────
+function setSourcingSort(field) {
+  if (sourcingSort.field === field) sourcingSort.dir = sourcingSort.dir === 'asc' ? 'desc' : 'asc';
+  else sourcingSort = { field, dir: field === 'price' || field === 'labs' ? 'desc' : 'asc' };
+  buildSourcingView();
+}
+
+function sourcingSortMark(field) {
+  return sourcingSort.field === field ? (sourcingSort.dir === 'asc' ? '▲' : '▼') : '';
+}
+
+function renderSourcingHead() {
+  const head = $('sourcing-head');
+  if (!head) return;
+  const th = (field, label, cls = '') => `<th class="${cls}"><button type="button" onclick="setSourcingSort('${field}')">${label} <span>${sourcingSortMark(field)}</span></button></th>`;
+  head.innerHTML = `<tr>
+    ${th('line', 'Line')}
+    ${th('classification', 'Classification')}
+    ${th('price', 'Wholesale', 'num')}
+    ${th('anchor', 'Anchor (worst case)')}
+    ${th('preferred', 'Preferred source')}
+    ${th('labs', 'Labs')}
+    ${th('flag', 'Flag')}
+  </tr>`;
+}
+
+function compareValues(a, b) {
+  if (typeof a === 'number' || typeof b === 'number') return (Number(a) || 0) - (Number(b) || 0);
+  return String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function sortSourcingRows(rows) {
+  const dir = sourcingSort.dir === 'desc' ? -1 : 1;
+  return rows.slice().sort((a, b) => {
+    let av = a.sort[sourcingSort.field];
+    let bv = b.sort[sourcingSort.field];
+    const primary = compareValues(av, bv) * dir;
+    return primary || compareValues(a.sort.line, b.sort.line);
+  });
+}
+
 async function buildSourcingView() {
   await loadClassify();
   const rows = Object.entries(prices).map(([key, p]) => {
     if (isComboDisabled(key)) return null;
     const c = comboByKey[key]; if (!c) return null;
     if (!isGroupVisible(c.treatment)) return null;
-    return { key, p, c, single: c.supplierCount === 1, constrained: !!p.constraintSupplier };
+    const [t, ti, m] = key.split('||');
+    const d = TIER_DISPLAY[ti] || { grade: ti, name: '' };
+    const line = `${t} · ${d.grade} (${d.name}) · ${m}`;
+    const flagScore = p.constraintSupplier ? 2 : c.supplierCount === 1 ? 1 : 0;
+    return {
+      key, p, c, line, single: c.supplierCount === 1, constrained: !!p.constraintSupplier,
+      sort: {
+        line,
+        classification: `${c.treatment || ''} ${c.tier || ''} ${c.material || ''}`,
+        price: Number(p.priceUSD) || 0,
+        anchor: `${p.anchorSupplier || ''} ${Number(p.floorMargin) || 0}`,
+        preferred: `${p.preferredSupplier || ''} ${Number(p.preferredMargin) || 0}`,
+        labs: Number(c.supplierCount) || 0,
+        flag: flagScore,
+      },
+    };
   }).filter(Boolean);
   const priced = rows.length;
   const single = rows.filter(r => r.single);
   const constrained = rows.filter(r => r.constrained);
-  const flagged = rows.filter(r => r.single || r.constrained).sort((a,b) => (b.constrained-a.constrained)||(b.single-a.single));
-  const fmt = (t,ti,m) => { const d = TIER_DISPLAY[ti]||{grade:ti,name:''}; return `${t} · ${d.grade} (${d.name}) · ${m}`; };
+  const unsafe = rows.filter(r => !isPriceProfitable(r.p));
+  const flagged = sortSourcingRows(rows.filter(r => r.single || r.constrained || !isPriceProfitable(r.p)));
+  renderSourcingHead();
   $('sourcing-summary').innerHTML = `
     <div class="src-stat"><div class="ss-num">${priced}</div><div class="ss-lbl">Priced lines</div></div>
     <div class="src-stat"><div class="ss-num" style="color:var(--pl-gold)">${single.length}</div><div class="ss-lbl">Single-source</div></div>
-    <div class="src-stat"><div class="ss-num" style="color:var(--pl-teal)">${constrained.length}</div><div class="ss-lbl">Source-constrained</div></div>`;
+    <div class="src-stat"><div class="ss-num" style="color:var(--pl-teal)">${constrained.length}</div><div class="ss-lbl">Source-constrained</div></div>
+    <div class="src-stat"><div class="ss-num" style="color:var(--pl-danger)">${unsafe.length}</div><div class="ss-lbl">Below margin floor</div></div>`;
   if (!priced) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">Run Auto-Price first.</td></tr>'; return; }
   if (!flagged.length) { $('sourcing-body').innerHTML = '<tr><td colspan="7" class="pl-empty-state">All clear — every priced line has multi-supplier fallback.</td></tr>'; return; }
   $('sourcing-body').innerHTML = flagged.map(r => {
-    const [t,ti,m] = r.key.split('||');
-    const flag = r.constrained
+    const flag = !isPriceProfitable(r.p)
+      ? `<span class="flag flag-low">below floor</span>`
+      : r.constrained
       ? `<span class="flag flag-con">⚑ ${SUP_ABBR[r.p.constraintSupplier]||r.p.constraintSupplier} only</span>`
       : `<span class="flag flag-sin">single-source</span>`;
     return `<tr>
-      <td>${fmt(t,ti,m)}</td>
+      <td>${escHtml(r.line)}</td>
       <td class="src-classes">${lineClassificationChips(r.c)}</td>
       <td class="num">${sym()}${toDisplay(r.p.priceUSD).toFixed(2)}</td>
       <td>${SUP_ABBR[r.p.anchorSupplier]||r.p.anchorSupplier} <span class="muted">${(r.p.floorMargin*100).toFixed(0)}%</span></td>
@@ -1354,16 +1514,6 @@ function renderClassify() {
   if (adeptOnly) list = list.filter(isAdeptCandidate);
   if (!list.length) { $('classify-body').innerHTML = `<div class="pl-empty-state">${unOnly || adeptOnly ? 'No types match this filter.' : 'No catalog types loaded.'}</div>`; return; }
   $('classify-body').innerHTML = list.map(t => {
-    const tierOpts = ['<option value="">— unclassified —</option>']
-      .concat(classifyTiers.map(o => `<option value="${escHtml(o)}" ${o === t.tier ? 'selected' : ''}>${escHtml(tierGrade(o))}</option>`)).join('');
-    const grpOpts = [
-      `<option value="__auto" ${t.treatmentOverridden ? '' : 'selected'}>auto (from name)</option>`,
-      `<option value="" ${t.treatmentMissing ? 'selected' : ''}>— unclassified —</option>`,
-    ].concat(classifyGroups.map(o => `<option value="${escHtml(o)}" ${o === t.treatmentOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
-    const matOpts = [
-      `<option value="__auto" ${t.materialOverridden ? '' : 'selected'}>auto (from source)</option>`,
-      `<option value="" ${t.materialMissing ? 'selected' : ''}>— unclassified —</option>`,
-    ].concat(classifyMaterials.map(o => `<option value="${escHtml(o)}" ${o === t.materialOverride ? 'selected' : ''}>${escHtml(o)}</option>`)).join('');
     const sup = t.suppliers.map(s => SUP_ABBR[s] || s).join(', ');
     return `<div class="cls-row ${t.classified ? '' : 'cls-unclassified'}">
       <div class="cls-main">
@@ -1372,14 +1522,6 @@ function renderClassify() {
         <div class="cls-sample muted">${escHtml(t.samples[0] || '')}</div>
       </div>
       <div class="cls-classifications">${typeClassificationChips(t)}</div>
-      <div class="cls-ctl">
-        <label class="cls-lbl">Category</label>
-        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','tier',this.value)">${tierOpts}</select>
-        <label class="cls-lbl">Group</label>
-        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','treatment',this.value)">${grpOpts}</select>
-        <label class="cls-lbl">Material</label>
-        <select onchange="classifyType('${jsAttrArg(t.typeKey)}','material',this.value)">${matOpts}</select>
-      </div>
     </div>`;
   }).join('');
 }
@@ -1551,9 +1693,11 @@ async function connPull() {
   toast('Live catalog synced');
 }
 async function connPushDryRun() {
-  const rows = visiblePriceEntries().map(([key,p]) => { const c = comboByKey[key]||{}; return { key, treatment: c.treatment, tier: c.tier, material: c.material, available: true, priceUSD: p.priceUSD, retailUSD: p.retailUSD }; });
+  const unsafe = unsafePriceEntries();
+  if (unsafe.length) return toast(`Cannot publish: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`);
+  const rows = visiblePriceEntries().map(([key,p]) => { const c = comboByKey[key]||{}; return { key, treatment: c.treatment, tier: c.tier, material: c.material, available: true, priceUSD: p.priceUSD, retailUSD: p.retailUSD, constraintSupplier: p.constraintSupplier || null }; });
   if (!rows.length) return toast('Run Auto-Price first');
-  const r = await cpost('push', { token: connToken, pricedRows: rows, commit: false });
+  const r = await cpost('push', { token: connToken, pricedRows: rows, settings: { ...settings, disabled: overrides, classOverrides }, commit: false });
   if (r.error) { $('conn-result').innerHTML = `<span class="conn-err">${r.error}</span>`; return; }
   $('conn-result').innerHTML = `<div class="conn-dry"><b>Dry run — nothing sent.</b><br>Would publish <b>${r.plan.lineCount}</b> lines as version "${r.plan.versionName}" → ${r.plan.target} (${r.plan.reversible}).<br><span class="muted">Live write stays disabled until first confirmed connect.</span></div>`;
 }

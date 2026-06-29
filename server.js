@@ -244,6 +244,47 @@ function plReadOverrides() {
 }
 function plWriteOverrides(o) { plWriteJSON(PL_CLASS_OV, o); }
 function plReadRawRows() { return plReadJSON(PL_ROWS, null); }
+function plCatalogSourceRows(supplier) {
+  const rows = plReadRawRows() || [];
+  const ov = plReadOverrides();
+  const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+  const wanted = String(supplier || "").trim();
+  const filtered = rows
+    .map((r, idx) => ({ ...r, _rowNumber: idx + 1 }))
+    .filter(r => !wanted || r.supplier === wanted);
+  return filtered.map(r => {
+    const typeKey = `${r.mftype || ""}|${r.lenstype || ""}`;
+    const tier = hasOwn(ov.tierByType, typeKey) ? ov.tierByType[typeKey] : plClassifier.TIER_MAP[typeKey] || null;
+    const treatment = hasOwn(ov.treatmentByType, typeKey) ? ov.treatmentByType[typeKey] : plClassifier.normTreatment(r.name);
+    const material = hasOwn(ov.materialByType, typeKey) ? ov.materialByType[typeKey] : plClassifier.normMaterial(r.name, r.material);
+    const cost = Number(r.cost);
+    const approved = plClassifier.APPROVED.includes(r.supplier);
+    const active = r.active !== false;
+    const hasCost = Number.isFinite(cost) && cost > 0;
+    const included = approved && active && hasCost && !!tier && !!treatment && !!material;
+    let reason = "Included in pricing";
+    if (!approved) reason = "Supplier not approved";
+    else if (!active) reason = "Inactive catalog row";
+    else if (!hasCost) reason = "Missing or invalid cost";
+    else if (!tier) reason = "Missing category";
+    else if (!treatment) reason = "Missing group";
+    else if (!material) reason = "Missing material";
+    return {
+      rowNumber: r._rowNumber,
+      supplier: r.supplier || "",
+      name: r.name || "",
+      mftype: r.mftype || "",
+      lenstype: r.lenstype || "",
+      material: r.material || "",
+      cost: hasCost ? Math.round(cost * 100) / 100 : null,
+      active,
+      included,
+      reason,
+      pricingKey: included ? `${treatment}||${tier}||${material}` : null,
+      classification: { treatment, tier, material },
+    };
+  });
+}
 function plNormalizeClassOverrides(o) {
   return {
     tierByType: o && typeof o.tierByType === "object" ? o.tierByType : {},
@@ -387,6 +428,37 @@ function plPricedMatrix(combos, settings) {
     }
   }
   return priced;
+}
+
+function plValidatePricedRowsForProfit(pricedRows, opts) {
+  const rows = Array.isArray(pricedRows) ? pricedRows : [];
+  const settings = opts && typeof opts === "object" ? opts : {};
+  const combos = plCombosForClassOverrides(settings.classOverrides);
+  const comboByKey = Object.fromEntries(combos.map(c => [c.key, c]));
+  const failures = [];
+  for (const row of rows) {
+    if (!row || row.available === false || !(Number(row.priceUSD) > 0)) continue;
+    const combo = comboByKey[row.key];
+    if (!combo) {
+      failures.push({ key: row.key || "", reason: "combo not found" });
+      continue;
+    }
+    const activeCombo = plApplyDisabled(combo, settings.disabled);
+    if (!activeCombo) continue;
+    const ev = PE.evaluateOverride(activeCombo, Number(row.priceUSD), settings);
+    if (ev.ok) continue;
+    const constrained = row.constraintSupplier
+      && Array.isArray(ev.acceptableSuppliers)
+      && ev.acceptableSuppliers.some(s => s.supplier === row.constraintSupplier);
+    if (!constrained) failures.push({ key: row.key, reason: ev.message || "below margin floor" });
+  }
+  if (failures.length) {
+    const e = new Error(`Refusing to publish ${failures.length} price${failures.length === 1 ? "" : "s"} below the margin floor.`);
+    e.statusCode = 400;
+    e.details = failures.slice(0, 20);
+    throw e;
+  }
+  return true;
 }
 
 function plLoadLists() { return plReadJSON(PL_LISTS, {}); }
@@ -1168,6 +1240,14 @@ const server = http.createServer(async (req, res) => {
       return plReadJSON(PL_SOURCES, { sources: [], live: [] });
     });
   }
+  if (url.pathname === "/api/v2/catalog-source-rows" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      const rows = plCatalogSourceRows(url.searchParams.get("supplier"));
+      const included = rows.filter(r => r.included).length;
+      return { rows, count: rows.length, included, excluded: rows.length - included };
+    });
+  }
   if (url.pathname === "/api/v2/source-status" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "pricing.read");
@@ -1462,6 +1542,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      plValidatePricedRowsForProfit(body.pricedRows || [], body.settings || {});
       const creds = plSecure.getCvApi(body.token);
       return plCvConnector.publish(creds, {
         pricedRows: body.pricedRows || [],
@@ -1493,6 +1574,7 @@ const server = http.createServer(async (req, res) => {
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const commit = !!body.commit;
+      plValidatePricedRowsForProfit(body.pricedRows || [], body.settings || {});
       const creds = plSecure.getOptilens(body.token, { needService: commit });
       return plConnector.push(creds, { pricedRows: body.pricedRows || [], versionName: body.versionName, commit });
     });
