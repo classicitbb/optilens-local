@@ -497,6 +497,8 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   table.audit-calc tbody,
   table.audit-calc tr,
   table.audit-calc td { display: block; width: 100%; }
+  table.audit-calc td:first-child { width: 100%; }
+  table.audit-calc td.num { width: 100%; }
   table.audit-calc tr { padding: 6px 0; border-bottom: 1px solid #f0eee8; }
   table.audit-calc td { padding: 2px 0; border-bottom: 0; }
   table.audit-calc td.num { text-align: left; }
@@ -731,9 +733,14 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   <div class="pl-panel audit-panel">
     <div class="pl-panel-toolbar" id="audit-drag-handle">
       <h3>🔍 Price Audit — source &amp; calculation</h3>
+      <div class="audit-window-controls">
+        <button class="window-btn" type="button" onclick="toggleAuditMinimize(event)" aria-label="Minimize audit window">−</button>
+        <button class="window-btn" type="button" onclick="toggleAuditMaximize(event)" aria-label="Maximize audit window">▢</button>
+      </div>
       <button class="pl-btn pl-btn-danger" onclick="closeAudit()">✕</button>
     </div>
     <div class="pl-panel-body" id="audit-body"></div>
+    <div class="audit-resize-handle" aria-hidden="true"></div>
   </div>
 </div>
 

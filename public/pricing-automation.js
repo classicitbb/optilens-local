@@ -86,6 +86,9 @@ let currentCustomer = null;
 let currentPricelistId = null;
 let currentPricelistName = null;
 let currentAuditKey = null;
+let auditWindowMode = 'normal';
+let auditWindowBounds = null;
+let auditResizeState = null;
 let loadError = null;
 let overrides = createDefaultOverrides();
 let classOverrides = createDefaultClassOverrides();
@@ -642,6 +645,8 @@ function openAudit(key) {
     </div>`;
   if (!wasOpen) resetAuditPanelPosition();
   $('audit-overlay').classList.add('open');
+  applyAuditWindowState();
+  wireAuditResizeHandle();
 }
 function closeAuditClick(e) { if (e.target === $('audit-overlay')) closeAudit(); }
 function closeAudit() {
