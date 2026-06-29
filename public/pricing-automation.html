@@ -351,14 +351,14 @@ table.audit-calc td:first-child { width: 50%; overflow-wrap: anywhere; }
 table.audit-calc td.num { text-align: right; font-family: 'Plus Jakarta Sans', monospace; font-size: 12px; overflow-wrap: anywhere; word-break: break-word; }
 table.audit-calc tr.hl td { background: #f1faf4; font-weight: 700; }
 [data-theme="dark"] table.audit-calc tr.hl td { background: #0a3020; }
-.audit-pricing { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr); gap: 14px; align-items: start; margin-top: 10px; }
+.audit-pricing { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; margin-top: 10px; }
 .audit-card { min-width: 0; border: 1px solid var(--pl-border); border-radius: 8px; background: var(--pl-card); overflow: hidden; }
 [data-theme="dark"] .audit-card { background: #0f2740; border-color: #1e3a5c; }
 .audit-section-title { background: #f4f2ec; color: var(--pl-navy); font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; padding: 7px 10px; border-bottom: 1px solid var(--pl-border); }
 [data-theme="dark"] .audit-section-title { background: #0e2440; }
 .audit-card .audit-calc { margin-bottom: 0; }
 .audit-edit-card { padding-bottom: 10px; }
-.audit-edit-grid { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+.audit-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
 .audit-edit-grid label { display: grid; gap: 4px; font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: var(--pl-muted-fg); }
 .audit-edit-grid input { width: 100%; min-width: 0; padding: 8px 10px; border: 1.5px solid var(--pl-border); border-radius: 7px; background: #fff; color: var(--pl-navy); font: 800 18px/1.2 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif; text-align: right; }
 .audit-edit-grid input:focus { outline: none; border-color: var(--pl-teal); box-shadow: 0 0 0 3px rgba(26,138,156,0.12); }
@@ -464,14 +464,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
 
 @media (max-width: 800px) {
   .pl-app { grid-template-columns: 190px 1fr; }
-  .audit-pricing { grid-template-columns: 1fr; }
-  table.audit-calc,
-  table.audit-calc tbody,
-  table.audit-calc tr,
-  table.audit-calc td { display: block; width: 100%; }
-  table.audit-calc tr { padding: 6px 0; border-bottom: 1px solid #f0eee8; }
-  table.audit-calc td { padding: 2px 0; border-bottom: 0; }
-  table.audit-calc td.num { text-align: left; }
+  .audit-edit-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .pl-app { grid-template-columns: 1fr; }
