@@ -315,7 +315,7 @@ table.source-sup .dot { display: inline-block; width: 6px; height: 6px; border-r
 /* Audit modal */
 #audit-overlay { box-sizing: border-box; overflow: auto; }
 #audit-overlay *, #audit-overlay *::before, #audit-overlay *::after { box-sizing: border-box; }
-.audit-panel { width: calc(100vw - 96px); max-width: 1480px; max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden; }
+.audit-panel { width: 900px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden; }
 .audit-panel.is-dragging { user-select: none; }
 .audit-panel .pl-panel-toolbar { min-width: 0; cursor: move; touch-action: none; }
 .audit-panel .pl-panel-toolbar button { cursor: pointer; }
@@ -375,7 +375,7 @@ table.audit-calc tr.hl td { background: #f1faf4; font-weight: 700; }
 [data-theme="dark"] .pl-panel { background: #14304f; }
 .pl-panel-toolbar { background: var(--pl-navy); color: #fff; padding: 9px 14px; border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 7px; position: sticky; top: 0; z-index: 1; }
 .pl-panel-toolbar h3 { flex: 1; font-size: 13px; margin: 0; }
-.pl-panel-body { padding: 28px 32px; background: #fff; }
+.pl-panel-body { padding: 4px; background: #fff; }
 
 /* ── Preview / print document styling ── */
 /* On-screen: looks like a printed sheet floating in the overlay */
