@@ -293,10 +293,74 @@ table.source-sup .dot { display: inline-block; width: 6px; height: 6px; border-r
 /* Audit modal */
 #audit-overlay { box-sizing: border-box; overflow: auto; }
 #audit-overlay *, #audit-overlay *::before, #audit-overlay *::after { box-sizing: border-box; }
-.audit-panel { width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; overflow: hidden; }
+.audit-panel {
+  position: relative;
+  width: min(860px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 40px);
+  min-width: 640px;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: none;
+}
 .audit-panel .pl-panel-toolbar { min-width: 0; }
 .audit-panel .pl-panel-toolbar h3 { min-width: 0; overflow-wrap: anywhere; }
 .audit-panel .pl-panel-body { min-height: 0; overflow: auto; }
+.audit-panel.is-maximized {
+  width: calc(100vw - 40px);
+  max-width: calc(100vw - 40px);
+  height: calc(100dvh - 40px);
+  max-height: calc(100dvh - 40px);
+  resize: none;
+}
+.audit-panel.is-minimized {
+  width: min(520px, calc(100vw - 40px));
+  max-width: min(520px, calc(100vw - 40px));
+  max-height: none;
+  min-height: 0;
+  resize: none;
+}
+.audit-panel.is-resizing { user-select: none; }
+.audit-panel.is-minimized .pl-panel-body,
+.audit-panel.is-minimized .audit-actions,
+.audit-panel.is-minimized .audit-resize-handle {
+  display: none;
+}
+.audit-window-controls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.audit-window-controls .window-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.audit-window-controls .window-btn:hover { background: rgba(255,255,255,0.16); }
+#audit-overlay:not(.open) .audit-resize-handle { display: none; }
+.audit-resize-handle {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 16px;
+  height: 16px;
+  border-right: 2px solid rgba(11,30,53,0.22);
+  border-bottom: 2px solid rgba(11,30,53,0.22);
+  border-bottom-right-radius: 3px;
+  cursor: se-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+[data-theme="dark"] .audit-resize-handle {
+  border-right-color: rgba(244,242,237,0.34);
+  border-bottom-color: rgba(244,242,237,0.34);
+}
 #audit-body { max-width: 100%; min-width: 0; }
 .audit-head { border-bottom: 2px solid var(--pl-navy); padding-bottom: 8px; margin-bottom: 12px; }
 .audit-title { font-size: 16px; color: var(--pl-navy); font-weight: 700; overflow-wrap: anywhere; }
@@ -313,10 +377,12 @@ table.audit-sup td.src { font-size: 9.5px; color: #444; }
 [data-theme="dark"] table.audit-sup td.src { color: #8faabb; }
 table.audit-sup tr.dim { opacity: 0.42; }
 table.audit-sup .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
-table.audit-calc { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+table.audit-calc { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; table-layout: fixed; }
+table.audit-calc td:first-child { width: 54%; }
+table.audit-calc td.num { width: 46%; }
 table.audit-calc td { padding: 5px 9px; border-bottom: 1px solid #f0eee8; }
 [data-theme="dark"] table.audit-calc td { border-color: #1a3050; }
-table.audit-calc td.num { text-align: right; font-family: 'Plus Jakarta Sans', monospace; overflow-wrap: anywhere; }
+table.audit-calc td.num { text-align: right; font-family: 'Plus Jakarta Sans', monospace; overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 table.audit-calc tr.hl td { background: #f1faf4; font-weight: 700; }
 [data-theme="dark"] table.audit-calc tr.hl td { background: #0a3020; }
 .audit-note { font-size: 10.5px; color: var(--pl-muted-fg); line-height: 1.5; background: #f4f2ec; padding: 9px 11px; border-radius: 6px; border-left: 3px solid var(--pl-teal); }
@@ -424,7 +490,7 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   .pl-app { grid-template-columns: 1fr; }
   .pl-sidebar { display: none; }
   #audit-overlay { padding: 8px; }
-  .audit-panel { width: 100%; max-height: calc(100dvh - 16px); border-radius: 8px; }
+  .audit-panel { width: 100%; max-width: 100%; min-width: 0; max-height: calc(100dvh - 16px); border-radius: 8px; resize: none; }
   .audit-panel .pl-panel-toolbar { border-radius: 8px 8px 0 0; padding: 8px 10px; }
   .audit-panel .pl-panel-toolbar h3 { font-size: 12px; line-height: 1.25; }
   .audit-title { font-size: 14px; line-height: 1.25; }
@@ -444,6 +510,8 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   table.audit-calc tbody,
   table.audit-calc tr,
   table.audit-calc td { display: block; width: 100%; }
+  table.audit-calc td:first-child { width: 100%; }
+  table.audit-calc td.num { width: 100%; }
   table.audit-calc tr { padding: 6px 0; border-bottom: 1px solid #f0eee8; }
   table.audit-calc td { padding: 2px 0; border-bottom: 0; }
   table.audit-calc td.num { text-align: left; }
@@ -670,9 +738,14 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   <div class="pl-panel audit-panel">
     <div class="pl-panel-toolbar">
       <h3>🔍 Price Audit — source &amp; calculation</h3>
+      <div class="audit-window-controls">
+        <button class="window-btn" type="button" onclick="toggleAuditMinimize(event)" aria-label="Minimize audit window">−</button>
+        <button class="window-btn" type="button" onclick="toggleAuditMaximize(event)" aria-label="Maximize audit window">▢</button>
+      </div>
       <button class="pl-btn pl-btn-danger" onclick="closeAudit()">✕</button>
     </div>
     <div class="pl-panel-body" id="audit-body"></div>
+    <div class="audit-resize-handle" aria-hidden="true"></div>
   </div>
 </div>
 

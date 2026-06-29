@@ -84,6 +84,9 @@ let currentCustomer = null;
 let currentPricelistId = null;
 let currentPricelistName = null;
 let currentAuditKey = null;
+let auditWindowMode = 'normal';
+let auditWindowBounds = null;
+let auditResizeState = null;
 let loadError = null;
 let overrides = { combos: [], suppliers: {} };
 let sources = { sources: [], live: [] };
@@ -528,11 +531,118 @@ function openAudit(key) {
       <button class="pl-btn pl-btn-secondary" onclick="closeAudit()">Close</button>
     </div>`;
   $('audit-overlay').classList.add('open');
+  applyAuditWindowState();
+  wireAuditResizeHandle();
 }
 function closeAuditClick(e) { if (e.target === $('audit-overlay')) closeAudit(); }
-function closeAudit() { currentAuditKey = null; $('audit-overlay').classList.remove('open'); }
+function closeAudit() {
+  currentAuditKey = null;
+  auditWindowMode = 'normal';
+  auditWindowBounds = null;
+  $('audit-overlay').classList.remove('open');
+  applyAuditWindowState();
+}
 function refreshAudit() {
   if (currentAuditKey && $('audit-overlay').classList.contains('open')) openAudit(currentAuditKey);
+}
+
+function applyAuditWindowState() {
+  const panel = document.querySelector('.audit-panel');
+  if (!panel) return;
+  panel.classList.toggle('is-minimized', auditWindowMode === 'minimized');
+  panel.classList.toggle('is-maximized', auditWindowMode === 'maximized');
+  panel.classList.toggle('is-resizing', !!auditResizeState);
+
+  if (auditWindowMode === 'maximized') {
+    if (!auditWindowBounds) rememberAuditBounds(panel);
+    panel.style.width = 'calc(100vw - 40px)';
+    panel.style.height = 'calc(100dvh - 40px)';
+  } else if (auditWindowMode === 'minimized') {
+    if (!auditWindowBounds) rememberAuditBounds(panel);
+    panel.style.width = 'min(520px, calc(100vw - 40px))';
+    panel.style.height = '';
+  } else if (auditWindowBounds) {
+    panel.style.width = auditWindowBounds.width;
+    panel.style.height = auditWindowBounds.height;
+  } else {
+    panel.style.width = '';
+    panel.style.height = '';
+  }
+}
+
+function toggleAuditMinimize(event) {
+  event?.stopPropagation();
+  auditWindowMode = auditWindowMode === 'minimized' ? 'normal' : 'minimized';
+  applyAuditWindowState();
+}
+
+function toggleAuditMaximize(event) {
+  event?.stopPropagation();
+  auditWindowMode = auditWindowMode === 'maximized' ? 'normal' : 'maximized';
+  applyAuditWindowState();
+}
+
+function rememberAuditBounds(panel) {
+  const rect = panel.getBoundingClientRect();
+  auditWindowBounds = {
+    width: `${Math.round(rect.width)}px`,
+    height: `${Math.round(rect.height)}px`,
+  };
+}
+
+function wireAuditResizeHandle() {
+  const handle = document.querySelector('.audit-resize-handle');
+  if (!handle || handle.dataset.wired === 'true') return;
+  handle.dataset.wired = 'true';
+
+  handle.addEventListener('pointerdown', (event) => {
+    if (auditWindowMode === 'minimized') return;
+    const panel = document.querySelector('.audit-panel');
+    if (!panel) return;
+    rememberAuditBounds(panel);
+    auditResizeState = {
+      panel,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: panel.getBoundingClientRect().width,
+      startHeight: panel.getBoundingClientRect().height,
+      pointerId: event.pointerId,
+    };
+    panel.classList.add('is-resizing');
+    panel.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  document.addEventListener('pointermove', (event) => {
+    if (!auditResizeState || auditResizeState.pointerId !== event.pointerId) return;
+    if (auditWindowMode === 'maximized') return;
+    const minWidth = 640;
+    const minHeight = 360;
+    const maxWidth = Math.max(minWidth, window.innerWidth - 32);
+    const maxHeight = Math.max(minHeight, window.innerHeight - 40);
+    const nextWidth = Math.min(maxWidth, Math.max(minWidth, auditResizeState.startWidth + (event.clientX - auditResizeState.startX)));
+    const nextHeight = Math.min(maxHeight, Math.max(minHeight, auditResizeState.startHeight + (event.clientY - auditResizeState.startY)));
+    auditResizeState.panel.style.width = `${Math.round(nextWidth)}px`;
+    auditResizeState.panel.style.height = `${Math.round(nextHeight)}px`;
+    auditWindowBounds = {
+      width: `${Math.round(nextWidth)}px`,
+      height: `${Math.round(nextHeight)}px`,
+    };
+    event.preventDefault();
+  });
+
+  const finishResize = (event) => {
+    if (!auditResizeState || auditResizeState.pointerId !== event.pointerId) return;
+    auditResizeState.panel.classList.remove('is-resizing');
+    try { auditResizeState.panel.releasePointerCapture?.(event.pointerId); } catch {}
+    auditResizeState = null;
+    applyAuditWindowState();
+    event.preventDefault();
+  };
+
+  document.addEventListener('pointerup', finishResize);
+  document.addEventListener('pointercancel', finishResize);
 }
 
 async function persistOverrides() {
