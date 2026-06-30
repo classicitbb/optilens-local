@@ -56,6 +56,7 @@ const AUTH_STATE = {
 
 function setup() {
   ensureMaterialSymbolsFont();
+  normalizeHeaderIcons();
   injectOverlays();
   wireThemeToggle();
   wireLauncher();
@@ -74,6 +75,26 @@ function ensureMaterialSymbolsFont() {
   link.rel = "stylesheet";
   link.href = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200";
   document.head.appendChild(link);
+}
+
+// Normalize legacy SVG header icons to Material Symbols so every page matches the
+// launchpad header. Only swaps buttons that still contain an <svg>; pages already
+// migrated (e.g. index.html) are left untouched.
+function normalizeHeaderIcons() {
+  const swap = (el, icon) => {
+    if (!el) return;
+    const svg = el.querySelector("svg");
+    if (!svg) return;
+    const span = document.createElement("span");
+    span.className = "material-symbols-outlined";
+    span.textContent = icon;
+    svg.replaceWith(span);
+  };
+  swap(document.querySelector("#launcherBtn"), "apps");
+  swap(document.querySelector(".back-btn"), "arrow_back");
+  swap(document.querySelector("#searchTrigger"), "search");
+  swap(document.querySelector('.top-action-btn[aria-label="Help"]'), "help");
+  swap(document.querySelector('.top-action-btn[aria-label="Notifications"]'), "notifications");
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -120,9 +141,6 @@ function injectOverlays() {
       <button class="launcher-close" id="launcherClose" type="button" aria-label="Close launcher">&#x2715;</button>
     </div>
     <div class="launcher-grid" id="launcherGrid"></div>
-    <div class="launcher-foot">
-      <button type="button" onclick="history.back()">&#8592; Back to Site</button>
-    </div>
   </div>
 </div>`;
 
