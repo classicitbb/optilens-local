@@ -135,6 +135,7 @@ const PE = require("./lib/pricing-engine");
 const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
+const innovationsSync = require("./lib/innovations-sync");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -1514,6 +1515,24 @@ const server = http.createServer(async (req, res) => {
       plValidatePricedRowsForProfit(body.pricedRows || [], body.settings || {});
       const creds = plSecure.getOptilens(body.token, { needService: commit });
       return plConnector.push(creds, { pricedRows: body.pricedRows || [], versionName: body.versionName, commit });
+    });
+  }
+
+  // ── Innovations → Classic Visions cloud sync (outbound push) ──────────────
+  // On-demand trigger. Dry-run by default; pass { commit:true } to write.
+  // Contract: docs/integration-innovations-sync-contract.md (Classic Visions).
+  if (url.pathname === "/api/connectors/innovations-sync/run" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      return innovationsSync.sync(creds, {
+        entities: Array.isArray(body.entities) && body.entities.length ? body.entities : undefined,
+        commit: !!body.commit,
+        batchSize: Number(body.batchSize) > 0 ? Number(body.batchSize) : undefined,
+      });
     });
   }
 
