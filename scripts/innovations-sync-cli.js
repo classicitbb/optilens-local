@@ -47,10 +47,17 @@ function arg(name) {
     ? entitiesArg.split(',').map((s) => s.trim()).filter(Boolean)
     : undefined;
 
+  // --serve-requests: process the cloud "Sync now" queue (writes) instead of a
+  // scheduled full sync. Intended to run frequently from the scheduled task.
+  const serveRequests = process.argv.includes('--serve-requests');
+
   try {
-    const result = await innovationsSync.sync(creds, { commit: !dryRun, entities });
-    console.log(JSON.stringify({ ts: new Date().toISOString(), ...result }, null, 2));
-    process.exit(result.ok ? 0 : 1);
+    const result = serveRequests
+      ? await innovationsSync.runRequested(creds, {})
+      : await innovationsSync.sync(creds, { commit: !dryRun, entities });
+    console.log(JSON.stringify({ ts: new Date().toISOString(), mode: serveRequests ? 'serve-requests' : (dryRun ? 'dry-run' : 'sync'), ...result }, null, 2));
+    const ok = serveRequests ? true : result.ok;
+    process.exit(ok ? 0 : 1);
   } catch (e) {
     console.error('Sync failed:', e.message);
     process.exit(1);

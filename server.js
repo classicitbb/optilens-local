@@ -1536,6 +1536,18 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Claim + run any pending CV-initiated "Sync now" requests (cloud queues them).
+  if (url.pathname === "/api/connectors/innovations-sync/check-requests" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      return innovationsSync.runRequested(creds, {});
+    });
+  }
+
   // ── Doc Studio API ────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/docstudio/users" && req.method === "GET") {

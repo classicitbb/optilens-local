@@ -2,7 +2,8 @@ param(
     [string] $TaskName = "OptiLens Innovations Sync",
     [string] $ProjectRoot = "",
     [int] $IntervalMinutes = 60,
-    [switch] $DryRun
+    [switch] $DryRun,
+    [switch] $ServeRequests   # process the cloud "Sync now" queue instead of a full sync
 )
 
 # Registers a scheduled task that pushes selected Innovations data to the
@@ -22,7 +23,8 @@ if (-not $ProjectRoot) {
 $node = (Get-Command node -ErrorAction Stop).Source
 $cli = Join-Path $ProjectRoot "scripts\innovations-sync-cli.js"
 $dry = if ($DryRun) { " --dry-run" } else { "" }
-$argument = "`"$cli`"$dry"
+$serve = if ($ServeRequests) { " --serve-requests" } else { "" }
+$argument = "`"$cli`"$dry$serve"
 
 $action = New-ScheduledTaskAction -Execute $node -Argument $argument -WorkingDirectory $ProjectRoot
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) `
