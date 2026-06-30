@@ -11,6 +11,9 @@ const state = {
   }
 };
 
+const DASHBOARD_REFRESH_MS = 30000;
+let dashboardRefreshTimer = null;
+
 const fallbackDashboard = {
   tiles: [
     { key: "open-source-shipments", title: "Open source shipments", value: "PSQL/MSSQL", detail: "Shipments.Shipped = 0", state: "discovered", isVisible: true, sortOrder: 10, size: "normal", moduleCode: "delivery-export" },
@@ -161,6 +164,7 @@ async function init() {
   renderMetrics();
   wireDashboardActions();
   wireHeaderActions();  // analytics section collapse (home-page specific)
+  startDashboardRefresh();
 }
 
 async function loadAuthState() {
@@ -325,7 +329,7 @@ function renderCriticalStatusPills() {
   const target = document.querySelector("#criticalStatusPills");
   if (!target) return;
 
-  const criticalNames = ["Private app MSSQL", "Source MSSQL Innovations", "ODBC Connector", "Pricelist DB"];
+  const criticalNames = ["Private app MSSQL", "Source MSSQL Innovations", "ODBC Connector", "Pricelist DB", "PSQL Innovations"];
   const health = state.dashboard?.integrationHealth || [];
   const critical = health.filter((item) => criticalNames.includes(item.name));
 
@@ -335,6 +339,38 @@ function renderCriticalStatusPills() {
       <strong>${escapeHtml(statusLabel(item.state))}</strong>
     </span>
   `).join("");
+}
+
+function startDashboardRefresh() {
+  if (dashboardRefreshTimer) return;
+
+  dashboardRefreshTimer = setInterval(() => {
+    if (!state.auth.user || state.dashboardEditMode) return;
+    refreshDashboardSnapshot();
+  }, DASHBOARD_REFRESH_MS);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refreshDashboardSnapshot();
+    }
+  });
+}
+
+async function refreshDashboardSnapshot() {
+  if (!state.auth.user || !state.deviceId) return;
+
+  try {
+    const response = await fetch(`/api/dashboard?deviceId=${encodeURIComponent(state.deviceId)}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const dashboard = await response.json();
+    state.dashboard = dashboard;
+    state.modules = dashboard.modules || state.modules;
+    renderApplicationGrid();
+    renderCriticalStatusPills();
+    renderMetrics();
+  } catch {
+    // Keep the last known snapshot until the next successful refresh.
+  }
 }
 
 function renderApplicationGrid() {

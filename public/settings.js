@@ -1,14 +1,38 @@
+const SETTINGS_REFRESH_MS = 30000;
+let settingsRefreshTimer = null;
+
 initSettings();
 
 async function initSettings() {
-  const [dashboard, accessImport] = await Promise.all([
-    getJson("/api/dashboard", { integrationHealth: [] }),
-    getJson("/api/access-import/dry-run", { tables: [] })
-  ]);
-
-  renderHealth(dashboard.integrationHealth || []);
+  await refreshDashboardHealth();
+  const accessImport = await getJson("/api/access-import/dry-run", { tables: [] });
   renderAccessImport(accessImport.tables || []);
+  startSettingsRefresh();
   // Theme + launcher handled by shared.js (loaded before settings.js)
+}
+
+function startSettingsRefresh() {
+  if (settingsRefreshTimer) return;
+  settingsRefreshTimer = setInterval(() => {
+    refreshDashboardHealth();
+  }, SETTINGS_REFRESH_MS);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refreshDashboardHealth();
+    }
+  });
+}
+
+async function refreshDashboardHealth() {
+  try {
+    const response = await fetch("/api/dashboard", { cache: "no-store" });
+    if (!response.ok) return;
+    const dashboard = await response.json();
+    renderHealth(dashboard.integrationHealth || []);
+  } catch {
+    // Preserve the last successful health snapshot.
+  }
 }
 
 function renderHealth(items) {

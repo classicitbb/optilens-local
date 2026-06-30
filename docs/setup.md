@@ -107,6 +107,14 @@ It failed in this session with an SSPI/Kerberos credential error. That usually m
 
 The easiest next step is to use a SQL login for setup, or have a SQL admin run the database scripts.
 
+## Live Connection Status
+
+The app now checks MSSQL and PSQL connectivity in-process from the Node service. PSQL probing uses the installed Actian ODBC driver directly through the `odbc` package instead of forking PowerShell, which avoids the `spawn EPERM` failure path.
+
+The dashboard, settings page, and credentials vault refresh their connection status automatically while the page is open. Polling is server-side cached for a short window so multiple LAN sessions can show the same live state without repeatedly hammering the database.
+
+If you change source credentials or DSN settings, reload the page or wait for the next refresh cycle to see the updated status.
+
 ## Create The App Database With SQL Admin Access
 
 In SQL Server Management Studio:

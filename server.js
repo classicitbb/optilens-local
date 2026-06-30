@@ -3,9 +3,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
 const nodeCrypto = require("node:crypto");
-const { spawn } = require("node:child_process");
 const sql = require("mssql");
 const { getConfig } = require("./lib/config");
+const { runOdbcProbe } = require("./lib/odbc-probe");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -62,8 +62,8 @@ function bearerToken(req) {
   const h = req.headers["authorization"] || "";
   return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
 }
-const { checkAppDatabase, checkSourceDatabase } = require("./lib/db");
-const { checkPsqlConfig, checkPsqlDatabase } = require("./lib/psql-odbc");
+const { checkPsqlConfig } = require("./lib/psql-odbc");
+const { getIntegrationHealthSnapshot } = require("./lib/integration-health");
 const {
   buildDashboard,
   createDeviceRegistration,
@@ -726,66 +726,8 @@ function odbcValue(value) {
 }
 
 function testOdbcConnection(connectionString) {
-  const script = [
-    "$ErrorActionPreference = \"Stop\"",
-    "$inputJson = [Console]::In.ReadToEnd()",
-    "$payload = $inputJson | ConvertFrom-Json",
-    "$conn = [System.Data.Odbc.OdbcConnection]::new($payload.connectionString)",
-    "try {",
-    "  $conn.Open()",
-    "  [Console]::Out.Write(\"ok\")",
-    "}",
-    "finally {",
-    "  if ($conn.State -eq \"Open\") { $conn.Close() }",
-    "}"
-  ].join("\n");
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("powershell", [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      script
-    ], {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
-    });
-
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      child.kill();
-      reject(new Error("ODBC health check timed out."));
-    }, 8000);
-
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
-    });
-
-    child.on("error", (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
-
-    child.on("close", (code) => {
-      clearTimeout(timeout);
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(cleanPowerShellError(stderr) || `ODBC health check failed with exit code ${code}.`));
-    });
-
-    child.stdin.end(JSON.stringify({ connectionString }));
-  });
-}
-
-function cleanPowerShellError(stderr) {
-  return String(stderr || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" ");
+  return runOdbcProbe(connectionString, { timeoutMs: 8000 })
+    .then(() => undefined);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -974,21 +916,16 @@ const server = http.createServer(async (req, res) => {
   // ──────────────────────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/health") {
-    const [appDbHealth, sourceDbHealth, psqlDbHealth] = await Promise.all([
-      checkAppDatabase(),
-      checkSourceDatabase(),
-      checkPsqlDatabase()
-    ]);
+    const snapshot = await getIntegrationHealthSnapshot();
     return sendJson(res, {
-      ok: appDbHealth.state === "online" && sourceDbHealth.state === "online" && psqlDbHealth.state === "online",
-      service: "optilens-local",
+      ...snapshot,
       time: new Date().toISOString(),
       database: config.appDb.database,
       sourceMode: "read-only",
       writeBack: config.writeBackEnabled ? "enabled" : "disabled",
-      appDatabase: appDbHealth,
-      sourceDatabase: sourceDbHealth,
-      psqlDatabase: psqlDbHealth
+      appDatabase: snapshot.appDatabase,
+      sourceDatabase: snapshot.sourceDatabase,
+      psqlDatabase: snapshot.psqlDatabase
     });
   }
 
