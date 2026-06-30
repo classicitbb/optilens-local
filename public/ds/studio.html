@@ -872,10 +872,26 @@
         <div style="display:flex;gap:9px">
           <sc-if value="{{ isLetter }}" hint-placeholder-val="{{ false }}">
             <button onClick="{{ printLetter }}" style="height:38px;padding:0 16px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer">Print / PDF</button>
+            <div style="position:relative">
+              <button onClick="{{ toggleDocx }}" style="height:38px;padding:0 18px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">Open in Word / Google Docs <span style="font-size:8px;opacity:.55;transform:translateY(1px)">▼</span></button>
+              <sc-if value="{{ docxOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ toggleDocx }}" style="position:fixed;inset:0;z-index:45"></div>
+                <div style="position:absolute;top:46px;right:0;z-index:46;width:268px;background:#fff;border:1px solid #e7e4db;border-radius:13px;box-shadow:0 20px 48px -12px rgba(11,30,53,.42);overflow:hidden">
+                  <button onClick="{{ exportLetterWord }}" style-hover="background:#f7f5ef" style="display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #f1eee6;padding:13px 16px;cursor:pointer;transition:.12s">
+                    <div style="font:700 13px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Microsoft Word &nbsp;<span style="color:#1A8A9C">.doc</span></div>
+                    <div style="font:400 11.5px/1.45 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">Downloads a Word document formatted like the preview. Opens and edits in Word.</div>
+                  </button>
+                  <button onClick="{{ openLetterGoogleDocs }}" style-hover="background:#f7f5ef" style="display:block;width:100%;text-align:left;background:none;border:0;padding:13px 16px;cursor:pointer;transition:.12s">
+                    <div style="font:700 13px/1.2 'Plus Jakarta Sans',sans-serif;color:#0B1E35">Google Docs</div>
+                    <div style="font:400 11.5px/1.45 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">Copies the letter and opens a new Google Doc — press Ctrl/Cmd+V to paste.</div>
+                  </button>
+                </div>
+              </sc-if>
+            </div>
           </sc-if>
           <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ true }}">
             <div style="position:relative">
-              <button onClick="{{ toggleDl }}" style="height:38px;padding:0 15px;border:1.5px solid #0B1E35;border-radius:9px;background:#fff;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px">Download <span style="font-size:8px;opacity:.55;transform:translateY(1px)">▼</span></button>
+              <button onClick="{{ toggleDl }}" style="height:38px;padding:0 18px;border:0;border-radius:9px;background:#C89130;color:#0B1E35;font:700 13px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px -6px rgba(200,145,48,.6)">Download <span style="font-size:8px;opacity:.55;transform:translateY(1px)">▼</span></button>
               <sc-if value="{{ dlOpen }}" hint-placeholder-val="{{ false }}">
                 <div onClick="{{ toggleDl }}" style="position:fixed;inset:0;z-index:45"></div>
                 <div style="position:absolute;top:46px;right:0;z-index:46;width:252px;background:#fff;border:1px solid #e7e4db;border-radius:13px;box-shadow:0 20px 48px -12px rgba(11,30,53,.42);overflow:hidden">
@@ -1031,7 +1047,7 @@ class Component extends DCLogic {
   state = {
     tab: 'email',
     bCompany: 'Classic Visions', bWebsite: 'www.classicvisions.net', bEmail: 'info@classicvisions.net',
-    bPhone: '+1 246 433-4928', bPhone2: '+1 (246) 243-9703', brandOpen: false, dlOpen: false,
+    bPhone: '+1 246 433-4928', bPhone2: '+1 (246) 243-9703', brandOpen: false, dlOpen: false, docxOpen: false,
     emHeader: 'navy', emFooter: 'navy',
     emEyebrow: 'Company Update',
     emPreheader: 'A quick note from the team at Classic Visions.',
@@ -1123,7 +1139,7 @@ class Component extends DCLogic {
   }
 
   // ---------- persistence ----------
-  persist = () => { try { const { copied, brandOpen, dlOpen, dsCustomers, dsPricelists, billingFiles, sharedBillingFiles, myFiles, billShareUsers, fileShareUsers, billingFilesLoaded, myFilesLoaded, fileShareOpen, billShareOpen, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
+  persist = () => { try { const { copied, brandOpen, dlOpen, docxOpen, dsCustomers, dsPricelists, billingFiles, sharedBillingFiles, myFiles, billShareUsers, fileShareUsers, billingFilesLoaded, myFilesLoaded, fileShareOpen, billShareOpen, ...rest } = this.state; localStorage.setItem(this.KEY, JSON.stringify(rest)); } catch (e) {} };
   persistSoon = () => { clearTimeout(this._pt); this._pt = setTimeout(this.persist, 350); };
   set = (k, v) => { this.setState({ [k]: v }, () => { this.persistSoon(); if (this.isBillingField(k)) this.scheduleBillingAutosave(); }); };
   toast = (m) => { this.setState({ copied: m }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ copied: '' }), 2200); };
@@ -1170,6 +1186,35 @@ class Component extends DCLogic {
     this.toast('Downloaded .eml — open it to send');
   };
 
+  // ---------- letter: Word / Google Docs export ----------
+  toggleDocx = () => this.setState(s => ({ docxOpen: !s.docxOpen }));
+  letterDocHtml = () => {
+    const esc = this.esc;
+    const title = this.state.ltSubject || (this.brand().name + ' Letter');
+    return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title>\n`
+      + `<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">\n`
+      + `<style>@page{margin:0}body{margin:0;background:#fff;font-family:'Plus Jakarta Sans',Arial,sans-serif}</style></head>\n`
+      + `<body>${this.buildLetter()}</body></html>`;
+  };
+  exportLetterWord = () => {
+    this.setState({ docxOpen: false });
+    // Word opens an HTML document and renders it with full CSS fidelity, so the
+    // file matches the preview and stays fully editable. Office namespaces tell
+    // Word to treat it as a Word document.
+    const inner = this.letterDocHtml().replace(/^[\s\S]*?<html[^>]*>/i, '').replace(/<\/html>\s*$/i, '');
+    const doc = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+      + 'xmlns:w="urn:schemas-microsoft-com:office:word" '
+      + 'xmlns="http://www.w3.org/TR/REC-html40">' + inner + '</html>';
+    this.downloadFile(this.slug(this.state.ltSubject || 'classic-visions-letter') + '.doc', doc, 'application/msword');
+    this.toast('Downloaded Word document');
+  };
+  openLetterGoogleDocs = async () => {
+    this.setState({ docxOpen: false });
+    await this.copyRich(this.buildLetter());
+    window.open('https://docs.google.com/document/create', '_blank', 'noopener');
+    this.toast('Letter copied — press Ctrl/Cmd+V to paste into Google Docs');
+  };
+
   brand = () => ({
     name: this.state.bCompany || 'Classic Visions',
     email: this.state.bEmail || 'info@classicvisions.net',
@@ -1200,6 +1245,9 @@ class Component extends DCLogic {
       // Insert/edit image dialog: add a Browse button that picks a local image
       // file and embeds it as a data URL (no server upload needed).
       automatic_uploads: false,
+      object_resizing: true,
+      image_dimensions: true,
+      image_advtab: true,
       file_picker_types: 'image',
       file_picker_callback: (cb, value, meta) => {
         const input = document.createElement('input');
@@ -1215,7 +1263,7 @@ class Component extends DCLogic {
         input.click();
       },
       skin: 'oxide', content_css: false,
-      content_style: "@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:13.5px;line-height:1.65;color:#0B1E35;margin:12px 14px} h2{font-size:18px;font-weight:800;letter-spacing:-.01em} h3{font-size:15px;font-weight:700} a{color:#1A8A9C} img{max-width:100%;height:auto}",
+      content_style: "@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:13.5px;line-height:1.65;color:#0B1E35;margin:12px 14px} h2{font-size:18px;font-weight:800;letter-spacing:-.01em} h3{font-size:15px;font-weight:700} a{color:#1A8A9C} img{max-width:100%}",
       setup: (ed) => {
         self.TINY[tab] = ed;
         ed.on('init', () => {
@@ -1387,13 +1435,25 @@ class Component extends DCLogic {
 
   imgStyle = (img, opts) => {
     opts = opts || {};
-    const w = Math.max(20, Math.min(100, parseInt(img.dataset.imgWidth || '100', 10) || 100));
     const r = img.dataset.imgRadius === '18' ? 18 : 0;
     const shadow = img.dataset.imgShadow === '1';
     const align = ['left', 'right', 'center'].includes(img.dataset.imgAlign) ? img.dataset.imgAlign : 'center';
     const margin = align === 'left' ? '10px auto 14px 0' : align === 'right' ? '10px 0 14px auto' : '10px auto 14px';
     const box = shadow ? '0 14px 34px -16px rgba(11,30,53,.45)' : 'none';
-    return `display:block;width:${w}%;max-width:100%;height:auto;border:0;border-radius:${r}px;box-shadow:${box};margin:${margin};outline:${opts.editor ? 'none' : '0'}`;
+    // An explicit size set via the image dialog or drag-resize (px or %) takes
+    // priority so the preview matches what the user sized in the editor. Falls
+    // back to the legacy percentage control (data-img-width).
+    const sw = (img.style && img.style.width) || '';
+    const aw = (img.getAttribute && img.getAttribute('width')) || '';
+    const sh = (img.style && img.style.height) || '';
+    const ah = (img.getAttribute && img.getAttribute('height')) || '';
+    let widthCss = /^\d+(\.\d+)?(px|%)$/.test(sw) ? sw : (/^\d+$/.test(aw) ? aw + 'px' : '');
+    if (!widthCss) {
+      const w = Math.max(20, Math.min(100, parseInt(img.dataset.imgWidth || '100', 10) || 100));
+      widthCss = w + '%';
+    }
+    const heightCss = /^\d+(\.\d+)?px$/.test(sh) ? sh : (/^\d+$/.test(ah) ? ah + 'px' : 'auto');
+    return `display:block;width:${widthCss};max-width:100%;height:${heightCss};border:0;border-radius:${r}px;box-shadow:${box};margin:${margin};outline:${opts.editor ? 'none' : '0'}`;
   };
   textAlignStyle = (n) => {
     const align = n && ['left', 'center', 'right', 'justify'].includes(n.dataset.textAlign) ? n.dataset.textAlign : '';
@@ -3177,7 +3237,7 @@ class Component extends DCLogic {
       sidebarStyle: `width:${sidebarWidth}px;flex:none;background:#fff;border-right:1px solid #e7e4db;overflow:auto`,
       sidebarResizerStyle: `width:8px;flex:none;cursor:col-resize;background:${d.sidebarDragging ? '#1A8A9C' : '#e7e4db'};border-right:1px solid #d8d2c4;outline:none;transition:background .12s`,
       startSidebarDrag: this.startSidebarDrag,
-      showCopyNow: tab !== 'files',
+      showCopyNow: !['files', 'email', 'letter'].includes(tab),
       previewAreaStyle: tab === 'files' ? 'flex:1;min-height:0;overflow:hidden;padding:0' : 'flex:1;min-height:0;overflow:auto;padding:34px 28px',
       sortMyFiles: this.sortMyFiles,
       myFileTypeTree: (() => {
@@ -3203,6 +3263,7 @@ class Component extends DCLogic {
       setFileShareAccess: (e) => this.setState({ fileShareAccess: e.target.value }),
       addFileCollaborator: this.addFileCollaborator, saveFileShares: this.saveFileShares,
       dlOpen: d.dlOpen, toggleDl: this.toggleDl, dlHtml: this.dlHtml, dlEml: this.dlEml,
+      docxOpen: d.docxOpen, toggleDocx: this.toggleDocx, exportLetterWord: this.exportLetterWord, openLetterGoogleDocs: this.openLetterGoogleDocs,
       brandOpen: d.brandOpen, toggleBrand: this.toggleBrand, brandFields,
       gearStyle: `display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:0;cursor:pointer;background:${d.brandOpen ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.06)'};transition:.15s`,
       emHeaderOpts: this.seg('emHeader', [{ k: 'navy', l: 'Navy band' }, { k: 'minimal', l: 'Minimal' }, { k: 'teal', l: 'Teal edge' }]),
