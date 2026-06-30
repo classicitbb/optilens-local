@@ -99,6 +99,15 @@ const platformApplications = [
     permissions: ["platform.admin"]
   },
   {
+    id: "release-notes",
+    name: "Release Notes",
+    href: "/release-notes",
+    summary: "Chronological changelog and roadmap notes for signed-in users.",
+    status: "discovered",
+    icon: "history",
+    permissions: []
+  },
+  {
     id: "credentials",
     name: "Credentials",
     href: "/credentials",

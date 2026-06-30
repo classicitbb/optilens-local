@@ -12,6 +12,7 @@ const LAUNCHER_APPS = [
   { label: "Automation",        icon: "bolt",          href: "/modules/automation",          color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
   { label: "Doc Studio",        icon: "description",   href: "/modules/doc-studio",          color: "#1A8A9C", permissions: ["docstudio.read", "docstudio.write"] },
   { label: "Business Metrics",  icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
+  { label: "Release Notes",     icon: "history",       href: "/release-notes",              color: "#6d28d9", permissions: [] },
   { label: "Users",             icon: "group",         href: "/admin/users",                 color: "#0B1E35", permissions: ["users.manage"] },
   { label: "Credentials",       icon: "key",           href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
   { label: "Settings",          icon: "settings",      href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
@@ -27,6 +28,7 @@ const SEARCH_INDEX = [
   { label: "Automation",          meta: "Module",   icon: "bolt",         color: "#7c3aed", href: "/modules/automation", permissions: ["automation.read", "automation.manage"] },
   { label: "Doc Studio",          meta: "Module",   icon: "description",  color: "#1A8A9C", href: "/modules/doc-studio", permissions: ["docstudio.read", "docstudio.write"] },
   { label: "Business Metrics",    meta: "Module",   icon: "monitoring",   color: "#b45309", href: "/modules/business-metrics", permissions: ["platform.admin"] },
+  { label: "Release Notes",        meta: "Roadmap",  icon: "history",      color: "#6d28d9", href: "/release-notes", permissions: [] },
   { label: "Users",               meta: "Admin",    icon: "group",        color: "#0B1E35", href: "/admin/users", permissions: ["users.manage"] },
   { label: "Credentials",         meta: "Security", icon: "key",          color: "#64748b", href: "/credentials", permissions: ["credentials.manage"] },
   { label: "Settings",            meta: "Page",     icon: "settings",     color: "#4b5563", href: "/settings", permissions: ["platform.admin"] },

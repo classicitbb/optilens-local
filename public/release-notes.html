@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Release Notes - OptiLens Local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body.release-notes-body {
+      background:
+        radial-gradient(circle at top left, rgba(26, 138, 156, 0.14), transparent 32%),
+        radial-gradient(circle at 85% 0%, rgba(109, 40, 217, 0.12), transparent 26%),
+        linear-gradient(180deg, rgba(11, 30, 53, 0.02), transparent 30%),
+        var(--bg);
+    }
+
+    .release-notes-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px clamp(18px, 3vw, 40px) 56px;
+    }
+
+    .notes-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .hero-panel,
+    .info-panel,
+    .notes-panel,
+    .todo-panel {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(24px, 4vw, 40px);
+      background:
+        linear-gradient(135deg, rgba(26, 138, 156, 0.08), transparent 35%),
+        linear-gradient(315deg, rgba(109, 40, 217, 0.08), transparent 40%),
+        var(--surface);
+    }
+
+    .hero-panel::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -90px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26, 138, 156, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero-panel h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.2rem, 4.8vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .hero-panel p {
+      margin: 0;
+      max-width: 62ch;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .hero-link,
+    .hero-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .hero-link {
+      background: var(--ink);
+      color: var(--bg);
+    }
+
+    .hero-chip {
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      color: var(--ink);
+    }
+
+    .info-panel {
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+    }
+
+    .info-card {
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+    }
+
+    .info-card .label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .info-card strong {
+      display: block;
+      font-size: 1.05rem;
+      line-height: 1.25;
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .notes-panel {
+      padding: 20px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .timeline {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 14px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+    }
+
+    .timeline-date {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(26, 138, 156, 0.14);
+      color: var(--blue);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .timeline-content h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+
+    .timeline-content p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .timeline-content ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--ink);
+    }
+
+    .timeline-content li + li {
+      margin-top: 6px;
+    }
+
+    .todo-panel {
+      padding: 20px;
+      position: sticky;
+      top: 88px;
+    }
+
+    .todo-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .todo-item {
+      padding: 16px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(200, 145, 48, 0.12), rgba(200, 145, 48, 0.05));
+      border: 1px solid rgba(200, 145, 48, 0.25);
+    }
+
+    .todo-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(200, 145, 48, 0.18);
+      color: var(--amber);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .todo-item p {
+      margin: 0;
+      color: var(--ink);
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .todo-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .release-footnote {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(56, 148, 87, 0.1);
+      border: 1px solid rgba(56, 148, 87, 0.18);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 980px) {
+      .notes-hero,
+      .notes-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .todo-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .timeline-item {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body class="module-body release-notes-body">
+  <header class="top">
+    <div class="top-left">
+      <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="0" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
+        <strong>OptiLens Local</strong>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">Release Notes</span>
+      </a>
+    </div>
+
+    <div class="top-center">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="search-bar" type="button" aria-label="Go to launch pad" onclick="window.location='/'">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="sb-text">Jump back to the launch pad</span>
+        <kbd>Esc</kbd>
+      </button>
+    </div>
+
+    <div class="top-right">
+      <button class="top-action-btn" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5a1.5 1.5 0 113 0c0 1-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".75" fill="currentColor"/></svg>
+      </button>
+      <button class="top-action-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☽</button>
+      <button class="user-chip" type="button" aria-label="User">
+        <span class="user-avatar">RH</span>
+        <span class="user-name">Russell H.</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="release-notes-main">
+    <section class="notes-hero">
+      <article class="hero-panel">
+        <p class="eyebrow">Internal release log</p>
+        <h1>Release Notes and Changelog</h1>
+        <p>
+          This page tracks OptiLens Local changes in chronological order for signed-in users.
+          It is intentionally read-only, local to the LAN deployment, and free of secrets or write actions.
+        </p>
+        <div class="hero-actions">
+          <a class="hero-link" href="/modules/delivery-export">
+            <span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+            Open Delivery & Export
+          </a>
+          <span class="hero-chip">
+            <span class="material-symbols-outlined" aria-hidden="true">shield</span>
+            Protected app page
+          </span>
+        </div>
+      </article>
+
+      <aside class="info-panel" aria-label="Page summary">
+        <div class="info-card">
+          <span class="label">Scope</span>
+          <strong>Platform changes, module updates, and roadmap notes</strong>
+        </div>
+        <div class="info-card">
+          <span class="label">Access</span>
+          <strong>Signed-in users only</strong>
+        </div>
+        <div class="info-card">
+          <span class="label">Last updated</span>
+          <strong>June 30, 2026</strong>
+        </div>
+      </aside>
+    </section>
+
+    <section class="notes-grid">
+      <article class="notes-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Changelog</p>
+            <h2>Recent changes</h2>
+          </div>
+          <p>Newest entries first.</p>
+        </div>
+
+        <ol class="timeline">
+          <li class="timeline-item">
+            <span class="timeline-date">Current</span>
+            <div class="timeline-content">
+              <h3>Release notes page added</h3>
+              <p>
+                Added a protected internal changelog page and surfaced it from the authenticated launch surfaces
+                so signed-in users can find release history without digging through menus.
+              </p>
+              <ul>
+                <li>Static, read-only content only.</li>
+                <li>No database writes and no secrets exposed.</li>
+              </ul>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <span class="timeline-date">Recent</span>
+            <div class="timeline-content">
+              <h3>Authenticated platform shell hardened</h3>
+              <p>
+                Shared sign-in, protected module screens, and the launch pad flow now operate behind the same
+                platform auth layer so internal tools stay on one controlled entry point.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline-item">
+            <span class="timeline-date">Foundation</span>
+            <div class="timeline-content">
+              <h3>Delivery and export groundwork</h3>
+              <p>
+                Built the initial delivery and export workflow around app-owned shipment state, archive access,
+                and the private app database so the module can evolve without overwriting source systems.
+              </p>
+            </div>
+          </li>
+        </ol>
+
+        <div class="release-footnote">
+          Historic source systems remain read-only during discovery. App-owned state lives in the private
+          OptiLens Local database first.
+        </div>
+      </article>
+
+      <aside class="todo-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Upcoming</p>
+            <h2>Roadmap todo</h2>
+          </div>
+          <p>Visible by design.</p>
+        </div>
+
+        <ul class="todo-list">
+          <li class="todo-item">
+            <span class="todo-pill">Planned</span>
+            <p>Implement classicvisions.net as the private SSO provider for LAN sign-in.</p>
+            <div class="todo-note">
+              This stays on the roadmap until the private identity flow is designed, reviewed, and explicitly approved.
+            </div>
+          </li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+</body>
+</html>

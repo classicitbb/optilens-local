@@ -1787,6 +1787,7 @@ function resolveStaticPath(requestPath) {
 
   const pageRoutes = {
     "/login":                       "login.html",
+    "/release-notes":               "release-notes.html",
     "/settings":                    "settings.html",
     "/credentials":                 "credentials.html",
     "/modules/delivery-export":     "delivery-export.html",
