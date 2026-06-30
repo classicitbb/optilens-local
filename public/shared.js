@@ -4,38 +4,30 @@
  */
 
 // Icons are Google Material Symbols ligature names (rendered via .material-symbols-outlined).
-const LAUNCHER_APPS = [
-  { label: "Launch Pad",        icon: "dashboard",     href: "/",                          color: "#1A8A9C", permissions: [] },
-  { label: "Delivery & Export", icon: "inventory_2",   href: "/modules/delivery-export",   color: "#C89130", permissions: ["delivery.read", "delivery.write"] },
-  { label: "Pricing",           icon: "price_change",  href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
-  { label: "Integrations",      icon: "link",          href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
-  { label: "Automation",        icon: "bolt",          href: "/modules/automation",          color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
-  { label: "Doc Studio",        icon: "description",   href: "/modules/doc-studio",          color: "#1A8A9C", permissions: ["docstudio.read", "docstudio.write"] },
-  { label: "Business Metrics",  icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
-  { label: "Release Notes",     icon: "history",       href: "/release-notes",              color: "#6d28d9", permissions: [] },
-  { label: "Users",             icon: "group",         href: "/admin/users",                 color: "#0B1E35", permissions: ["users.manage"] },
-  { label: "Credentials",       icon: "key",           href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
-  { label: "Settings",          icon: "settings",      href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
+// Keep shell app metadata in one place so the launcher and search never drift.
+const SHELL_APP_CATALOG = [
+  { id: "launch-pad",        label: "Launch Pad",        meta: "Home",     icon: "dashboard",     href: "/",                           color: "#1A8A9C", permissions: [] },
+  { id: "delivery-export",   label: "Delivery & Export", meta: "Module",   icon: "inventory_2",   href: "/modules/delivery-export",    color: "#C89130", permissions: ["delivery.read", "delivery.write"] },
+  { id: "pricing-automation", label: "Pricing",          meta: "Module",   icon: "price_change",  href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
+  { id: "integrations",      label: "Integrations",      meta: "Module",   icon: "link",          href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
+  { id: "automation",        label: "Automation",        meta: "Module",   icon: "bolt",          href: "/modules/automation",         color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
+  { id: "doc-studio",        label: "Doc Studio",        meta: "Module",   icon: "description",   href: "/modules/doc-studio",         color: "#1A8A9C", permissions: ["docstudio.read", "docstudio.write"] },
+  { id: "business-metrics",  label: "Business Metrics",  meta: "Module",   icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
+  { id: "release-notes",     label: "Release Notes",     meta: "Roadmap",  icon: "history",       href: "/release-notes",              color: "#6d28d9", permissions: [] },
+  { id: "users",             label: "Users",             meta: "Admin",    icon: "group",         href: "/admin/users",                color: "#0B1E35", permissions: ["users.manage"] },
+  { id: "credentials",       label: "Credentials",       meta: "Security", icon: "key",           href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
+  { id: "settings",          label: "Settings",          meta: "Page",     icon: "settings",      href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
 ];
+
+const LAUNCHER_APPS = SHELL_APP_CATALOG.map(({ meta, ...app }) => app);
 
 const LAUNCHER_ORDER_STORAGE_KEY = "optilens.launcherOrder";
 
-const SEARCH_INDEX = [
-  { label: "Dashboard",           meta: "Home",     icon: "dashboard",    color: "#1A8A9C", href: "/", permissions: [] },
-  { label: "Delivery & Export",   meta: "Module",   icon: "inventory_2",  color: "#C89130", href: "/modules/delivery-export", permissions: ["delivery.read", "delivery.write"] },
-  { label: "Pricing Automation",  meta: "Module",   icon: "price_change", color: "#389457", href: "/modules/pricing-automation", permissions: ["pricing.read", "pricing.write"] },
-  { label: "Integrations",        meta: "Module",   icon: "link",         color: "#0B1E35", href: "/modules/integrations", permissions: ["integrations.read", "integrations.manage"] },
-  { label: "Automation",          meta: "Module",   icon: "bolt",         color: "#7c3aed", href: "/modules/automation", permissions: ["automation.read", "automation.manage"] },
-  { label: "Doc Studio",          meta: "Module",   icon: "description",  color: "#1A8A9C", href: "/modules/doc-studio", permissions: ["docstudio.read", "docstudio.write"] },
-  { label: "Business Metrics",    meta: "Module",   icon: "monitoring",   color: "#b45309", href: "/modules/business-metrics", permissions: ["platform.admin"] },
-  { label: "Release Notes",        meta: "Roadmap",  icon: "history",      color: "#6d28d9", href: "/release-notes", permissions: [] },
-  { label: "Users",               meta: "Admin",    icon: "group",        color: "#0B1E35", href: "/admin/users", permissions: ["users.manage"] },
-  { label: "Credentials",         meta: "Security", icon: "key",          color: "#64748b", href: "/credentials", permissions: ["credentials.manage"] },
-  { label: "Settings",            meta: "Page",     icon: "settings",     color: "#4b5563", href: "/settings", permissions: ["platform.admin"] },
-  { label: "API Health",          meta: "Endpoint", icon: "vital_signs",  color: "#1A8A9C", href: "/api/health", permissions: [] },
-  { label: "Dashboard API",       meta: "Endpoint", icon: "api",          color: "#1A8A9C", href: "/api/dashboard", permissions: [] },
-  { label: "Modules API",         meta: "Endpoint", icon: "view_list",    color: "#1A8A9C", href: "/api/modules", permissions: [] }
-];
+const SEARCH_INDEX = SHELL_APP_CATALOG.concat([
+  { id: "api-health",     label: "API Health",     meta: "Endpoint", icon: "vital_signs", color: "#1A8A9C", href: "/api/health", permissions: [] },
+  { id: "dashboard-api",  label: "Dashboard API", meta: "Endpoint", icon: "api",         color: "#1A8A9C", href: "/api/dashboard", permissions: [] },
+  { id: "modules-api",    label: "Modules API",   meta: "Endpoint", icon: "view_list",   color: "#1A8A9C", href: "/api/modules", permissions: [] }
+]);
 
 const AUTH_STATE = {
   user: null,
@@ -65,6 +57,20 @@ function setup() {
   wireSearch();
   wireAuth();
 }
+
+function exposeShellCatalog() {
+  window.OptiLensShell = Object.freeze({
+    apps: SHELL_APP_CATALOG,
+    getAppById(id) {
+      return SHELL_APP_CATALOG.find((app) => app.id === id) || null;
+    },
+    getAppByHref(href) {
+      return SHELL_APP_CATALOG.find((app) => app.href === href) || null;
+    }
+  });
+}
+
+exposeShellCatalog();
 
 // ─── Material Symbols font ─────────────────────────────────────────────────────
 
@@ -139,7 +145,7 @@ function injectOverlays() {
 <div class="launcher-overlay" id="launcherOverlay" hidden aria-modal="true" role="dialog" aria-label="App launcher">
   <div class="launcher-panel">
     <div class="launcher-head">
-      <h2>Applications</h2>
+      <h2>Applications <span class="material-symbols-outlined launcher-head-info" aria-hidden="true">info</span></h2>
       <button class="launcher-close" id="launcherClose" type="button" aria-label="Close launcher">&#x2715;</button>
     </div>
     <div class="launcher-grid" id="launcherGrid"></div>

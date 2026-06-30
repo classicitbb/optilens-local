@@ -86,7 +86,6 @@ const platformApplications = [
     href: "/modules/doc-studio",
     summary: "Document and template workspace for operational output.",
     status: "active",
-    icon: "description",
     permissions: ["docstudio.read", "docstudio.write"]
   },
   {
@@ -95,7 +94,6 @@ const platformApplications = [
     href: "/modules/business-metrics",
     summary: "Leadership and operations metrics for enabled workflows.",
     status: "planned",
-    icon: "monitoring",
     permissions: ["platform.admin"]
   },
   {
@@ -104,7 +102,6 @@ const platformApplications = [
     href: "/release-notes",
     summary: "Chronological changelog and roadmap notes for signed-in users.",
     status: "discovered",
-    icon: "history",
     permissions: []
   },
   {
@@ -113,7 +110,6 @@ const platformApplications = [
     href: "/credentials",
     summary: "Secure connection credentials and vault setup.",
     status: "admin",
-    icon: "key",
     permissions: ["credentials.manage"]
   },
   {
@@ -122,7 +118,6 @@ const platformApplications = [
     href: "/settings",
     summary: "Platform endpoints, health checks, and configuration.",
     status: "admin",
-    icon: "settings",
     permissions: ["platform.admin"]
   }
 ];
@@ -404,13 +399,21 @@ function renderApplicationGrid() {
 }
 
 function applicationCatalog() {
+  const shellApps = window.OptiLensShell?.apps || [];
+  const shellById = new Map(shellApps.map((app) => [app.id, app]));
   const moduleApps = (state.modules || []).map((module) => ({
     ...module,
-    icon: moduleIcon(module.id),
+    icon: shellById.get(module.id)?.icon || moduleIcon(module.id),
     permissions: moduleAccessRules[module.id] || [`${module.id}.read`]
   }));
   const seen = new Set(moduleApps.map((app) => app.id));
-  return moduleApps.concat(platformApplications.filter((app) => !seen.has(app.id)));
+  return moduleApps.concat(platformApplications.filter((app) => !seen.has(app.id)).map((app) => {
+    const shellApp = shellById.get(app.id);
+    return {
+      ...app,
+      icon: shellApp?.icon || moduleIcon(app.id)
+    };
+  }));
 }
 
 function canAccessApplication(app) {
