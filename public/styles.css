@@ -1735,7 +1735,7 @@ th {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 18px;
   flex-shrink: 0;
   color: #fff;
 }
@@ -2085,6 +2085,15 @@ th {
   line-height: 1.45;
 }
 
+/* Platform Status merged into the welcome banner: span the full grid width
+   below the greeting/auth row, separated by a hairline rule. */
+.welcome-banner .welcome-status {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 /* ════════════════════════════════════════════════════════
    ANALYTICS / STATUS BAND
 ════════════════════════════════════════════════════════ */
@@ -2344,7 +2353,7 @@ th {
   border-radius: 10px;
   background: var(--blue);
   color: #fff;
-  font-size: 12px;
+  font-size: 22px;
   font-weight: 800;
 }
 

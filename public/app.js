@@ -25,6 +25,8 @@ const fallbackDashboard = {
   integrationHealth: [
     { name: "Private app MSSQL", state: "setup-needed", detail: "Create optilens_local" },
     { name: "Source MSSQL Innovations", state: "credentials-needed", detail: "Use SQL login setup" },
+    { name: "ODBC Connector", state: "credentials-needed", detail: "Innovations ODBC DSN not yet configured" },
+    { name: "Pricelist DB", state: "discovered", detail: "Pricelist Builder data source identified" },
     { name: "PSQL Innovations", state: "discovered", detail: "Shipments and ShipmentItems identified" },
     { name: "Access backend", state: "ready-for-import", detail: "CV_Accounts_be.accdb is first historic source" }
   ]
@@ -37,7 +39,7 @@ const fallbackModules = [
     status: "first-build",
     href: "/modules/delivery-export",
     summary: "Access delivery, shipment prep, commercial invoice, and archive workflows.",
-    icon: "📦"
+    icon: "inventory_2"
   },
   {
     id: "pricing-automation",
@@ -45,7 +47,7 @@ const fallbackModules = [
     status: "first-build",
     href: "/modules/pricing-automation",
     summary: "Rule-based pricing calculator with app-owned write history and audit events.",
-    icon: "💲"
+    icon: "price_change"
   },
   {
     id: "integrations",
@@ -53,7 +55,7 @@ const fallbackModules = [
     status: "planned",
     href: "/modules/integrations",
     summary: "MSSQL, PSQL, Access import, website updates, file-share checks, and future service APIs.",
-    icon: "🔗"
+    icon: "link"
   },
   {
     id: "automation",
@@ -61,7 +63,7 @@ const fallbackModules = [
     status: "planned",
     href: "/modules/automation",
     summary: "Local LLM and rule-based automation tools routed through audited platform APIs.",
-    icon: "⚡"
+    icon: "bolt"
   }
 ];
 
@@ -71,23 +73,17 @@ const tileDestinations = {
   "write-back-status": "/settings"
 };
 
+// Note: "Launch Pad" (dashboard) and "Users" (admin-users) are intentionally omitted
+// from the launch grid — they remain reachable via the app launcher/search in shared.js.
+// Icons are Google Material Symbols ligature names (rendered via .material-symbols-outlined).
 const platformApplications = [
-  {
-    id: "dashboard",
-    name: "Launch Pad",
-    href: "/",
-    summary: "Home base for status, shortcuts, and assigned work.",
-    status: "home",
-    icon: "LP",
-    permissions: []
-  },
   {
     id: "doc-studio",
     name: "Doc Studio",
     href: "/modules/doc-studio",
     summary: "Document and template workspace for operational output.",
     status: "active",
-    icon: "DS",
+    icon: "description",
     permissions: ["docstudio.read", "docstudio.write"]
   },
   {
@@ -96,17 +92,8 @@ const platformApplications = [
     href: "/modules/business-metrics",
     summary: "Leadership and operations metrics for enabled workflows.",
     status: "planned",
-    icon: "BM",
+    icon: "monitoring",
     permissions: ["platform.admin"]
-  },
-  {
-    id: "admin-users",
-    name: "Users",
-    href: "/admin/users",
-    summary: "Manage accounts, roles, and permissions.",
-    status: "admin",
-    icon: "US",
-    permissions: ["users.manage"]
   },
   {
     id: "credentials",
@@ -114,7 +101,7 @@ const platformApplications = [
     href: "/credentials",
     summary: "Secure connection credentials and vault setup.",
     status: "admin",
-    icon: "CR",
+    icon: "key",
     permissions: ["credentials.manage"]
   },
   {
@@ -123,7 +110,7 @@ const platformApplications = [
     href: "/settings",
     summary: "Platform endpoints, health checks, and configuration.",
     status: "admin",
-    icon: "ST",
+    icon: "settings",
     permissions: ["platform.admin"]
   }
 ];
@@ -338,7 +325,7 @@ function renderCriticalStatusPills() {
   const target = document.querySelector("#criticalStatusPills");
   if (!target) return;
 
-  const criticalNames = ["Private app MSSQL", "Source MSSQL Innovations"];
+  const criticalNames = ["Private app MSSQL", "Source MSSQL Innovations", "ODBC Connector", "Pricelist DB"];
   const health = state.dashboard?.integrationHealth || [];
   const critical = health.filter((item) => criticalNames.includes(item.name));
 
@@ -362,7 +349,7 @@ function renderApplicationGrid() {
     const aria = allowed ? "" : ` aria-disabled="true"`;
     return `
       <${tag} class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}"${href}${aria}>
-        <span class="app-access-icon">${escapeHtml(app.icon || initials(app.name))}</span>
+        <span class="app-access-icon material-symbols-outlined">${escapeHtml(app.icon || "apps")}</span>
         <span class="badge ${escapeHtml(app.status || "planned")}">${escapeHtml(allowed ? "available" : "restricted")}</span>
         <h3>${escapeHtml(app.name)}</h3>
         <p>${escapeHtml(app.summary || "Application workspace.")}</p>
@@ -389,13 +376,14 @@ function canAccessApplication(app) {
 }
 
 function moduleIcon(moduleId) {
+  // Google Material Symbols ligature names (rendered via .material-symbols-outlined).
   const icons = {
-    "delivery-export": "DE",
-    "pricing-automation": "PA",
-    "integrations": "IN",
-    "automation": "AU"
+    "delivery-export": "inventory_2",
+    "pricing-automation": "price_change",
+    "integrations": "link",
+    "automation": "bolt"
   };
-  return icons[moduleId] || initials(moduleId);
+  return icons[moduleId] || "apps";
 }
 
 function initials(value) {
@@ -623,7 +611,8 @@ function applyTheme() {
     btn.setAttribute("aria-pressed", String(theme === "dark"));
     btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
     btn.setAttribute("title", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
-    btn.textContent = theme === "dark" ? "☼" : "☽";
+    btn.classList.add("material-symbols-outlined");
+    btn.textContent = theme === "dark" ? "light_mode" : "dark_mode";
   }
 }
 

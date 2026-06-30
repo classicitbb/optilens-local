@@ -3,35 +3,36 @@
  * Injected on every page. Handles: launcher, search palette, theme toggle, back button.
  */
 
+// Icons are Google Material Symbols ligature names (rendered via .material-symbols-outlined).
 const LAUNCHER_APPS = [
-  { label: "Launch Pad",        icon: "🏠", href: "/",                          color: "#1A8A9C", permissions: [] },
-  { label: "Delivery & Export", icon: "📦", href: "/modules/delivery-export",   color: "#C89130", permissions: ["delivery.read", "delivery.write"] },
-  { label: "Pricing",           icon: "💲", href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
-  { label: "Integrations",      icon: "🔗", href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
-  { label: "Automation",        icon: "⚡", href: "/modules/automation",          color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
-  { label: "Doc Studio",        icon: "📄", href: "/modules/doc-studio",          color: "#1A8A9C", permissions: ["docstudio.read", "docstudio.write"] },
-  { label: "Business Metrics",  icon: "📊", href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
-  { label: "Users",             icon: "👤", href: "/admin/users",                 color: "#0B1E35", permissions: ["users.manage"] },
-  { label: "Credentials",       icon: "🔐", href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
-  { label: "Settings",          icon: "⚙",  href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
+  { label: "Launch Pad",        icon: "dashboard",     href: "/",                          color: "#1A8A9C", permissions: [] },
+  { label: "Delivery & Export", icon: "inventory_2",   href: "/modules/delivery-export",   color: "#C89130", permissions: ["delivery.read", "delivery.write"] },
+  { label: "Pricing",           icon: "price_change",  href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
+  { label: "Integrations",      icon: "link",          href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
+  { label: "Automation",        icon: "bolt",          href: "/modules/automation",          color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
+  { label: "Doc Studio",        icon: "description",   href: "/modules/doc-studio",          color: "#1A8A9C", permissions: ["docstudio.read", "docstudio.write"] },
+  { label: "Business Metrics",  icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
+  { label: "Users",             icon: "group",         href: "/admin/users",                 color: "#0B1E35", permissions: ["users.manage"] },
+  { label: "Credentials",       icon: "key",           href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
+  { label: "Settings",          icon: "settings",      href: "/settings",                   color: "#4b5563", permissions: ["platform.admin"] }
 ];
 
 const LAUNCHER_ORDER_STORAGE_KEY = "optilens.launcherOrder";
 
 const SEARCH_INDEX = [
-  { label: "Dashboard",           meta: "Home",     icon: "🏠", color: "#1A8A9C", href: "/", permissions: [] },
-  { label: "Delivery & Export",   meta: "Module",   icon: "📦", color: "#C89130", href: "/modules/delivery-export", permissions: ["delivery.read", "delivery.write"] },
-  { label: "Pricing Automation",  meta: "Module",   icon: "💲", color: "#389457", href: "/modules/pricing-automation", permissions: ["pricing.read", "pricing.write"] },
-  { label: "Integrations",        meta: "Module",   icon: "🔗", color: "#0B1E35", href: "/modules/integrations", permissions: ["integrations.read", "integrations.manage"] },
-  { label: "Automation",          meta: "Module",   icon: "⚡", color: "#7c3aed", href: "/modules/automation", permissions: ["automation.read", "automation.manage"] },
-  { label: "Doc Studio",          meta: "Module",   icon: "📄", color: "#1A8A9C", href: "/modules/doc-studio", permissions: ["docstudio.read", "docstudio.write"] },
-  { label: "Business Metrics",    meta: "Module",   icon: "📊", color: "#b45309", href: "/modules/business-metrics", permissions: ["platform.admin"] },
-  { label: "Users",               meta: "Admin",    icon: "👤", color: "#0B1E35", href: "/admin/users", permissions: ["users.manage"] },
-  { label: "Credentials",         meta: "Security", icon: "🔐", color: "#64748b", href: "/credentials", permissions: ["credentials.manage"] },
-  { label: "Settings",            meta: "Page",     icon: "⚙",  color: "#4b5563", href: "/settings", permissions: ["platform.admin"] },
-  { label: "API Health",          meta: "Endpoint", icon: "🩺", color: "#1A8A9C", href: "/api/health", permissions: [] },
-  { label: "Dashboard API",       meta: "Endpoint", icon: "📡", color: "#1A8A9C", href: "/api/dashboard", permissions: [] },
-  { label: "Modules API",         meta: "Endpoint", icon: "📋", color: "#1A8A9C", href: "/api/modules", permissions: [] }
+  { label: "Dashboard",           meta: "Home",     icon: "dashboard",    color: "#1A8A9C", href: "/", permissions: [] },
+  { label: "Delivery & Export",   meta: "Module",   icon: "inventory_2",  color: "#C89130", href: "/modules/delivery-export", permissions: ["delivery.read", "delivery.write"] },
+  { label: "Pricing Automation",  meta: "Module",   icon: "price_change", color: "#389457", href: "/modules/pricing-automation", permissions: ["pricing.read", "pricing.write"] },
+  { label: "Integrations",        meta: "Module",   icon: "link",         color: "#0B1E35", href: "/modules/integrations", permissions: ["integrations.read", "integrations.manage"] },
+  { label: "Automation",          meta: "Module",   icon: "bolt",         color: "#7c3aed", href: "/modules/automation", permissions: ["automation.read", "automation.manage"] },
+  { label: "Doc Studio",          meta: "Module",   icon: "description",  color: "#1A8A9C", href: "/modules/doc-studio", permissions: ["docstudio.read", "docstudio.write"] },
+  { label: "Business Metrics",    meta: "Module",   icon: "monitoring",   color: "#b45309", href: "/modules/business-metrics", permissions: ["platform.admin"] },
+  { label: "Users",               meta: "Admin",    icon: "group",        color: "#0B1E35", href: "/admin/users", permissions: ["users.manage"] },
+  { label: "Credentials",         meta: "Security", icon: "key",          color: "#64748b", href: "/credentials", permissions: ["credentials.manage"] },
+  { label: "Settings",            meta: "Page",     icon: "settings",     color: "#4b5563", href: "/settings", permissions: ["platform.admin"] },
+  { label: "API Health",          meta: "Endpoint", icon: "vital_signs",  color: "#1A8A9C", href: "/api/health", permissions: [] },
+  { label: "Dashboard API",       meta: "Endpoint", icon: "api",          color: "#1A8A9C", href: "/api/dashboard", permissions: [] },
+  { label: "Modules API",         meta: "Endpoint", icon: "view_list",    color: "#1A8A9C", href: "/api/modules", permissions: [] }
 ];
 
 const AUTH_STATE = {
@@ -54,11 +55,25 @@ const AUTH_STATE = {
 })();
 
 function setup() {
+  ensureMaterialSymbolsFont();
   injectOverlays();
   wireThemeToggle();
   wireLauncher();
   wireSearch();
   wireAuth();
+}
+
+// ─── Material Symbols font ─────────────────────────────────────────────────────
+
+// shared.js renders Material Symbols icons (launcher tiles, search results, theme
+// toggle) on every page. Ensure the font stylesheet is present even on pages whose
+// markup doesn't include it, so ligature names don't render as raw text.
+function ensureMaterialSymbolsFont() {
+  if (document.querySelector('link[href*="Material+Symbols+Outlined"]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200";
+  document.head.appendChild(link);
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -74,9 +89,10 @@ function applyTheme() {
 function updateThemeBtn(theme) {
   const btn = document.querySelector("#themeToggle");
   if (!btn) return;
+  btn.classList.add("material-symbols-outlined");
   btn.setAttribute("aria-pressed", String(theme === "dark"));
   btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
-  btn.textContent = theme === "dark" ? "☼" : "☽";
+  btn.textContent = theme === "dark" ? "light_mode" : "dark_mode";
 }
 
 function wireThemeToggle() {
@@ -242,7 +258,7 @@ function wireSearch() {
     if (!hits.length) { results.innerHTML = `<div class="search-empty">No results for "${esc(query)}"</div>`; return; }
     results.innerHTML = hits.map(x => `
       <a class="search-result-item" href="${esc(x.href)}">
-        <span class="search-result-icon" style="background:${esc(x.color)}">${x.icon}</span>
+        <span class="search-result-icon material-symbols-outlined" style="background:${esc(x.color)}">${esc(x.icon)}</span>
         ${esc(x.label)}
         <span class="search-result-meta">${esc(x.meta)}</span>
       </a>`).join("");
@@ -418,7 +434,7 @@ function renderLauncherApps() {
 
   grid.innerHTML = getOrderedLauncherApps().filter(canAccessSharedItem).map(app => `
     <a class="launcher-tile" href="${esc(app.href)}" data-launcher-key="${esc(launcherAppKey(app))}">
-      <span class="launcher-icon" style="background:${esc(app.color)}">${app.icon}</span>
+      <span class="launcher-icon material-symbols-outlined" style="background:${esc(app.color)}">${esc(app.icon)}</span>
       <span>${esc(app.label)}</span>
     </a>`).join("");
 }
