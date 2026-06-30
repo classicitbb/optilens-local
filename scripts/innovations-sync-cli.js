@@ -3,12 +3,13 @@
  * innovations-sync-cli.js — unattended Innovations → Classic Visions cloud sync,
  * for scheduled runs. Runs the sync in-process (no HTTP session needed).
  *
- * Auth: needs the vault token to decrypt the stored CV API key. Provide it via
- *   --token <token>   or   the OPTILENS_SYNC_TOKEN environment variable.
+ * Auth: needs the vault PASSPHRASE (not a token) — this is a separate process
+ * from the server, so it unlocks the vault itself. Provide it via
+ *   --passphrase <p>   or   the OPTILENS_SYNC_PASSPHRASE environment variable.
  * Commits by default; pass --dry-run to preview without writing.
  * Optional: --entities customers,contacts
  *
- * Exit codes: 0 ok · 1 sync error/partial · 2 no token · 3 bad token · 4 no key.
+ * Exit codes: 0 ok · 1 sync error/partial · 2 no passphrase · 3 wrong passphrase · 4 no key.
  */
 const path = require('path');
 const plSecure = require(path.join(__dirname, '..', 'lib', 'secure-config-pricelist'));
@@ -22,14 +23,16 @@ function arg(name) {
 }
 
 (async () => {
-  const token = (typeof arg('--token') === 'string' && arg('--token')) || process.env.OPTILENS_SYNC_TOKEN || '';
+  const passphrase = (typeof arg('--passphrase') === 'string' && arg('--passphrase')) || process.env.OPTILENS_SYNC_PASSPHRASE || '';
   const dryRun = process.argv.includes('--dry-run');
-  if (!token) {
-    console.error('Missing vault token: set OPTILENS_SYNC_TOKEN or pass --token <token>.');
+  if (!passphrase) {
+    console.error('Missing vault passphrase: set OPTILENS_SYNC_PASSPHRASE or pass --passphrase <p>.');
     process.exit(2);
   }
-  if (!plSecure.keyForToken(token)) {
-    console.error('Invalid or locked vault token.');
+  // Separate process from the server, so unlock the vault here to get a token.
+  const token = plSecure.unlock(passphrase);
+  if (!token) {
+    console.error('Wrong vault passphrase (could not unlock).');
     process.exit(3);
   }
   let creds;

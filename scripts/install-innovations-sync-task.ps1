@@ -8,10 +8,10 @@ param(
 # Registers a scheduled task that pushes selected Innovations data to the
 # Classic Visions cloud on an interval. Mirrors install-app-watchdog-task.ps1.
 #
-# IMPORTANT: the task runs unattended, so it needs the vault token to decrypt
-# the stored CV API key. Set it once at machine scope (run as admin):
-#   [Environment]::SetEnvironmentVariable("OPTILENS_SYNC_TOKEN","<token>","Machine")
-# Keep that token protected — it unlocks the CV API credential.
+# IMPORTANT: the task runs unattended, so it needs the vault PASSPHRASE to
+# unlock and decrypt the stored CV API key. Set it once at machine scope (admin):
+#   [Environment]::SetEnvironmentVariable("OPTILENS_SYNC_PASSPHRASE","<passphrase>","Machine")
+# Keep it protected — it unlocks the CV API credential.
 
 $ErrorActionPreference = "Stop"
 
@@ -44,4 +44,4 @@ Register-ScheduledTask `
     -Force | Out-Null
 
 Write-Host "Installed scheduled task: $TaskName (every $IntervalMinutes min, DryRun=$($DryRun.IsPresent))."
-Write-Host "Reminder: set OPTILENS_SYNC_TOKEN (Machine scope) so the task can decrypt the CV API key."
+Write-Host "Reminder: set OPTILENS_SYNC_PASSPHRASE (Machine scope) so the task can unlock the vault."

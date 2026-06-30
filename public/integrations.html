@@ -11,6 +11,15 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    .sync-console { display:block; }
+    .sync-console h3 { margin:0 0 6px; }
+    .sync-row { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-top:12px; }
+    .sync-field { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:600; }
+    .sync-field input { margin-top:2px; padding:8px 10px; min-width:260px; border:1px solid var(--border,#cbd5e1); border-radius:8px; }
+    .sync-entities label { display:inline-flex; align-items:center; gap:6px; font-weight:500; }
+    .sync-result { margin-top:14px; padding:12px; background:rgba(11,30,53,.04); border:1px solid var(--border,#cbd5e1); border-radius:8px; font-size:12px; max-height:340px; overflow:auto; white-space:pre-wrap; }
+  </style>
 </head>
 <body class="module-body">
 
@@ -115,7 +124,25 @@
       </section>
 
       <section class="workflow-panel" id="website">
-        <div class="placeholder-pane">Website price sync and product catalog feeds will appear here. Requires website API credentials in the Credentials vault.</div>
+        <article class="sync-console">
+          <h3>Innovations → Classic Visions sync</h3>
+          <p>Push selected Innovations data to the Classic Visions cloud. <strong>Dry run</strong> validates without writing; <strong>Sync now</strong> writes (idempotent — safe to repeat). Requires the CV API key saved in the Credentials vault.</p>
+          <div class="sync-row">
+            <label class="sync-field">Vault passphrase
+              <input type="password" id="syncPass" autocomplete="current-password" placeholder="Unlock the credentials vault">
+            </label>
+          </div>
+          <div class="sync-row sync-entities">
+            <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
+            <label><input type="checkbox" class="sync-entity" value="contacts" checked> Contacts</label>
+          </div>
+          <div class="sync-row">
+            <button class="btn" id="syncDryBtn" type="button">Dry run</button>
+            <button class="btn btn-primary" id="syncRunBtn" type="button">Sync now (write)</button>
+            <span id="syncStatus" class="badge"></span>
+          </div>
+          <pre id="syncResult" class="sync-result" hidden></pre>
+        </article>
       </section>
 
       <section class="workflow-panel" id="logs">
@@ -133,6 +160,59 @@
         document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
       });
     });
+
+    // ── Innovations → Classic Visions sync console ──────────────────────────
+    (function () {
+      const passEl = document.getElementById("syncPass");
+      const statusEl = document.getElementById("syncStatus");
+      const resultEl = document.getElementById("syncResult");
+      const dryBtn = document.getElementById("syncDryBtn");
+      const runBtn = document.getElementById("syncRunBtn");
+      if (!dryBtn) return;
+
+      const setStatus = (text, kind) => { statusEl.textContent = text; statusEl.className = "badge " + (kind || ""); };
+      const entities = () => [...document.querySelectorAll(".sync-entity:checked")].map(c => c.value);
+
+      async function run(commit) {
+        const passphrase = passEl.value.trim();
+        if (!passphrase) { setStatus("Enter passphrase", "credentials-needed"); passEl.focus(); return; }
+        const ents = entities();
+        if (!ents.length) { setStatus("Pick at least one entity", "credentials-needed"); return; }
+
+        dryBtn.disabled = runBtn.disabled = true;
+        setStatus(commit ? "Syncing…" : "Dry running…", "open");
+        resultEl.hidden = true;
+        try {
+          const u = await fetch("/api/connectors/unlock", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ passphrase })
+          });
+          const uj = await u.json().catch(() => ({}));
+          if (!u.ok || !uj.token) { setStatus(uj.error || "Unlock failed", "credentials-needed"); return; }
+
+          const r = await fetch("/api/connectors/innovations-sync/run", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token: uj.token, commit, entities: ents })
+          });
+          const rj = await r.json().catch(() => ({}));
+          resultEl.hidden = false;
+          resultEl.textContent = JSON.stringify(rj, null, 2);
+          if (!r.ok) { setStatus(rj.error || ("HTTP " + r.status), "credentials-needed"); return; }
+          setStatus((rj.dryRun ? "Dry run · " : "Synced · ") + (rj.ok ? "all ok" : "issues"),
+            rj.ok ? "ready-for-import" : "credentials-needed");
+        } catch (e) {
+          setStatus("Failed: " + (e.message || e), "credentials-needed");
+        } finally {
+          dryBtn.disabled = runBtn.disabled = false;
+          passEl.value = "";
+        }
+      }
+
+      dryBtn.addEventListener("click", () => run(false));
+      runBtn.addEventListener("click", () => {
+        if (confirm("Write synced data to the Classic Visions cloud now?")) run(true);
+      });
+    })();
   </script>
 </body>
 </html>
