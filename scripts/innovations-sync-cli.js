@@ -23,6 +23,21 @@ function arg(name) {
 }
 
 (async () => {
+  // --schema Table1,Table2 : print real column names from the live DB and exit.
+  // No CV key / passphrase needed — this only reads the source schema.
+  const schemaArg = arg('--schema');
+  if (typeof schemaArg === 'string') {
+    try {
+      const tables = schemaArg.split(',').map((s) => s.trim()).filter(Boolean);
+      const cols = await innovationsSync.describeTables(tables);
+      console.log(JSON.stringify(cols, null, 2));
+      process.exit(0);
+    } catch (e) {
+      console.error('Schema read failed:', e.message);
+      process.exit(1);
+    }
+  }
+
   const passphrase = (typeof arg('--passphrase') === 'string' && arg('--passphrase')) || process.env.OPTILENS_SYNC_PASSPHRASE || '';
   const dryRun = process.argv.includes('--dry-run');
   if (!passphrase) {

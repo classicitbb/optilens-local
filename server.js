@@ -1536,6 +1536,18 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Introspect live source columns (no CV key needed) to match the entity SQL.
+  if (url.pathname === "/api/connectors/innovations-sync/schema" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const tables = Array.isArray(body.tables) && body.tables.length
+        ? body.tables
+        : ["Customers", "Contacts", "CustomerAddresses", "CustomerBalances", "FinExportedInvoices", "FinARStatements"];
+      return innovationsSync.describeTables(tables);
+    });
+  }
+
   // Claim + run any pending CV-initiated "Sync now" requests (cloud queues them).
   if (url.pathname === "/api/connectors/innovations-sync/check-requests" && req.method === "POST") {
     return handleApi(res, async () => {
