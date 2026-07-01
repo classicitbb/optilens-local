@@ -488,19 +488,32 @@ async function onCellEdit(key, rawVal) {
   }).then(r => r.json());
   const combo = comboByKey[key];
   if (ev.ok) { storeManual(key, enteredUSD, combo, null); buildMatrix(); return; }
-  if (ev.needsConfirmation && ev.constraint) {
+  if (ev.needsConfirmation) {
     const disp = `${sym()}${toDisplay(enteredUSD).toFixed(2)}`;
-    const ok = confirm(
-      `${disp} doesn't clear your ${Math.round(settings.minMargin * 100)}% floor against the most expensive lab ` +
-      `(anchor margin ${Math.round(ev.anchorMargin * 100)}%).\n\n` +
-      `Source only from ${ev.constraint.supplier} (or cheaper) at ${Math.round(ev.constraint.margin * 100)}% margin?\n\n` +
-      `OK = accept as source-constrained · Cancel = revert`
-    );
-    if (ok && storeManual(key, enteredUSD, combo, ev.constraint.supplier)) toast(`Line constrained to ${SUP_ABBR[ev.constraint.supplier] || ev.constraint.supplier}`);
+    let ok = false;
+    let toastMsg = '';
+    if (ev.constraint) {
+      ok = confirm(
+        `${disp} doesn't clear your ${Math.round(settings.minMargin * 100)}% floor against the most expensive lab ` +
+        `(anchor margin ${Math.round(ev.anchorMargin * 100)}%).\n\n` +
+        `Source only from ${ev.constraint.supplier} (or cheaper) at ${Math.round(ev.constraint.margin * 100)}% margin?\n\n` +
+        `OK = accept as source-constrained · Cancel = revert`
+      );
+      toastMsg = `Line constrained to ${SUP_ABBR[ev.constraint.supplier] || ev.constraint.supplier}`;
+    } else if (ev.allowUnsafe) {
+      ok = confirm(
+        `${disp} is below the floor at every approved supplier.\n\n` +
+        `OK = save anyway as a manual below-floor override · Cancel = revert`
+      );
+      toastMsg = 'Saved as a manual below-floor override';
+    }
+    if (ok && storeManual(key, enteredUSD, combo, ev.constraint?.supplier || null, { allowUnsafe: !!ev.allowUnsafe && !ev.constraint })) {
+      toast(toastMsg);
+    }
     buildMatrix();
     return;
   }
-  alert(ev.message || 'That price is a loss at every approved supplier.');
+  alert(ev.message || 'That price is not allowed.');
   buildMatrix();
 }
 
@@ -513,11 +526,11 @@ function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
   const marginFor = (entry) => (enteredUSD - entry.landed) / enteredUSD;
   const anchor = supEntries.reduce((a, b) => b.landed > a.landed ? b : a);
   const anchorMargin = marginFor(anchor);
-  if (anchorMargin >= settings.floorMargin - 1e-6) return { ok: true, constraintSupplier: null };
+  if (anchorMargin >= settings.floorMargin - 1e-6) return { ok: true, constraintSupplier: null, allowUnsafe: false };
   if (existingConstraint) {
     const existing = supEntries.find(r => r.s === existingConstraint);
     if (existing && marginFor(existing) >= settings.minMargin - 1e-6) {
-      return { ok: true, constraintSupplier: existingConstraint };
+      return { ok: true, constraintSupplier: existingConstraint, allowUnsafe: false };
     }
   }
   const acceptable = supEntries
@@ -530,15 +543,20 @@ function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
       constraintSupplier: acceptable[0].s,
       margin: marginFor(acceptable[0]),
       anchorMargin,
+      allowUnsafe: false,
     };
   }
   return {
     ok: false,
-    message: `That price is a loss or below the ${Math.round(settings.minMargin * 100)}% floor at every available supplier.`,
+    needsConfirmation: true,
+    allowUnsafe: true,
+    anchorMargin,
+    message: `That price is below the ${Math.round(settings.minMargin * 100)}% floor at every available supplier. Save anyway as a manual below-floor override?`,
   };
 }
 
-function storeManual(key, enteredUSD, combo, constraintSupplier) {
+function storeManual(key, enteredUSD, combo, constraintSupplier, options = {}) {
+  const allowUnsafe = !!options.allowUnsafe;
   // Compute landed costs for all available (non-excluded) suppliers,
   // matching the pricing engine so manual-entry margins align with auto-priced margins.
   const supEntries = Object.entries(combo ? (combo.suppliers || {}) : {})
@@ -577,7 +595,7 @@ function storeManual(key, enteredUSD, combo, constraintSupplier) {
 
   const allowedMargin = constraintSupplier ? effectiveMargin : floorMargin;
   const requiredMargin = constraintSupplier ? settings.minMargin : settings.floorMargin;
-  if (!(allowedMargin >= requiredMargin - 1e-6)) {
+  if (!allowUnsafe && !(allowedMargin >= requiredMargin - 1e-6)) {
     alert(`Price not saved: it does not clear the ${Math.round(requiredMargin * 100)}% margin floor.`);
     return false;
   }
@@ -591,7 +609,7 @@ function storeManual(key, enteredUSD, combo, constraintSupplier) {
     preferredSupplier: effectiveSup,
     preferredCost: effectiveLanded,
     preferredMargin: effectiveMargin,
-    safe: allowedMargin >= requiredMargin - 1e-6,
+    safe: allowUnsafe ? false : allowedMargin >= requiredMargin - 1e-6,
     manual: true,
     constraintSupplier: constraintSupplier || null,
   };
@@ -923,7 +941,9 @@ function updateAuditDraftSummary() {
   const floorMsg = marginDecision && draftWholesale != null
     ? (marginDecision.ok
       ? `<span class="audit-floor floor-ok">passes current floor</span>`
-      : `<span class="audit-floor floor-alert">blocked: ${Math.round((marginDecision.anchorMargin || 0) * 100)}% < ${Math.round(settings.floorMargin * 100)}% floor</span>`)
+      : marginDecision.allowUnsafe
+        ? `<span class="audit-floor floor-alert">below floor at every supplier · confirm to save</span>`
+        : `<span class="audit-floor floor-alert">blocked: ${Math.round((marginDecision.anchorMargin || 0) * 100)}% < ${Math.round(settings.floorMargin * 100)}% floor</span>`)
     : '';
   el.innerHTML = `
     <div><b>Wholesale</b> ${currentWholesale != null ? `was ${sym()}${currentWholesale.toFixed(2)}` : 'was —'} ${draftWholesale != null ? `, now ${sym()}${draftWholesale.toFixed(2)}` : ', now —'}${wholesaleDelta != null ? ` (${wholesaleDelta >= 0 ? '+' : ''}${sym()}${Math.abs(wholesaleDelta).toFixed(2)})` : ''}</div>
@@ -970,17 +990,28 @@ function applyAuditEdits() {
     const decision = manualPriceDecision(combo, Number(wholesale), existing.constraintSupplier || null);
     let constraintSupplier = decision.constraintSupplier || null;
     if (decision.needsConfirmation) {
-      const ok = confirm(
-        `$${Number(wholesale).toFixed(2)} does not clear the ${Math.round(settings.floorMargin * 100)}% anchor floor.\n\n` +
-        `Source only from ${decision.constraintSupplier} at ${Math.round(decision.margin * 100)}% margin?\n\n` +
-        `OK = save as source-constrained · Cancel = keep existing price`
-      );
+      const ok = decision.constraintSupplier
+        ? confirm(
+            `$${Number(wholesale).toFixed(2)} does not clear the ${Math.round(settings.floorMargin * 100)}% anchor floor.\n\n` +
+            `Source only from ${decision.constraintSupplier} at ${Math.round(decision.margin * 100)}% margin?\n\n` +
+            `OK = save as source-constrained · Cancel = keep existing price`
+          )
+        : confirm(
+            `$${Number(wholesale).toFixed(2)} is below the floor at every approved supplier.\n\n` +
+            `OK = save anyway as a manual below-floor override · Cancel = keep existing price`
+          );
       if (!ok) return;
     } else if (!decision.ok) {
       alert(decision.message || 'Price not saved: it would not make money.');
       return;
     }
-    if (!storeManual(auditEditDraft.key, Number(wholesale), combo, constraintSupplier)) return;
+    if (!storeManual(
+      auditEditDraft.key,
+      Number(wholesale),
+      combo,
+      constraintSupplier,
+      { allowUnsafe: !!decision.allowUnsafe && !decision.constraintSupplier }
+    )) return;
   } else if (!prices[auditEditDraft.key]) {
     prices[auditEditDraft.key] = {};
   }
