@@ -126,6 +126,11 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 /* Buttons */
 .pl-btn { padding: 5px 11px; border-radius: 6px; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; position: relative; overflow: hidden; }
 .pl-btn:active { transform: scale(0.96); }
+.pl-btn:disabled,
+.pl-btn.action-locked {
+  opacity: 0.55;
+  filter: grayscale(0.1);
+}
 .pl-btn-primary { background: var(--pl-navy); color: #fff; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
 .pl-btn-primary:hover { background: var(--pl-navy2); box-shadow: 0 4px 6px rgba(11, 30, 53, 0.1); transform: translateY(-1px); }
 .pl-btn-secondary { background: #fff; border: 1.5px solid var(--pl-border); color: var(--pl-text); }
@@ -186,6 +191,19 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 [data-theme="dark"] .price-input.set { background: #0a3020; color: #4dba6e; }
 .price-input.constrained { border-color: var(--pl-gold); background: #fdf6e9; }
 [data-theme="dark"] .price-input.constrained { background: #2a1a08; }
+.price-cell.below-floor .price-input,
+.price-input.below-floor {
+  border-color: var(--pl-danger);
+  background: #fff1f1;
+  color: #991b1b;
+  box-shadow: 0 0 0 1px rgba(220,38,38,0.16);
+}
+[data-theme="dark"] .price-cell.below-floor .price-input,
+[data-theme="dark"] .price-input.below-floor {
+  background: #2a0808;
+  color: #ffb3b3;
+  box-shadow: 0 0 0 1px rgba(239,85,85,0.22);
+}
 .cell-info { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
 .cell-info.constrained::before { content: '⚑'; color: var(--pl-gold); font-size: 8px; }
 .cost-hint { font-size: 8px; color: var(--pl-muted-fg); display: flex; align-items: center; gap: 2px; }
@@ -195,10 +213,56 @@ table.matrix tr:hover td { background: var(--pl-row-hover); }
 .m-thin { background: #fef3c7; color: #92400e; }
 .m-floor { background: rgba(26,138,156,0.14); color: #0f6b7a; }
 .m-low  { background: #fee2e2; color: #b91c1c; }
+.m-below {
+  background: #fee2e2;
+  color: var(--pl-danger);
+  border: 1px solid rgba(220,38,38,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+}
 [data-theme="dark"] .m-ok   { background: #0a3020; color: #4dba6e; }
 [data-theme="dark"] .m-thin { background: #2a1a08; color: #dba744; }
 [data-theme="dark"] .m-floor { background: rgba(26,138,156,0.2); color: #28a7bb; }
 [data-theme="dark"] .m-low  { background: #2a0808; color: #ef5555; }
+[data-theme="dark"] .m-below {
+  background: #2a0808;
+  color: #ff8f8f;
+  border-color: rgba(239,85,85,0.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.matrix td.below-floor {
+  background: rgba(220,38,38,0.04);
+  box-shadow: inset 0 0 0 1px rgba(220,38,38,0.18);
+}
+[data-theme="dark"] .matrix td.below-floor {
+  background: rgba(239,85,85,0.05);
+  box-shadow: inset 0 0 0 1px rgba(239,85,85,0.24);
+}
+table.matrix td.save-blocked-cell {
+  background: #fee2e2 !important;
+  box-shadow: inset 0 0 0 2px rgba(185,28,28,0.95), 0 0 0 3px rgba(220,38,38,0.18);
+  animation: blocked-cell-flash 0.8s ease-in-out 0s 4;
+}
+[data-theme="dark"] table.matrix td.save-blocked-cell {
+  background: #2a0808 !important;
+  box-shadow: inset 0 0 0 2px rgba(239,85,85,0.95), 0 0 0 3px rgba(239,85,85,0.18);
+}
+table.matrix td.save-blocked-cell .price-input,
+table.matrix td.save-blocked-cell .price-input.below-floor {
+  border-color: #b91c1c;
+  background: #fff;
+  color: #7f1d1d;
+  box-shadow: 0 0 0 2px rgba(185,28,28,0.18);
+}
+[data-theme="dark"] table.matrix td.save-blocked-cell .price-input,
+[data-theme="dark"] table.matrix td.save-blocked-cell .price-input.below-floor {
+  background: #140404;
+  color: #ffd0d0;
+  box-shadow: 0 0 0 2px rgba(239,85,85,0.22);
+}
+@keyframes blocked-cell-flash {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+}
 .legend { display: flex; gap: 10px; align-items: center; padding: 5px 12px; background: #f4f2ec; border-top: 1px solid var(--pl-border); font-size: 8.5px; color: var(--pl-muted-fg); flex-wrap: wrap; }
 [data-theme="dark"] .legend { background: #0e2440; border-color: #1e3a5c; }
 .legend .mtag { margin-left: 1px; }
@@ -327,6 +391,8 @@ table.source-rows-table tr.dim { opacity: 0.68; }
 .ast.anc { background: #fdf6e9; color: var(--pl-gold); }
 .ast.pref { background: rgba(26,138,156,0.12); color: #0f6b7a; }
 .ast.off { background: #fee2e2; color: var(--pl-danger); }
+.ast.floor-alert { background: #fee2e2; color: var(--pl-danger); }
+[data-theme="dark"] .ast.floor-alert { background: #2a0808; color: #ff8f8f; }
 
 /* Audit modal */
 #audit-overlay { box-sizing: border-box; overflow: auto; }
@@ -360,6 +426,12 @@ table.audit-sup td { min-width: 0; padding: 3px 7px; border-bottom: 1px solid #f
 table.audit-sup td.src { font-size: 9.5px; color: #444; line-height: 1.35; }
 [data-theme="dark"] table.audit-sup td.src { color: #8faabb; }
 table.audit-sup tr.dim { opacity: 0.42; }
+table.audit-sup tr.below-floor td {
+  background: rgba(220,38,38,0.035);
+}
+[data-theme="dark"] table.audit-sup tr.below-floor td {
+  background: rgba(239,85,85,0.05);
+}
 table.audit-sup .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
 table.audit-calc { width: 100%; max-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; margin-bottom: 10px; table-layout: fixed; }
 table.audit-calc td { min-width: 0; max-width: 100%; padding: 4px 9px; border-bottom: 1px solid #f0eee8; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
@@ -368,6 +440,19 @@ table.audit-calc td:first-child { width: 50%; overflow-wrap: anywhere; }
 table.audit-calc td.num { text-align: right; font-family: 'Plus Jakarta Sans', monospace; font-size: 12px; overflow-wrap: anywhere; word-break: break-word; }
 table.audit-calc tr.hl td { background: #f1faf4; font-weight: 700; }
 [data-theme="dark"] table.audit-calc tr.hl td { background: #0a3020; }
+.audit-floor {
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+.audit-floor.floor-ok { background: #dcfce7; color: #15803d; }
+.audit-floor.floor-alert { background: #fee2e2; color: var(--pl-danger); }
+[data-theme="dark"] .audit-floor.floor-ok { background: #0a3020; color: #4dba6e; }
+[data-theme="dark"] .audit-floor.floor-alert { background: #2a0808; color: #ff8f8f; }
 .audit-pricing { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: start; margin-top: 6px; }
 .audit-card { min-width: 0; border: 1px solid var(--pl-border); border-radius: 8px; background: var(--pl-card); overflow: hidden; }
 [data-theme="dark"] .audit-card { background: #0f2740; border-color: #1e3a5c; }
@@ -674,11 +759,11 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
       <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="collapseAll(false)">⊕ Expand</button>
       <button class="pl-btn pl-btn-gold pl-builder-action" onclick="autoPrice()">✦ Auto-Price</button>
       <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="resetPrices()">↺ Reset</button>
-      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="showPreview()">◉ Preview</button>
+      <button id="pricing-preview-btn" class="pl-btn pl-btn-secondary pl-builder-action" onclick="showPreview()">◉ Preview</button>
       <button class="pl-btn pl-btn-secondary" onclick="newBlankPricelist()">New Blank</button>
-      <button class="pl-btn pl-btn-primary pl-builder-action" onclick="savePricelist()">Save</button>
-      <button class="pl-btn pl-btn-secondary pl-builder-action" onclick="saveAsNewPricelist()" title="Create a separate new copy">Save As New</button>
-      <button class="pl-btn pl-btn-teal pl-builder-action" onclick="showPreview(true)">↓ Export</button>
+      <button id="pricing-save-btn" class="pl-btn pl-btn-primary pl-builder-action" onclick="savePricelist()">Save</button>
+      <button id="pricing-saveas-btn" class="pl-btn pl-btn-secondary pl-builder-action" onclick="saveAsNewPricelist()" title="Create a separate new copy">Save As New</button>
+      <button id="pricing-export-btn" class="pl-btn pl-btn-teal pl-builder-action" onclick="showPreview(true)">↓ Export</button>
     </div>
 
     <div class="pl-content">

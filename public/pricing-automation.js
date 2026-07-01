@@ -218,6 +218,74 @@ function isPriceProfitable(p) {
   return p.safe !== false && Number(p.floorMargin) >= settings.floorMargin - 1e-6;
 }
 
+// UI-only helper: mirrors the save gate so rows that would block save/publish
+// are highlighted immediately in the grid and audit drawer.
+function isBelowCurrentFloor(p) {
+  return !!p && Number(p.priceUSD) > 0 && !isPriceProfitable(p);
+}
+
+function firstUnsafePriceEntry() {
+  return unsafePriceEntries()[0] || null;
+}
+
+function findPriceInput(key) {
+  return Array.from(document.querySelectorAll('.price-input')).find(el => el.dataset.key === key) || null;
+}
+
+function flashBlockedPriceEntry(key) {
+  const input = findPriceInput(key);
+  if (!input) return false;
+  const cell = input.closest('td');
+  if (!cell) return false;
+  clearTimeout(cell._blockedFlashTimer);
+  cell.classList.remove('save-blocked-cell');
+  void cell.offsetWidth;
+  cell.classList.add('save-blocked-cell');
+  cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  input.focus({ preventScroll: true });
+  cell._blockedFlashTimer = setTimeout(() => cell.classList.remove('save-blocked-cell'), 2600);
+  return true;
+}
+
+function revealBlockedPriceEntry() {
+  const unsafe = unsafePriceEntries();
+  if (!unsafe.length) return null;
+  const [key] = unsafe[0];
+  const treatment = key.split('||')[0];
+  showView('builder');
+  if (collapsed[treatment]) {
+    collapsed[treatment] = false;
+    buildMatrix();
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => flashBlockedPriceEntry(key)));
+  return unsafe;
+}
+
+function syncProtectedActionLocks() {
+  const unsafe = unsafePriceEntries();
+  const locked = unsafe.length > 0;
+  const suffix = locked ? `Blocked until ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} clear the margin floor.` : '';
+  const ids = ['pricing-preview-btn', 'pricing-export-btn', 'pricing-saveas-btn', 'pricing-publish-btn'];
+  ids.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.classList.toggle('action-locked', locked);
+    el.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    el.dataset.locked = locked ? '1' : '0';
+    if (locked) {
+      el.title = suffix;
+    } else if (id === 'pricing-preview-btn') {
+      el.title = 'Preview the current pricelist.';
+    } else if (id === 'pricing-export-btn') {
+      el.title = 'Export / print the current pricelist.';
+    } else if (id === 'pricing-saveas-btn') {
+      el.title = 'Create a separate new copy.';
+    } else if (id === 'pricing-publish-btn') {
+      el.title = 'Publish prices as a dry run.';
+    }
+  });
+}
+
 function toast(msg) {
   const el = $('toast');
   el.textContent = msg;
@@ -582,6 +650,7 @@ function buildMatrix() {
         const p = prices[key];
         const showUSD = p ? (priceMode === 'retail' ? (p.retailUSD || 0) : (p.priceUSD || 0)) : 0;
         const isSet = showUSD > 0;
+        const belowFloor = isBelowCurrentFloor(p);
         const dispVal = isSet ? toDisplay(showUSD).toFixed(2) : '';
         let infoHtml = '';
         if (p && priceMode === 'wholesale') {
@@ -590,18 +659,26 @@ function buildMatrix() {
           const aAbbr = SUP_ABBR[p.anchorSupplier] || '';
           const prAbbr = SUP_ABBR[p.preferredSupplier] || '';
           const constrained = p.constraintSupplier ? ' constrained' : '';
-          infoHtml = `<div class="cell-info${constrained}">
+          const floorBadge = belowFloor
+            ? `<span class="mtag m-below" title="This row is still below the current floor after auto-pricing.">below floor</span>`
+            : '';
+          infoHtml = `<div class="cell-info${constrained}${belowFloor ? ' below-floor' : ''}">
+            ${floorBadge}
             <span class="mtag ${marginClass(fm)}" title="Anchor (${aAbbr}) worst-case: ${(fm*100).toFixed(0)}% margin">⚓ ${(fm*100).toFixed(0)}%</span>
             <span class="mtag ${marginClass(pm)}" title="Preferred source (${prAbbr}): ${(pm*100).toFixed(0)}% margin">▶ ${(pm*100).toFixed(0)}%</span>
           </div>`;
         } else if (combo) {
           const aAbbr = SUP_ABBR[combo.anchorSupplier] || '';
           const dot = SUPPLIER_COLORS[combo.anchorSupplier] || '#888';
-          infoHtml = `<div class="cell-info"><span class="cost-hint"><span class="dot" style="background:${dot}"></span>${aAbbr} ${sym()}${toDisplay(combo.anchorCost).toFixed(2)}</span></div>`;
+          const floorBadge = belowFloor
+            ? `<span class="mtag m-below" title="This row is still below the current floor after auto-pricing.">below floor</span>`
+            : '';
+          infoHtml = `<div class="cell-info${belowFloor ? ' below-floor' : ''}">${floorBadge}<span class="cost-hint"><span class="dot" style="background:${dot}"></span>${aAbbr} ${sym()}${toDisplay(combo.anchorCost).toFixed(2)}</span></div>`;
         }
-        td.innerHTML = `<div class="price-cell">
-          <div class="price-input-row">
-            <input type="number" class="price-input ${isSet?'set':''} ${p&&p.constraintSupplier?'constrained':''}"
+        td.classList.toggle('below-floor', belowFloor);
+        td.innerHTML = `<div class="price-cell${belowFloor ? ' below-floor' : ''}">
+          <div class="price-input-row${belowFloor ? ' below-floor' : ''}">
+            <input type="number" class="price-input ${isSet?'set':''} ${p&&p.constraintSupplier?'constrained':''}${belowFloor ? ' below-floor' : ''}"
               data-key="${key}" value="${dispVal}" placeholder="${sym()}0" min="0" step="0.5"
               onchange="onCellEdit('${kEsc}',this.value)" onfocus="this.select()">
             <button class="audit-btn" onclick="openAudit('${kEsc}')" title="Audit: sources, costs &amp; price edit" aria-label="Audit this lens line">🔍</button>
@@ -619,6 +696,7 @@ function buildMatrix() {
     leg.className = 'legend';
     leg.innerHTML = '<span>⚓ worst-case margin · ▶ preferred margin</span>' +
       '<span><span class="mtag m-ok">≥45%</span><span class="mtag m-thin">30–44%</span><span class="mtag m-floor">15–29%</span><span class="mtag m-low">&lt;15%</span></span>' +
+      '<span><span class="mtag m-below">below floor</span></span>' +
       `<span style="margin-left:auto">Prices in USD · display ${currency} @ ${BBD_RATE} · ${priceMode}</span>`;
     card.appendChild(leg);
     container.appendChild(card);
@@ -628,6 +706,7 @@ function buildMatrix() {
       ? '<div class="pl-empty-state">All groupings are hidden for this pricelist. Show at least one grouping in the sidebar.</div>'
       : '<div class="pl-empty-state">No catalog data loaded.</div>';
   }
+  syncProtectedActionLocks();
   refreshAudit();
 }
 
@@ -667,11 +746,14 @@ function openAudit(key) {
   const anchor = avail.length ? avail.reduce((a, b) => (b.lc.landed > a.lc.landed ? b : a)) : null;
   const existingWholesale = p && Number.isFinite(Number(p.priceUSD)) ? Number(p.priceUSD) : '';
   const existingRetail = p && Number.isFinite(Number(p.retailUSD)) ? Number(p.retailUSD) : '';
+  const belowFloor = isBelowCurrentFloor(p);
   auditEditDraft = { key, wholesaleUSD: existingWholesale, retailUSD: existingRetail, retailTouched: false };
 
   const kEsc = key.replace(/'/g, "\\'");
   const supTable = supRows.map(r => {
-    const status = r.disabled ? '<span class="ast off">disabled</span>'
+    const rowBelowFloor = belowFloor && !r.disabled && !r.excluded && p && r.sup === anchor?.sup;
+    const status = rowBelowFloor ? '<span class="ast floor-alert">below floor</span>'
+      : r.disabled ? '<span class="ast off">disabled</span>'
       : r.excluded ? '<span class="ast off">excluded</span>'
       : (anchor && r.sup === anchor.sup) ? '<span class="ast anc">⚓ anchor</span>'
       : (p && r.sup === p.preferredSupplier) ? '<span class="ast pref">▶ preferred</span>' : '';
@@ -681,9 +763,9 @@ function openAudit(key) {
     const suppMargin = (p && p.priceUSD > 0 && r.lc.landed > 0)
       ? (p.priceUSD - r.lc.landed) / p.priceUSD : null;
     const margTag = suppMargin != null
-      ? `<span class="mtag ${marginClass(suppMargin)}" title="${(suppMargin*100).toFixed(1)}% margin at current price">${(suppMargin*100).toFixed(0)}%</span>`
+      ? `<span class="mtag ${belowFloor && rowBelowFloor ? 'm-below' : marginClass(suppMargin)}" title="${(suppMargin*100).toFixed(1)}% margin at current price${belowFloor && rowBelowFloor ? ' · below current floor' : ''}">${(suppMargin*100).toFixed(0)}%</span>`
       : '<span class="muted">—</span>';
-    return `<tr class="${(r.disabled||r.excluded)?'dim':''}">
+    return `<tr class="${(r.disabled||r.excluded)?'dim':''}${rowBelowFloor ? ' below-floor' : ''}">
       <td data-label="Supplier"><span class="dot" style="background:${SUPPLIER_COLORS[r.sup]||'#888'}"></span>${escapeHtml(SUP_ABBR[r.sup]||r.sup)}</td>
       <td data-label="Source row" class="src">${escapeHtml(r.pr.sourceName)}${r.pr.rowCount>1?` <span class="muted">(+${r.pr.rowCount-1} more)</span>`:''}</td>
       <td data-label="FOB" class="num">$${r.pr.sourceCost.toFixed(2)}</td>
@@ -701,6 +783,11 @@ function openAudit(key) {
   const deltaTag = deltaAmt != null
     ? `<span class="audit-delta ${deltaAmt >= 0 ? 'delta-pos' : 'delta-neg'}" title="${deltaAmt >= 0 ? 'Above' : 'Below'} auto-suggested">${deltaAmt >= 0 ? '+' : ''}$${Math.abs(deltaAmt).toFixed(2)}</span>`
     : '';
+  const floorStatus = p
+    ? (belowFloor
+      ? `<span class="audit-floor floor-alert">blocked: ${((p.floorMargin || 0) * 100).toFixed(0)}% < ${Math.round(settings.floorMargin * 100)}% floor</span>`
+      : `<span class="audit-floor floor-ok">passes current floor</span>`)
+    : '';
 
   const calcRows = anchor ? `<table class="audit-calc">
       <tr><td>Anchor lab (worst-case)</td><td class="num"><b>${escapeHtml(SUP_ABBR[anchor.sup]||anchor.sup)}</b> · landed $${anchor.lc.landed.toFixed(2)}</td></tr>
@@ -708,6 +795,7 @@ function openAudit(key) {
       <tr><td>↑ round up to nearest $${settings.rounding}${p && p.smoothed ? ' · gap-smoothed' : ''}</td><td class="num">$${suggested.toFixed(2)}</td></tr>
       ${p ? `<tr class="hl"><td>${p.manual ? '<span class="audit-manual-badge">manual</span> ' : ''}Wholesale USD ${deltaTag}</td><td class="num"><b>$${p.priceUSD.toFixed(2)}</b></td></tr>
       <tr><td>Retail (+${settings.markup.value}% markup)</td><td class="num">$${(p.retailUSD||0).toFixed(2)}</td></tr>
+      <tr><td>Current floor status</td><td class="num">${floorStatus}</td></tr>
       <tr><td><span class="mtag ${marginClass(p.floorMargin||0)}" title="Worst-case: selling above anchor (${escapeHtml(SUP_ABBR[p.anchorSupplier]||p.anchorSupplier||'—')}) landed cost">⚓ ${((p.floorMargin||0)*100).toFixed(0)}%</span> &nbsp; <span class="mtag ${marginClass(p.preferredMargin||0)}" title="Preferred source (${escapeHtml(SUP_ABBR[p.preferredSupplier]||p.preferredSupplier||'—')}) margin">▶ ${((p.preferredMargin||0)*100).toFixed(0)}%</span></td><td class="num" style="font-size:9px;color:var(--pl-muted-fg)">worst / preferred</td></tr>` : ''}
     </table>` : '<p class="muted">No available supplier remains for this line.</p>';
 
@@ -998,6 +1086,12 @@ async function setSourceMode(mode) {
 
 // ── Preview ────────────────────────────────────────────────────────────
 function showPreview(forPrint = false) {
+  const unsafe = unsafePriceEntries();
+  if (unsafe.length) {
+    revealBlockedPriceEntry();
+    toast(`Cannot preview: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`);
+    return;
+  }
   const listName = $('pricelist-name').value || 'RX Lens Prices';
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const s = sym();
@@ -1183,16 +1277,19 @@ async function savePricelist() {
   const name = $('pricelist-name').value.trim();
   if (!name) { toast('Enter a pricelist name first'); return; }
   const unsafe = unsafePriceEntries();
-  if (unsafe.length) { toast(`Cannot save: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`); return; }
   const payload = pricelistPayload(name);
   if (currentPricelistId) {
     await fetch(`/api/pricelists/${currentPricelistId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     currentPricelistName = name;
-    toast(`Saved ✓ "${name}"`);
+    toast(unsafe.length
+      ? `Saved ✓ "${name}" — ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} still below the margin floor`
+      : `Saved ✓ "${name}"`);
   } else {
     const r = await fetch('/api/pricelists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
     currentPricelistId = r.id; currentPricelistName = name;
-    toast(`Pricelist saved ✓ "${name}"`);
+    toast(unsafe.length
+      ? `Pricelist saved ✓ "${name}" — ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} still below the margin floor`
+      : `Pricelist saved ✓ "${name}"`);
   }
   updateEditingIndicator();
 }
@@ -1201,7 +1298,11 @@ async function saveAsNewPricelist() {
   const name = $('pricelist-name').value.trim();
   if (!name) { toast('Enter a pricelist name first'); return; }
   const unsafe = unsafePriceEntries();
-  if (unsafe.length) { toast(`Cannot save: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`); return; }
+  if (unsafe.length) {
+    revealBlockedPriceEntry();
+    toast(`Cannot save as new: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`);
+    return;
+  }
   if (currentPricelistId && name === currentPricelistName) {
     if (!confirm('This will create a separate new copy with the same name. Continue?')) return;
   }
@@ -1633,7 +1734,7 @@ async function buildConnectorsView() {
       <p class="conn-note">Pull is read-only — refreshes catalog &amp; re-prices. Publish writes a new versioned pricelist back (dry-run first).</p>
       <div class="conn-actions">
         <button class="pl-btn pl-btn-teal" onclick="connPull()">⇩ Pull catalog (live sync)</button>
-        <button class="pl-btn pl-btn-gold" onclick="connPushDryRun()">⇧ Publish prices… (dry-run)</button>
+        <button id="pricing-publish-btn" class="pl-btn pl-btn-gold" onclick="connPushDryRun()">⇧ Publish prices… (dry-run)</button>
       </div>
       <div id="conn-result" class="conn-result"></div>
     </div>`;
@@ -1694,7 +1795,10 @@ async function connPull() {
 }
 async function connPushDryRun() {
   const unsafe = unsafePriceEntries();
-  if (unsafe.length) return toast(`Cannot publish: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`);
+  if (unsafe.length) {
+    revealBlockedPriceEntry();
+    return toast(`Cannot publish: ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} below margin floor`);
+  }
   const rows = visiblePriceEntries().map(([key,p]) => { const c = comboByKey[key]||{}; return { key, treatment: c.treatment, tier: c.tier, material: c.material, available: true, priceUSD: p.priceUSD, retailUSD: p.retailUSD, constraintSupplier: p.constraintSupplier || null }; });
   if (!rows.length) return toast('Run Auto-Price first');
   const r = await cpost('push', { token: connToken, pricedRows: rows, settings: { ...settings, disabled: overrides, classOverrides }, commit: false });
