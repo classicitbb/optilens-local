@@ -98,6 +98,7 @@ let sources = { sources: [], live: [] };
 let collapsed = {};
 let auditDrag = null;
 let auditEditDraft = null;
+let blockedPriceKey = null;
 let sourcingSort = { field: 'flag', dir: 'desc' };
 
 let settings = createDefaultSettings();
@@ -252,17 +253,22 @@ function revealBlockedPriceEntry() {
   if (!unsafe.length) return null;
   const [key] = unsafe[0];
   const treatment = key.split('||')[0];
+  blockedPriceKey = key;
+  $('audit-overlay').classList.remove('open');
+  $('preview-overlay').classList.remove('open');
   showView('builder');
   if (collapsed[treatment]) {
     collapsed[treatment] = false;
-    buildMatrix();
   }
+  buildMatrix();
   requestAnimationFrame(() => requestAnimationFrame(() => flashBlockedPriceEntry(key)));
   return unsafe;
 }
 
 function syncProtectedActionLocks() {
   const unsafe = unsafePriceEntries();
+  if (!unsafe.length) blockedPriceKey = null;
+  else if (!blockedPriceKey || !unsafe.some(([key]) => key === blockedPriceKey)) blockedPriceKey = unsafe[0][0];
   const locked = unsafe.length > 0;
   const suffix = locked ? `Blocked until ${unsafe.length} price${unsafe.length === 1 ? '' : 's'} clear the margin floor.` : '';
   const ids = ['pricing-preview-btn', 'pricing-export-btn', 'pricing-saveas-btn', 'pricing-publish-btn'];
@@ -676,6 +682,7 @@ function buildMatrix() {
           infoHtml = `<div class="cell-info${belowFloor ? ' below-floor' : ''}">${floorBadge}<span class="cost-hint"><span class="dot" style="background:${dot}"></span>${aAbbr} ${sym()}${toDisplay(combo.anchorCost).toFixed(2)}</span></div>`;
         }
         td.classList.toggle('below-floor', belowFloor);
+        td.classList.toggle('save-blocked-cell', blockedPriceKey === key);
         td.innerHTML = `<div class="price-cell${belowFloor ? ' below-floor' : ''}">
           <div class="price-input-row${belowFloor ? ' below-floor' : ''}">
             <input type="number" class="price-input ${isSet?'set':''} ${p&&p.constraintSupplier?'constrained':''}${belowFloor ? ' below-floor' : ''}"
@@ -826,10 +833,11 @@ function openAudit(key) {
       <div class="audit-card audit-edit-card">
         <div class="audit-section-title">Edit price</div>
         <div class="audit-edit-grid">
-          <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)"></label>
-          <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)"></label>
+          <label>Wholesale USD<input type="number" id="audit-wholesale-input" min="0" step="0.5" value="${editWholesale ? Number(editWholesale).toFixed(2) : ''}" oninput="setAuditDraft('wholesaleUSD', this.value)" onchange="commitAuditDraft()" onblur="commitAuditDraft()" onkeydown="auditDraftKeydown(event)"></label>
+          <label>Retail USD<input type="number" id="audit-retail-input" min="0" step="0.5" value="${editRetail ? Number(editRetail).toFixed(2) : ''}" oninput="setAuditDraft('retailUSD', this.value, true)" onchange="commitAuditDraft()" onblur="commitAuditDraft()" onkeydown="auditDraftKeydown(event)"></label>
         </div>
-        <div class="audit-edit-note">Edits apply on close. Blank retail applies the ${settings.markup.value}% markup.</div>
+        <div class="audit-edit-note">Edits apply on blur, Enter, or close. Blank retail applies the ${settings.markup.value}% markup.</div>
+        <div id="audit-draft-summary" class="audit-draft-summary"></div>
       </div>
     </div>
 
@@ -846,6 +854,7 @@ function openAudit(key) {
         : `<button class="pl-btn pl-btn-danger" onclick="toggleDisableCombo('${kEsc}')">✕ Discontinue</button>`}
       <button class="pl-btn pl-btn-primary" onclick="closeAudit()">Save &amp; Close</button>
     </div>`;
+  updateAuditDraftSummary();
   if (!wasOpen) resetAuditPanelPosition();
   $('audit-overlay').classList.add('open');
   applyAuditWindowState();
@@ -854,7 +863,7 @@ function openAudit(key) {
 function closeAuditClick(e) { if (e.target === $('audit-overlay')) closeAudit(); }
 function closeAudit() {
   currentAuditKey = null;
-  applyAuditEdits();
+  commitAuditDraft(false);
   auditEditDraft = null;
   $('audit-overlay').classList.remove('open');
   resetAuditPanelPosition();
@@ -868,6 +877,82 @@ function setAuditDraft(field, value, retailTouched = false) {
   const n = parseFloat(value);
   auditEditDraft[field] = Number.isFinite(n) && n > 0 ? n : null;
   if (retailTouched) auditEditDraft.retailTouched = true;
+  updateAuditDraftSummary();
+}
+
+function syncAuditDraftFromInputs() {
+  if (!auditEditDraft?.key) return;
+  const wholesaleInput = $('audit-wholesale-input');
+  const retailInput = $('audit-retail-input');
+  const existing = prices[auditEditDraft.key] || {};
+
+  if (wholesaleInput) {
+    const wholesale = parseFloat(wholesaleInput.value);
+    auditEditDraft.wholesaleUSD = Number.isFinite(wholesale) && wholesale > 0 ? wholesale : null;
+  }
+
+  if (retailInput) {
+    const retail = parseFloat(retailInput.value);
+    const normalizedRetail = Number.isFinite(retail) && retail > 0 ? retail : null;
+    auditEditDraft.retailUSD = normalizedRetail;
+    if (
+      normalizedRetail != null &&
+      Math.abs(normalizedRetail - Number(existing.retailUSD || 0)) > 0.004
+    ) {
+      auditEditDraft.retailTouched = true;
+    }
+  }
+}
+
+function updateAuditDraftSummary() {
+  const el = $('audit-draft-summary');
+  if (!el || !auditEditDraft?.key) return;
+  const existing = prices[auditEditDraft.key] || {};
+  const currentWholesale = Number(existing.priceUSD) > 0 ? Number(existing.priceUSD) : null;
+  const currentRetail = Number(existing.retailUSD) > 0 ? Number(existing.retailUSD) : null;
+  const draftWholesale = Number.isFinite(Number(auditEditDraft.wholesaleUSD)) && Number(auditEditDraft.wholesaleUSD) > 0
+    ? Number(auditEditDraft.wholesaleUSD)
+    : null;
+  const draftRetail = auditEditDraft.retailTouched && Number.isFinite(Number(auditEditDraft.retailUSD)) && Number(auditEditDraft.retailUSD) > 0
+    ? Number(auditEditDraft.retailUSD)
+    : currentRetail;
+  const wholesaleDelta = (currentWholesale != null && draftWholesale != null) ? draftWholesale - currentWholesale : null;
+  const retailDelta = (currentRetail != null && draftRetail != null) ? draftRetail - currentRetail : null;
+  const combo = comboByKey[auditEditDraft.key];
+  const marginDecision = draftWholesale != null ? manualPriceDecision(combo, draftWholesale, existing.constraintSupplier || null) : null;
+  const floorMsg = marginDecision && draftWholesale != null
+    ? (marginDecision.ok
+      ? `<span class="audit-floor floor-ok">passes current floor</span>`
+      : `<span class="audit-floor floor-alert">blocked: ${Math.round((marginDecision.anchorMargin || 0) * 100)}% < ${Math.round(settings.floorMargin * 100)}% floor</span>`)
+    : '';
+  el.innerHTML = `
+    <div><b>Wholesale</b> ${currentWholesale != null ? `was ${sym()}${currentWholesale.toFixed(2)}` : 'was —'} ${draftWholesale != null ? `, now ${sym()}${draftWholesale.toFixed(2)}` : ', now —'}${wholesaleDelta != null ? ` (${wholesaleDelta >= 0 ? '+' : ''}${sym()}${Math.abs(wholesaleDelta).toFixed(2)})` : ''}</div>
+    <div><b>Retail</b> ${currentRetail != null ? `was ${sym()}${currentRetail.toFixed(2)}` : 'was —'} ${draftRetail != null ? `, now ${sym()}${draftRetail.toFixed(2)}` : ', now —'}${retailDelta != null ? ` (${retailDelta >= 0 ? '+' : ''}${sym()}${Math.abs(retailDelta).toFixed(2)})` : ''}</div>
+    ${floorMsg}
+  `;
+}
+
+function auditDraftKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    commitAuditDraft();
+    event.currentTarget.blur();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeAudit();
+  }
+}
+
+function commitAuditDraft(reopenOnChange = true) {
+  if (!auditEditDraft?.key) return;
+  const key = auditEditDraft.key;
+  const wasOpen = $('audit-overlay').classList.contains('open');
+  const before = prices[key] ? JSON.stringify(prices[key]) : '';
+  syncAuditDraftFromInputs();
+  updateAuditDraftSummary();
+  applyAuditEdits();
+  const after = prices[key] ? JSON.stringify(prices[key]) : '';
+  if (reopenOnChange && wasOpen && currentAuditKey === key && before !== after) openAudit(key);
 }
 
 function applyAuditEdits() {
@@ -919,6 +1004,108 @@ function resetAuditPanelPosition() {
   panel.style.margin = '';
 }
 
+function applyAuditWindowState() {
+  const panel = document.querySelector('.audit-panel');
+  const body = document.querySelector('#audit-body');
+  const resize = document.querySelector('.audit-resize-handle');
+  if (!panel) return;
+
+  panel.classList.toggle('is-minimized', auditWindowMode === 'minimized');
+  panel.classList.toggle('is-maximized', auditWindowMode === 'maximized');
+
+  if (auditWindowMode === 'maximized') {
+    if (!auditWindowBounds) {
+      auditWindowBounds = {
+        position: panel.style.position || '',
+        left: panel.style.left || '',
+        top: panel.style.top || '',
+        width: panel.style.width || '',
+        maxWidth: panel.style.maxWidth || '',
+        height: panel.style.height || '',
+        maxHeight: panel.style.maxHeight || '',
+        margin: panel.style.margin || '',
+      };
+    }
+    panel.style.position = 'fixed';
+    panel.style.left = '12px';
+    panel.style.top = '12px';
+    panel.style.width = 'calc(100vw - 24px)';
+    panel.style.maxWidth = 'calc(100vw - 24px)';
+    panel.style.height = 'calc(100dvh - 24px)';
+    panel.style.maxHeight = 'calc(100dvh - 24px)';
+    panel.style.margin = '0';
+    if (body) body.style.display = '';
+    if (resize) resize.style.display = '';
+    return;
+  }
+
+  if (auditWindowMode === 'minimized') {
+    if (!auditWindowBounds) {
+      auditWindowBounds = {
+        position: panel.style.position || '',
+        left: panel.style.left || '',
+        top: panel.style.top || '',
+        width: panel.style.width || '',
+        maxWidth: panel.style.maxWidth || '',
+        height: panel.style.height || '',
+        maxHeight: panel.style.maxHeight || '',
+        margin: panel.style.margin || '',
+      };
+    }
+    panel.style.position = 'fixed';
+    panel.style.height = '56px';
+    panel.style.maxHeight = '56px';
+    if (body) body.style.display = 'none';
+    if (resize) resize.style.display = 'none';
+    return;
+  }
+
+  if (auditWindowBounds) {
+    panel.style.position = auditWindowBounds.position;
+    panel.style.left = auditWindowBounds.left;
+    panel.style.top = auditWindowBounds.top;
+    panel.style.width = auditWindowBounds.width;
+    panel.style.maxWidth = auditWindowBounds.maxWidth;
+    panel.style.height = auditWindowBounds.height;
+    panel.style.maxHeight = auditWindowBounds.maxHeight;
+    panel.style.margin = auditWindowBounds.margin;
+  } else {
+    panel.style.position = '';
+    panel.style.left = '';
+    panel.style.top = '';
+    panel.style.width = '';
+    panel.style.maxWidth = '';
+    panel.style.height = '';
+    panel.style.maxHeight = '';
+    panel.style.margin = '';
+  }
+  if (body) body.style.display = '';
+  if (resize) resize.style.display = '';
+}
+
+function toggleAuditMinimize(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  auditWindowMode = auditWindowMode === 'minimized' ? 'normal' : 'minimized';
+  if (auditWindowMode === 'minimized') auditWindowBounds = auditWindowBounds || null;
+  applyAuditWindowState();
+}
+
+function toggleAuditMaximize(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  auditWindowMode = auditWindowMode === 'maximized' ? 'normal' : 'maximized';
+  applyAuditWindowState();
+}
+
+function wireAuditResizeHandle() {
+  return;
+}
+
 function initAuditDrag() {
   const handle = $('audit-drag-handle');
   const panel = document.querySelector('.audit-panel');
@@ -963,7 +1150,7 @@ async function persistOverrides() {
   overrides = normalizeOverrides(overrides);
 }
 async function toggleDisableCombo(key) {
-  applyAuditEdits();
+  commitAuditDraft(false);
   const i = overrides.combos.indexOf(key);
   if (i >= 0) overrides.combos.splice(i, 1); else overrides.combos.push(key);
   await persistOverrides();
@@ -971,7 +1158,7 @@ async function toggleDisableCombo(key) {
   openAudit(key);
 }
 async function toggleDisableSupplier(key, sup) {
-  applyAuditEdits();
+  commitAuditDraft(false);
   const arr = overrides.suppliers[key] || (overrides.suppliers[key] = []);
   const i = arr.indexOf(sup);
   if (i >= 0) arr.splice(i, 1); else arr.push(sup);
