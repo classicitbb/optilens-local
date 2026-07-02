@@ -46,7 +46,7 @@
       </div>
     </div>
     <div style="display:flex;gap:4px;background:rgba(255,255,255,.07);padding:5px;border-radius:11px">
-      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="8"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+      {{ tabBarNodeA }}
     </div>
     <div style="display:flex;align-items:center;gap:12px;justify-content:flex-end">
       <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
@@ -75,7 +75,7 @@
 
   <!-- EMBEDDED TAB BAR (only when iframe, shown via JS) -->
   <div id="embedded-tabbar" style="display:none;height:48px;flex:none;align-items:center;background:#0B1E35;padding:0 16px;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="8"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+    {{ tabBarNodeB }}
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
       <button onClick="{{ toggleBrand }}" title="Brand details" style="{{ gearStyle }}">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cdd8e4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -116,7 +116,7 @@
         </div>
         <sc-for list="{{ myFileTypeTree }}" as="node" hint-placeholder-count="9">
           <button onClick="{{ node.onClick }}" style="{{ node.rowStyle }}">
-            <span style="{{ node.iconStyle }}">{{ node.icon }}</span>
+            <span class="material-symbols-outlined" style="{{ node.iconStyle }}">{{ node.icon }}</span>
             <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ node.label }}</span>
             <span style="{{ node.countStyle }}">{{ node.count }}</span>
           </button>
@@ -500,27 +500,6 @@
       <!-- ---------- CUSTOMER STATEMENT ---------- -->
       <sc-if value="{{ isStatement }}" hint-placeholder-val="{{ false }}">
       <div style="padding:22px 20px 48px;display:flex;flex-direction:column;gap:14px">
-
-        <!-- Panel header — CV Design System, light -->
-        <div style="margin:-22px -20px 4px;padding:0 20px 16px;background:linear-gradient(180deg,hsl(43,25%,94%) 0%,hsl(43,20%,90%) 100%);border-bottom:1px solid #ddd8cc;position:relative;overflow:hidden">
-          <!-- Signature gold → teal accent stripe -->
-          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#C89130 0%,#1A8A9C 100%)"></div>
-          <div style="padding-top:18px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
-            <div>
-              <!-- Kicker -->
-              <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
-                <div style="width:16px;height:2px;background:#C89130;border-radius:1px;flex:none"></div>
-                <div style="font:700 9px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#C89130">Doc Studio</div>
-              </div>
-              <!-- Title -->
-              <div style="font:800 17px/1.1 'Plus Jakarta Sans',sans-serif;color:#0B1E35;letter-spacing:-.015em">Customer Statement</div>
-              <!-- Subtitle -->
-              <div style="font:400 11px/1.4 'Plus Jakarta Sans',sans-serif;color:#8a93a0;margin-top:3px">AR statement for print or export</div>
-            </div>
-            <!-- AR badge -->
-            <div style="flex:none;padding:5px 11px;background:#0B1E35;color:#F4F2ED;border-radius:20px;font:700 9.5px/1 'Plus Jakarta Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap">AR</div>
-          </div>
-        </div>
 
         <!-- Statement type -->
         <div>
@@ -3137,6 +3116,11 @@ class Component extends DCLogic {
       previewNode = React.createElement('div', { style: { width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }, dangerouslySetInnerHTML: { __html: html } });
     }
     const tabs = [['files', 'My Files'], ['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => ({ label: l, onClick: () => this.switchTab(k), style: this.tabStyle(tab === k) }));
+    // Both tab bars render from one freshly-computed HTML node per render (not sc-for),
+    // so the active-tab highlight always tracks state. Two identical, independent nodes
+    // avoid the runtime reconciling one shared list across two mount points.
+    const _tabBarHtml = [['files', 'My Files'], ['email', 'Email'], ['letter', 'Letterhead'], ['signature', 'Signature'], ['social', 'Social'], ['billing', 'Billing'], ['pricelist', 'Price List'], ['shiplabel', 'Ship Label'], ['statement', 'Statement']].map(([k, l]) => `<button onclick="window._dsApp.switchTab('${k}')" style="${this.tabStyle(tab === k)}">${l}</button>`).join('');
+    const _mkTabBar = () => React.createElement('div', { style: { display: 'contents' }, dangerouslySetInnerHTML: { __html: _tabBarHtml } });
     const emailLib = (d.emailLib || []).map(it => ({ name: it.name, load: () => this.loadEmail(it), del: () => this.delLib('emailLib', it.id) }));
     const letterLib = (d.letterLib || []).map(it => ({ name: it.name, load: () => this.loadLetter(it), del: () => this.delLib('letterLib', it.id) }));
     const sigLib = (d.sigLib || []).map(it => ({ name: it.name, load: () => this.loadSig(it), del: () => this.delLib('sigLib', it.id) }));
@@ -3227,7 +3211,7 @@ class Component extends DCLogic {
     return {
       tab,
       isFiles: tab === 'files', isEmail: tab === 'email', isLetter: tab === 'letter', isSig: tab === 'signature', isSocial: tab === 'social', isPricelist: tab === 'pricelist', isShiplabel: tab === 'shiplabel', isStatement: tab === 'statement', isBilling: tab === 'billing',
-      f, tabs, previewNode,
+      f, tabs, tabBarNodeA: _mkTabBar(), tabBarNodeB: _mkTabBar(), previewNode,
       previewTitle: tab === 'files' ? 'File manager' : tab === 'email' ? 'Email preview' : tab === 'letter' ? 'Document preview' : tab === 'social' ? (this.SM_FMTS[d.smFormat||'instagram'].label + ' preview') : tab === 'pricelist' ? 'Price list preview' : tab === 'shiplabel' ? 'Shipping label preview' : tab === 'statement' ? 'Statement preview' : tab === 'billing' ? (this.billMeta().title.charAt(0) + this.billMeta().title.slice(1).toLowerCase() + ' preview') : 'Signature preview',
       copyLabel: tab === 'files' ? 'Open file' : tab === 'email' ? 'Copy for email' : tab === 'letter' ? 'Open in Word / Google Docs' : tab === 'social' ? 'Open full size' : tab === 'pricelist' ? 'Print price list' : tab === 'shiplabel' ? 'Print label' : tab === 'statement' ? 'Print statement' : tab === 'billing' ? 'Print / PDF' : 'Copy signature',
       copyNow: this.copyNow, printLetter: this.printLetter,
@@ -3244,12 +3228,12 @@ class Component extends DCLogic {
         const counts = {};
         (d.myFiles || []).forEach(f => { counts[f.fileType] = (counts[f.fileType] || 0) + 1; });
         const total = (d.myFiles || []).length;
-        const types = [['', 'All types', total, '☷'], ['email','Email',counts.email||0,'✉'], ['letter','Letterhead',counts.letter||0,'▣'], ['billing','Billing',counts.billing||0,'■'], ['pricelist','Price list',counts.pricelist||0,'◎'], ['shiplabel','Ship label',counts.shiplabel||0,'▶'], ['signature','Signature',counts.signature||0,'✎'], ['social','Social',counts.social||0,'◆'], ['statement','Statement',counts.statement||0,'▤']];
+        const types = [['', 'All types', total, 'apps'], ['email','Email',counts.email||0,'mail'], ['letter','Letterhead',counts.letter||0,'description'], ['billing','Billing',counts.billing||0,'receipt_long'], ['pricelist','Price list',counts.pricelist||0,'sell'], ['shiplabel','Ship label',counts.shiplabel||0,'local_shipping'], ['signature','Signature',counts.signature||0,'draw'], ['social','Social',counts.social||0,'campaign'], ['statement','Statement',counts.statement||0,'account_balance']];
         return types.map(([type, label, count, icon]) => {
           const active = (d.fileTypeFilter || '') === type;
           return {
             label, count, icon,
-            iconStyle: 'font-size:12px;width:16px;text-align:center;flex:none',
+            iconStyle: 'font-size:18px;width:22px;text-align:center;flex:none;line-height:1',
             rowStyle: `display:flex;align-items:center;gap:6px;width:100%;padding:6px ${type ? '12px 6px 24px' : '12px'};border:0;background:${active?'#1A8A9C':'transparent'};color:${active?'#fff':'#5b6b7c'};font:${active?'700':'400'} 12px/1 'Plus Jakarta Sans',sans-serif;cursor:pointer;text-align:left`,
             countStyle: `font:600 10px/1 'Plus Jakarta Sans',sans-serif;background:${active?'rgba(255,255,255,.2)':'#f1ede5'};color:${active?'#fff':'#8a93a0'};border-radius:999px;padding:2px 6px`,
             onClick: () => this.setState({ fileTypeFilter: type })
