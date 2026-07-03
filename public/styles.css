@@ -871,7 +871,7 @@ th {
 }
 
 .delivery-export-page .workflow-tabs {
-  padding-top: 0;
+  padding-top: 5px;
 }
 
 .workflow-tabs button {
@@ -1028,6 +1028,11 @@ th {
   margin: 0 14px 14px;
 }
 
+.delivery-export-page .shipment-master-detail {
+  gap: 0;
+  margin: 0;
+}
+
 .co-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
@@ -1155,6 +1160,22 @@ th {
 .shipment-detail-panel {
   min-height: 600px;
   border-radius: 8px;
+}
+
+.delivery-export-page .shipment-list-panel,
+.delivery-export-page .shipment-detail-panel {
+  border-radius: 0;
+}
+
+.delivery-export-page .shipment-list-panel {
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.delivery-export-page .shipment-detail-panel {
+  border-right: 0;
+  border-bottom: 0;
 }
 
 .shipment-list-head,
