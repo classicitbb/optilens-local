@@ -677,6 +677,7 @@ h3 {
 label {
   display: grid;
   gap: 6px;
+  min-width: 0;
   font-size: 13px;
   font-weight: 800;
 }
@@ -956,13 +957,18 @@ th {
 }
 
 .shipment-prep-toolbar {
-  grid-template-columns: minmax(300px, 1.35fr) minmax(160px, .75fr) minmax(150px, .65fr) minmax(150px, .65fr);
+  grid-template-columns: minmax(360px, 1.45fr) minmax(220px, .85fr) minmax(170px, .65fr) minmax(170px, .65fr);
+  align-items: end;
+  gap: 10px;
+  margin: 14px;
+  margin-bottom: 10px;
 }
 
 .customer-start-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .customer-start-row select {
@@ -972,11 +978,13 @@ th {
 
 .customer-start-row .button {
   flex: 0 0 auto;
+  min-height: 36px;
+  padding-inline: 16px;
 }
 
 .shipment-status-line {
-  min-height: 22px;
-  margin: 10px 0;
+  min-height: 18px;
+  margin: 4px 14px 10px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
@@ -988,9 +996,10 @@ th {
 
 .shipment-master-detail {
   display: grid;
-  grid-template-columns: minmax(360px, .95fr) minmax(0, 1.25fr);
-  gap: 14px;
+  grid-template-columns: minmax(520px, .82fr) minmax(0, 1.18fr);
+  gap: 10px;
   align-items: stretch;
+  margin: 0 14px 14px;
 }
 
 .co-workspace {
@@ -1118,12 +1127,19 @@ th {
 
 .shipment-list-panel,
 .shipment-detail-panel {
-  min-height: 520px;
+  min-height: 600px;
+  border-radius: 8px;
 }
 
 .shipment-list-head,
 .shipment-detail-head {
   align-items: center;
+}
+
+.shipment-list-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 60px;
 }
 
 .shipment-list-head p,
@@ -1134,17 +1150,42 @@ th {
   font-weight: 700;
 }
 
+.shipment-list-table-head {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.25fr) minmax(84px, .72fr) minmax(118px, 1fr) minmax(58px, .48fr) minmax(90px, .7fr) minmax(110px, .85fr) minmax(110px, .85fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.shipment-list-table-head span {
+  min-width: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-right: 1px solid var(--line);
+}
+
+.shipment-list-table-head span:last-child {
+  border-right: 0;
+}
+
 .shipment-groups {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  max-height: 650px;
+  gap: 0;
+  padding: 0;
+  max-height: 720px;
   overflow: auto;
 }
 
 .shipment-group {
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 0;
+  border-radius: 0;
   background: var(--surface);
   overflow: hidden;
 }
@@ -1153,10 +1194,11 @@ th {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 38px;
-  padding: 9px 12px;
+  min-height: 28px;
+  padding: 4px 10px;
   background: var(--bg-elevated);
   color: var(--ink);
+  border-bottom: 1px solid var(--line);
   font-weight: 800;
   cursor: pointer;
 }
@@ -1178,15 +1220,15 @@ th {
 
 .shipment-list-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(70px, .55fr) minmax(96px, .7fr) minmax(118px, .8fr) minmax(70px, .5fr) minmax(58px, .45fr) minmax(70px, .5fr);
-  gap: 8px;
+  grid-template-columns: minmax(140px, 1.25fr) minmax(84px, .72fr) minmax(118px, 1fr) minmax(58px, .48fr) minmax(90px, .7fr) minmax(110px, .85fr) minmax(110px, .85fr);
+  gap: 0;
   align-items: center;
   min-width: 0;
-  padding: 9px 12px;
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   background: var(--surface);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .shipment-list-row:hover,
@@ -1201,9 +1243,16 @@ th {
 .shipment-list-row strong,
 .shipment-list-row > span {
   min-width: 0;
+  min-height: 30px;
+  padding: 7px 9px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-right: 1px solid var(--line);
+}
+
+.shipment-list-row strong {
+  font-size: 11px;
 }
 
 .shipment-list-row > span {
@@ -1211,16 +1260,34 @@ th {
   font-weight: 700;
 }
 
+.shipment-list-row > span:last-child {
+  border-right: 0;
+}
+
+.shipment-count-cell {
+  text-align: right;
+}
+
 .shipment-empty {
   margin: 0;
-  padding: 14px;
-  border-top: 1px solid var(--line);
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-weight: 700;
 }
 
 .shipment-items-table {
-  min-width: 760px;
+  min-width: 980px;
+}
+
+.shipment-detail-panel .table-wrap {
+  min-height: 538px;
+}
+
+.shipment-items-table th,
+.shipment-items-table td {
+  padding: 8px 10px;
+  font-size: 11px;
 }
 
 .shipment-modal .auth-panel {

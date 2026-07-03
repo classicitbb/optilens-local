@@ -92,6 +92,15 @@
               </div>
               <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
             </div>
+            <div class="shipment-list-table-head" aria-hidden="true">
+              <span>Ship To Name</span>
+              <span>Ship To Account</span>
+              <span>Shipping Method</span>
+              <span>Count</span>
+              <span>Shipment ID</span>
+              <span>Tracking No</span>
+              <span>Message</span>
+            </div>
             <div class="shipment-groups" id="shipmentGroups">
               <details class="shipment-group" open>
                 <summary>Open <span id="openShipmentCount">0</span></summary>
@@ -116,16 +125,17 @@
               <table class="shipment-items-table">
                 <thead>
                   <tr>
-                    <th>Order</th>
-                    <th>Invoice</th>
+                    <th>Order ID</th>
+                    <th>Order Type</th>
+                    <th>Rx Number</th>
+                    <th>Shipment ID</th>
+                    <th>Bill To Account</th>
                     <th>Patient</th>
-                    <th>Price</th>
-                    <th>Origin</th>
-                    <th>State</th>
+                    <th>Shipped Time</th>
                   </tr>
                 </thead>
                 <tbody id="shipmentItemsRows">
-                  <tr><td colspan="6">Select a shipment to view its jobs.</td></tr>
+                  <tr><td colspan="7">Select a shipment to view its jobs.</td></tr>
                 </tbody>
               </table>
             </div>

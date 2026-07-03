@@ -164,11 +164,11 @@ function renderShipmentRows(selector, sessions, emptyText) {
       <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}">
         <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
         <span>${escapeHtml(session.customer_account || "")}</span>
-        <span>${session.source_shipment_id ? `Shipment ${escapeHtml(session.source_shipment_id)}` : ""}</span>
-        <span>${escapeHtml(formatDate(session.closed_at || session.started_at))}</span>
-        <span><span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status || "prep")}</span></span>
-        <span>${Number(session.item_count || 0)} items</span>
-        <span>${isExportSession(session) ? "Export" : "Domestic"}</span>
+        <span>${escapeHtml(session.shipping_method_name || "")}</span>
+        <span class="shipment-count-cell">${Number(session.item_count || 0)}</span>
+        <span>${escapeHtml(session.source_shipment_id || "")}</span>
+        <span>${escapeHtml(session.tracking_number || "")}</span>
+        <span>${escapeHtml(shipmentMessage(session))}</span>
       </article>`;
   }).join("") || `<p class="shipment-empty">${escapeHtml(emptyText)}</p>`;
 }
@@ -176,17 +176,19 @@ function renderShipmentRows(selector, sessions, emptyText) {
 function renderShipmentItems() {
   const target = document.querySelector("#shipmentItemsRows");
   if (!target) return;
+  const session = getSelectedSession();
 
   target.innerHTML = moduleState.shipmentItems.map((item) => `
     <tr>
       <td>${escapeHtml(item.orderId || "")}</td>
-      <td>${escapeHtml(item.invoiceNumber || "")}</td>
+      <td>${escapeHtml(item.orderType || "Rx")}</td>
+      <td>${escapeHtml(item.invoiceNumber || item.shipmentItemId || "")}</td>
+      <td>${escapeHtml(item.shipmentId || session?.source_shipment_id || "")}</td>
+      <td>${escapeHtml(item.customerAccount || session?.customer_account || "")}</td>
       <td>${escapeHtml(item.patientName || "")}</td>
-      <td>${formatMoney(item.price)}</td>
-      <td><span class="badge">${escapeHtml(item.origin || "app")}</span></td>
-      <td><span class="badge ${item.itemState === "shipped" ? "" : "open"}">${escapeHtml(item.itemState || "prep")}</span></td>
+      <td>${escapeHtml(formatDate(item.createdAt))}</td>
     </tr>
-  `).join("") || `<tr><td colspan="6">No jobs found for the selected shipment.</td></tr>`;
+  `).join("") || `<tr><td colspan="7">No jobs found for the selected shipment.</td></tr>`;
 }
 
 function renderCoDraft() {
@@ -636,6 +638,12 @@ function getSelectedCustomer() {
 
 function isExportSession(session) {
   return Boolean(session?.is_export_customer);
+}
+
+function shipmentMessage(session) {
+  if (!session) return "";
+  if (session.app_status === "closed") return "Shipped";
+  return session.notes || "";
 }
 
 function isDomesticClosable(session) {

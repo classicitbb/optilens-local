@@ -6,6 +6,7 @@ const nodeCrypto = require("node:crypto");
 const sql = require("mssql");
 const { getConfig } = require("./lib/config");
 const { runOdbcProbe } = require("./lib/odbc-probe");
+const { normalizeVaultData } = require("./lib/credential-vault");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -24,14 +25,20 @@ function hashPin(pin) {
 function readVault() {
   try {
     if (!fs.existsSync(vaultFile)) return { pinHash: null, data: null };
-    return JSON.parse(fs.readFileSync(vaultFile, "utf8"));
+    const vault = JSON.parse(fs.readFileSync(vaultFile, "utf8"));
+    const normalized = normalizeVaultData(vault.data);
+    if (normalized.changed) {
+      writeVault({ ...vault, data: normalized.data });
+    }
+    return { ...vault, data: normalized.data };
   } catch { return { pinHash: null, data: null }; }
 }
 
 /** Persist vault object to disk */
 function writeVault(obj) {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(vaultFile, JSON.stringify(obj, null, 2));
+  const normalized = normalizeVaultData(obj?.data);
+  fs.writeFileSync(vaultFile, JSON.stringify({ ...obj, data: normalized.data }, null, 2));
 }
 
 // ─── Session tokens (in-memory, cleared on server restart) ───────────────────
@@ -1987,6 +1994,7 @@ async function enrichShipmentSessions(sessions) {
       item_count: Number(session.item_count || 0),
       customer_name: customer?.customerName || "",
       shipping_method_id: customer?.shippingMethodId ?? null,
+      shipping_method_name: customer?.shippingMethodName || "",
       is_export_customer: Boolean(customer?.isExportCustomer)
     };
   });
@@ -2000,6 +2008,7 @@ async function buildCustomerMap() {
       {
         customerName: customer.customerName || "",
         shippingMethodId: customer.shippingMethodId,
+        shippingMethodName: customer.shippingMethodName || "",
         isExportCustomer: Boolean(customer.isExportCustomer)
       }
     ]));
@@ -2030,7 +2039,10 @@ function normalizeSourceShipmentItem(item) {
   return {
     origin: "source",
     shipmentItemId: item.shipmentItemId || "",
+    shipmentId: item.shipmentId || "",
     orderId: item.orderId || "",
+    orderType: item.orderType || "Rx",
+    customerAccount: item.customerAccount || "",
     invoiceNumber: item.invoiceNumber || "",
     patientName: item.patientName || "",
     price: item.price ?? null,
@@ -2045,7 +2057,10 @@ function normalizeAppShipmentItem(item) {
     origin: "app",
     shipmentSessionItemId: item.shipmentSessionItemId,
     shipmentItemId: item.shipmentItemId || "",
+    shipmentId: "",
     orderId: item.orderId || "",
+    orderType: item.orderType || "Rx",
+    customerAccount: "",
     invoiceNumber: item.invoiceNumber || "",
     patientName: item.patientName || "",
     price: item.price ?? null,
