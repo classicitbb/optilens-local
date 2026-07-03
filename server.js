@@ -90,6 +90,7 @@ const {
   listShipmentSessions,
   updateShipmentStatus
 } = require("./lib/delivery");
+const { syncShipmentSessions } = require("./lib/shipment-sync");
 const {
   claimAutomationJob: claimBeSwiftAutomationJob,
   createAutomationJob: createBeSwiftAutomationJob,
@@ -1018,11 +1019,20 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/delivery/shipments" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
-      const sessions = await listShipmentSessions({
+      const range = {
         fromDate: url.searchParams.get("fromDate") || "",
         toDate: url.searchParams.get("toDate") || ""
-      });
-      return { sessions: await enrichShipmentSessions(sessions) };
+      };
+      // Mirror Innovations first (best-effort — a source outage should not
+      // block reading whatever is already cached locally), then read back.
+      let syncResult = null;
+      try {
+        syncResult = await syncShipmentSessions(range);
+      } catch (error) {
+        syncResult = { error: error.message };
+      }
+      const sessions = await listShipmentSessions(range);
+      return { sessions: await enrichShipmentSessions(sessions), sync: syncResult };
     });
   }
 
@@ -1991,10 +2001,14 @@ async function enrichShipmentSessions(sessions) {
     const customer = customerMap.get(String(session.customer_account || "").toUpperCase());
     return {
       ...session,
-      item_count: Number(session.item_count || 0),
+      item_count: Number(session.source_item_count ?? session.item_count ?? 0),
       customer_name: customer?.customerName || "",
-      shipping_method_id: customer?.shippingMethodId ?? null,
-      shipping_method_name: customer?.shippingMethodName || "",
+      // The session's own synced shipping method (per-shipment, from
+      // Innovations) wins; the customer's default is only a fallback for
+      // sessions that predate the sync.
+      shipping_method_id: session.shipping_method_id ?? customer?.shippingMethodId ?? null,
+      shipping_method_name: session.shipping_method_name || customer?.shippingMethodName || "",
+      shipment_bin: customer?.shipmentBin || "",
       is_export_customer: Boolean(customer?.isExportCustomer)
     };
   });
@@ -2009,6 +2023,7 @@ async function buildCustomerMap() {
         customerName: customer.customerName || "",
         shippingMethodId: customer.shippingMethodId,
         shippingMethodName: customer.shippingMethodName || "",
+        shipmentBin: customer.shipmentBin || "",
         isExportCustomer: Boolean(customer.isExportCustomer)
       }
     ]));

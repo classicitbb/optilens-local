@@ -166,9 +166,12 @@ function renderShipmentRows(selector, sessions, emptyText) {
         <span>${escapeHtml(session.customer_account || "")}</span>
         <span>${escapeHtml(session.shipping_method_name || "")}</span>
         <span class="shipment-count-cell">${Number(session.item_count || 0)}</span>
-        <span>${escapeHtml(session.source_shipment_id || "")}</span>
-        <span>${escapeHtml(session.tracking_number || "")}</span>
         <span>${escapeHtml(shipmentMessage(session))}</span>
+        <span>${escapeHtml(session.app_status === "closed" ? formatDate(session.closed_at) : "")}</span>
+        <span>${escapeHtml(session.tracking_number || "")}</span>
+        <span>${escapeHtml(session.source_shipment_id || "")}</span>
+        <span>${escapeHtml(session.source_shipment_batch_id || "")}</span>
+        <span>${escapeHtml(session.shipment_bin || "")}</span>
       </article>`;
   }).join("") || `<p class="shipment-empty">${escapeHtml(emptyText)}</p>`;
 }
@@ -608,6 +611,7 @@ function enrichSessionFromCustomerList(session) {
     ...session,
     customer_name: session.customer_name || customer?.customerName || "",
     shipping_method_id: session.shipping_method_id ?? customer?.shippingMethodId ?? null,
+    shipment_bin: session.shipment_bin || customer?.shipmentBin || "",
     is_export_customer: Boolean(session.is_export_customer || customer?.isExportCustomer)
   };
 }
@@ -642,8 +646,7 @@ function isExportSession(session) {
 
 function shipmentMessage(session) {
   if (!session) return "";
-  if (session.app_status === "closed") return "Shipped";
-  return session.notes || "";
+  return session.source_result_message || session.notes || (session.app_status === "closed" ? "Shipped" : "");
 }
 
 function isDomesticClosable(session) {

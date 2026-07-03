@@ -1152,7 +1152,7 @@ th {
 
 .shipment-list-table-head {
   display: grid;
-  grid-template-columns: minmax(140px, 1.25fr) minmax(84px, .72fr) minmax(118px, 1fr) minmax(58px, .48fr) minmax(90px, .7fr) minmax(110px, .85fr) minmax(110px, .85fr);
+  grid-template-columns: minmax(130px, 1.15fr) minmax(76px, .6fr) minmax(96px, .78fr) minmax(46px, .36fr) minmax(96px, .78fr) minmax(108px, .78fr) minmax(92px, .72fr) minmax(64px, .5fr) minmax(64px, .5fr) minmax(64px, .5fr);
   gap: 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -1164,7 +1164,7 @@ th {
 
 .shipment-list-table-head span {
   min-width: 0;
-  padding: 7px 9px;
+  padding: 6px 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1220,7 +1220,7 @@ th {
 
 .shipment-list-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1.25fr) minmax(84px, .72fr) minmax(118px, 1fr) minmax(58px, .48fr) minmax(90px, .7fr) minmax(110px, .85fr) minmax(110px, .85fr);
+  grid-template-columns: minmax(130px, 1.15fr) minmax(76px, .6fr) minmax(96px, .78fr) minmax(46px, .36fr) minmax(96px, .78fr) minmax(108px, .78fr) minmax(92px, .72fr) minmax(64px, .5fr) minmax(64px, .5fr) minmax(64px, .5fr);
   gap: 0;
   align-items: center;
   min-width: 0;
@@ -1243,8 +1243,8 @@ th {
 .shipment-list-row strong,
 .shipment-list-row > span {
   min-width: 0;
-  min-height: 30px;
-  padding: 7px 9px;
+  min-height: 28px;
+  padding: 6px 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
