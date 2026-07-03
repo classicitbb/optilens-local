@@ -1,0 +1,1 @@
+This app is an internal app acting as the medium of connection between mssql-svr for Innovations, the CV website and Odoo accounts in the future. 
