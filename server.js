@@ -1532,6 +1532,9 @@ const server = http.createServer(async (req, res) => {
         entities: Array.isArray(body.entities) && body.entities.length ? body.entities : undefined,
         commit: !!body.commit,
         batchSize: Number(body.batchSize) > 0 ? Number(body.batchSize) : undefined,
+        // Only pass this as true for a one-off historical backfill — see
+        // innovations-sync.js for why (avoids emailing every customer at once).
+        suppressStatementEmails: !!body.suppressStatementEmails,
       });
     });
   }

@@ -135,6 +135,12 @@
           <div class="sync-row sync-entities">
             <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
             <label><input type="checkbox" class="sync-entity" value="contacts" checked> Contacts</label>
+            <label><input type="checkbox" class="sync-entity" value="balances"> Balances</label>
+            <label><input type="checkbox" class="sync-entity" value="statements"> Statements</label>
+            <label><input type="checkbox" class="sync-entity" value="statement_lines"> Statement lines</label>
+          </div>
+          <div class="sync-row sync-entities">
+            <label title="First historical backfill only — stops the receiver emailing every customer a 'statement ready' notice at once. Ignored on dry runs and when Statements isn't selected."><input type="checkbox" id="syncSuppressEmails"> Suppress statement emails (backfill)</label>
           </div>
           <div class="sync-row">
             <button class="btn" id="syncDryBtn" type="button">Dry run</button>
@@ -192,7 +198,7 @@
 
           const r = await fetch("/api/connectors/innovations-sync/run", {
             method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ token: uj.token, commit, entities: ents })
+            body: JSON.stringify({ token: uj.token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
           });
           const rj = await r.json().catch(() => ({}));
           resultEl.hidden = false;

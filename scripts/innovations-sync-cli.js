@@ -8,6 +8,10 @@
  *   --passphrase <p>   or   the OPTILENS_SYNC_PASSPHRASE environment variable.
  * Commits by default; pass --dry-run to preview without writing.
  * Optional: --entities customers,contacts
+ * Optional: --backfill-statements — first-ever historical sync of statements;
+ *   suppresses the "statement ready" email that would otherwise fire for
+ *   every pre-existing statement (they'd all look "new" on an empty table).
+ *   Leave this off on every subsequent run.
  *
  * Exit codes: 0 ok · 1 sync error/partial · 2 no passphrase · 3 wrong passphrase · 4 no key.
  */
@@ -61,6 +65,7 @@ function arg(name) {
   const entities = typeof entitiesArg === 'string'
     ? entitiesArg.split(',').map((s) => s.trim()).filter(Boolean)
     : undefined;
+  const suppressStatementEmails = process.argv.includes('--backfill-statements');
 
   // --serve-requests: process the cloud "Sync now" queue (writes) instead of a
   // scheduled full sync. Intended to run frequently from the scheduled task.
@@ -69,7 +74,7 @@ function arg(name) {
   try {
     const result = serveRequests
       ? await innovationsSync.runRequested(creds, {})
-      : await innovationsSync.sync(creds, { commit: !dryRun, entities });
+      : await innovationsSync.sync(creds, { commit: !dryRun, entities, suppressStatementEmails });
     console.log(JSON.stringify({ ts: new Date().toISOString(), mode: serveRequests ? 'serve-requests' : (dryRun ? 'dry-run' : 'sync'), ...result }, null, 2));
     const ok = serveRequests ? true : result.ok;
     process.exit(ok ? 0 : 1);
