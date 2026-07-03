@@ -54,13 +54,15 @@
   <main class="module-main">
     <section class="module-workspace">
       <div class="module-title">
-        <p class="eyebrow">Export workflow</p>
         <h1>Delivery and Export Workbench</h1>
+        <p class="eyebrow">Export workflow</p>
       </div>
+      <p class="module-subtitle">Customers: domestic delivery slips / export commercial invoices. App state: private close/reopen. Write-back: disabled.</p>
 
       <nav class="workflow-tabs" aria-label="Delivery workflow tabs">
         <button class="active" type="button" data-tab="shipmentPrep">Shipment prep</button>
         <button type="button" data-tab="commercialInvoice" id="commercialInvoiceTab">Commercial invoice</button>
+        <button type="button" data-tab="deliveryChecklist" id="deliveryChecklistTab">Delivery checklist</button>
         <button type="button" data-tab="archive">Archive</button>
         <button type="button" data-tab="sourceHealth">Source health</button>
         <button class="workflow-tab-refresh" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">&#8635;</button>
@@ -71,19 +73,12 @@
           <label class="customer-start-field">CustomerAccount
             <span class="customer-start-row">
               <select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading customers</option></select>
-              <button class="button primary" id="startShipmentBtn" type="button">Start</button>
+              <button class="button primary" id="startShipmentBtn" type="button">Load</button>
             </span>
           </label>
-          <label>Shipment ID<input id="shipmentIdInput" placeholder="Source ShipmentID" aria-label="Shipment ID"></label>
-          <label>Dispatcher<select id="dispatcherInput" aria-label="Dispatcher"><option value="">Loading dispatchers</option></select></label>
+          <label>Shipment ID<input id="shipmentIdInput" placeholder="Selected shipment" aria-label="Shipment ID" readonly></label>
           <label>From close date<input id="fromDateInput" type="date" aria-label="From close date"></label>
           <label>To close date<input id="toDateInput" type="date" aria-label="To close date"></label>
-        </div>
-
-        <div class="shipment-strip">
-          <span>Customers: <strong>domestic delivery slips / export commercial invoices</strong></span>
-          <span>App state: <strong>private close/reopen</strong></span>
-          <span>Write-back: <strong>disabled</strong></span>
         </div>
 
         <div class="shipment-status-line" id="shipmentPrepMessage" role="status"></div>
@@ -95,7 +90,7 @@
                 <h2>Shipments</h2>
                 <p id="shipmentListSummary">Loading shipments</p>
               </div>
-              <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Close selected domestic</button>
+              <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
             </div>
             <div class="shipment-groups" id="shipmentGroups">
               <details class="shipment-group" open>
@@ -136,6 +131,18 @@
             </div>
           </section>
         </div>
+      </section>
+
+      <section class="workflow-panel" id="deliveryChecklist">
+        <section class="workflow-block">
+          <div class="section-head tight shipment-detail-head">
+            <div>
+              <h2>Delivery checklist</h2>
+              <p id="deliveryChecklistSummary">Select a domestic shipment from Shipment prep.</p>
+            </div>
+          </div>
+          <div class="placeholder-pane">Domestic delivery checklist workflow will load for the selected shipment here.</div>
+        </section>
       </section>
 
       <section class="workflow-panel" id="commercialInvoice">

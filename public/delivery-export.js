@@ -21,14 +21,12 @@ async function initModule() {
   wireTabs();
   wireActions();
 
-  const [dashboard, dispatchers, customers] = await Promise.all([
+  const [dashboard, customers] = await Promise.all([
     getJson("/api/dashboard", { integrationHealth: [] }),
-    getJson("/api/source/dispatchers", { dispatchers: [], error: "" }),
     getJson("/api/source/customers", { customers: [], error: "" })
   ]);
 
   moduleState.dashboard = dashboard;
-  moduleState.dispatchers = dispatchers.dispatchers || [];
   moduleState.customers = customers.customers || [];
   moduleState.customerByAccount = new Map(moduleState.customers.map((customer) => [
     String(customer.customerAccount || "").toUpperCase(),
@@ -36,7 +34,6 @@ async function initModule() {
   ]));
 
   renderHealth();
-  renderDispatchers(dispatchers.error);
   renderCustomers(customers.error);
   await refreshShipmentSessions({ preserveSelection: true });
   startPolling();
@@ -52,9 +49,9 @@ function wireTabs() {
 }
 
 function wireActions() {
-  document.querySelector("#startShipmentBtn")?.addEventListener("click", startShipmentSession);
+  document.querySelector("#startShipmentBtn")?.addEventListener("click", loadFilteredShipments);
   document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", () => refreshShipmentSessions({ preserveSelection: true }));
-  document.querySelector("#closeSelectedBtn")?.addEventListener("click", closeSelectedDomesticShipments);
+  document.querySelector("#closeSelectedBtn")?.addEventListener("click", openSelectedDocumentStep);
   document.querySelector("#customerAccountInput")?.addEventListener("change", handleCustomerChange);
   document.querySelector("#fromDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
   document.querySelector("#toDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
@@ -122,20 +119,6 @@ function renderHealth() {
   `).join("");
 }
 
-function renderDispatchers(error) {
-  const target = document.querySelector("#dispatcherInput");
-  if (!target) return;
-
-  if (error) {
-    target.innerHTML = `<option value="">Source error: ${escapeHtml(error)}</option>`;
-    return;
-  }
-
-  target.innerHTML = `<option value="">Select dispatcher</option>` + moduleState.dispatchers.map((dispatcher) => `
-    <option value="${escapeHtml(dispatcher.dispatcherId)}">${escapeHtml(dispatcher.dispatcherName)}${dispatcher.jobTitle ? ` - ${escapeHtml(dispatcher.jobTitle)}` : ""}</option>
-  `).join("");
-}
-
 function renderCustomers(error) {
   const target = document.querySelector("#customerAccountInput");
   if (!target) return;
@@ -155,12 +138,14 @@ function renderCustomers(error) {
 }
 
 function renderShipmentSessions() {
-  const open = moduleState.shipmentSessions.filter((session) => session.app_status !== "closed");
-  const closed = moduleState.shipmentSessions.filter((session) => session.app_status === "closed");
+  const visible = getVisibleShipmentSessions();
+  const open = visible.filter((session) => session.app_status !== "closed");
+  const closed = visible.filter((session) => session.app_status === "closed");
+  const filterAccount = getCustomerFilterAccount();
 
   setText("#openShipmentCount", String(open.length));
   setText("#closedShipmentCount", String(closed.length));
-  setText("#shipmentListSummary", `${open.length} open / ${closed.length} closed`);
+  setText("#shipmentListSummary", `${open.length} open / ${closed.length} closed${filterAccount ? ` for ${filterAccount}` : ""}`);
 
   renderShipmentRows("#openShipmentRows", open, "No open shipments.");
   renderShipmentRows("#closedShipmentRows", closed, "No closed shipments in this close-date range.");
@@ -174,25 +159,16 @@ function renderShipmentRows(selector, sessions, emptyText) {
 
   target.innerHTML = sessions.map((session) => {
     const id = escapeHtml(session.shipment_session_id);
-    const isOpenDomestic = isDomesticClosable(session);
     const selected = moduleState.selectedSessionId === session.shipment_session_id;
     return `
       <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}">
-        <div class="shipment-row-select">
-          ${isOpenDomestic
-            ? `<input type="checkbox" aria-label="Select domestic shipment ${escapeHtml(session.customer_account || "")}" data-select-domestic="${id}" ${moduleState.selectedDomesticIds.has(session.shipment_session_id) ? "checked" : ""}>`
-            : ""}
-        </div>
-        <div class="shipment-row-main">
-          <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
-          <span>${escapeHtml(session.customer_account || "")}${session.source_shipment_id ? ` · Shipment ${escapeHtml(session.source_shipment_id)}` : ""}</span>
-          <small>${formatDate(session.closed_at || session.started_at)}</small>
-        </div>
-        <div class="shipment-row-meta">
-          <span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status || "prep")}</span>
-          <span>${Number(session.item_count || 0)} items</span>
-          <span>${isExportSession(session) ? "Export" : "Domestic"}</span>
-        </div>
+        <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
+        <span>${escapeHtml(session.customer_account || "")}</span>
+        <span>${session.source_shipment_id ? `Shipment ${escapeHtml(session.source_shipment_id)}` : ""}</span>
+        <span>${escapeHtml(formatDate(session.closed_at || session.started_at))}</span>
+        <span><span class="badge ${session.app_status === "closed" ? "" : "open"}">${escapeHtml(session.app_status || "prep")}</span></span>
+        <span>${Number(session.item_count || 0)} items</span>
+        <span>${isExportSession(session) ? "Export" : "Domestic"}</span>
       </article>`;
   }).join("") || `<p class="shipment-empty">${escapeHtml(emptyText)}</p>`;
 }
@@ -352,35 +328,23 @@ function renderCoJobs() {
 function handleCustomerChange() {
   moduleState.selectedSessionId = "";
   moduleState.shipmentItems = [];
+  setShipmentIdInput("");
   renderShipmentSessions();
   loadSelectedShipmentItems();
 }
 
-async function startShipmentSession() {
-  const customerAccount = document.querySelector("#customerAccountInput").value.trim();
-  const sourceShipmentId = document.querySelector("#shipmentIdInput").value.trim();
-  const dispatcherId = document.querySelector("#dispatcherInput").value.trim();
-
-  if (!customerAccount) {
-    setMessage("Select a customer before starting a shipment.", true);
+async function loadFilteredShipments() {
+  const visible = getVisibleShipmentSessions();
+  if (!visible.length) {
+    setMessage("No shipments match the current customer and close-date filters.", true);
     return;
   }
-
-  const data = await postJson("/api/delivery/shipments", {
-    sourceSystem: "mssql",
-    customerAccount,
-    sourceShipmentId,
-    dispatcherId,
-    sourceShipped: false
-  }).catch((error) => {
-    setMessage(error.message, true);
-    return null;
-  });
-  if (!data) return;
-
-  moduleState.selectedSessionId = data.session.shipment_session_id;
-  await refreshShipmentSessions({ preserveSelection: true });
-  setMessage("Shipment started.");
+  if (!getSessionById(moduleState.selectedSessionId) || !visible.some((session) => session.shipment_session_id === moduleState.selectedSessionId)) {
+    moduleState.selectedSessionId = visible[0].shipment_session_id;
+  }
+  renderShipmentSessions();
+  await loadSelectedShipmentItems();
+  setMessage(`Loaded ${visible.length} shipment${visible.length === 1 ? "" : "s"}${getCustomerFilterAccount() ? ` for ${getCustomerFilterAccount()}` : ""}.`);
 }
 
 async function refreshShipmentSessions(options = {}) {
@@ -390,13 +354,11 @@ async function refreshShipmentSessions(options = {}) {
   });
   const data = await getJson(`/api/delivery/shipments?${query.toString()}`, { sessions: [] });
   moduleState.shipmentSessions = (data.sessions || []).map(enrichSessionFromCustomerList);
-  moduleState.selectedDomesticIds = new Set([...moduleState.selectedDomesticIds].filter((id) => {
-    const session = getSessionById(id);
-    return session && isDomesticClosable(session);
-  }));
+  moduleState.selectedDomesticIds.clear();
 
-  if (!options.preserveSelection || !getSessionById(moduleState.selectedSessionId)) {
-    moduleState.selectedSessionId = moduleState.shipmentSessions[0]?.shipment_session_id || "";
+  const visible = getVisibleShipmentSessions();
+  if (!options.preserveSelection || !visible.some((session) => session.shipment_session_id === moduleState.selectedSessionId)) {
+    moduleState.selectedSessionId = visible[0]?.shipment_session_id || "";
   }
 
   renderShipmentSessions();
@@ -405,6 +367,11 @@ async function refreshShipmentSessions(options = {}) {
 
 async function selectShipmentSession(sessionId) {
   moduleState.selectedSessionId = sessionId;
+  const session = getSelectedSession();
+  const customerInput = document.querySelector("#customerAccountInput");
+  if (session && customerInput && !customerInput.value) {
+    customerInput.value = session.customer_account || "";
+  }
   renderShipmentSessions();
   await loadSelectedShipmentItems();
 }
@@ -419,6 +386,7 @@ async function loadSelectedShipmentItems(options = {}) {
     moduleState.coJobs = [];
     setText("#selectedShipmentTitle", "Select a shipment");
     setText("#selectedShipmentMeta", "Choose an open or closed shipment to review jobs.");
+    setShipmentIdInput("");
     if (addRowsBtn) addRowsBtn.hidden = true;
     renderShipmentItems();
     updateCommercialInvoiceAvailability();
@@ -428,6 +396,7 @@ async function loadSelectedShipmentItems(options = {}) {
 
   setText("#selectedShipmentTitle", `${session.customer_account || "Shipment"} ${session.source_shipment_id || ""}`.trim());
   setText("#selectedShipmentMeta", `${isExportSession(session) ? "Export" : "Domestic"} · ${session.app_status || "prep"} · ${Number(session.item_count || 0)} counted items`);
+  setShipmentIdInput(session.source_shipment_id || "");
   if (addRowsBtn) addRowsBtn.hidden = !(isExportSession(session) && session.app_status !== "closed");
 
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, { items: [] });
@@ -527,28 +496,21 @@ function readCoItems() {
   });
 }
 
-async function closeSelectedDomesticShipments() {
-  const sessionIds = [...moduleState.selectedDomesticIds];
-  const dispatcherId = document.querySelector("#dispatcherInput").value.trim();
-
-  if (!sessionIds.length) {
-    setMessage("Select at least one open domestic shipment.", true);
+async function openSelectedDocumentStep() {
+  const session = getSelectedSession();
+  if (!session) {
+    setMessage("Select a shipment before preparing the next document step.", true);
     return;
   }
-  if (!dispatcherId) {
-    setMessage("Select a dispatcher before closing domestic shipments.", true);
+  if (isExportSession(session)) {
+    activateTab("commercialInvoice");
+    await loadCoDraft();
+    setMessage("Commercial invoice and certificate workspace opened.");
     return;
   }
-
-  const data = await postJson("/api/delivery/shipments/close-batch", { sessionIds, dispatcherId }).catch((error) => {
-    setMessage(error.message, true);
-    return null;
-  });
-  if (!data) return;
-
-  moduleState.selectedDomesticIds.clear();
-  await refreshShipmentSessions({ preserveSelection: true });
-  setMessage(`Closed ${data.sessions.length} domestic shipment${data.sessions.length === 1 ? "" : "s"}.`);
+  activateTab("deliveryChecklist");
+  setText("#deliveryChecklistSummary", `${session.customer_account || "Domestic shipment"} ${session.source_shipment_id || ""}`.trim());
+  setMessage("Delivery checklist opened.");
 }
 
 function toggleDomesticSelection(sessionId, isSelected) {
@@ -563,19 +525,18 @@ function toggleDomesticSelection(sessionId, isSelected) {
 function updateCloseSelectedState() {
   const button = document.querySelector("#closeSelectedBtn");
   if (!button) return;
-  const count = moduleState.selectedDomesticIds.size;
-  button.disabled = count === 0;
-  button.textContent = count ? `Close selected domestic (${count})` : "Close selected domestic";
+  const session = getSelectedSession();
+  button.disabled = !session;
+  button.textContent = session && !isExportSession(session) ? "Prepare delivery checklist" : "Prepare certificate/invoice";
 }
 
 function updateCommercialInvoiceAvailability() {
   const tab = document.querySelector("#commercialInvoiceTab");
   if (!tab) return;
   const session = getSelectedSession();
-  const customer = getSelectedCustomer();
-  const enabled = session ? isExportSession(session) : Boolean(customer?.isExportCustomer);
+  const enabled = Boolean(session && isExportSession(session));
   tab.disabled = !enabled;
-  tab.title = enabled ? "" : "Commercial invoices are only available for export customers.";
+  tab.title = enabled ? "" : "Commercial invoices are only available after selecting an export shipment.";
   if (!enabled && tab.classList.contains("active")) activateTab("shipmentPrep");
 }
 
@@ -657,6 +618,17 @@ function getSessionById(id) {
   return moduleState.shipmentSessions.find((session) => session.shipment_session_id === id) || null;
 }
 
+function getVisibleShipmentSessions() {
+  const account = getCustomerFilterAccount();
+  return account
+    ? moduleState.shipmentSessions.filter((session) => String(session.customer_account || "").toUpperCase() === account.toUpperCase())
+    : moduleState.shipmentSessions;
+}
+
+function getCustomerFilterAccount() {
+  return document.querySelector("#customerAccountInput")?.value.trim() || "";
+}
+
 function getSelectedCustomer() {
   const account = document.querySelector("#customerAccountInput")?.value || "";
   return moduleState.customerByAccount.get(String(account).toUpperCase()) || null;
@@ -719,6 +691,11 @@ function setCoMessage(message, isError = false) {
 function setText(selector, value) {
   const target = document.querySelector(selector);
   if (target) target.textContent = value;
+}
+
+function setShipmentIdInput(value) {
+  const target = document.querySelector("#shipmentIdInput");
+  if (target) target.value = value || "";
 }
 
 function toDateInputValue(date) {
