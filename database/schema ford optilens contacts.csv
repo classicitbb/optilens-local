@@ -1,0 +1,17 @@
+﻿ContactID,int
+CustomerID,int
+TitleID,int
+EmailAddress,varchar
+ExtensionNumber,varchar
+FaxNumber,varchar
+FirstName,nvarchar
+JobDescription,nvarchar
+ListID,nvarchar
+MobileNumber,varchar
+PhoneNumber,varchar
+PrimaryContact,bit
+Surname,nvarchar
+CreatedBy,int
+UpdatedBy,int
+RecordCreated,datetimeoffset
+LastUpdated,datetimeoffset
