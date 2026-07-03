@@ -64,15 +64,17 @@
 
       <section class="workflow-panel active" id="shipmentPrep">
         <div class="access-toolbar shipment-prep-toolbar">
-          <label class="customer-start-field">CustomerAccount
-            <span class="customer-start-row">
-              <select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading customers</option></select>
-              <button class="button primary" id="startShipmentBtn" type="button">Load</button>
-            </span>
+          <label class="customer-start-field">Customer account
+            <input id="customerAccountInput" list="customerAccountOptions" placeholder="Type account or name, Enter to filter" aria-label="Customer account" autocomplete="off">
+            <datalist id="customerAccountOptions"></datalist>
           </label>
-          <label>Shipment ID<input id="shipmentIdInput" placeholder="Selected shipment" aria-label="Shipment ID" readonly></label>
+          <label>Shipment ID<input id="shipmentIdInput" placeholder="Search shipment ID, Enter to filter" aria-label="Shipment ID" autocomplete="off"></label>
           <label>From close date<input id="fromDateInput" type="date" aria-label="From close date"></label>
           <label>To close date<input id="toDateInput" type="date" aria-label="To close date"></label>
+          <div class="toolbar-actions">
+            <button class="button primary" id="startShipmentBtn" type="button">Search</button>
+            <button class="button secondary" id="clearFiltersBtn" type="button">Clear</button>
+          </div>
         </div>
 
         <div class="shipment-status-line" id="shipmentPrepMessage" role="status"></div>

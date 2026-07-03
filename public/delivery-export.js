@@ -50,9 +50,19 @@ function wireTabs() {
 
 function wireActions() {
   document.querySelector("#startShipmentBtn")?.addEventListener("click", loadFilteredShipments);
+  document.querySelector("#clearFiltersBtn")?.addEventListener("click", clearFilters);
   document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", () => refreshShipmentSessions({ preserveSelection: true }));
   document.querySelector("#closeSelectedBtn")?.addEventListener("click", openSelectedDocumentStep);
-  document.querySelector("#customerAccountInput")?.addEventListener("change", handleCustomerChange);
+  document.querySelector("#customerAccountInput")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    loadFilteredShipments();
+  });
+  document.querySelector("#shipmentIdInput")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    loadFilteredShipments();
+  });
   document.querySelector("#fromDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
   document.querySelector("#toDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
   document.querySelector("#addRowsBtn")?.addEventListener("click", openAddRowsModal);
@@ -120,20 +130,18 @@ function renderHealth() {
 }
 
 function renderCustomers(error) {
-  const target = document.querySelector("#customerAccountInput");
+  const target = document.querySelector("#customerAccountOptions");
   if (!target) return;
 
   if (error) {
-    target.innerHTML = `<option value="">Source error: ${escapeHtml(error)}</option>`;
+    target.innerHTML = "";
+    setMessage(`Customer source error: ${error}`, true);
     return;
   }
 
-  target.innerHTML = `<option value="">Select customer</option>` + moduleState.customers.map((customer) => {
+  target.innerHTML = moduleState.customers.map((customer) => {
     const type = customer.isExportCustomer ? "Export" : "Domestic";
-    return `
-      <option value="${escapeHtml(customer.customerAccount)}" data-export="${customer.isExportCustomer ? "1" : "0"}">
-        ${escapeHtml(customer.customerAccount)} - ${escapeHtml(customer.customerName)} (${type})
-      </option>`;
+    return `<option value="${escapeHtml(customer.customerAccount)}">${escapeHtml(customer.customerName)} (${type})</option>`;
   }).join("");
 }
 
@@ -330,18 +338,20 @@ function renderCoJobs() {
   `).join("") || `<p class="shipment-empty">No queued jobs for this draft.</p>`;
 }
 
-function handleCustomerChange() {
-  moduleState.selectedSessionId = "";
-  moduleState.shipmentItems = [];
-  setShipmentIdInput("");
-  renderShipmentSessions();
-  loadSelectedShipmentItems();
+function clearFilters() {
+  const customerInput = document.querySelector("#customerAccountInput");
+  const shipmentIdInput = document.querySelector("#shipmentIdInput");
+  if (customerInput) customerInput.value = "";
+  if (shipmentIdInput) shipmentIdInput.value = "";
+  setDefaultDateRange();
+  refreshShipmentSessions({ preserveSelection: false });
+  setMessage("Filters cleared.");
 }
 
 async function loadFilteredShipments() {
   const visible = getVisibleShipmentSessions();
   if (!visible.length) {
-    setMessage("No shipments match the current customer and close-date filters.", true);
+    setMessage("No shipments match the current filters.", true);
     return;
   }
   if (!getSessionById(moduleState.selectedSessionId) || !visible.some((session) => session.shipment_session_id === moduleState.selectedSessionId)) {
@@ -349,7 +359,10 @@ async function loadFilteredShipments() {
   }
   renderShipmentSessions();
   await loadSelectedShipmentItems();
-  setMessage(`Loaded ${visible.length} shipment${visible.length === 1 ? "" : "s"}${getCustomerFilterAccount() ? ` for ${getCustomerFilterAccount()}` : ""}.`);
+  const account = getCustomerFilterAccount();
+  const shipmentId = getShipmentIdFilter();
+  const scope = [account && `account ${account}`, shipmentId && `shipment ${shipmentId}`].filter(Boolean).join(", ");
+  setMessage(`Loaded ${visible.length} shipment${visible.length === 1 ? "" : "s"}${scope ? ` for ${scope}` : ""}.`);
 }
 
 async function refreshShipmentSessions(options = {}) {
@@ -391,7 +404,6 @@ async function loadSelectedShipmentItems(options = {}) {
     moduleState.coJobs = [];
     setText("#selectedShipmentTitle", "Select a shipment");
     setText("#selectedShipmentMeta", "Choose an open or closed shipment to review jobs.");
-    setShipmentIdInput("");
     if (addRowsBtn) addRowsBtn.hidden = true;
     renderShipmentItems();
     updateCommercialInvoiceAvailability();
@@ -401,7 +413,6 @@ async function loadSelectedShipmentItems(options = {}) {
 
   setText("#selectedShipmentTitle", `${session.customer_account || "Shipment"} ${session.source_shipment_id || ""}`.trim());
   setText("#selectedShipmentMeta", `${isExportSession(session) ? "Export" : "Domestic"} · ${session.app_status || "prep"} · ${Number(session.item_count || 0)} counted items`);
-  setShipmentIdInput(session.source_shipment_id || "");
   if (addRowsBtn) addRowsBtn.hidden = !(isExportSession(session) && session.app_status !== "closed");
 
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, { items: [] });
@@ -626,13 +637,20 @@ function getSessionById(id) {
 
 function getVisibleShipmentSessions() {
   const account = getCustomerFilterAccount();
-  return account
-    ? moduleState.shipmentSessions.filter((session) => String(session.customer_account || "").toUpperCase() === account.toUpperCase())
-    : moduleState.shipmentSessions;
+  const shipmentId = getShipmentIdFilter();
+  return moduleState.shipmentSessions.filter((session) => {
+    if (account && String(session.customer_account || "").toUpperCase() !== account.toUpperCase()) return false;
+    if (shipmentId && String(session.source_shipment_id || "") !== shipmentId) return false;
+    return true;
+  });
 }
 
 function getCustomerFilterAccount() {
   return document.querySelector("#customerAccountInput")?.value.trim() || "";
+}
+
+function getShipmentIdFilter() {
+  return document.querySelector("#shipmentIdInput")?.value.trim() || "";
 }
 
 function getSelectedCustomer() {
@@ -702,11 +720,6 @@ function setCoMessage(message, isError = false) {
 function setText(selector, value) {
   const target = document.querySelector(selector);
   if (target) target.textContent = value;
-}
-
-function setShipmentIdInput(value) {
-  const target = document.querySelector("#shipmentIdInput");
-  if (target) target.value = value || "";
 }
 
 function toDateInputValue(date) {

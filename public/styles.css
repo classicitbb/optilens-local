@@ -927,6 +927,10 @@ th {
   display: block;
 }
 
+.delivery-export-page .workflow-panel {
+  padding: 0;
+}
+
 .access-toolbar {
   display: grid;
   grid-template-columns: minmax(240px, 1.2fr) minmax(160px, .8fr) minmax(220px, 1fr) minmax(200px, 1fr);
@@ -983,11 +987,15 @@ th {
 }
 
 .shipment-prep-toolbar {
-  grid-template-columns: minmax(360px, 1.45fr) minmax(220px, .85fr) minmax(170px, .65fr) minmax(170px, .65fr);
+  grid-template-columns: minmax(300px, 1.3fr) minmax(180px, .75fr) minmax(150px, .6fr) minmax(150px, .6fr) auto;
   align-items: end;
   gap: 10px;
   margin: 14px;
   margin-bottom: 10px;
+}
+
+.delivery-export-page .shipment-prep-toolbar {
+  margin: 10px 12px;
 }
 
 .customer-start-row {
@@ -1008,12 +1016,27 @@ th {
   padding-inline: 16px;
 }
 
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-actions .button {
+  min-height: 36px;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
 .shipment-status-line {
   min-height: 18px;
   margin: 4px 14px 10px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.delivery-export-page .shipment-status-line {
+  margin: 2px 12px 8px;
 }
 
 .shipment-status-line.error {
