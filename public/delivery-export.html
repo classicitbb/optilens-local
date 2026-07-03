@@ -12,7 +12,7 @@
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="module-body">
+<body class="module-body delivery-export-page">
   <header class="top">
     <div class="top-left">
       <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
@@ -53,19 +53,13 @@
 
   <main class="module-main">
     <section class="module-workspace">
-      <div class="module-title">
-        <h1>Delivery and Export Workbench</h1>
-        <p class="eyebrow">Export workflow</p>
-      </div>
-      <p class="module-subtitle">Customers: domestic delivery slips / export commercial invoices. App state: private close/reopen. Write-back: disabled.</p>
-
       <nav class="workflow-tabs" aria-label="Delivery workflow tabs">
         <button class="active" type="button" data-tab="shipmentPrep">Shipment prep</button>
         <button type="button" data-tab="commercialInvoice" id="commercialInvoiceTab">Commercial invoice</button>
         <button type="button" data-tab="deliveryChecklist" id="deliveryChecklistTab">Delivery checklist</button>
         <button type="button" data-tab="archive">Archive</button>
         <button type="button" data-tab="sourceHealth">Source health</button>
-        <button class="workflow-tab-refresh" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">&#8635;</button>
+        <button class="workflow-tab-refresh material-symbols-outlined" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">refresh</button>
       </nav>
 
       <section class="workflow-panel active" id="shipmentPrep">
