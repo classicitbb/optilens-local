@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Delivery and Export - OptiLens Local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="module-body delivery-export-page">
+  <header class="top">
+    <div class="top-left">
+      <button class="launcher-btn" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="0" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
+        <strong>OptiLens Local</strong>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">Delivery &amp; Export</span>
+      </a>
+    </div>
+    <div class="top-center">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)" onclick="window.location='/'">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="sb-text">Search modules, wiki, settings…</span>
+        <kbd>Ctrl+K</kbd>
+      </button>
+    </div>
+    <div class="top-right">
+      <button class="top-action-btn" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 5.5a1.5 1.5 0 113 0c0 1-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".75" fill="currentColor"/></svg>
+      </button>
+      <button class="top-action-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">☽</button>
+      <button class="user-chip" type="button" aria-label="User">
+        <span class="user-avatar">RH</span>
+        <span class="user-name">Russell H.</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <nav class="workflow-tabs" aria-label="Delivery workflow tabs">
+        <button class="active" type="button" data-tab="shipmentPrep">Shipment prep</button>
+        <button type="button" data-tab="commercialInvoice" id="commercialInvoiceTab">Commercial invoice</button>
+        <button type="button" data-tab="deliveryChecklist" id="deliveryChecklistTab">Delivery checklist</button>
+        <button type="button" data-tab="archive">Archive</button>
+        <button type="button" data-tab="sourceHealth">Source health</button>
+        <button class="workflow-tab-refresh material-symbols-outlined" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">refresh</button>
+      </nav>
+
+      <section class="workflow-panel active" id="shipmentPrep">
+        <div class="access-toolbar shipment-prep-toolbar">
+          <label class="customer-start-field">CustomerAccount
+            <span class="customer-start-row">
+              <select id="customerAccountInput" aria-label="CustomerAccount"><option value="">Loading customers</option></select>
+              <button class="button primary" id="startShipmentBtn" type="button">Load</button>
+            </span>
+          </label>
+          <label>Shipment ID<input id="shipmentIdInput" placeholder="Selected shipment" aria-label="Shipment ID" readonly></label>
+          <label>From close date<input id="fromDateInput" type="date" aria-label="From close date"></label>
+          <label>To close date<input id="toDateInput" type="date" aria-label="To close date"></label>
+        </div>
+
+        <div class="shipment-status-line" id="shipmentPrepMessage" role="status"></div>
+
+        <div class="shipment-master-detail">
+          <section class="workflow-block shipment-list-panel">
+            <div class="section-head tight shipment-list-head">
+              <div>
+                <h2>Shipments</h2>
+                <p id="shipmentListSummary">Loading shipments</p>
+              </div>
+              <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
+            </div>
+            <div class="shipment-list-table-head" aria-hidden="true">
+              <span>Ship To Name</span>
+              <span>Ship To Account</span>
+              <span>Shipping Method</span>
+              <span>Count</span>
+              <span>Message</span>
+              <span>Closed Time</span>
+              <span>Tracking No</span>
+              <span>Shipment ID</span>
+              <span>Batch ID</span>
+              <span>Bin</span>
+            </div>
+            <div class="shipment-groups" id="shipmentGroups">
+              <details class="shipment-group" open>
+                <summary>Open <span id="openShipmentCount">0</span></summary>
+                <div class="shipment-row-list" id="openShipmentRows">Loading open shipments</div>
+              </details>
+              <details class="shipment-group" open>
+                <summary>Closed <span id="closedShipmentCount">0</span></summary>
+                <div class="shipment-row-list" id="closedShipmentRows">Loading closed shipments</div>
+              </details>
+            </div>
+          </section>
+
+          <section class="workflow-block shipment-detail-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2 id="selectedShipmentTitle">Select a shipment</h2>
+                <p id="selectedShipmentMeta">Choose an open or closed shipment to review jobs.</p>
+              </div>
+              <button class="button primary" id="addRowsBtn" type="button" hidden>Add Rows</button>
+            </div>
+            <div class="table-wrap">
+              <table class="shipment-items-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Order Type</th>
+                    <th>Rx Number</th>
+                    <th>Shipment ID</th>
+                    <th>Bill To Account</th>
+                    <th>Patient</th>
+                    <th>Shipped Time</th>
+                  </tr>
+                </thead>
+                <tbody id="shipmentItemsRows">
+                  <tr><td colspan="7">Select a shipment to view its jobs.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="deliveryChecklist">
+        <section class="workflow-block">
+          <div class="section-head tight shipment-detail-head">
+            <div>
+              <h2>Delivery checklist</h2>
+              <p id="deliveryChecklistSummary">Select a domestic shipment from Shipment prep.</p>
+            </div>
+          </div>
+          <div class="placeholder-pane">Domestic delivery checklist workflow will load for the selected shipment here.</div>
+        </section>
+      </section>
+
+      <section class="workflow-panel" id="commercialInvoice">
+        <div class="co-workspace">
+          <section class="workflow-block co-draft-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2>BeSwift Certificate of Origin</h2>
+                <p id="coDraftSummary">Select an export shipment, then prepare a draft.</p>
+              </div>
+              <div class="co-actions">
+                <button class="button secondary" id="prepareCoBtn" type="button">Prepare draft</button>
+                <button class="button secondary" id="saveCoDraftBtn" type="button" disabled>Save draft</button>
+                <button class="button primary" id="queueCoJobBtn" type="button" disabled>Queue fill job</button>
+              </div>
+            </div>
+
+            <div class="shipment-status-line" id="coMessage" role="status"></div>
+            <div class="co-warning-list" id="coWarnings" hidden></div>
+
+            <form id="coDraftForm" class="co-draft-form">
+              <div class="co-section">
+                <h3>Portal and parcel</h3>
+                <div class="co-grid">
+                  <label>Portal
+                    <select id="coPortalEnvironment" name="portalEnvironment">
+                      <option value="training">BeSwift training</option>
+                      <option value="production">BeSwift production</option>
+                    </select>
+                  </label>
+                  <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
+                  <label>Shipping date<input id="coShippingDate" name="shippingDate" type="date"></label>
+                  <label>Box
+                    <select id="coBoxCode" name="boxCode">
+                      <option value="DHL-FLYER">DHL Express Flyer</option>
+                      <option value="DHL-BOX2">DHL Box 2</option>
+                      <option value="DHL-BOX3">DHL Box 3</option>
+                      <option value="DHL-BOX4">DHL Box 4</option>
+                      <option value="DHL-BOX5">DHL Box 5</option>
+                      <option value="FEDEX-SM">FedEx Small Box</option>
+                      <option value="FEDEX-MED">FedEx Medium Box</option>
+                    </select>
+                  </label>
+                  <label>Package count<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
+                  <label>Actual gross kg<input id="coActualGrossKg" name="actualGrossKg" type="number" min="0" step="0.001"></label>
+                  <label>Cube quantity<input id="coCubeQuantity" name="cubeQuantity" type="number" min="0" step="0.0001"></label>
+                  <label>Shipping marks<input id="coShippingMarks" name="shippingMarks" maxlength="35"></label>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Costs and origin</h3>
+                <div class="co-grid">
+                  <label>Freight cost<input id="coFreightCost" name="freightCost" type="number" min="0" step="0.01"></label>
+                  <label>Packing cost<input id="coPackingCost" name="packingCost" type="number" min="0" step="0.01"></label>
+                  <label>Insurance cost<input id="coInsuranceCost" name="insuranceCost" type="number" min="0" step="0.01"></label>
+                  <label>Other cost<input id="coOtherCost" name="otherCost" type="number" min="0" step="0.01"></label>
+                  <label>Delivery terms<input id="coDeliveryTerms" name="deliveryTerms"></label>
+                  <label class="co-wide">Origin notes<textarea id="coOriginNotes" name="originNotes" rows="2"></textarea></label>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Importer and invoice</h3>
+                <div class="co-readonly-grid" id="coHeaderPreview">
+                  <p>Select an export shipment and prepare a draft.</p>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Items</h3>
+                <div class="table-wrap">
+                  <table class="co-items-table">
+                    <thead>
+                      <tr>
+                        <th>HS</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Weight kg</th>
+                        <th>Unit cost</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="coItemsRows">
+                      <tr><td colspan="6">Prepare a draft to load certificate items.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <section class="workflow-block co-jobs-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2>Fill jobs</h2>
+                <p>Concurrent Chrome extension jobs for saved drafts.</p>
+              </div>
+            </div>
+            <div class="co-job-list" id="coJobList">
+              <p class="shipment-empty">No queued jobs for this draft.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="workflow-panel" id="archive">
+        <div class="access-toolbar">
+          <label>Search archive<input placeholder="Delivery no, invoice, patient, customer"></label>
+          <label>From date<input type="date"></label>
+          <label>To date<input type="date"></label>
+        </div>
+        <div class="placeholder-pane">Archive search will use older-than-12-month records and source/import audit keys.</div>
+      </section>
+
+      <section class="workflow-panel" id="sourceHealth">
+        <div class="setup-grid" id="healthList"></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="auth-overlay shipment-modal" id="addRowsModal" hidden aria-modal="true" role="dialog" aria-label="Add invoice rows">
+    <form class="auth-panel" id="addRowsForm">
+      <div class="launcher-head">
+        <h2>Add Rows</h2>
+        <button class="launcher-close" id="addRowsClose" type="button" aria-label="Close add rows">&#x2715;</button>
+      </div>
+      <div class="auth-body">
+        <p class="auth-copy">Scan or type an Innovations invoice number to add it to the selected export shipment.</p>
+        <label>Invoice
+          <input id="addRowsInvoiceInput" name="invoiceNumber" autocomplete="off" inputmode="numeric" required>
+        </label>
+        <div class="auth-error" id="addRowsError" role="alert"></div>
+        <button class="button primary" id="addRowsSubmit" type="submit">Add Row</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script src="/delivery-export.js"></script>
+  <script src="/pwa.js"></script>
+</body>
+</html>
