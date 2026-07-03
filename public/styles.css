@@ -112,7 +112,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -681,7 +682,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -692,10 +694,15 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--blue);
   box-shadow: 0 0 0 2px rgba(26, 138, 156, 0.2);
+}
+
+textarea {
+  resize: vertical;
 }
 
 .shipment-strip {
@@ -738,7 +745,8 @@ th {
 @media (max-width: 1050px) {
   .hero,
   .two-col,
-  .workbench {
+  .workbench,
+  .co-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -749,7 +757,9 @@ th {
   .capability-grid,
   .app-access-grid,
   .module-grid,
-  .form-grid {
+  .form-grid,
+  .co-grid,
+  .co-readonly-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -783,8 +793,14 @@ th {
   .app-access-grid,
   .module-grid,
   .form-grid,
+  .co-grid,
+  .co-readonly-grid,
   .workbench-nav {
     grid-template-columns: 1fr;
+  }
+
+  .co-wide {
+    grid-column: span 1;
   }
 
   h1 {
@@ -966,6 +982,129 @@ th {
   grid-template-columns: minmax(360px, .95fr) minmax(0, 1.25fr);
   gap: 14px;
   align-items: stretch;
+}
+
+.co-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.co-draft-panel,
+.co-jobs-panel {
+  min-height: 420px;
+}
+
+.co-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.co-draft-form {
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+}
+
+.co-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.co-section h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.co-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.co-wide {
+  grid-column: span 2;
+}
+
+.co-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.co-preview-field {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: var(--bg-elevated);
+}
+
+.co-preview-field span,
+.co-job-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.co-preview-field strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.co-warning-list {
+  display: grid;
+  gap: 6px;
+  margin: 0 12px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 145, 48, .45);
+  border-radius: 10px;
+  background: var(--badge-warn-bg);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.co-warning-list p {
+  margin: 0;
+}
+
+.co-items-table input {
+  width: 100%;
+  min-width: 90px;
+}
+
+.co-items-table td {
+  white-space: normal;
+}
+
+.co-job-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.co-job-row {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bg-elevated);
+}
+
+.co-job-row code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  color: var(--blue);
+  font-size: 12px;
 }
 
 .shipment-list-panel,

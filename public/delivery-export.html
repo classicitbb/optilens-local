@@ -139,13 +139,107 @@
       </section>
 
       <section class="workflow-panel" id="commercialInvoice">
-        <div class="access-toolbar">
-          <label>Carrier<input placeholder="Carrier"></label>
-          <label>Air waybill<input placeholder="Tracking or AWB"></label>
-          <label>No. of boxes<input type="number" min="0"></label>
-          <label>Gross weight<input type="number" min="0" step="0.001"></label>
+        <div class="co-workspace">
+          <section class="workflow-block co-draft-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2>BeSwift Certificate of Origin</h2>
+                <p id="coDraftSummary">Select an export shipment, then prepare a draft.</p>
+              </div>
+              <div class="co-actions">
+                <button class="button secondary" id="prepareCoBtn" type="button">Prepare draft</button>
+                <button class="button secondary" id="saveCoDraftBtn" type="button" disabled>Save draft</button>
+                <button class="button primary" id="queueCoJobBtn" type="button" disabled>Queue fill job</button>
+              </div>
+            </div>
+
+            <div class="shipment-status-line" id="coMessage" role="status"></div>
+            <div class="co-warning-list" id="coWarnings" hidden></div>
+
+            <form id="coDraftForm" class="co-draft-form">
+              <div class="co-section">
+                <h3>Portal and parcel</h3>
+                <div class="co-grid">
+                  <label>Portal
+                    <select id="coPortalEnvironment" name="portalEnvironment">
+                      <option value="training">BeSwift training</option>
+                      <option value="production">BeSwift production</option>
+                    </select>
+                  </label>
+                  <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
+                  <label>Shipping date<input id="coShippingDate" name="shippingDate" type="date"></label>
+                  <label>Box
+                    <select id="coBoxCode" name="boxCode">
+                      <option value="DHL-FLYER">DHL Express Flyer</option>
+                      <option value="DHL-BOX2">DHL Box 2</option>
+                      <option value="DHL-BOX3">DHL Box 3</option>
+                      <option value="DHL-BOX4">DHL Box 4</option>
+                      <option value="DHL-BOX5">DHL Box 5</option>
+                      <option value="FEDEX-SM">FedEx Small Box</option>
+                      <option value="FEDEX-MED">FedEx Medium Box</option>
+                    </select>
+                  </label>
+                  <label>Package count<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
+                  <label>Actual gross kg<input id="coActualGrossKg" name="actualGrossKg" type="number" min="0" step="0.001"></label>
+                  <label>Cube quantity<input id="coCubeQuantity" name="cubeQuantity" type="number" min="0" step="0.0001"></label>
+                  <label>Shipping marks<input id="coShippingMarks" name="shippingMarks" maxlength="35"></label>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Costs and origin</h3>
+                <div class="co-grid">
+                  <label>Freight cost<input id="coFreightCost" name="freightCost" type="number" min="0" step="0.01"></label>
+                  <label>Packing cost<input id="coPackingCost" name="packingCost" type="number" min="0" step="0.01"></label>
+                  <label>Insurance cost<input id="coInsuranceCost" name="insuranceCost" type="number" min="0" step="0.01"></label>
+                  <label>Other cost<input id="coOtherCost" name="otherCost" type="number" min="0" step="0.01"></label>
+                  <label>Delivery terms<input id="coDeliveryTerms" name="deliveryTerms"></label>
+                  <label class="co-wide">Origin notes<textarea id="coOriginNotes" name="originNotes" rows="2"></textarea></label>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Importer and invoice</h3>
+                <div class="co-readonly-grid" id="coHeaderPreview">
+                  <p>Select an export shipment and prepare a draft.</p>
+                </div>
+              </div>
+
+              <div class="co-section">
+                <h3>Items</h3>
+                <div class="table-wrap">
+                  <table class="co-items-table">
+                    <thead>
+                      <tr>
+                        <th>HS</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Weight kg</th>
+                        <th>Unit cost</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="coItemsRows">
+                      <tr><td colspan="6">Prepare a draft to load certificate items.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <section class="workflow-block co-jobs-panel">
+            <div class="section-head tight shipment-detail-head">
+              <div>
+                <h2>Fill jobs</h2>
+                <p>Concurrent Chrome extension jobs for saved drafts.</p>
+              </div>
+            </div>
+            <div class="co-job-list" id="coJobList">
+              <p class="shipment-empty">No queued jobs for this draft.</p>
+            </div>
+          </section>
         </div>
-        <div class="placeholder-pane">Commercial invoice fields will be wired after shipment prep source loading is validated.</div>
       </section>
 
       <section class="workflow-panel" id="archive">

@@ -6,6 +6,8 @@ const moduleState = {
   customerByAccount: new Map(),
   shipmentSessions: [],
   shipmentItems: [],
+  coApplication: null,
+  coJobs: [],
   selectedSessionId: "",
   selectedDomesticIds: new Set(),
   dashboard: null,
@@ -62,6 +64,9 @@ function wireActions() {
     if (event.target.id === "addRowsModal") closeAddRowsModal();
   });
   document.querySelector("#addRowsForm")?.addEventListener("submit", submitAddRow);
+  document.querySelector("#prepareCoBtn")?.addEventListener("click", prepareCoDraft);
+  document.querySelector("#saveCoDraftBtn")?.addEventListener("click", saveCoDraft);
+  document.querySelector("#queueCoJobBtn")?.addEventListener("click", queueCoJob);
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
     const checkbox = event.target.closest("[data-select-domestic]");
@@ -91,6 +96,7 @@ function activateTab(tabId) {
   document.querySelectorAll(".workflow-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === tabId);
   });
+  if (tabId === "commercialInvoice") loadCoDraft();
 }
 
 function setDefaultDateRange() {
@@ -207,6 +213,142 @@ function renderShipmentItems() {
   `).join("") || `<tr><td colspan="6">No jobs found for the selected shipment.</td></tr>`;
 }
 
+function renderCoDraft() {
+  const app = moduleState.coApplication;
+  const payload = app?.editable || null;
+  const hasDraft = Boolean(app && payload);
+  const session = getSelectedSession();
+
+  setText("#coDraftSummary", hasDraft
+    ? `Draft ${app.status || "draft"} · Shipment ${payload.shipmentId || session?.source_shipment_id || ""}`
+    : session
+      ? "No BeSwift draft for this shipment yet."
+      : "Select an export shipment, then prepare a draft.");
+
+  const saveBtn = document.querySelector("#saveCoDraftBtn");
+  const queueBtn = document.querySelector("#queueCoJobBtn");
+  if (saveBtn) saveBtn.disabled = !hasDraft;
+  if (queueBtn) queueBtn.disabled = !hasDraft;
+
+  if (!hasDraft) {
+    fillCoForm({});
+    renderCoHeaderPreview(null);
+    renderCoItems([]);
+    renderCoWarnings([]);
+    renderCoJobs();
+    return;
+  }
+
+  fillCoForm({
+    portalEnvironment: app.portalEnvironment || "training",
+    trackingNumber: payload.transport?.trackingNumber || "",
+    shippingDate: payload.transport?.shippingDate || "",
+    boxCode: payload.packaging?.box || "DHL-FLYER",
+    packageCount: payload.packaging?.numberOfPackages || 1,
+    actualGrossKg: payload.packaging?.actualGrossKg || "",
+    cubeQuantity: payload.invoiceDetails?.cubeQuantity || "",
+    shippingMarks: payload.transport?.shippingMarks || "",
+    freightCost: payload.invoiceDetails?.freightCost || 0,
+    packingCost: payload.invoiceDetails?.packingCost || 0,
+    insuranceCost: payload.invoiceDetails?.insuranceCost || 0,
+    otherCost: payload.invoiceDetails?.otherCost || 0,
+    deliveryTerms: payload.transport?.deliveryTerms || "",
+    originNotes: payload.origin?.notes || ""
+  });
+  renderCoHeaderPreview(payload);
+  renderCoItems(payload.items || []);
+  renderCoWarnings(app.warnings || []);
+  renderCoJobs();
+}
+
+function fillCoForm(values) {
+  const pairs = {
+    coPortalEnvironment: values.portalEnvironment || "training",
+    coTrackingNumber: values.trackingNumber || "",
+    coShippingDate: values.shippingDate || "",
+    coBoxCode: values.boxCode || "DHL-FLYER",
+    coPackageCount: values.packageCount || "",
+    coActualGrossKg: values.actualGrossKg || "",
+    coCubeQuantity: values.cubeQuantity || "",
+    coShippingMarks: values.shippingMarks || "",
+    coFreightCost: values.freightCost ?? "",
+    coPackingCost: values.packingCost ?? "",
+    coInsuranceCost: values.insuranceCost ?? "",
+    coOtherCost: values.otherCost ?? "",
+    coDeliveryTerms: values.deliveryTerms || "",
+    coOriginNotes: values.originNotes || ""
+  };
+  for (const [id, value] of Object.entries(pairs)) {
+    const input = document.querySelector(`#${id}`);
+    if (input) input.value = value;
+  }
+}
+
+function renderCoHeaderPreview(payload) {
+  const target = document.querySelector("#coHeaderPreview");
+  if (!target) return;
+  if (!payload) {
+    target.innerHTML = "<p>Select an export shipment and prepare a draft.</p>";
+    return;
+  }
+  const entries = [
+    ["Importer", payload.importer?.name],
+    ["Company", payload.importer?.company],
+    ["Country", payload.importer?.country],
+    ["Address", payload.importer?.address],
+    ["Contact", [payload.importer?.phone, payload.importer?.email].filter(Boolean).join(" · ")],
+    ["Invoices", payload.invoiceDetails?.invoiceNumbers],
+    ["Invoice date", payload.invoiceDetails?.invoiceDate],
+    ["Order refs", payload.invoiceDetails?.customerOrderNo],
+    ["Carrier", payload.transport?.carrier],
+    ["Discharge port", payload.transport?.portOfDischarge]
+  ];
+  target.innerHTML = entries.map(([label, value]) => `
+    <div class="co-preview-field">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value || "")}</strong>
+    </div>
+  `).join("");
+}
+
+function renderCoItems(items) {
+  const target = document.querySelector("#coItemsRows");
+  if (!target) return;
+  target.innerHTML = items.map((item, index) => `
+    <tr data-co-item="${index}">
+      <td><input data-co-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="Item ${index + 1} HS code"></td>
+      <td><input data-co-field="commercialDescription" value="${escapeHtml(item.commercialDescription || "")}" aria-label="Item ${index + 1} description"></td>
+      <td><input data-co-field="quantity" type="number" min="0" step="1" value="${escapeHtml(item.quantity ?? "")}" aria-label="Item ${index + 1} quantity"></td>
+      <td><input data-co-field="weightKg" type="number" min="0" step="0.001" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Item ${index + 1} weight"></td>
+      <td><input data-co-field="unitCost" type="number" min="0" step="0.01" value="${escapeHtml(item.unitCost ?? "")}" aria-label="Item ${index + 1} unit cost"></td>
+      <td>${formatMoneyBbd(item.value)}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="6">Prepare a draft to load certificate items.</td></tr>`;
+}
+
+function renderCoWarnings(warnings) {
+  const target = document.querySelector("#coWarnings");
+  if (!target) return;
+  target.hidden = !warnings.length;
+  target.innerHTML = warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("");
+}
+
+function renderCoJobs() {
+  const target = document.querySelector("#coJobList");
+  if (!target) return;
+  const jobs = moduleState.coJobs || [];
+  target.innerHTML = jobs.map((job) => `
+    <article class="co-job-row">
+      <div>
+        <strong>${escapeHtml(job.status || "queued")}</strong>
+        <span>${escapeHtml(formatDate(job.createdAt))}</span>
+      </div>
+      <code>${escapeHtml(job.claimCode || "")}</code>
+      ${job.errorMessage ? `<p>${escapeHtml(job.errorMessage)}</p>` : ""}
+    </article>
+  `).join("") || `<p class="shipment-empty">No queued jobs for this draft.</p>`;
+}
+
 function handleCustomerChange() {
   moduleState.selectedSessionId = "";
   moduleState.shipmentItems = [];
@@ -258,7 +400,7 @@ async function refreshShipmentSessions(options = {}) {
   }
 
   renderShipmentSessions();
-  await loadSelectedShipmentItems();
+  await loadSelectedShipmentItems({ skipCoDraft: Boolean(options.silent) });
 }
 
 async function selectShipmentSession(sessionId) {
@@ -267,17 +409,20 @@ async function selectShipmentSession(sessionId) {
   await loadSelectedShipmentItems();
 }
 
-async function loadSelectedShipmentItems() {
+async function loadSelectedShipmentItems(options = {}) {
   const session = getSelectedSession();
   const addRowsBtn = document.querySelector("#addRowsBtn");
 
   if (!session) {
     moduleState.shipmentItems = [];
+    moduleState.coApplication = null;
+    moduleState.coJobs = [];
     setText("#selectedShipmentTitle", "Select a shipment");
     setText("#selectedShipmentMeta", "Choose an open or closed shipment to review jobs.");
     if (addRowsBtn) addRowsBtn.hidden = true;
     renderShipmentItems();
     updateCommercialInvoiceAvailability();
+    renderCoDraft();
     return;
   }
 
@@ -289,6 +434,97 @@ async function loadSelectedShipmentItems() {
   moduleState.shipmentItems = data.items || [];
   renderShipmentItems();
   updateCommercialInvoiceAvailability();
+  if (!options.skipCoDraft) await loadCoDraft();
+}
+
+async function loadCoDraft() {
+  const session = getSelectedSession();
+  if (!session || !isExportSession(session)) {
+    moduleState.coApplication = null;
+    moduleState.coJobs = [];
+    renderCoDraft();
+    return;
+  }
+
+  const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/co`, { application: null, jobs: [] });
+  moduleState.coApplication = data.application || null;
+  moduleState.coJobs = data.jobs || [];
+  renderCoDraft();
+}
+
+async function prepareCoDraft() {
+  const session = getSelectedSession();
+  if (!session) {
+    setCoMessage("Select an export shipment before preparing a BeSwift draft.", true);
+    return;
+  }
+  const data = await postJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/co`, readCoDraftForm()).catch((error) => {
+    setCoMessage(error.message, true);
+    return null;
+  });
+  if (!data) return;
+  moduleState.coApplication = data.application;
+  moduleState.coJobs = [];
+  renderCoDraft();
+  setCoMessage("BeSwift draft prepared from Innovations.");
+}
+
+async function saveCoDraft() {
+  const app = moduleState.coApplication;
+  if (!app) return;
+  const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, readCoDraftForm()).catch((error) => {
+    setCoMessage(error.message, true);
+    return null;
+  });
+  if (!data) return;
+  moduleState.coApplication = data.application;
+  renderCoDraft();
+  setCoMessage("Draft saved.");
+}
+
+async function queueCoJob() {
+  const app = moduleState.coApplication;
+  if (!app) return;
+  await saveCoDraft();
+  const current = moduleState.coApplication;
+  const data = await postJson(`/api/delivery/co-applications/${encodeURIComponent(current.coApplicationId)}/automation-jobs`, {}).catch((error) => {
+    setCoMessage(error.message, true);
+    return null;
+  });
+  if (!data) return;
+  moduleState.coJobs = [data.job, ...moduleState.coJobs];
+  renderCoJobs();
+  setCoMessage(`Fill job queued. Claim code: ${data.job.claimCode}`);
+}
+
+function readCoDraftForm() {
+  return {
+    portalEnvironment: valueOf("#coPortalEnvironment") || "training",
+    trackingNumber: valueOf("#coTrackingNumber"),
+    shippingDate: valueOf("#coShippingDate"),
+    boxCode: valueOf("#coBoxCode"),
+    packageCount: valueOf("#coPackageCount"),
+    actualGrossKg: valueOf("#coActualGrossKg"),
+    cubeQuantity: valueOf("#coCubeQuantity"),
+    shippingMarks: valueOf("#coShippingMarks"),
+    freightCost: valueOf("#coFreightCost"),
+    packingCost: valueOf("#coPackingCost"),
+    insuranceCost: valueOf("#coInsuranceCost"),
+    otherCost: valueOf("#coOtherCost"),
+    deliveryTerms: valueOf("#coDeliveryTerms"),
+    originNotes: valueOf("#coOriginNotes"),
+    items: readCoItems()
+  };
+}
+
+function readCoItems() {
+  return [...document.querySelectorAll("[data-co-item]")].map((row) => {
+    const item = {};
+    row.querySelectorAll("[data-co-field]").forEach((input) => {
+      item[input.dataset.coField] = input.value;
+    });
+    return item;
+  });
 }
 
 async function closeSelectedDomesticShipments() {
@@ -455,8 +691,26 @@ async function postJson(url, body) {
   return data;
 }
 
+async function putJson(url, body) {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 function setMessage(message, isError = false) {
   const target = document.querySelector("#shipmentPrepMessage");
+  if (!target) return;
+  target.textContent = message || "";
+  target.classList.toggle("error", Boolean(isError));
+}
+
+function setCoMessage(message, isError = false) {
+  const target = document.querySelector("#coMessage");
   if (!target) return;
   target.textContent = message || "";
   target.classList.toggle("error", Boolean(isError));
@@ -485,6 +739,18 @@ function formatMoney(value) {
     style: "currency",
     currency: "USD"
   }).format(Number(value));
+}
+
+function formatMoneyBbd(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "BBD"
+  }).format(Number(value));
+}
+
+function valueOf(selector) {
+  return document.querySelector(selector)?.value.trim() || "";
 }
 
 function escapeHtml(value) {

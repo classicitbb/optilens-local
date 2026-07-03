@@ -84,6 +84,14 @@ const {
   updateShipmentStatus
 } = require("./lib/delivery");
 const {
+  claimAutomationJob: claimBeSwiftAutomationJob,
+  createAutomationJob: createBeSwiftAutomationJob,
+  getCoForShipment,
+  prepareCoDraft,
+  saveCoDraft,
+  updateAutomationJobStatus: updateBeSwiftAutomationJobStatus
+} = require("./lib/beswift-co");
+const {
   findInvoiceItem,
   getStatement,
   listCustomers,
@@ -491,7 +499,7 @@ const mimeTypes = {
   ".ico": "image/x-icon"
 };
 
-const VAULT_CATEGORIES = ["SQL Server", "PSQL", "ODBC", "Access DB", "API Keys", "Other"];
+const VAULT_CATEGORIES = ["SQL Server", "PSQL", "ODBC", "Access DB", "API Keys", "Web Portals", "Other"];
 
 async function buildVaultConnectivityReport(data) {
   const categories = {};
@@ -555,6 +563,7 @@ async function checkVaultEntryConnectivity(category, entry) {
     if (category === "ODBC") return checkOdbcVaultEntry(entry);
     if (category === "Access DB") return checkAccessVaultEntry(entry);
     if (category === "API Keys") return checkApiKeyVaultEntry(entry);
+    if (category === "Web Portals") return checkWebPortalVaultEntry(entry);
     return entryConnectivity(entry, "warning", "Saved", "No connectivity check is configured for this entry type.");
   } catch (error) {
     return entryConnectivity(entry, "error", "Check failed", error.message || "Connectivity check failed.");
@@ -692,6 +701,21 @@ function checkApiKeyVaultEntry(entry) {
     return entryConnectivity(entry, "warning", "Credentials incomplete", "Add a base URL and API key before connectivity can be checked.");
   }
   return entryConnectivity(entry, "warning", "Saved", "API key entries are saved, but no safe non-destructive connectivity check is configured.");
+}
+
+function checkWebPortalVaultEntry(entry) {
+  const fields = vaultFieldMap(entry);
+  const portalUrl = fields.url || fields.portalurl || fields.baseurl || "";
+  const username = fields.username || fields.user || fields.login || "";
+  const password = fields.password || fields.pwd || "";
+  const missing = [];
+  if (!portalUrl) missing.push("portal URL");
+  if (!username) missing.push("username");
+  if (!password) missing.push("password");
+  if (missing.length) {
+    return entryConnectivity(entry, "warning", "Credentials incomplete", `Missing ${missing.join(", ")}.`);
+  }
+  return entryConnectivity(entry, "warning", "Saved", "Portal credentials are saved; no login attempt is run from connectivity checks.");
 }
 
 function entryConnectivity(entry, state, label, detail) {
@@ -1051,6 +1075,53 @@ const server = http.createServer(async (req, res) => {
       }
 
       return { sessions: await closeShipmentSessionsBatch(requested, body.dispatcherId || "", actor.userId) };
+    });
+  }
+
+  const shipmentCoMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/co$/);
+  if (shipmentCoMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return getCoForShipment(shipmentCoMatch[1]);
+    });
+  }
+
+  if (shipmentCoMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const application = await prepareCoDraft(shipmentCoMatch[1], await readJsonBody(req), actor.userId);
+      return { application };
+    }, 201);
+  }
+
+  const coDraftMatch = url.pathname.match(/^\/api\/delivery\/co-applications\/([^/]+)\/draft$/);
+  if (coDraftMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const application = await saveCoDraft(coDraftMatch[1], await readJsonBody(req), actor.userId);
+      return { application };
+    });
+  }
+
+  const coJobCreateMatch = url.pathname.match(/^\/api\/delivery\/co-applications\/([^/]+)\/automation-jobs$/);
+  if (coJobCreateMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const job = await createBeSwiftAutomationJob(coJobCreateMatch[1], actor.userId);
+      return { job };
+    }, 201);
+  }
+
+  const extensionClaimMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)$/);
+  if (extensionClaimMatch && req.method === "GET") {
+    return handleApi(res, async () => claimBeSwiftAutomationJob(extensionClaimMatch[1]));
+  }
+
+  const extensionStatusMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)\/status$/);
+  if (extensionStatusMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const job = await updateBeSwiftAutomationJobStatus(extensionStatusMatch[1], await readJsonBody(req));
+      return { job };
     });
   }
 
