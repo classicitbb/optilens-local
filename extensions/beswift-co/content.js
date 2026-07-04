@@ -19,6 +19,21 @@
     showBanner("OptiLens BeSwift fill complete. Review the certificate before submitting.");
   }
 
+  function findSignInButton() {
+    // BeSwift's home page currently exposes two possible Sign In triggers:
+    //   <a class="btn btn-trial router-link-active"><span> Sign In </span></a>
+    //   <span class="btn btn-border-filled"> Sign In </span>
+    // Prefer an exact (trimmed) text match on one of these "btn"-styled
+    // elements first, falling back to a looser substring match anywhere on
+    // the page if the markup changes again.
+    const clickable = [...document.querySelectorAll("a.btn, span.btn, button.btn")];
+    const exact = clickable.find((el) => (el.textContent || "").trim().toLowerCase() === "sign in");
+    if (exact) return exact;
+
+    return [...document.querySelectorAll("button, a, span")]
+      .find((el) => /sign in|log in/i.test(el.textContent || ""));
+  }
+
   async function loginIfNeeded(portal) {
     let user = findByAny(["username", "user name", "login", "email"]);
     let pass = document.querySelector("input[type='password']");
@@ -28,8 +43,7 @@
       // show the login form directly — a "Sign In" button has to be clicked first,
       // which then renders the username/password fields asynchronously (SPA route
       // change / dialog), so poll for them rather than assuming they're immediate.
-      const signInBtn = [...document.querySelectorAll("button, a, span")]
-        .find((el) => /sign in|log in/i.test(el.textContent || ""));
+      const signInBtn = findSignInButton();
       if (!signInBtn) {
         throw new Error("Could not find a Sign In button on the BeSwift page.");
       }
