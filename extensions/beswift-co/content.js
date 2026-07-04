@@ -20,16 +20,54 @@
   }
 
   async function loginIfNeeded(portal) {
-    const user = findByAny(["username", "user name", "login", "email"]);
-    const pass = document.querySelector("input[type='password']");
-    if (user && pass) {
-      typeValue(user, portal.username);
-      typeValue(pass, portal.password);
-      const submit = [...document.querySelectorAll("button,input[type='submit']")]
-        .find((el) => /login|sign in|submit/i.test(el.textContent || el.value || ""));
-      if (submit) submit.click();
-      await wait(3500);
+    let user = findByAny(["username", "user name", "login", "email"]);
+    let pass = document.querySelector("input[type='password']");
+
+    if (!user || !pass) {
+      // Current BeSwift home page (https://training.beswift.gov.bb/#/home) doesn't
+      // show the login form directly — a "Sign In" button has to be clicked first,
+      // which then renders the username/password fields asynchronously (SPA route
+      // change / dialog), so poll for them rather than assuming they're immediate.
+      const signInBtn = [...document.querySelectorAll("button, a, span")]
+        .find((el) => /sign in|log in/i.test(el.textContent || ""));
+      if (!signInBtn) {
+        throw new Error("Could not find a Sign In button on the BeSwift page.");
+      }
+      signInBtn.click();
+      await wait(800);
+
+      const found = await waitFor(() => {
+        const u = findByAny(["username", "user name", "login", "email"]);
+        const p = document.querySelector("input[type='password']");
+        return u && p ? { u, p } : null;
+      }, 10000, 300);
+
+      if (!found) {
+        throw new Error("Sign In button was clicked but the login form never appeared.");
+      }
+      user = found.u;
+      pass = found.p;
     }
+
+    typeValue(user, portal.username);
+    typeValue(pass, portal.password);
+    const submit = [...document.querySelectorAll("button,input[type='submit']")]
+      .find((el) => /login|sign in|submit/i.test(el.textContent || el.value || ""));
+    if (submit) submit.click();
+    await wait(3500);
+  }
+
+  function waitFor(fn, timeoutMs, intervalMs) {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const tick = () => {
+        const result = fn();
+        if (result) return resolve(result);
+        if (Date.now() - start >= timeoutMs) return resolve(null);
+        setTimeout(tick, intervalMs);
+      };
+      tick();
+    });
   }
 
   async function fillHeader(payload) {
