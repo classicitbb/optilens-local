@@ -9,11 +9,7 @@ const { getCatalogEntries, touchCatalogEntries, learnCatalogEntry, normalizeName
 const CONFIG = {
   company: {
     name: "Classic Visions",
-    // Confirmed live in BeSwift (training.beswift.gov.bb): switching Applicant
-    // Type to "Other" exposes a TIN dropdown with exactly one option, which
-    // auto-fills Name "Classic Vision" and Address "Uplands, Bridgetown" — this
-    // is that TIN, i.e. the value the extension must select there.
-    tin: "1111000000013",
+    tin: "",
     address: "Uplands Factory, St John",
     city: "Bridgetown",
     parish: "St. John",
@@ -34,11 +30,7 @@ const CONFIG = {
     commodityType: "Manufactured",
     countryOfOrigin: "Barbados",
     ruleOfOrigin: "Percentage Value",
-    // Confirmed live: the real BeSwift dropdown option is the bare letter "L",
-    // not a descriptive string — typing the long form finds no match and the
-    // field is left blank. "46.9% per company records" is Russell's own note on
-    // what "L" means, kept here for context only.
-    originCriterion: "L",
+    originCriterion: "L (46.9% per company records)",
     packageType: "Box, fibreboard",
     unitOfMeasure: "Number of Units",
     cubeUnit: "Cubic metre",
@@ -102,22 +94,6 @@ const CONFIG = {
     FedEx: "FedEx Express"
   }
 };
-
-// BeSwift's own Country dropdown (confirmed live) always spells out "Saint"
-// in full (e.g. "SAINT VINCENT AND THE GRENADINES", "SAINT KITTS AND NEVIS"),
-// while Innovations' Countries table (and therefore CONFIG.ports' keys, which
-// must stay in sync with that raw DB spelling) abbreviates it as "St" for some
-// countries (e.g. "St Vincent and The Grenadines") but not others. Typing the
-// abbreviated form into BeSwift's live-filtered Country field finds nothing
-// ("No data available", confirmed live) and leaves the required field blank.
-// Apply this only when producing the BeSwift-facing payload value, never to
-// the destCountry used for the CONFIG.ports[destCountry] lookup above/below,
-// since that lookup's keys intentionally match the raw DB spelling.
-function toBeswiftCountryName(name) {
-  const value = text(name);
-  if (!value) return value;
-  return value.replace(/\bSt\.?\s+/i, "Saint ");
-}
 
 function detectCarrier(shippingMethodName, shippingMethodId) {
   const name = String(shippingMethodName || "").toUpperCase();
@@ -588,17 +564,12 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
     applicantReference: `SHP-${shipmentId}`,
     regime: CONFIG.defaults.regime,
     serviceType: CONFIG.defaults.serviceType,
-    // Confirmed live: Applicant Type defaults to "Personal" (prefilled with the
-    // logged-in BeSwift user's own individual TIN/name), but Classic Visions
-    // must file as "Other" (a company), which exposes CONFIG.company.tin's
-    // single dropdown option and auto-fills Name/Address/Country/Parish from it.
-    applicantType: "Other",
     applicant: CONFIG.company,
     importer: {
       name: [contactName, text(h.CustomerName)].filter(Boolean).join(" - "),
       company: text(h.CustomerName),
       address: importerAddr,
-      country: toBeswiftCountryName(destCountry),
+      country: destCountry,
       phone: text(h.ContactPhone || h.PhoneNumber),
       email: text(h.ContactEmail || h.GeneralEmailAddress)
     },
@@ -607,7 +578,7 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
     transport: {
       countryOfIssue: "Barbados",
       portOfLoading: CONFIG.defaults.portOfLoading,
-      countryOfDestination: toBeswiftCountryName(destCountry),
+      countryOfDestination: destCountry,
       portOfDischarge: portDischarge,
       modeOfTransport: CONFIG.defaults.modeOfTransport,
       carrier,

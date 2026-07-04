@@ -588,11 +588,6 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
     applicantReference: `SHP-${shipmentId}`,
     regime: CONFIG.defaults.regime,
     serviceType: CONFIG.defaults.serviceType,
-    // Confirmed live: Applicant Type defaults to "Personal" (prefilled with the
-    // logged-in BeSwift user's own individual TIN/name), but Classic Visions
-    // must file as "Other" (a company), which exposes CONFIG.company.tin's
-    // single dropdown option and auto-fills Name/Address/Country/Parish from it.
-    applicantType: "Other",
     applicant: CONFIG.company,
     importer: {
       name: [contactName, text(h.CustomerName)].filter(Boolean).join(" - "),
