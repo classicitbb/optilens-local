@@ -1,18 +1,39 @@
 (function () {
+  // BeSwift's Sign In flow spans three separate page loads (confirmed live):
+  //   1. Home page (training.beswift.gov.bb) — click Sign In.
+  //   2. Real cross-origin OAuth redirect to a Keycloak login page
+  //      (sso.training.beswift.gov.bb) — this is a genuine navigation, so it
+  //      fully unloads this script; there is no way to "wait" across it in
+  //      the same execution.
+  //   3. Redirect back to the home page, now authenticated.
+  // Each step below is therefore a fresh, stateless content.js injection,
+  // orchestrated by background.js watching tab navigation between steps
+  // rather than one continuous script that assumes it survives the redirect.
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message?.type !== "fillBeswiftCo") return false;
-    runFill(message).then(() => sendResponse({ ok: true })).catch((error) => {
-      report(message.baseUrl, message.job.automationJobId, "error", error.message);
-      sendResponse({ ok: false, error: error.message });
-    });
-    return true;
+    if (message?.type === "clickSignIn") {
+      handleClickSignIn().then((result) => sendResponse({ ok: true, ...result })).catch((error) => {
+        sendResponse({ ok: false, error: error.message });
+      });
+      return true;
+    }
+    if (message?.type === "fillLogin") {
+      handleFillLogin(message).then(() => sendResponse({ ok: true })).catch((error) => {
+        sendResponse({ ok: false, error: error.message });
+      });
+      return true;
+    }
+    if (message?.type === "fillBeswiftCo") {
+      runFill(message).then(() => sendResponse({ ok: true })).catch((error) => {
+        sendResponse({ ok: false, error: error.message });
+      });
+      return true;
+    }
+    return false;
   });
 
   async function runFill(ctx) {
     const payload = ctx.payload.payload;
-    await report(ctx.baseUrl, ctx.job.automationJobId, "logging_in", "Starting BeSwift fill job.");
-    await loginIfNeeded(ctx.portal);
-    await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Login step complete. Filling available fields.");
+    await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
     await fillHeader(payload);
     await fillItems(payload);
     await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
@@ -34,41 +55,47 @@
       .find((el) => /sign in|log in/i.test(el.textContent || ""));
   }
 
-  async function loginIfNeeded(portal) {
-    let user = findByAny(["username", "user name", "login", "email"]);
-    let pass = document.querySelector("input[type='password']");
+  async function handleClickSignIn() {
+    // Poll for either a Sign In button (need to log in) or the actual CO
+    // application form already being present (an existing session means
+    // we're already signed in) — actively waiting for one of these two
+    // positive signals avoids silently concluding "already signed in" just
+    // because the button happened to be slow to render on a fresh page.
+    const result = await waitFor(() => {
+      const btn = findSignInButton();
+      if (btn) return { type: "button", el: btn };
+      if (findByAny(["applicant reference", "customer order no"])) return { type: "already" };
+      return null;
+    }, 10000, 300);
 
-    if (!user || !pass) {
-      // Current BeSwift home page (https://training.beswift.gov.bb/#/home) doesn't
-      // show the login form directly — a "Sign In" button has to be clicked first,
-      // which then renders the username/password fields asynchronously (SPA route
-      // change / dialog), so poll for them rather than assuming they're immediate.
-      const signInBtn = findSignInButton();
-      if (!signInBtn) {
-        throw new Error("Could not find a Sign In button on the BeSwift page.");
-      }
-      signInBtn.click();
-      await wait(800);
-
-      const found = await waitFor(() => {
-        const u = findByAny(["username", "user name", "login", "email"]);
-        const p = document.querySelector("input[type='password']");
-        return u && p ? { u, p } : null;
-      }, 10000, 300);
-
-      if (!found) {
-        throw new Error("Sign In button was clicked but the login form never appeared.");
-      }
-      user = found.u;
-      pass = found.p;
+    if (!result) {
+      throw new Error("Could not find a Sign In button or the BeSwift form on this page.");
     }
+    if (result.type === "already") {
+      return { alreadySignedIn: true };
+    }
+    result.el.click();
+    return { alreadySignedIn: false };
+  }
 
-    typeValue(user, portal.username);
-    typeValue(pass, portal.password);
-    const submit = [...document.querySelectorAll("button,input[type='submit']")]
-      .find((el) => /login|sign in|submit/i.test(el.textContent || el.value || ""));
-    if (submit) submit.click();
-    await wait(3500);
+  async function handleFillLogin({ username, password }) {
+    const found = await waitFor(() => {
+      const u = document.querySelector("input#username, input[name='username']") || findByAny(["username", "user name", "login", "email"]);
+      const p = document.querySelector("input[type='password']");
+      return u && p ? { u, p } : null;
+    }, 10000, 300);
+
+    if (!found) {
+      throw new Error("The BeSwift sign-in form never appeared.");
+    }
+    typeValue(found.u, username);
+    typeValue(found.p, password);
+    const submit = document.querySelector("#kc-login, button[type='submit'], input[type='submit']")
+      || [...document.querySelectorAll("button,input[type='submit']")].find((el) => /login|sign in|submit/i.test(el.textContent || el.value || ""));
+    if (!submit) {
+      throw new Error("Could not find the BeSwift sign-in submit button.");
+    }
+    submit.click();
   }
 
   function waitFor(fn, timeoutMs, intervalMs) {
