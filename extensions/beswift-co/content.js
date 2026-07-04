@@ -315,16 +315,36 @@
   }
 
   function findByAny(labels, root = document) {
-    const wanted = labels.map((label) => String(label).toLowerCase());
+    const wanted = labels.map((label) => String(label).toLowerCase().trim());
     const inputs = [...root.querySelectorAll("input,textarea,select")];
-    return inputs.find((el) => {
-      const aria = String(el.getAttribute("aria-label") || "").toLowerCase();
-      const name = String(el.getAttribute("name") || "").toLowerCase();
-      const id = String(el.id || "").toLowerCase();
-      const placeholder = String(el.getAttribute("placeholder") || "").toLowerCase();
-      const text = [aria, name, id, placeholder].join(" ");
-      return wanted.some((label) => text.includes(label));
-    });
+    const candidates = inputs.map((el) => {
+      const fields = [
+        String(el.getAttribute("aria-label") || "").toLowerCase().trim(),
+        String(el.getAttribute("name") || "").toLowerCase().trim(),
+        String(el.id || "").toLowerCase().trim(),
+        String(el.getAttribute("placeholder") || "").toLowerCase().trim()
+      ];
+      const exact = wanted.some((label) => fields.includes(label));
+      const partial = !exact && wanted.some((label) => fields.some((field) => field.includes(label)));
+      return { el, exact, partial };
+    }).filter((c) => c.exact || c.partial);
+
+    if (!candidates.length) return undefined;
+
+    // A short/generic label like "Name" or "Country" is a substring of more
+    // specific labels elsewhere on the form ("Contact Name", "Country Of
+    // Destination") — prefer an exact (trimmed) label match over a partial
+    // one so those don't get matched by accident. Within whichever precision
+    // tier actually has candidates, prefer one that's editable right now
+    // rather than blindly taking the first in DOM order — a label can match
+    // several fields in the same scope (e.g. a disabled field from a section
+    // that hasn't cascaded/unlocked yet, alongside the one actually meant to
+    // be filled), and grabbing the wrong one was throwing "not editable" even
+    // though a usable field existed.
+    const exactMatches = candidates.filter((c) => c.exact);
+    const pool = exactMatches.length ? exactMatches : candidates;
+    const editableMatch = pool.find((c) => isEditable(c.el));
+    return (editableMatch || pool[0]).el;
   }
 
   function clickByText(text, root = document) {
