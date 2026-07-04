@@ -204,11 +204,17 @@
   }
 
   async function report(baseUrl, jobId, status, message) {
-    await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(jobId)}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, message })
-    }).catch(() => {});
+    // The BeSwift page is HTTPS; a direct fetch() to our http:// OptiLens
+    // server from this content script gets blocked by the browser as mixed
+    // content. Relay through the background service worker instead, which
+    // isn't subject to the page's mixed-content restriction.
+    await new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "reportStatus", baseUrl, jobId, status, message }, () => resolve());
+      } catch (error) {
+        resolve();
+      }
+    });
   }
 
   function showBanner(message) {
