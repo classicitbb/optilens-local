@@ -33,11 +33,29 @@
 
   async function runFill(ctx) {
     const payload = ctx.payload.payload;
+    await ensureOnCertificateForm();
     await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
     await fillHeader(payload);
     await fillItems(payload);
     await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
     showBanner("OptiLens BeSwift fill complete. Review the certificate before submitting.");
+  }
+
+  async function ensureOnCertificateForm() {
+    // After sign-in we land back on the home page, not the new-certificate
+    // form — it lives at a separate hash route. Confirmed live that this is
+    // a client-side (Vue Router hash-mode) navigation only, no full page
+    // reload, so this content script instance survives it; just have to
+    // wait for the form to actually render afterward (also confirmed live —
+    // it can take a few seconds after the hash changes).
+    const targetPath = "/lpco/certificates/new";
+    if (!location.hash.includes(targetPath)) {
+      location.hash = `#${targetPath}`;
+    }
+    const found = await waitFor(() => findByAny(["applicant reference"]), 10000, 300);
+    if (!found) {
+      throw new Error(`The new certificate form never appeared at ${targetPath}.`);
+    }
   }
 
   function findSignInButton() {
