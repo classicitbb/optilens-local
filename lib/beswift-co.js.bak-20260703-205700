@@ -353,11 +353,8 @@ async function claimAutomationJob(claimCode) {
         inserted.claimed_at AS claimedAt,
         inserted.completed_at AS completedAt
       WHERE claim_code = @claim_code
+        AND job_status = N'queued'
         AND expires_at > SYSUTCDATETIME()
-        AND (
-          job_status = N'queued'
-          OR (job_status = N'claimed' AND claimed_at < DATEADD(minute, -10, SYSUTCDATETIME()))
-        )
     `);
 
   if (!result.recordset.length) {
