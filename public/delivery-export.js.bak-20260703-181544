@@ -291,10 +291,8 @@ function renderCoHeaderPreview(payload) {
     ["Contact", [payload.importer?.phone, payload.importer?.email].filter(Boolean).join(" · ")],
     ["Invoices", payload.invoiceDetails?.invoiceNumbers],
     ["Invoice date", payload.invoiceDetails?.invoiceDate],
-    ["Customer order no", payload.invoiceDetails?.customerOrderNo],
-    ["Presenting bank", payload.invoiceDetails?.presentingBank],
+    ["Order refs", payload.invoiceDetails?.customerOrderNo],
     ["Carrier", payload.transport?.carrier],
-    ["Ship date", payload.transport?.shippingDate],
     ["Discharge port", payload.transport?.portOfDischarge],
     ["Delivery terms", payload.transport?.deliveryTerms],
     ["Bank", [payload.bank?.name, payload.bank?.accountNumber].filter(Boolean).join(" \u00b7 ")]

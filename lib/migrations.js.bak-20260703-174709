@@ -14,8 +14,7 @@ const migrationFiles = [
   "011-docstudio-schema.sql",
   "012-beswift-co-schema.sql",
   "013-shipment-sync-columns.sql",
-  "014-customer-commercial-params.sql",
-  "015-co-item-catalog.sql"
+  "014-customer-commercial-params.sql"
 ];
 
 async function runMigrations() {

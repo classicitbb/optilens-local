@@ -1,0 +1,115 @@
+const { getAppPool } = require("./db");
+
+function normalizeName(name) {
+  return String(name || "").trim().replace(/\s+/g, " ");
+}
+
+function nullableText(value) {
+  const text = String(value ?? "").trim();
+  return text || null;
+}
+
+async function getCatalogEntries(names) {
+  const unique = [...new Set((names || []).map(normalizeName).filter(Boolean))];
+  const map = new Map();
+  if (!unique.length) return map;
+
+  const pool = await getAppPool();
+  const request = pool.request();
+  const params = unique.map((name, index) => {
+    const key = `name${index}`;
+    request.input(key, name);
+    return `@${key}`;
+  });
+
+  const result = await request.query(`
+    SELECT
+      item_name AS itemName,
+      item_category AS itemCategory,
+      hs_code AS hsCode,
+      hs_description AS hsDescription,
+      commercial_description AS commercialDescription,
+      unit_of_measure AS unitOfMeasure,
+      weight_kg AS weightKg,
+      country_of_origin AS countryOfOrigin,
+      times_seen AS timesSeen
+    FROM delivery.co_item_catalog
+    WHERE item_name IN (${params.join(", ")})
+  `);
+
+  for (const row of result.recordset) map.set(row.itemName, row);
+  return map;
+}
+
+async function touchCatalogEntries(entries) {
+  const unique = new Map();
+  for (const entry of entries || []) {
+    const name = normalizeName(entry?.name);
+    if (!name) continue;
+    if (!unique.has(name)) unique.set(name, entry.category || null);
+  }
+  if (!unique.size) return;
+
+  const pool = await getAppPool();
+  for (const [name, category] of unique) {
+    await pool.request()
+      .input("item_name", name)
+      .input("item_category", category)
+      .query(`
+        MERGE delivery.co_item_catalog AS target
+        USING (SELECT @item_name AS item_name) AS src
+        ON target.item_name = src.item_name
+        WHEN MATCHED THEN
+          UPDATE SET times_seen = target.times_seen + 1, last_seen_at = SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN
+          INSERT (item_name, item_category, times_seen, first_seen_at, last_seen_at)
+          VALUES (@item_name, @item_category, 1, SYSUTCDATETIME(), SYSUTCDATETIME());
+      `);
+  }
+}
+
+async function learnCatalogEntry(name, fields = {}, actorUserId = null) {
+  const itemName = normalizeName(name);
+  if (!itemName) return null;
+
+  const pool = await getAppPool();
+  const existing = await pool.request()
+    .input("item_name", itemName)
+    .query(`SELECT co_item_catalog_id FROM delivery.co_item_catalog WHERE item_name = @item_name`);
+
+  const request = pool.request()
+    .input("item_name", itemName)
+    .input("hs_code", nullableText(fields.hsCode))
+    .input("commercial_description", nullableText(fields.commercialDescription))
+    .input("weight_kg", fields.weightKg !== undefined && fields.weightKg !== null && fields.weightKg !== ""
+      ? Number(fields.weightKg)
+      : null)
+    .input("actor_user_id", actorUserId);
+
+  if (existing.recordset.length) {
+    await request.query(`
+      UPDATE delivery.co_item_catalog
+      SET hs_code = COALESCE(@hs_code, hs_code),
+          commercial_description = COALESCE(@commercial_description, commercial_description),
+          weight_kg = COALESCE(@weight_kg, weight_kg),
+          updated_by_user_id = @actor_user_id,
+          updated_at = SYSUTCDATETIME()
+      WHERE item_name = @item_name
+    `);
+  } else {
+    await request.query(`
+      INSERT INTO delivery.co_item_catalog (
+        item_name, hs_code, commercial_description, weight_kg,
+        times_seen, first_seen_at, last_seen_at, updated_by_user_id, updated_at
+      )
+      VALUES (
+        @item_name, @hs_code, @commercial_description, @weight_kg,
+        1, SYSUTCDATETIME(), SYSUTCDATETIME(), @actor_user_id, SYSUTCDATETIME()
+      )
+    `);
+  }
+
+  return null;
+}
+
+module.exports = { getCatalogEntries, touchCatalogEntries, learnCatalogEntry, normalizeName };

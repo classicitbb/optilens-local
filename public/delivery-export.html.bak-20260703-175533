@@ -253,15 +253,13 @@
                         <th>HS</th>
                         <th>Description</th>
                         <th>Qty</th>
-                        <th>UOM</th>
                         <th>Weight kg</th>
-                        <th>Country of origin</th>
                         <th>Unit cost</th>
                         <th>Value</th>
                       </tr>
                     </thead>
                     <tbody id="coItemsRows">
-                      <tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>
+                      <tr><td colspan="7">Prepare a draft to load certificate items.</td></tr>
                     </tbody>
                   </table>
                 </div>

@@ -3,8 +3,6 @@ const sql = require("mssql");
 const { getAppPool, getSourcePool } = require("./db");
 const { getShipmentSession } = require("./delivery");
 const { findVaultEntry, fieldMap } = require("./credential-vault");
-const { getCustomerParameters } = require("./customer-parameters");
-const { getCatalogEntries, touchCatalogEntries, learnCatalogEntry, normalizeName } = require("./co-item-catalog");
 
 const CONFIG = {
   company: {
@@ -25,8 +23,7 @@ const CONFIG = {
     portOfLoading: "GRANTLEY ADAMS INTL. AIRPORT",
     modeOfTransport: "Air",
     deliveryTerms: "Free on Board",
-    currency: "BARBADOS DOLLAR",
-    presentingBank: "Bank of Nova Scotia",
+    currency: "BB$",
     commodityType: "Manufactured",
     countryOfOrigin: "Barbados",
     ruleOfOrigin: "Percentage Value",
@@ -95,13 +92,6 @@ const CONFIG = {
   }
 };
 
-function detectCarrier(shippingMethodName, shippingMethodId) {
-  const name = String(shippingMethodName || "").toUpperCase();
-  if (name.includes("FEDEX")) return "FedEx";
-  if (name.includes("DHL")) return "DHL";
-  return CONFIG.carriersByMethod[String(shippingMethodId)] || "DHL";
-}
-
 async function getCoForShipment(sessionId) {
   const pool = await getAppPool();
   const result = await pool.request()
@@ -141,7 +131,6 @@ async function prepareCoDraft(sessionId, draftInput = {}, actorUserId = null) {
 
   const generated = await buildPayloadFromShipment(session, draftInput);
   const editable = mergeEditablePayload(generated.payload, draftInput);
-  await learnFromItems(editable.items, actorUserId);
   const warnings = [...generated.warnings, ...validateEditablePayload(editable)];
   const portalEnvironment = normalizeEnvironment(draftInput.portalEnvironment);
   const pool = await getAppPool();
@@ -232,7 +221,6 @@ async function saveCoDraft(coApplicationId, draftInput = {}, actorUserId = null)
   const current = await getApplicationById(coApplicationId);
   const payload = current.payload;
   const editable = mergeEditablePayload(payload, draftInput);
-  await learnFromItems(editable.items, actorUserId);
   const warnings = validateEditablePayload(editable);
   const pool = await getAppPool();
   const result = await pool.request()
@@ -513,9 +501,7 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
         il.Quantity,
         il.InvoicePrice,
         il.Suppressed,
-        il.LineNumber,
-        il.Chirality,
-        il.CategoryType
+        il.LineNumber
       FROM dbo.ShipmentItems si
       JOIN dbo.Orders o ON o.OrderID = si.OrderID
       LEFT JOIN dbo.Invoices i ON i.OrderID = o.OrderID AND i.Status <> 99
@@ -531,17 +517,16 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
   }
 
   const warnings = [];
-  const composed = await composeShipmentItems(linesResult.recordset, warnings);
-  const { items, jobCount } = composed;
+  const aggregate = aggregateLines(linesResult.recordset, warnings);
+  const jobCount = aggregate.orderIds.size;
+  const items = buildItems(aggregate, jobCount, warnings);
   const box = selectBox(jobCount, draftInput.boxCode);
   const itemsWeight = round(items.reduce((sum, item) => sum + Number(item.weightKg || 0), 0), 3);
   const grossKg = round(itemsWeight + Number(box.tareKg || 0), 3);
   const dimKg = round((box.lengthCm * box.widthCm * box.heightCm) / CONFIG.carriers.dimDivisorCm3PerKg, 3);
   const destCountry = text(h.CountryName);
-  const customerParams = await getCustomerParameters(h.AccountNumber);
-  const portDischarge = text(customerParams?.portOfDischarge) || CONFIG.ports[destCountry] || "";
-  const deliveryTerms = text(customerParams?.deliveryTerms) || CONFIG.defaults.deliveryTerms;
-  const carrierBase = detectCarrier(h.ShippingMethodName, h.ShippingMethodID);
+  const portDischarge = CONFIG.ports[destCountry] || "";
+  const carrierBase = CONFIG.carriersByMethod[String(h.ShippingMethodID)] || "DHL";
   const carrier = CONFIG.carrierPicklist[carrierBase] || carrierBase;
   const importerAddr = [h.Line1, h.Line2, h.Locality, h.PostCode].map(text).filter(Boolean).join(", ");
   const contactName = [h.FirstName, h.Surname].map(text).filter(Boolean).join(" ");
@@ -576,34 +561,25 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
       countryOfIssue: "Barbados",
       portOfLoading: CONFIG.defaults.portOfLoading,
       countryOfDestination: destCountry,
-      portOfDischarge: portDischarge,
+      portOfDischarge,
       modeOfTransport: CONFIG.defaults.modeOfTransport,
       carrier,
       shippingMarks: marks,
-      shippingDate: dateOnly(h.ShippedTime) || dateOnly(new Date(Date.now() + 86400000)),
-      deliveryTerms,
+      shippingDate: dateOnly(h.ShippedTime) || "",
+      deliveryTerms: CONFIG.defaults.deliveryTerms,
       trackingNumber: text(h.TrackingNumber)
-    },
-    bank: {
-      name: text(customerParams?.bankName),
-      accountName: text(customerParams?.bankAccountName),
-      accountNumber: text(customerParams?.bankAccountNumber),
-      swiftBic: text(customerParams?.bankSwiftBic),
-      routingNumber: text(customerParams?.bankRoutingNumber),
-      branchAddress: text(customerParams?.bankBranchAddress)
     },
     invoiceDetails: {
       currency: CONFIG.defaults.currency,
-      customerOrderNo: String(shipmentId),
-      presentingBank: CONFIG.defaults.presentingBank,
+      customerOrderNo: [...aggregate.orderRefs].slice(0, 5).join(", "),
       cubeQuantity: box.cubeM3,
       cubeUnit: CONFIG.defaults.cubeUnit,
       packingCost: 0,
-      freightCost: round(composed.freightTotal, 2),
+      freightCost: round(aggregate.buckets.freight, 2),
       insuranceCost: 0,
       otherCost: 0,
-      invoiceNumbers: [...composed.invoiceNos].join(", "),
-      invoiceDate: [...composed.invoiceDates].sort().at(-1) || ""
+      invoiceNumbers: [...aggregate.invoiceNos].join(", "),
+      invoiceDate: [...aggregate.invoiceDates].sort().at(-1) || ""
     },
     packaging: {
       box: box.code,
@@ -629,163 +605,99 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
   return { payload, warnings };
 }
 
-const LENS_BASE_CATEGORY = 1;
-const LENS_ADDON_CATEGORIES = new Set([4, 6, 7, 10, 11, 13]);
-const FRAME_CATEGORY = 8;
-const FREIGHT_CATEGORY = 12;
-const EXCLUDED_CATEGORIES = new Set([9, 17]);
-
-function stripSide(description) {
-  const value = text(description);
-  const left = value.match(/^left:\s*/i);
-  if (left) return { side: "L", name: value.slice(left[0].length).trim() };
-  const right = value.match(/^right:\s*/i);
-  if (right) return { side: "R", name: value.slice(right[0].length).trim() };
-  return { side: null, name: value };
-}
-
-async function composeShipmentItems(lines, warnings) {
-  const byOrder = new Map();
+function aggregateLines(lines, warnings) {
+  const buckets = { lensOther: 0, lensGlass: 0, extras: 0, frames: 0, accessories: 0, freight: 0 };
+  const qty = { lensOther: 0, lensGlass: 0, frames: 0, accessories: 0 };
+  const orderIds = new Set();
   const orderRefs = new Set();
   const invoiceNos = new Set();
   const invoiceDates = new Set();
 
   for (const row of lines) {
-    if (row.OrderID !== null && row.OrderID !== undefined) {
-      const key = String(row.OrderID);
-      if (!byOrder.has(key)) byOrder.set(key, []);
-      byOrder.get(key).push(row);
-    }
+    if (row.OrderID !== null && row.OrderID !== undefined) orderIds.add(String(row.OrderID));
     if (text(row.CustomerOrdReference)) orderRefs.add(text(row.CustomerOrdReference));
     if (row.InvoiceID !== null && row.InvoiceID !== undefined) invoiceNos.add(String(row.InvoiceID));
     if (row.InvoiceTime) invoiceDates.add(dateOnly(row.InvoiceTime));
-  }
+    if (!row.Description) continue;
 
-  const composed = [];
-  let freightTotal = 0;
-
-  for (const [, orderLines] of byOrder) {
-    const lensParts = [];
-    const frameItems = [];
-    const otherItems = [];
-
-    for (const row of orderLines) {
-      if (!row.Description) continue;
-      const category = Number(row.CategoryType);
-      const unitPrice = Number(row.InvoicePrice || 0);
-      const lineQty = Number(row.Quantity || 0);
-      const lineTotal = unitPrice * lineQty;
-
-      if (category === FREIGHT_CATEGORY) {
-        freightTotal += lineTotal;
-        continue;
-      }
-      if (EXCLUDED_CATEGORIES.has(category)) continue;
-      if (!(lineTotal > 0)) continue;
-
-      if (category === LENS_BASE_CATEGORY || LENS_ADDON_CATEGORIES.has(category)) {
-        const { name } = stripSide(row.Description);
-        if (name) lensParts.push({ name, total: lineTotal, category });
-        continue;
-      }
-
-      if (category === FRAME_CATEGORY) {
-        frameItems.push({ name: text(row.Description), unitPrice, qty: lineQty || 1 });
-        continue;
-      }
-
-      otherItems.push({ name: text(row.Description), unitPrice, qty: lineQty || 1 });
+    const lineQty = Number(row.Quantity || 0);
+    const price = Number(row.InvoicePrice || 0);
+    const bucket = getBucket(text(row.GLAccountNumber), text(row.Description));
+    buckets[bucket] += price * lineQty;
+    if (["lensOther", "lensGlass", "frames", "accessories"].includes(bucket)) {
+      qty[bucket] += Math.trunc(lineQty);
     }
-
-    if (lensParts.length) {
-      const basePart = lensParts.find((part) => part.category === LENS_BASE_CATEGORY) || lensParts[0];
-      const orderedParts = [basePart, ...lensParts
-        .filter((part) => part !== basePart)
-        .sort((a, b) => a.category - b.category || a.name.localeCompare(b.name))];
-
-      const seenNames = new Set();
-      const nameParts = [];
-      let total = 0;
-      for (const part of orderedParts) {
-        total += part.total;
-        if (!seenNames.has(part.name)) {
-          seenNames.add(part.name);
-          nameParts.push(part.name);
-        }
-      }
-
-      composed.push({ name: nameParts.join(" + "), unitPrice: round(total, 2), qty: 1, category: "lens" });
-    }
-
-    for (const frame of frameItems) {
-      composed.push({ name: frame.name, unitPrice: round(frame.unitPrice, 2), qty: frame.qty, category: "frame" });
-    }
-    for (const other of otherItems) {
-      composed.push({ name: other.name, unitPrice: round(other.unitPrice, 2), qty: other.qty, category: "other" });
+    if (bucket === "lensOther" && !CONFIG.glMapping.lens.includes(text(row.GLAccountNumber))) {
+      warnings.push(`Unknown GL ${text(row.GLAccountNumber) || "(blank)"} treated as lens value: ${text(row.Description).slice(0, 80)}.`);
     }
   }
 
-  const grouped = new Map();
-  for (const entry of composed) {
-    const key = `${entry.name}\u241F${entry.unitPrice.toFixed(2)}`;
-    if (!grouped.has(key)) {
-      grouped.set(key, { name: entry.name, unitPrice: entry.unitPrice, qty: 0, category: entry.category });
-    }
-    grouped.get(key).qty += entry.qty;
-  }
+  if (qty.lensGlass > 0 && qty.lensOther === 0) buckets.lensGlass += buckets.extras;
+  else buckets.lensOther += buckets.extras;
 
-  const groupedItems = [...grouped.values()];
-
-  if (!groupedItems.length) {
-    warnings.push("No billable invoice lines were found to build BeSwift items from.");
-  }
-
-  await touchCatalogEntries(groupedItems.map((item) => ({ name: item.name, category: item.category })));
-  const catalog = await getCatalogEntries(groupedItems.map((item) => item.name));
-
-  const items = groupedItems.map((item) => {
-    const entry = catalog.get(normalizeName(item.name));
-    if (!entry || !entry.hsCode) {
-      warnings.push(`New item not yet classified \u2014 add HS code and weight for: ${item.name}`);
-    }
-    const defaultUom = item.category === "frame" ? "Pieces" : item.category === "lens" ? "Pairs" : "Pieces";
-    const defaultWeight = item.category === "lens" ? CONFIG.weights.lensPairUncut : 0;
-    const isGlassLens = item.category === "lens" && /\bglass\b/i.test(item.name);
-    const defaultHsCode = item.category === "lens"
-      ? (isGlassLens ? CONFIG.hsCodes.lensGlass.code : CONFIG.hsCodes.lensOther.code)
-      : "";
-    const defaultHsDescription = item.category === "lens"
-      ? (isGlassLens ? CONFIG.hsCodes.lensGlass.description : CONFIG.hsCodes.lensOther.description)
-      : "";
-
-    return {
-      name: item.name,
-      hsCode: entry?.hsCode || defaultHsCode,
-      hsDescription: entry?.hsDescription || defaultHsDescription,
-      commercialDescription: entry?.commercialDescription || item.name,
-      quantity: item.qty,
-      uom: entry?.unitOfMeasure || defaultUom,
-      countryOfOrigin: entry?.countryOfOrigin || CONFIG.defaults.countryOfOrigin,
-      unitCost: item.unitPrice,
-      value: round(item.unitPrice * item.qty, 2),
-      weightKg: entry?.weightKg != null ? Number(entry.weightKg) : defaultWeight
-    };
-  });
-
-  return { items, freightTotal, jobCount: byOrder.size, orderRefs, invoiceNos, invoiceDates };
+  return { buckets, qty, orderIds, orderRefs, invoiceNos, invoiceDates };
 }
 
-async function learnFromItems(items, actorUserId) {
-  for (const item of items || []) {
-    if (!item?.name) continue;
-    await learnCatalogEntry(item.name, {
-      hsCode: item.hsCode,
-      commercialDescription: item.commercialDescription,
-      weightKg: item.weightKg,
-      unitOfMeasure: item.uom,
-      countryOfOrigin: item.countryOfOrigin
-    }, actorUserId);
+function buildItems(aggregate, jobCount, warnings) {
+  const items = [];
+  const pairsOther = Math.ceil(aggregate.qty.lensOther / 2);
+  const pairsGlass = Math.ceil(aggregate.qty.lensGlass / 2);
+
+  if (aggregate.qty.lensOther > 0) {
+    items.push({
+      hsCode: CONFIG.hsCodes.lensOther.code,
+      hsDescription: CONFIG.hsCodes.lensOther.description,
+      commercialDescription: "Prescription spectacle lenses (plastic/resin), lab-finished",
+      quantity: aggregate.qty.lensOther,
+      uom: CONFIG.defaults.unitOfMeasure,
+      value: round(aggregate.buckets.lensOther, 2),
+      unitCost: round(aggregate.buckets.lensOther / Math.max(1, aggregate.qty.lensOther), 2),
+      weightKg: round(pairsOther * CONFIG.weights.lensPairUncut + jobCount * CONFIG.weights.jobPackagingEnvelope, 3)
+    });
   }
+
+  if (aggregate.qty.lensGlass > 0) {
+    items.push({
+      hsCode: CONFIG.hsCodes.lensGlass.code,
+      hsDescription: CONFIG.hsCodes.lensGlass.description,
+      commercialDescription: "Prescription spectacle lenses (glass), lab-finished",
+      quantity: aggregate.qty.lensGlass,
+      uom: CONFIG.defaults.unitOfMeasure,
+      value: round(aggregate.buckets.lensGlass, 2),
+      unitCost: round(aggregate.buckets.lensGlass / Math.max(1, aggregate.qty.lensGlass), 2),
+      weightKg: round(pairsGlass * CONFIG.weights.lensPairUncut, 3)
+    });
+  }
+
+  if (aggregate.qty.accessories > 0) {
+    warnings.push("Accessory HS code is not confirmed; review accessory item before queueing.");
+    items.push({
+      hsCode: "",
+      hsDescription: "Eyewear accessories/cases - HS TBC",
+      commercialDescription: "Spectacle cases and accessories",
+      quantity: aggregate.qty.accessories,
+      uom: "Pieces",
+      value: round(aggregate.buckets.accessories, 2),
+      unitCost: round(aggregate.buckets.accessories / Math.max(1, aggregate.qty.accessories), 2),
+      weightKg: round(aggregate.qty.accessories * CONFIG.weights.accessory, 3)
+    });
+  }
+
+  if (!items.length) warnings.push("No BeSwift item buckets were produced from invoice lines.");
+  return items;
+}
+
+function getBucket(gl, desc) {
+  const lower = String(desc || "").toLowerCase();
+  if (CONFIG.glMapping.extrasKeywords.some((keyword) => lower.includes(keyword))) return "extras";
+  if (CONFIG.glMapping.lens.includes(gl)) {
+    return CONFIG.glMapping.glassKeywords.some((keyword) => lower.includes(keyword)) ? "lensGlass" : "lensOther";
+  }
+  if (CONFIG.glMapping.extras.includes(gl)) return "extras";
+  if (CONFIG.glMapping.frames.includes(gl)) return "frames";
+  if (CONFIG.glMapping.accessories.includes(gl)) return "accessories";
+  if (CONFIG.glMapping.freight.includes(gl)) return "freight";
+  return "lensOther";
 }
 
 function mergeEditablePayload(payload, input = {}) {

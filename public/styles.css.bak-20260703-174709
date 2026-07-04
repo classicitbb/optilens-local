@@ -1165,14 +1165,6 @@ th {
   white-space: normal;
 }
 
-.co-item-name {
-  max-width: 220px;
-  min-width: 160px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
 .co-job-list {
   display: grid;
   gap: 10px;

@@ -155,28 +155,6 @@
       </section>
 
       <section class="workflow-panel" id="commercialInvoice">
-        <section class="workflow-block customer-params-panel">
-          <div class="section-head tight shipment-detail-head">
-            <div>
-              <h2>Customer parameters</h2>
-              <p id="customerParamsSummary">Select an export shipment to edit its customer's commercial-invoice defaults.</p>
-            </div>
-            <button class="button primary" id="saveCustomerParamsBtn" type="button" disabled>Save parameters</button>
-          </div>
-          <div class="shipment-status-line" id="customerParamsMessage" role="status"></div>
-          <div class="co-grid">
-            <label>Port of discharge<input id="cpPortOfDischarge" autocomplete="off" placeholder="Overrides the country default"></label>
-            <label>Delivery terms<input id="cpDeliveryTerms" autocomplete="off" placeholder="e.g. Free on Board"></label>
-            <label>Bank name<input id="cpBankName" autocomplete="off"></label>
-            <label>Bank account name<input id="cpBankAccountName" autocomplete="off"></label>
-            <label>Bank account number<input id="cpBankAccountNumber" autocomplete="off"></label>
-            <label>SWIFT / BIC<input id="cpBankSwiftBic" autocomplete="off"></label>
-            <label>Routing number<input id="cpBankRoutingNumber" autocomplete="off"></label>
-            <label>Bank branch address<input id="cpBankBranchAddress" autocomplete="off"></label>
-            <label class="co-wide">Notes<textarea id="cpNotes" rows="2"></textarea></label>
-          </div>
-        </section>
-
         <div class="co-workspace">
           <section class="workflow-block co-draft-panel">
             <div class="section-head tight shipment-detail-head">
@@ -249,19 +227,16 @@
                   <table class="co-items-table">
                     <thead>
                       <tr>
-                        <th>Item</th>
                         <th>HS</th>
                         <th>Description</th>
                         <th>Qty</th>
-                        <th>UOM</th>
                         <th>Weight kg</th>
-                        <th>Country of origin</th>
                         <th>Unit cost</th>
                         <th>Value</th>
                       </tr>
                     </thead>
                     <tbody id="coItemsRows">
-                      <tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>
+                      <tr><td colspan="6">Prepare a draft to load certificate items.</td></tr>
                     </tbody>
                   </table>
                 </div>

@@ -291,10 +291,8 @@ function renderCoHeaderPreview(payload) {
     ["Contact", [payload.importer?.phone, payload.importer?.email].filter(Boolean).join(" · ")],
     ["Invoices", payload.invoiceDetails?.invoiceNumbers],
     ["Invoice date", payload.invoiceDetails?.invoiceDate],
-    ["Customer order no", payload.invoiceDetails?.customerOrderNo],
-    ["Presenting bank", payload.invoiceDetails?.presentingBank],
+    ["Order refs", payload.invoiceDetails?.customerOrderNo],
     ["Carrier", payload.transport?.carrier],
-    ["Ship date", payload.transport?.shippingDate],
     ["Discharge port", payload.transport?.portOfDischarge],
     ["Delivery terms", payload.transport?.deliveryTerms],
     ["Bank", [payload.bank?.name, payload.bank?.accountNumber].filter(Boolean).join(" \u00b7 ")]
@@ -316,13 +314,11 @@ function renderCoItems(items) {
       <td><input data-co-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="Item ${index + 1} HS code"></td>
       <td><input data-co-field="commercialDescription" value="${escapeHtml(item.commercialDescription || "")}" aria-label="Item ${index + 1} description"></td>
       <td><input data-co-field="quantity" type="number" min="0" step="1" value="${escapeHtml(item.quantity ?? "")}" aria-label="Item ${index + 1} quantity"></td>
-      <td><input data-co-field="uom" value="${escapeHtml(item.uom || "")}" aria-label="Item ${index + 1} unit of measure"></td>
       <td><input data-co-field="weightKg" type="number" min="0" step="0.001" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Item ${index + 1} weight"></td>
-      <td><input data-co-field="countryOfOrigin" value="${escapeHtml(item.countryOfOrigin || "")}" aria-label="Item ${index + 1} country of origin"></td>
       <td><input data-co-field="unitCost" type="number" min="0" step="0.01" value="${escapeHtml(item.unitCost ?? "")}" aria-label="Item ${index + 1} unit cost"></td>
       <td>${formatMoneyBbd(item.value)}</td>
     </tr>
-  `).join("") || `<tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>`;
+  `).join("") || `<tr><td colspan="7">Prepare a draft to load certificate items.</td></tr>`;
 }
 
 function renderCoWarnings(warnings) {

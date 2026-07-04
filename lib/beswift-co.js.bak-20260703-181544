@@ -25,8 +25,7 @@ const CONFIG = {
     portOfLoading: "GRANTLEY ADAMS INTL. AIRPORT",
     modeOfTransport: "Air",
     deliveryTerms: "Free on Board",
-    currency: "BARBADOS DOLLAR",
-    presentingBank: "Bank of Nova Scotia",
+    currency: "BB$",
     commodityType: "Manufactured",
     countryOfOrigin: "Barbados",
     ruleOfOrigin: "Percentage Value",
@@ -94,13 +93,6 @@ const CONFIG = {
     FedEx: "FedEx Express"
   }
 };
-
-function detectCarrier(shippingMethodName, shippingMethodId) {
-  const name = String(shippingMethodName || "").toUpperCase();
-  if (name.includes("FEDEX")) return "FedEx";
-  if (name.includes("DHL")) return "DHL";
-  return CONFIG.carriersByMethod[String(shippingMethodId)] || "DHL";
-}
 
 async function getCoForShipment(sessionId) {
   const pool = await getAppPool();
@@ -541,7 +533,7 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
   const customerParams = await getCustomerParameters(h.AccountNumber);
   const portDischarge = text(customerParams?.portOfDischarge) || CONFIG.ports[destCountry] || "";
   const deliveryTerms = text(customerParams?.deliveryTerms) || CONFIG.defaults.deliveryTerms;
-  const carrierBase = detectCarrier(h.ShippingMethodName, h.ShippingMethodID);
+  const carrierBase = CONFIG.carriersByMethod[String(h.ShippingMethodID)] || "DHL";
   const carrier = CONFIG.carrierPicklist[carrierBase] || carrierBase;
   const importerAddr = [h.Line1, h.Line2, h.Locality, h.PostCode].map(text).filter(Boolean).join(", ");
   const contactName = [h.FirstName, h.Surname].map(text).filter(Boolean).join(" ");
@@ -580,7 +572,7 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
       modeOfTransport: CONFIG.defaults.modeOfTransport,
       carrier,
       shippingMarks: marks,
-      shippingDate: dateOnly(h.ShippedTime) || dateOnly(new Date(Date.now() + 86400000)),
+      shippingDate: dateOnly(h.ShippedTime) || "",
       deliveryTerms,
       trackingNumber: text(h.TrackingNumber)
     },
@@ -594,8 +586,7 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
     },
     invoiceDetails: {
       currency: CONFIG.defaults.currency,
-      customerOrderNo: String(shipmentId),
-      presentingBank: CONFIG.defaults.presentingBank,
+      customerOrderNo: [...composed.orderRefs].slice(0, 5).join(", "),
       cubeQuantity: box.cubeM3,
       cubeUnit: CONFIG.defaults.cubeUnit,
       packingCost: 0,
@@ -750,18 +741,11 @@ async function composeShipmentItems(lines, warnings) {
     }
     const defaultUom = item.category === "frame" ? "Pieces" : item.category === "lens" ? "Pairs" : "Pieces";
     const defaultWeight = item.category === "lens" ? CONFIG.weights.lensPairUncut : 0;
-    const isGlassLens = item.category === "lens" && /\bglass\b/i.test(item.name);
-    const defaultHsCode = item.category === "lens"
-      ? (isGlassLens ? CONFIG.hsCodes.lensGlass.code : CONFIG.hsCodes.lensOther.code)
-      : "";
-    const defaultHsDescription = item.category === "lens"
-      ? (isGlassLens ? CONFIG.hsCodes.lensGlass.description : CONFIG.hsCodes.lensOther.description)
-      : "";
 
     return {
       name: item.name,
-      hsCode: entry?.hsCode || defaultHsCode,
-      hsDescription: entry?.hsDescription || defaultHsDescription,
+      hsCode: entry?.hsCode || "",
+      hsDescription: entry?.hsDescription || "",
       commercialDescription: entry?.commercialDescription || item.name,
       quantity: item.qty,
       uom: entry?.unitOfMeasure || defaultUom,

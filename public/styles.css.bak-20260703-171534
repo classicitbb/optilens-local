@@ -927,7 +927,7 @@ th {
   display: block;
 }
 
-.delivery-export-page #shipmentPrep {
+.delivery-export-page .workflow-panel {
   padding: 0;
 }
 
@@ -1063,14 +1063,6 @@ th {
   align-items: start;
 }
 
-.customer-params-panel {
-  margin-bottom: 14px;
-}
-
-.customer-params-panel .co-grid {
-  padding: 12px 14px 16px;
-}
-
 .co-draft-panel,
 .co-jobs-panel {
   min-height: 420px;
@@ -1163,14 +1155,6 @@ th {
 
 .co-items-table td {
   white-space: normal;
-}
-
-.co-item-name {
-  max-width: 220px;
-  min-width: 160px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
 }
 
 .co-job-list {

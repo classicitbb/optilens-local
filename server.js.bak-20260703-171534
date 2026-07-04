@@ -100,10 +100,6 @@ const {
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus
 } = require("./lib/beswift-co");
 const {
-  getCustomerParameters,
-  upsertCustomerParameters
-} = require("./lib/customer-parameters");
-const {
   findInvoiceItem,
   getStatement,
   listCustomers,
@@ -1131,26 +1127,6 @@ const server = http.createServer(async (req, res) => {
       const job = await createBeSwiftAutomationJob(coJobCreateMatch[1], actor.userId);
       return { job };
     }, 201);
-  }
-
-  const customerParamsMatch = url.pathname.match(/^\/api\/delivery\/customer-parameters\/([^/]+)$/);
-  if (customerParamsMatch && req.method === "GET") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
-      return { parameters: await getCustomerParameters(decodeURIComponent(customerParamsMatch[1])) };
-    });
-  }
-
-  if (customerParamsMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const actor = await requirePermission(req, "delivery.write");
-      const parameters = await upsertCustomerParameters(
-        decodeURIComponent(customerParamsMatch[1]),
-        await readJsonBody(req),
-        actor.userId
-      );
-      return { parameters };
-    });
   }
 
   const extensionClaimMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)$/);

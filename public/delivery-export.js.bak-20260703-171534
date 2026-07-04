@@ -11,9 +11,7 @@ const moduleState = {
   selectedSessionId: "",
   selectedDomesticIds: new Set(),
   dashboard: null,
-  pollingId: null,
-  customerParams: null,
-  customerParamsAccount: ""
+  pollingId: null
 };
 
 initModule();
@@ -76,7 +74,6 @@ function wireActions() {
   document.querySelector("#prepareCoBtn")?.addEventListener("click", prepareCoDraft);
   document.querySelector("#saveCoDraftBtn")?.addEventListener("click", saveCoDraft);
   document.querySelector("#queueCoJobBtn")?.addEventListener("click", queueCoJob);
-  document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
     const checkbox = event.target.closest("[data-select-domestic]");
@@ -291,13 +288,9 @@ function renderCoHeaderPreview(payload) {
     ["Contact", [payload.importer?.phone, payload.importer?.email].filter(Boolean).join(" · ")],
     ["Invoices", payload.invoiceDetails?.invoiceNumbers],
     ["Invoice date", payload.invoiceDetails?.invoiceDate],
-    ["Customer order no", payload.invoiceDetails?.customerOrderNo],
-    ["Presenting bank", payload.invoiceDetails?.presentingBank],
+    ["Order refs", payload.invoiceDetails?.customerOrderNo],
     ["Carrier", payload.transport?.carrier],
-    ["Ship date", payload.transport?.shippingDate],
-    ["Discharge port", payload.transport?.portOfDischarge],
-    ["Delivery terms", payload.transport?.deliveryTerms],
-    ["Bank", [payload.bank?.name, payload.bank?.accountNumber].filter(Boolean).join(" \u00b7 ")]
+    ["Discharge port", payload.transport?.portOfDischarge]
   ];
   target.innerHTML = entries.map(([label, value]) => `
     <div class="co-preview-field">
@@ -312,17 +305,14 @@ function renderCoItems(items) {
   if (!target) return;
   target.innerHTML = items.map((item, index) => `
     <tr data-co-item="${index}">
-      <td class="co-item-name" title="${escapeHtml(item.name || "")}">${escapeHtml(item.name || "")}</td>
       <td><input data-co-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="Item ${index + 1} HS code"></td>
       <td><input data-co-field="commercialDescription" value="${escapeHtml(item.commercialDescription || "")}" aria-label="Item ${index + 1} description"></td>
       <td><input data-co-field="quantity" type="number" min="0" step="1" value="${escapeHtml(item.quantity ?? "")}" aria-label="Item ${index + 1} quantity"></td>
-      <td><input data-co-field="uom" value="${escapeHtml(item.uom || "")}" aria-label="Item ${index + 1} unit of measure"></td>
       <td><input data-co-field="weightKg" type="number" min="0" step="0.001" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Item ${index + 1} weight"></td>
-      <td><input data-co-field="countryOfOrigin" value="${escapeHtml(item.countryOfOrigin || "")}" aria-label="Item ${index + 1} country of origin"></td>
       <td><input data-co-field="unitCost" type="number" min="0" step="0.01" value="${escapeHtml(item.unitCost ?? "")}" aria-label="Item ${index + 1} unit cost"></td>
       <td>${formatMoneyBbd(item.value)}</td>
     </tr>
-  `).join("") || `<tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>`;
+  `).join("") || `<tr><td colspan="6">Prepare a draft to load certificate items.</td></tr>`;
 }
 
 function renderCoWarnings(warnings) {
@@ -434,8 +424,6 @@ async function loadSelectedShipmentItems(options = {}) {
 
 async function loadCoDraft() {
   const session = getSelectedSession();
-  await loadCustomerParamsForSession(session && isExportSession(session) ? session : null);
-
   if (!session || !isExportSession(session)) {
     moduleState.coApplication = null;
     moduleState.coJobs = [];
@@ -447,78 +435,6 @@ async function loadCoDraft() {
   moduleState.coApplication = data.application || null;
   moduleState.coJobs = data.jobs || [];
   renderCoDraft();
-}
-
-async function loadCustomerParamsForSession(session) {
-  const saveBtn = document.querySelector("#saveCustomerParamsBtn");
-
-  if (!session || !session.customer_account) {
-    moduleState.customerParams = null;
-    moduleState.customerParamsAccount = "";
-    fillCustomerParamsForm({});
-    setText("#customerParamsSummary", "Select an export shipment to edit its customer's commercial-invoice defaults.");
-    if (saveBtn) saveBtn.disabled = true;
-    return;
-  }
-
-  const account = session.customer_account;
-  moduleState.customerParamsAccount = account;
-  const data = await getJson(`/api/delivery/customer-parameters/${encodeURIComponent(account)}`, { parameters: null });
-  moduleState.customerParams = data.parameters || null;
-  fillCustomerParamsForm(moduleState.customerParams || {});
-  setText("#customerParamsSummary", `Defaults for ${account} \u2014 prefills new BeSwift drafts for this customer.`);
-  if (saveBtn) saveBtn.disabled = false;
-}
-
-function fillCustomerParamsForm(values) {
-  const pairs = {
-    cpPortOfDischarge: values.portOfDischarge || "",
-    cpDeliveryTerms: values.deliveryTerms || "",
-    cpBankName: values.bankName || "",
-    cpBankAccountName: values.bankAccountName || "",
-    cpBankAccountNumber: values.bankAccountNumber || "",
-    cpBankSwiftBic: values.bankSwiftBic || "",
-    cpBankRoutingNumber: values.bankRoutingNumber || "",
-    cpBankBranchAddress: values.bankBranchAddress || "",
-    cpNotes: values.notes || ""
-  };
-  for (const [id, value] of Object.entries(pairs)) {
-    const input = document.querySelector(`#${id}`);
-    if (input) input.value = value;
-  }
-}
-
-function readCustomerParamsForm() {
-  return {
-    portOfDischarge: valueOf("#cpPortOfDischarge"),
-    deliveryTerms: valueOf("#cpDeliveryTerms"),
-    bankName: valueOf("#cpBankName"),
-    bankAccountName: valueOf("#cpBankAccountName"),
-    bankAccountNumber: valueOf("#cpBankAccountNumber"),
-    bankSwiftBic: valueOf("#cpBankSwiftBic"),
-    bankRoutingNumber: valueOf("#cpBankRoutingNumber"),
-    bankBranchAddress: valueOf("#cpBankBranchAddress"),
-    notes: valueOf("#cpNotes")
-  };
-}
-
-async function saveCustomerParams() {
-  const account = moduleState.customerParamsAccount;
-  if (!account) return;
-  const data = await putJson(`/api/delivery/customer-parameters/${encodeURIComponent(account)}`, readCustomerParamsForm()).catch((error) => {
-    setCustomerParamsMessage(error.message, true);
-    return null;
-  });
-  if (!data) return;
-  moduleState.customerParams = data.parameters || null;
-  setCustomerParamsMessage(`Saved defaults for ${account}.`);
-}
-
-function setCustomerParamsMessage(message, isError = false) {
-  const target = document.querySelector("#customerParamsMessage");
-  if (!target) return;
-  target.textContent = message || "";
-  target.classList.toggle("error", Boolean(isError));
 }
 
 async function prepareCoDraft() {
@@ -588,7 +504,7 @@ function readCoDraftForm() {
 
 function readCoItems() {
   return [...document.querySelectorAll("[data-co-item]")].map((row) => {
-    const item = { name: row.querySelector(".co-item-name")?.textContent || "" };
+    const item = {};
     row.querySelectorAll("[data-co-field]").forEach((input) => {
       item[input.dataset.coField] = input.value;
     });
