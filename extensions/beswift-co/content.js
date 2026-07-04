@@ -145,6 +145,21 @@
     setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
     setByLabel("Contact Email", payload.applicant?.contacts?.[0]?.email);
 
+    // Applicant Details — Applicant Type defaults to "Personal" (confirmed live:
+    // prefills the logged-in BeSwift user's own individual TIN/name), but Classic
+    // Visions must file as "Other" (a company). Switching to "Other" clears those
+    // fields and turns TIN into a dropdown with exactly one option (CONFIG.company.tin);
+    // selecting it auto-fills Name/Address/Country/Parish, so nothing else needs
+    // to be set here. Scope both the radio click and the TIN pick to the Applicant
+    // Details section — "Other" and "TIN" both also appear in Exporter/Producer/
+    // Consignee sections further down the form.
+    const applicantSection = findSectionContainer("Applicant Details");
+    if ((payload.applicantType || "Other").toLowerCase() === "other") {
+      clickByText("Other", applicantSection || document);
+      await wait(300);
+      await pickByLabel("TIN", payload.applicant?.tin, applicantSection || document);
+    }
+
     // Exporter/Supplier Details defaults to "Same as Applicant" checked
     // (confirmed live) — this click is a no-op safety net in case it isn't.
     const exporterSection = findSectionContainer("Exporter/Supplier Details");
@@ -198,13 +213,26 @@
       }
       await wait(900);
       const root = document.querySelector(".v-dialog--active") || document;
-      await pickByLabel("Commodity", item.hsCode, root);
+      // Confirmed live: unlike every other field on this form, "Commodity" is a
+      // plain text input, not a Vuetify autocomplete — no dropdown opens on
+      // click or on typing. The only way seen live to get BeSwift's own
+      // enriched "CODE | - Description" value into the field is clicking its
+      // search-icon button, searching the code in a separate modal, and
+      // picking the row from a results table. That modal flow wasn't
+      // reproduced here (out of scope for a first pass) — this just types the
+      // bare HS code via setByLabel instead of pickByLabel, which avoids
+      // wasting ~8s on pickByLabel's dropdown-wait/retry logic against a field
+      // that never opens one. Whether BeSwift's save validation accepts a bare
+      // code without going through that modal was NOT confirmed live — check
+      // the first real run and switch to driving the search modal if it's
+      // rejected.
+      setByLabel("Commodity", item.hsCode, root);
       setByLabel("Commercial Description", item.commercialDescription, root);
       clickByText(payload.origin?.commodityType || "Manufactured", root);
       setByLabel("Manufacturer Name", payload.producer?.name, root);
       await pickByLabel("Country of Origin", payload.origin?.countryOfOrigin, root);
       await pickByLabel("Rule Of Origin", payload.origin?.ruleOfOrigin || "Percentage Value", root);
-      await pickByLabel("Origin Criterion", "L", root);
+      await pickByLabel("Origin Criterion", payload.origin?.originCriterion || "L", root);
       setByLabel("Gross Weight", item.weightKg, root);
       setByLabel("Invoice #", payload.invoiceDetails?.invoiceNumbers, root);
       setByLabel("Invoice Date", payload.invoiceDetails?.invoiceDate, root);
@@ -357,12 +385,28 @@
   }
 
   function clickByText(text, root = document) {
+    // A radio/checkbox GROUP wrapper (e.g. Applicant Type's outer .v-input,
+    // containing both "Personal" and "Other" .v-radio children) also matches
+    // an `includes(needle)` text search for either option's name, and appears
+    // BEFORE its own children in querySelectorAll's document order — so a
+    // naive "first match wins" search grabs the group wrapper, not the specific
+    // option, and ends up clicking whichever input happens to be first inside
+    // it regardless of which option name was actually requested (confirmed as
+    // a live risk once Applicant Type's "Other" radio was added; not just a
+    // theoretical concern for Producer's Single/Multiple or Commodity Type's
+    // Primary/Manufactured groups too). Prefer the MOST SPECIFIC match — the
+    // one with the shortest matching text — since a single option's own
+    // element never contains a sibling option's label, only a shared ancestor
+    // wrapper does.
     const needle = String(text).toLowerCase();
-    const hit = [...root.querySelectorAll("label,button,.v-input,.v-label,.v-radio")]
-      .find((el) => String(el.textContent || "").toLowerCase().includes(needle));
-    const input = hit?.querySelector?.("input");
+    const candidates = [...root.querySelectorAll("label,button,.v-input,.v-label,.v-radio")]
+      .filter((el) => String(el.textContent || "").toLowerCase().includes(needle));
+    if (!candidates.length) return;
+    candidates.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
+    const hit = candidates[0];
+    const input = hit.matches("input") ? hit : hit.querySelector?.("input");
     if (input && !input.checked) input.click();
-    else if (hit && hit.matches("button")) hit.click();
+    else if (hit.matches("button")) hit.click();
   }
 
   function typeValue(el, value) {
