@@ -133,28 +133,59 @@
     const t = payload.transport || {};
     const inv = payload.invoiceDetails || {};
     const imp = payload.importer || {};
+
+    // General Information — Regime/Service Type are fixed values, and the
+    // rest of the form (Applicant/Exporter/Importer/Producer/Consignee/
+    // Transport/Invoice sections) doesn't even render until both are picked
+    // (confirmed live — the form is empty except these two fields at first).
+    await pickByLabel("Regime", payload.regime || "Export");
+    await pickByLabel("Service Type", payload.serviceType || "Certificate of Origin - CARICOM");
     setByLabel("Applicant Reference", payload.applicantReference);
     setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
     setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
     setByLabel("Contact Email", payload.applicant?.contacts?.[0]?.email);
-    clickByText("Same As Importer");
-    clickByText("Same as Exporter");
-    setByLabel("Name", imp.name);
-    setByLabel("Address", imp.address);
+
+    // Exporter/Supplier Details defaults to "Same as Applicant" checked
+    // (confirmed live) — this click is a no-op safety net in case it isn't.
+    const exporterSection = findSectionContainer("Exporter/Supplier Details");
+    clickByText("Same as Applicant", exporterSection || document);
+
+    // Importer Details is a separate section (Name/Address/Country only) that
+    // sits side-by-side with Exporter/Supplier — must scope to it specifically,
+    // since Applicant/Exporter/Producer/Consignee all expose fields with the
+    // exact same labels (confirmed live: Name/Address/Country repeat 4+ times).
+    const importerSection = findSectionContainer("Importer Details");
+    setByLabel("Name", imp.name, importerSection || document);
+    setByLabel("Address", imp.address, importerSection || document);
+    await pickByLabel("Country", imp.country, importerSection || document);
+
+    // Producer/Manufacturer Details — assume a single producer (Classic
+    // Visions itself) and reuse the Exporter/Supplier details for it.
+    const producerSection = findSectionContainer("Producer/Manufacturer Details");
+    clickByText("Single", producerSection || document);
+    clickByText("Same as Exporter", producerSection || document);
+
+    // Consignee Details — same company as Importer.
+    const consigneeSection = findSectionContainer("Consignee Details");
+    clickByText("Same As Importer", consigneeSection || document);
+
+    // Transport Information
     setByLabel("Shipping Marks", (t.shippingMarks || "").slice(0, 35));
     setByLabel("Shipping Date", t.shippingDate);
     setByLabel("Other Transport Information", t.trackingNumber ? `AWB: ${t.trackingNumber}` : "");
-    setByLabel("Customer Order No.", inv.customerOrderNo);
-    setByLabel("Cube Quantity", inv.cubeQuantity);
-    setByLabel("Freight Cost", inv.freightCost);
-    await pickByLabel("Country", imp.country);
     await pickByLabel("Port Of Loading", t.portOfLoading || "GRANTLEY");
     await pickByLabel("Country Of Destination", t.countryOfDestination);
     await pickByLabel("Port Of Discharge", t.portOfDischarge);
     await pickByLabel("Mode Of Transport", t.modeOfTransport);
     await pickByLabel("Carrier", t.carrier);
     await pickByLabel("Delivery Terms", t.deliveryTerms || "Free on Board");
+
+    // Invoice Details
     await pickByLabel("Currency", inv.currency === "BB$" ? "BARBADOS DOLLAR" : inv.currency);
+    setByLabel("Customer Order No.", inv.customerOrderNo);
+    setByLabel("Presenting Bank", inv.presentingBank);
+    setByLabel("Cube Quantity", inv.cubeQuantity);
+    setByLabel("Freight Cost", inv.freightCost);
   }
 
   async function fillItems(payload) {
@@ -215,11 +246,72 @@
     const el = findByAny([label], root);
     if (!el) return false;
     if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+
+    // Confirmed live: this Vuetify autocomplete only opens its dropdown menu
+    // on an actual click — typeValue()'s focus()+input/change events alone do
+    // not open it. Click first, then type to filter the (now open) list.
+    el.click();
+    await wait(250);
     typeValue(el, String(value));
-    el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
-    await wait(200);
-    el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+
+    // Confirmed live: simulating ArrowDown+Enter keydown events does NOT
+    // actually commit a selection in this Vuetify autocomplete (the field
+    // keeps the typed text but the component's internal state never updates,
+    // so dependent/cascading fields elsewhere on the form stay disabled).
+    // Clicking the actual rendered dropdown option does commit it. Keep the
+    // old keyboard approach as a fallback for any field that isn't this kind
+    // of autocomplete widget.
+    const option = await waitFor(() => findVisibleDropdownOption(value), 4000, 150);
+    if (option) {
+      option.click();
+    } else {
+      el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+      await wait(200);
+      el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    }
+    await wait(300);
     return true;
+  }
+
+  function findVisibleDropdownOption(value) {
+    const menu = [...document.querySelectorAll(".v-menu__content.menuable__content__active, .v-autocomplete__content, .v-select-list")]
+      .find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+    if (!menu) return null;
+    const needle = String(value).trim().toLowerCase();
+    const items = [...menu.querySelectorAll(".v-list-item")];
+    return items.find((li) => (li.textContent || "").trim().toLowerCase() === needle)
+      || items.find((li) => (li.textContent || "").trim().toLowerCase().includes(needle));
+  }
+
+  function findSectionContainer(headingText) {
+    // BeSwift's form repeats field labels (Name/Address/Country/TIN) across
+    // multiple side-by-side sections (Applicant, Exporter/Supplier, Importer,
+    // Producer/Manufacturer, Consignee) confirmed live — a plain document-wide
+    // findByAny() always hits the first (Applicant) occurrence. Scope lookups
+    // to a specific section by climbing up from its heading only as long as
+    // the ancestor still contains exactly that one section heading, stopping
+    // right before it would also swallow a sibling section's heading.
+    const needle = headingText.trim().toLowerCase();
+    const allHeadings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,.v-card__title,.v-toolbar__title,.v-subheader,legend")]
+      .filter((el) => (el.textContent || "").trim().length > 0);
+    const heading = allHeadings.find((el) => (el.textContent || "").trim().toLowerCase() === needle);
+    if (!heading) return null;
+
+    let container = heading.parentElement;
+    let best = container;
+    while (container && container !== document.body) {
+      const headingsInside = allHeadings.filter((h) => container.contains(h));
+      if (headingsInside.length === 1) {
+        best = container;
+        container = container.parentElement;
+      } else {
+        break;
+      }
+    }
+    return best;
   }
 
   function findByAny(labels, root = document) {
