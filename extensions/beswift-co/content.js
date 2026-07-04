@@ -261,7 +261,16 @@
     // Clicking the actual rendered dropdown option does commit it. Keep the
     // old keyboard approach as a fallback for any field that isn't this kind
     // of autocomplete widget.
-    const option = await waitFor(() => findVisibleDropdownOption(value), 4000, 150);
+    // Some option lists (e.g. Country, seen live showing a loading spinner
+    // and "field is required" error) appear to load asynchronously and may
+    // not be ready right when typing happens — retype once partway through
+    // the wait to re-trigger filtering against a list that's since finished
+    // loading, and use a longer overall timeout for this class of field.
+    let option = await waitFor(() => findVisibleDropdownOption(value), 3000, 150);
+    if (!option) {
+      typeValue(el, String(value));
+      option = await waitFor(() => findVisibleDropdownOption(value), 5000, 150);
+    }
     if (option) {
       option.click();
     } else {
