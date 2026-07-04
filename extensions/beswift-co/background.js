@@ -9,12 +9,99 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
+  if (message?.type === "cdpClickPoint") {
+    // See handleCdpClick's comment below for why this exists — content.js
+    // cannot reliably click Vuetify's dropdown fields/options itself.
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      sendResponse({ ok: false, error: "No tab id on the click request." });
+      return false;
+    }
+    handleCdpClick(tabId, message.x, message.y)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  if (message?.type === "cdpDetach") {
+    const tabId = sender.tab?.id;
+    if (tabId) detachDebugger(tabId);
+    sendResponse({ ok: true });
+    return false;
+  }
   if (message?.type !== "startJob") return false;
   startJob(message.baseUrl, message.claimCode)
     .then(() => sendResponse({ ok: true }))
     .catch((error) => sendResponse({ ok: false, error: error.message || "Job failed" }));
   return true;
 });
+
+// Confirmed live (2026-07-04): a content script's own el.click() — and every
+// JS-dispatchable equivalent (MouseEvent mousedown/mouseup/click sequences,
+// PointerEvent sequences, even keyboard ArrowDown/Enter) — toggles Vuetify's
+// "is-menu-active" CSS class on the field's wrapper, but never actually
+// mounts/activates the real .v-menu__content dropdown overlay (it stays in
+// the DOM with 0x0 dimensions and no "active" class). Only a genuinely
+// trusted click — confirmed live via Claude's own OS-level computer-use mouse
+// click during manual testing — opens it. This is why fillHeader/fillItems
+// were getting "stuck": pickByLabel's typeValue() call still writes the
+// correct-looking text into the field (that part IS just DOM manipulation,
+// so it always "worked"), but with no real dropdown ever opened there was no
+// option to click and no genuine Vuetify v-model commit — so the visible
+// text looked right while the component's actual selection state, and
+// everything cascading from it (Service Type unlocking the rest of the form,
+// in particular), silently never happened.
+//
+// A content script cannot generate a truly trusted input event — that's a
+// hard browser guarantee, not something fixable by any dispatchEvent trick.
+// The Chrome DevTools Protocol (reachable from the extension's background
+// service worker via chrome.debugger, which Puppeteer/Playwright also build
+// on for exactly this reason) injects mouse events at the same level as real
+// OS input and IS treated as trusted by the page. So: content.js now asks
+// background.js to perform the actual click via chrome.debugger, at a
+// viewport coordinate content.js computed from the target element's own
+// getBoundingClientRect() — used both for opening a dropdown field and for
+// clicking its resolved option.
+const debuggedTabs = new Set();
+
+async function handleCdpClick(tabId, x, y) {
+  if (!debuggedTabs.has(tabId)) {
+    await new Promise((resolve, reject) => {
+      chrome.debugger.attach({ tabId }, "1.3", () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        debuggedTabs.add(tabId);
+        resolve();
+      });
+    });
+  }
+  await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none" });
+  await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+  await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+}
+
+function cdpSend(tabId, method, params) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand({ tabId }, method, params, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function detachDebugger(tabId) {
+  if (!debuggedTabs.has(tabId)) return;
+  debuggedTabs.delete(tabId);
+  chrome.debugger.detach({ tabId }, () => void chrome.runtime.lastError);
+}
+
+// If the tab navigates or closes mid-fill, drop our bookkeeping so a later
+// job against a reused tabId doesn't skip re-attaching.
+chrome.tabs.onRemoved.addListener((tabId) => debuggedTabs.delete(tabId));
 
 async function startJob(baseUrl, claimCode) {
   const response = await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(claimCode)}`, { cache: "no-store" });

@@ -38,6 +38,11 @@
     await fillHeader(payload);
     await fillItems(payload);
     await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
+    // Detach chrome.debugger now that pickByLabel is done using it — leaves
+    // the tab in a normal, non-debugged state (removing Chrome's "this
+    // extension started debugging this browser" banner) before handing the
+    // certificate back to a human for review/submit.
+    chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
     showBanner("OptiLens BeSwift fill complete. Review the certificate before submitting.");
   }
 
@@ -275,20 +280,27 @@
     if (!el) return false;
     if (!isEditable(el)) throw new Error(`${label} is not editable.`);
 
-    // Confirmed live: this Vuetify autocomplete only opens its dropdown menu
-    // on an actual click — typeValue()'s focus()+input/change events alone do
-    // not open it. Click first, then type to filter the (now open) list.
-    el.click();
+    // Root-caused live (2026-07-04): this Vuetify autocomplete's dropdown
+    // never actually opens from anything a content script can dispatch —
+    // el.click(), a full mousedown/mouseup/click MouseEvent sequence,
+    // pointerdown/pointerup, even keyboard ArrowDown/Enter. All of those
+    // toggle the field wrapper's "is-menu-active" CSS class, but the real
+    // .v-menu__content overlay stays at 0x0 with no "active" class — so
+    // there's never an option to click. Only a genuinely trusted click (like
+    // a real OS-level mouse click) opens it. typeValue() below still writes
+    // the correct-looking text straight into the input regardless (that part
+    // is just DOM manipulation), which is exactly why this failure mode looks
+    // like a "stuck" or "not committed" dropdown rather than an obvious
+    // error: the field visibly shows the right text, but the component's
+    // real selection state — and everything that cascades from it, e.g.
+    // Service Type unlocking the rest of the form — never actually happened.
+    // Fix: ask background.js to open the field via chrome.debugger (Chrome
+    // DevTools Protocol), which injects mouse events the page treats as
+    // trusted, same mechanism Puppeteer/Playwright rely on.
+    await cdpClickElement(el);
     await wait(250);
     typeValue(el, String(value));
 
-    // Confirmed live: simulating ArrowDown+Enter keydown events does NOT
-    // actually commit a selection in this Vuetify autocomplete (the field
-    // keeps the typed text but the component's internal state never updates,
-    // so dependent/cascading fields elsewhere on the form stay disabled).
-    // Clicking the actual rendered dropdown option does commit it. Keep the
-    // old keyboard approach as a fallback for any field that isn't this kind
-    // of autocomplete widget.
     // Some option lists (e.g. Country, seen live showing a loading spinner
     // and "field is required" error) appear to load asynchronously and may
     // not be ready right when typing happens — retype once partway through
@@ -300,14 +312,40 @@
       option = await waitFor(() => findVisibleDropdownOption(value), 5000, 150);
     }
     if (option) {
-      option.click();
+      // The resolved option is a real rendered element too — click it the
+      // same trusted way, for the same reason as above.
+      await cdpClickElement(option);
     } else {
+      // Last-resort fallback for any field that isn't this autocomplete
+      // widget (kept from before the CDP fix, cheap to leave in place).
       el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
       await wait(200);
       el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
     }
     await wait(300);
     return true;
+  }
+
+  // Asks background.js to click the center of `el` via chrome.debugger
+  // (Input.dispatchMouseEvent) instead of el.click() — see pickByLabel's
+  // comment for why a content-script click doesn't work for this component.
+  function cdpClickElement(el) {
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: "cdpClickPoint", x, y }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (response && response.ok === false) {
+          reject(new Error(response.error || "CDP click failed."));
+          return;
+        }
+        resolve();
+      });
+    });
   }
 
   function findVisibleDropdownOption(value) {
