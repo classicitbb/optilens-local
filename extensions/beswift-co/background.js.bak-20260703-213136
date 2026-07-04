@@ -1,14 +1,4 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === "reportStatus") {
-    // The BeSwift page is HTTPS; a fetch() to our http:// OptiLens server made
-    // from the content script (page context) gets blocked as mixed content.
-    // Service worker fetches aren't subject to that page-level restriction, so
-    // content.js relays status reports through here instead of fetching itself.
-    reportJobStatus(message.baseUrl, message.jobId, message.status, message.message)
-      .then(() => sendResponse({ ok: true }))
-      .catch((error) => sendResponse({ ok: false, error: error.message }));
-    return true;
-  }
   if (message?.type !== "startJob") return false;
   startJob(message.baseUrl, message.claimCode)
     .then(() => sendResponse({ ok: true }))
@@ -35,16 +25,12 @@ async function startJob(baseUrl, claimCode) {
 }
 
 async function reportJobError(baseUrl, automationJobId, message) {
-  await reportJobStatus(baseUrl, automationJobId, "error", message).catch(() => {});
-}
-
-async function reportJobStatus(baseUrl, automationJobId, status, message) {
   if (!automationJobId) return;
   await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(automationJobId)}/status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, message })
-  });
+    body: JSON.stringify({ status: "error", message })
+  }).catch(() => {});
 }
 
 function waitForTab(tabId) {
