@@ -13,7 +13,8 @@ const moduleState = {
   dashboard: null,
   pollingId: null,
   customerParams: null,
-  customerParamsAccount: ""
+  customerParamsAccount: "",
+  invoicePreview: null
 };
 
 initModule();
@@ -22,6 +23,7 @@ async function initModule() {
   setDefaultDateRange();
   wireTabs();
   wireActions();
+  wireShipmentDivider();
 
   const [dashboard, customers] = await Promise.all([
     getJson("/api/dashboard", { integrationHealth: [] }),
@@ -54,6 +56,14 @@ function wireActions() {
   document.querySelector("#startShipmentBtn")?.addEventListener("click", loadFilteredShipments);
   document.querySelector("#clearFiltersBtn")?.addEventListener("click", clearFilters);
   document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", () => refreshShipmentSessions({ preserveSelection: true }));
+  document.querySelector("#deliverySettingsBtn")?.addEventListener("click", openDeliverySettings);
+  document.querySelector("#deliverySettingsClose")?.addEventListener("click", closeDeliverySettings);
+  document.querySelector("#deliverySettingsModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "deliverySettingsModal") closeDeliverySettings();
+  });
+  document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+    button.addEventListener("click", () => activateSettingsTab(button.dataset.settingsTab));
+  });
   document.querySelector("#closeSelectedBtn")?.addEventListener("click", openSelectedDocumentStep);
   document.querySelector("#customerAccountInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
@@ -77,6 +87,8 @@ function wireActions() {
   document.querySelector("#saveCoDraftBtn")?.addEventListener("click", saveCoDraft);
   document.querySelector("#queueCoJobBtn")?.addEventListener("click", queueCoJob);
   document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
+  document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
+  document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
     const checkbox = event.target.closest("[data-select-domestic]");
@@ -196,7 +208,7 @@ function renderShipmentItems() {
     <tr>
       <td>${escapeHtml(item.orderId || "")}</td>
       <td>${escapeHtml(item.orderType || "Rx")}</td>
-      <td>${escapeHtml(item.invoiceNumber || item.shipmentItemId || "")}</td>
+      <td>${escapeHtml(item.rxNumber || item.invoiceNumber || item.shipmentItemId || "")}</td>
       <td>${escapeHtml(item.shipmentId || session?.source_shipment_id || "")}</td>
       <td>${escapeHtml(item.customerAccount || session?.customer_account || "")}</td>
       <td>${escapeHtml(item.patientName || "")}</td>
@@ -313,16 +325,41 @@ function renderCoItems(items) {
   target.innerHTML = items.map((item, index) => `
     <tr data-co-item="${index}">
       <td class="co-item-name" title="${escapeHtml(item.name || "")}">${escapeHtml(item.name || "")}</td>
-      <td><input data-co-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="Item ${index + 1} HS code"></td>
-      <td><input data-co-field="commercialDescription" value="${escapeHtml(item.commercialDescription || "")}" aria-label="Item ${index + 1} description"></td>
-      <td><input data-co-field="quantity" type="number" min="0" step="1" value="${escapeHtml(item.quantity ?? "")}" aria-label="Item ${index + 1} quantity"></td>
-      <td><input data-co-field="uom" value="${escapeHtml(item.uom || "")}" aria-label="Item ${index + 1} unit of measure"></td>
-      <td><input data-co-field="weightKg" type="number" min="0" step="0.001" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Item ${index + 1} weight"></td>
-      <td><input data-co-field="countryOfOrigin" value="${escapeHtml(item.countryOfOrigin || "")}" aria-label="Item ${index + 1} country of origin"></td>
-      <td><input data-co-field="unitCost" type="number" min="0" step="0.01" value="${escapeHtml(item.unitCost ?? "")}" aria-label="Item ${index + 1} unit cost"></td>
+      <td>${escapeHtml(item.hsCode || "")}</td>
+      <td>${escapeHtml(item.commercialDescription || "")}</td>
+      <td>${escapeHtml(item.quantity ?? "")}</td>
+      <td>${escapeHtml(item.uom || "")}</td>
+      <td>${escapeHtml(item.weightKg ?? "")}</td>
+      <td>${escapeHtml(item.countryOfOrigin || "")}</td>
+      <td>${formatMoneyBbd(item.unitCost)}</td>
       <td>${formatMoneyBbd(item.value)}</td>
     </tr>
   `).join("") || `<tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>`;
+}
+
+function wireShipmentDivider() {
+  const divider = document.querySelector("#shipmentDivider");
+  const grid = document.querySelector(".shipment-master-detail");
+  if (!divider || !grid) return;
+  divider.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    divider.setPointerCapture(event.pointerId);
+    grid.classList.add("resizing");
+    const rect = grid.getBoundingClientRect();
+    const move = (moveEvent) => {
+      const x = Math.min(Math.max(moveEvent.clientX - rect.left, 360), rect.width - 420);
+      grid.style.gridTemplateColumns = `${x}px 8px minmax(420px, 1fr)`;
+    };
+    const up = () => {
+      grid.classList.remove("resizing");
+      divider.removeEventListener("pointermove", move);
+      divider.removeEventListener("pointerup", up);
+      divider.removeEventListener("pointercancel", up);
+    };
+    divider.addEventListener("pointermove", move);
+    divider.addEventListener("pointerup", up);
+    divider.addEventListener("pointercancel", up);
+  });
 }
 
 function renderCoWarnings(warnings) {
@@ -346,6 +383,194 @@ function renderCoJobs() {
       ${job.errorMessage ? `<p>${escapeHtml(job.errorMessage)}</p>` : ""}
     </article>
   `).join("") || `<p class="shipment-empty">No queued jobs for this draft.</p>`;
+}
+
+function renderCommercialInvoicePreview() {
+  const target = document.querySelector("#commercialInvoicePreview");
+  const summary = document.querySelector("#commercialPreviewSummary");
+  if (!target) return;
+  const preview = moduleState.invoicePreview;
+  if (!preview) {
+    if (summary) summary.textContent = "Select an export shipment to preview the commercial invoice.";
+    target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial invoice preview.</p>`;
+    return;
+  }
+
+  if (summary) {
+    summary.textContent = `Shipment ${preview.shipmentId} · ${preview.itemCount} invoice line${preview.itemCount === 1 ? "" : "s"} · ${formatMoneyBbd(preview.totals?.invoiceTotal || 0)}`;
+  }
+
+  const rows = (preview.items || []).map((item) => `
+    <tr>
+      <td>${escapeHtml(item.lineNumber || "")}</td>
+      <td>${escapeHtml(item.ref || "")}</td>
+      <td class="ci-spec">${escapeHtml(item.specification || "")}</td>
+      <td>${escapeHtml(item.hsCode || "")}</td>
+      <td>${escapeHtml(item.origin || "")}</td>
+      <td>${escapeHtml(item.quantity ?? "")}</td>
+      <td><span>$</span>${formatPlainMoney(item.unitPrice)}</td>
+      <td><span>$</span>${formatPlainMoney(item.amount)}</td>
+    </tr>
+  `).join("");
+
+  target.innerHTML = `
+    <article class="commercial-invoice-preview">
+      <header class="ci-title-row">
+        <h1>Commercial Invoice</h1>
+        <span>Classic Visions · Export</span>
+      </header>
+      <section class="ci-header-grid">
+        <div class="ci-field ci-seller">
+          <small>Seller (name, full address, country)</small>
+          <strong>${escapeHtml(preview.seller?.name || "")}</strong>
+          <p>${escapeHtml((preview.seller?.addressLines || []).join(", "))}<br>${escapeHtml(preview.seller?.phone || "")}</p>
+        </div>
+        <div class="ci-field"><small>Date</small><strong>${escapeHtml(preview.invoiceDate || "")}</strong></div>
+        <div class="ci-field"><small>Inv No</small><strong>${escapeHtml(preview.invoiceNo || "")}</strong></div>
+        <div class="ci-field"><small>Customer order no</small><strong>${escapeHtml(preview.customerOrderNo || "")}</strong></div>
+        <div class="ci-field ci-consignee">
+          <small>Consignee</small>
+          <strong>${escapeHtml(preview.consignee?.name || "")}</strong>
+          <p>${escapeHtml(preview.consignee?.address || "")}<br>${escapeHtml(preview.consignee?.country || "")} ${escapeHtml(preview.consignee?.phone || "")}</p>
+        </div>
+        <div class="ci-field ci-wide"><small>PO numbers</small><strong>${escapeHtml(preview.poNumbers || "")}</strong></div>
+        <div class="ci-field"><small>Buyer (if other than consignee)</small><em>Buyer (if not consignee)</em></div>
+        <div class="ci-field"><small>Presenting bank</small><strong>${escapeHtml(preview.presentingBank || "")}</strong></div>
+        <div class="ci-field"><small>Country of origin of goods</small><strong>${escapeHtml(preview.countryOfOriginOfGoods || "")}</strong></div>
+        <div class="ci-field"><small>Terms & conditions of delivery and payment</small><em>${escapeHtml(preview.deliveryTerms || "")}</em></div>
+        <div class="ci-field"><small>Port of loading</small><strong>${escapeHtml(preview.transport?.portOfLoading || "")}</strong></div>
+        <div class="ci-field"><small>Country of final destination</small><strong>${escapeHtml(preview.transport?.countryOfDestination || "")}</strong></div>
+        <div class="ci-field"><small>Mode of transportation & other transport information</small><strong>${escapeHtml(preview.transport?.carrier || "")}</strong><br>${escapeHtml(preview.transport?.trackingNumber || "")}</div>
+        <div class="ci-field"><small>Marks & numbers</small><strong>${escapeHtml(preview.transport?.marksAndNumbers || "")}</strong></div>
+        <div class="ci-field"><small>No. & kind of packages</small><strong>${escapeHtml(preview.packaging?.numberOfPackages || "")} ${escapeHtml(preview.packaging?.packageType || "")}</strong></div>
+        <div class="ci-field"><small>Gross weight</small><strong>${escapeHtml(preview.packaging?.grossWeight || "")}</strong></div>
+        <div class="ci-field"><small>Cube</small><em>${escapeHtml(preview.packaging?.cube || "Cube")}</em></div>
+        <div class="ci-field ci-declaration">
+          <small>Declaration</small>
+          <strong>${escapeHtml(preview.declarationText || "")}</strong>
+          <b>${escapeHtml(preview.declarationHsCode || "")}</b>
+        </div>
+      </section>
+      <table class="ci-items">
+        <thead>
+          <tr>
+            <th>Line #</th>
+            <th>Ref #</th>
+            <th>Specification of Commodities</th>
+            <th>HS Code</th>
+            <th>Origin</th>
+            <th>Quant.</th>
+            <th>Unit Price</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows || `<tr><td colspan="8">No invoice lines.</td></tr>`}</tbody>
+      </table>
+      <footer class="ci-bottom">
+        <section>
+          <p>${escapeHtml(preview.itemCount || 0)} Items <strong>${escapeHtml(preview.noChargeNote || "")}</strong></p>
+          <p>${escapeHtml(preview.certificationText || "")}</p>
+          <div class="ci-signature"><strong>Classic Visions</strong><span>Authorised signature for Classic Visions</span></div>
+        </section>
+        <aside class="ci-totals">
+          ${renderTotalRow("Sub Total", preview.totals?.subTotal)}
+          ${renderTotalRow("Packaging", preview.totals?.packaging)}
+          ${renderTotalRow("Freight", preview.totals?.freight)}
+          ${renderTotalRow("Other Costs", preview.totals?.other)}
+          ${renderTotalRow("Insurance", preview.totals?.insurance)}
+          ${renderTotalRow("Invoice Total", preview.totals?.invoiceTotal, true)}
+        </aside>
+      </footer>
+    </article>
+  `;
+}
+
+function renderTotalRow(label, value, strong = false) {
+  return `<div class="${strong ? "strong" : ""}"><span>${escapeHtml(label)}</span><b>${formatMoneyBbd(value || 0)}</b></div>`;
+}
+
+function renderItemDefaults() {
+  const target = document.querySelector("#itemDefaultsRows");
+  if (!target) return;
+  const items = moduleState.invoicePreview?.items || [];
+  target.innerHTML = items.map((item, index) => {
+    const key = item.catalogName || item.specification || item.sourceName || item.ref || `Item ${index + 1}`;
+    return `
+      <tr data-item-setting="${index}" data-item-name="${escapeHtml(key)}">
+        <td><input data-setting-field="certificateEligible" type="checkbox" ${item.certificateEligible ? "checked" : ""} aria-label="Certificate eligible for ${escapeHtml(key)}"></td>
+        <td class="item-setting-source" title="${escapeHtml(item.sourceName || key)}">${escapeHtml(item.sourceName || key)}</td>
+        <td><input data-setting-field="shortName" value="${escapeHtml(item.specification || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="hsCode" value="${escapeHtml(item.hsCode || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="countryOfOrigin" value="${escapeHtml(item.origin || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="unitOfMeasure" value="${escapeHtml(item.uom || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="commercialDescription" value="${escapeHtml(item.specification || "")}" autocomplete="off"></td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="7">Load an export shipment to edit item defaults.</td></tr>`;
+}
+
+function openDeliverySettings() {
+  const modal = document.querySelector("#deliverySettingsModal");
+  if (!modal) return;
+  activateSettingsTab("customerDefaults");
+  renderItemDefaults();
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeDeliverySettings() {
+  const modal = document.querySelector("#deliverySettingsModal");
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+function activateSettingsTab(tabId) {
+  document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.settingsTab === tabId);
+  });
+  document.querySelectorAll(".settings-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === tabId);
+  });
+}
+
+async function saveItemDefaults() {
+  const rows = [...document.querySelectorAll("[data-item-setting]")];
+  if (!rows.length) {
+    setItemDefaultsMessage("Load an export shipment before saving item defaults.", true);
+    return;
+  }
+
+  try {
+    for (const row of rows) {
+      const itemName = row.dataset.itemName || "";
+      const body = {};
+      row.querySelectorAll("[data-setting-field]").forEach((input) => {
+        body[input.dataset.settingField] = input.type === "checkbox" ? input.checked : input.value.trim();
+      });
+      await putJson(`/api/delivery/co-item-catalog/${encodeURIComponent(itemName)}`, body);
+    }
+  } catch (error) {
+    setItemDefaultsMessage(error.message, true);
+    return;
+  }
+
+  setItemDefaultsMessage("Item defaults saved.");
+  await loadCommercialInvoicePreview();
+  if (moduleState.coApplication) await prepareCoDraft();
+}
+
+function setItemDefaultsMessage(message, isError = false) {
+  const target = document.querySelector("#itemDefaultsMessage");
+  if (!target) return;
+  target.textContent = message || "";
+  target.classList.toggle("error", Boolean(isError));
+}
+
+function printCommercialInvoice() {
+  const session = getSelectedSession();
+  if (!session) return;
+  window.open(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice.pdf`, "_blank", "noopener");
 }
 
 function clearFilters() {
@@ -439,14 +664,36 @@ async function loadCoDraft() {
   if (!session || !isExportSession(session)) {
     moduleState.coApplication = null;
     moduleState.coJobs = [];
+    moduleState.invoicePreview = null;
+    renderCommercialInvoicePreview();
+    renderItemDefaults();
     renderCoDraft();
     return;
   }
 
-  const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/co`, { application: null, jobs: [] });
+  const [data] = await Promise.all([
+    getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/co`, { application: null, jobs: [] }),
+    loadCommercialInvoicePreview(session)
+  ]);
   moduleState.coApplication = data.application || null;
   moduleState.coJobs = data.jobs || [];
   renderCoDraft();
+}
+
+async function loadCommercialInvoicePreview(session = getSelectedSession()) {
+  const printBtn = document.querySelector("#printCommercialInvoiceBtn");
+  if (!session || !isExportSession(session)) {
+    moduleState.invoicePreview = null;
+    if (printBtn) printBtn.disabled = true;
+    renderCommercialInvoicePreview();
+    renderItemDefaults();
+    return;
+  }
+  const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/preview`, { preview: null });
+  moduleState.invoicePreview = data.preview || null;
+  if (printBtn) printBtn.disabled = !moduleState.invoicePreview;
+  renderCommercialInvoicePreview();
+  renderItemDefaults();
 }
 
 async function loadCustomerParamsForSession(session) {
@@ -512,6 +759,7 @@ async function saveCustomerParams() {
   if (!data) return;
   moduleState.customerParams = data.parameters || null;
   setCustomerParamsMessage(`Saved defaults for ${account}.`);
+  await loadCommercialInvoicePreview();
 }
 
 function setCustomerParamsMessage(message, isError = false) {
@@ -587,7 +835,11 @@ function readCoDraftForm() {
 }
 
 function readCoItems() {
-  return [...document.querySelectorAll("[data-co-item]")].map((row) => {
+  const rows = [...document.querySelectorAll("[data-co-item]")];
+  if (!rows.some((row) => row.querySelector("[data-co-field]"))) {
+    return moduleState.coApplication?.editable?.items || [];
+  }
+  return rows.map((row) => {
     const item = { name: row.querySelector(".co-item-name")?.textContent || "" };
     row.querySelectorAll("[data-co-field]").forEach((input) => {
       item[input.dataset.coField] = input.value;
@@ -831,6 +1083,14 @@ function formatMoneyBbd(value) {
   return new Intl.NumberFormat(undefined, {
     style: "currency",
     currency: "BBD"
+  }).format(Number(value));
+}
+
+function formatPlainMoney(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(Number(value));
 }
 

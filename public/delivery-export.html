@@ -59,6 +59,7 @@
         <button type="button" data-tab="deliveryChecklist" id="deliveryChecklistTab">Delivery checklist</button>
         <button type="button" data-tab="archive">Archive</button>
         <button type="button" data-tab="sourceHealth">Source health</button>
+        <button class="workflow-tab-settings material-symbols-outlined" id="deliverySettingsBtn" type="button" aria-label="Delivery export settings" title="Delivery export settings">settings</button>
         <button class="workflow-tab-refresh material-symbols-outlined" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">refresh</button>
       </nav>
 
@@ -112,6 +113,8 @@
             </div>
           </section>
 
+          <div class="shipment-divider" id="shipmentDivider" role="separator" aria-orientation="vertical" aria-label="Resize shipment panes"></div>
+
           <section class="workflow-block shipment-detail-panel">
             <div class="section-head tight shipment-detail-head">
               <div>
@@ -155,36 +158,15 @@
       </section>
 
       <section class="workflow-panel" id="commercialInvoice">
-        <section class="workflow-block customer-params-panel">
-          <div class="section-head tight shipment-detail-head">
-            <div>
-              <h2>Customer parameters</h2>
-              <p id="customerParamsSummary">Select an export shipment to edit its customer's commercial-invoice defaults.</p>
-            </div>
-            <button class="button primary" id="saveCustomerParamsBtn" type="button" disabled>Save parameters</button>
-          </div>
-          <div class="shipment-status-line" id="customerParamsMessage" role="status"></div>
-          <div class="co-grid">
-            <label>Port of discharge<input id="cpPortOfDischarge" autocomplete="off" placeholder="Overrides the country default"></label>
-            <label>Delivery terms<input id="cpDeliveryTerms" autocomplete="off" placeholder="e.g. Free on Board"></label>
-            <label>Bank name<input id="cpBankName" autocomplete="off"></label>
-            <label>Bank account name<input id="cpBankAccountName" autocomplete="off"></label>
-            <label>Bank account number<input id="cpBankAccountNumber" autocomplete="off"></label>
-            <label>SWIFT / BIC<input id="cpBankSwiftBic" autocomplete="off"></label>
-            <label>Routing number<input id="cpBankRoutingNumber" autocomplete="off"></label>
-            <label>Bank branch address<input id="cpBankBranchAddress" autocomplete="off"></label>
-            <label class="co-wide">Notes<textarea id="cpNotes" rows="2"></textarea></label>
-          </div>
-        </section>
-
         <div class="co-workspace">
-          <section class="workflow-block co-draft-panel">
+          <section class="workflow-block commercial-preview-panel">
             <div class="section-head tight shipment-detail-head">
               <div>
-                <h2>BeSwift Certificate of Origin</h2>
-                <p id="coDraftSummary">Select an export shipment, then prepare a draft.</p>
+                <h2>Commercial invoice preview</h2>
+                <p id="commercialPreviewSummary">Select an export shipment to preview the commercial invoice.</p>
               </div>
               <div class="co-actions">
+                <button class="button secondary" id="printCommercialInvoiceBtn" type="button" disabled>Print / PDF</button>
                 <button class="button secondary" id="prepareCoBtn" type="button">Prepare draft</button>
                 <button class="button secondary" id="saveCoDraftBtn" type="button" disabled>Save draft</button>
                 <button class="button primary" id="queueCoJobBtn" type="button" disabled>Queue fill job</button>
@@ -194,79 +176,65 @@
             <div class="shipment-status-line" id="coMessage" role="status"></div>
             <div class="co-warning-list" id="coWarnings" hidden></div>
 
-            <form id="coDraftForm" class="co-draft-form">
-              <div class="co-section">
-                <h3>Portal and parcel</h3>
-                <div class="co-grid">
-                  <label>Portal
-                    <select id="coPortalEnvironment" name="portalEnvironment">
-                      <option value="training">BeSwift training</option>
-                      <option value="production">BeSwift production</option>
-                    </select>
-                  </label>
-                  <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
-                  <label>Shipping date<input id="coShippingDate" name="shippingDate" type="date"></label>
-                  <label>Box
-                    <select id="coBoxCode" name="boxCode">
-                      <option value="DHL-FLYER">DHL Express Flyer</option>
-                      <option value="DHL-BOX2">DHL Box 2</option>
-                      <option value="DHL-BOX3">DHL Box 3</option>
-                      <option value="DHL-BOX4">DHL Box 4</option>
-                      <option value="DHL-BOX5">DHL Box 5</option>
-                      <option value="FEDEX-SM">FedEx Small Box</option>
-                      <option value="FEDEX-MED">FedEx Medium Box</option>
-                    </select>
-                  </label>
-                  <label>Package count<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
-                  <label>Actual gross kg<input id="coActualGrossKg" name="actualGrossKg" type="number" min="0" step="0.001"></label>
-                  <label>Cube quantity<input id="coCubeQuantity" name="cubeQuantity" type="number" min="0" step="0.0001"></label>
-                  <label>Shipping marks<input id="coShippingMarks" name="shippingMarks" maxlength="35"></label>
-                </div>
-              </div>
-
-              <div class="co-section">
-                <h3>Costs and origin</h3>
-                <div class="co-grid">
-                  <label>Freight cost<input id="coFreightCost" name="freightCost" type="number" min="0" step="0.01"></label>
-                  <label>Packing cost<input id="coPackingCost" name="packingCost" type="number" min="0" step="0.01"></label>
-                  <label>Insurance cost<input id="coInsuranceCost" name="insuranceCost" type="number" min="0" step="0.01"></label>
-                  <label>Other cost<input id="coOtherCost" name="otherCost" type="number" min="0" step="0.01"></label>
-                  <label>Delivery terms<input id="coDeliveryTerms" name="deliveryTerms"></label>
-                  <label class="co-wide">Origin notes<textarea id="coOriginNotes" name="originNotes" rows="2"></textarea></label>
-                </div>
-              </div>
-
-              <div class="co-section">
-                <h3>Importer and invoice</h3>
-                <div class="co-readonly-grid" id="coHeaderPreview">
-                  <p>Select an export shipment and prepare a draft.</p>
-                </div>
-              </div>
-
-              <div class="co-section">
-                <h3>Items</h3>
-                <div class="table-wrap">
-                  <table class="co-items-table">
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>HS</th>
-                        <th>Description</th>
-                        <th>Qty</th>
-                        <th>UOM</th>
-                        <th>Weight kg</th>
-                        <th>Country of origin</th>
-                        <th>Unit cost</th>
-                        <th>Value</th>
-                      </tr>
-                    </thead>
-                    <tbody id="coItemsRows">
-                      <tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <form id="coDraftForm" class="co-draft-controls">
+              <label>Portal
+                <select id="coPortalEnvironment" name="portalEnvironment">
+                  <option value="training">BeSwift training</option>
+                  <option value="production">BeSwift production</option>
+                </select>
+              </label>
+              <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
+              <label>Shipping date<input id="coShippingDate" name="shippingDate" type="date"></label>
+              <label>Box
+                <select id="coBoxCode" name="boxCode">
+                  <option value="DHL-FLYER">DHL Express Flyer</option>
+                  <option value="DHL-BOX2">DHL Box 2</option>
+                  <option value="DHL-BOX3">DHL Box 3</option>
+                  <option value="DHL-BOX4">DHL Box 4</option>
+                  <option value="DHL-BOX5">DHL Box 5</option>
+                  <option value="FEDEX-SM">FedEx Small Box</option>
+                  <option value="FEDEX-MED">FedEx Medium Box</option>
+                </select>
+              </label>
+              <label>Packages<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
+              <label>Gross kg<input id="coActualGrossKg" name="actualGrossKg" type="number" min="0" step="0.001"></label>
+              <label>Cube<input id="coCubeQuantity" name="cubeQuantity" type="number" min="0" step="0.0001"></label>
+              <label>Freight<input id="coFreightCost" name="freightCost" type="number" min="0" step="0.01"></label>
+              <label>Packing<input id="coPackingCost" name="packingCost" type="number" min="0" step="0.01"></label>
+              <label>Insurance<input id="coInsuranceCost" name="insuranceCost" type="number" min="0" step="0.01"></label>
+              <label>Other<input id="coOtherCost" name="otherCost" type="number" min="0" step="0.01"></label>
+              <label>Delivery terms<input id="coDeliveryTerms" name="deliveryTerms"></label>
+              <label>Shipping marks<input id="coShippingMarks" name="shippingMarks" maxlength="35"></label>
+              <label class="co-controls-wide">Origin notes<input id="coOriginNotes" name="originNotes"></label>
             </form>
+
+            <div class="commercial-invoice-shell" id="commercialInvoicePreview">
+              <p class="shipment-empty">Select an export shipment to load the commercial invoice preview.</p>
+            </div>
+
+            <section class="certificate-summary">
+              <h3>Certificate draft items</h3>
+              <div class="table-wrap">
+                <table class="co-items-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>HS</th>
+                      <th>Description</th>
+                      <th>Qty</th>
+                      <th>UOM</th>
+                      <th>Weight kg</th>
+                      <th>Origin</th>
+                      <th>Unit cost</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody id="coItemsRows">
+                    <tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </section>
 
           <section class="workflow-block co-jobs-panel">
@@ -313,6 +281,68 @@
         <button class="button primary" id="addRowsSubmit" type="submit">Add Row</button>
       </div>
     </form>
+  </div>
+
+  <div class="auth-overlay shipment-modal delivery-settings-modal" id="deliverySettingsModal" hidden aria-modal="true" role="dialog" aria-label="Delivery export settings">
+    <section class="auth-panel delivery-settings-panel">
+      <div class="launcher-head">
+        <h2>Delivery export settings</h2>
+        <button class="launcher-close" id="deliverySettingsClose" type="button" aria-label="Close settings">&#x2715;</button>
+      </div>
+      <div class="settings-tabs">
+        <button class="active" type="button" data-settings-tab="customerDefaults">Customer defaults</button>
+        <button type="button" data-settings-tab="itemDefaults">Item defaults</button>
+      </div>
+      <section class="settings-panel active" id="customerDefaults">
+        <div class="section-head tight shipment-detail-head">
+          <div>
+            <h2>Customer parameters</h2>
+            <p id="customerParamsSummary">Select an export shipment to edit its customer's commercial-invoice defaults.</p>
+          </div>
+          <button class="button primary" id="saveCustomerParamsBtn" type="button" disabled>Save parameters</button>
+        </div>
+        <div class="shipment-status-line" id="customerParamsMessage" role="status"></div>
+        <div class="co-grid settings-grid">
+          <label>Port of discharge<input id="cpPortOfDischarge" autocomplete="off" placeholder="Overrides the country default"></label>
+          <label>Delivery terms<input id="cpDeliveryTerms" autocomplete="off" placeholder="e.g. Free on Board"></label>
+          <label>Bank name<input id="cpBankName" autocomplete="off"></label>
+          <label>Bank account name<input id="cpBankAccountName" autocomplete="off"></label>
+          <label>Bank account number<input id="cpBankAccountNumber" autocomplete="off"></label>
+          <label>SWIFT / BIC<input id="cpBankSwiftBic" autocomplete="off"></label>
+          <label>Routing number<input id="cpBankRoutingNumber" autocomplete="off"></label>
+          <label>Bank branch address<input id="cpBankBranchAddress" autocomplete="off"></label>
+          <label class="co-wide">Notes<textarea id="cpNotes" rows="2"></textarea></label>
+        </div>
+      </section>
+      <section class="settings-panel" id="itemDefaults">
+        <div class="section-head tight shipment-detail-head">
+          <div>
+            <h2>Item defaults</h2>
+            <p>Defaults are OptiLens-owned and feed both commercial invoice grouping and certificate eligibility.</p>
+          </div>
+          <button class="button primary" id="saveItemDefaultsBtn" type="button">Save item defaults</button>
+        </div>
+        <div class="shipment-status-line" id="itemDefaultsMessage" role="status"></div>
+        <div class="table-wrap item-settings-wrap">
+          <table class="item-settings-table">
+            <thead>
+              <tr>
+                <th>Certificate</th>
+                <th>Source item</th>
+                <th>Short name</th>
+                <th>HS code</th>
+                <th>Origin</th>
+                <th>UOM</th>
+                <th>Commercial description</th>
+              </tr>
+            </thead>
+            <tbody id="itemDefaultsRows">
+              <tr><td colspan="7">Load an export shipment to edit item defaults.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
   </div>
 
   <script src="/shared.js"></script>

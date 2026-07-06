@@ -897,7 +897,8 @@ th {
   cursor: not-allowed;
 }
 
-.workflow-tab-refresh {
+.workflow-tab-refresh,
+.workflow-tab-settings {
   margin-left: auto;
   min-width: 38px;
   padding-inline: 10px !important;
@@ -907,7 +908,26 @@ th {
   color: var(--ink) !important;
 }
 
+.workflow-tab-settings {
+  margin-left: auto;
+}
+
+.workflow-tab-settings + .workflow-tab-refresh {
+  margin-left: 4px;
+}
+
 .delivery-export-page .workflow-tab-refresh {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  min-width: 42px;
+  padding: 0 !important;
+  font-size: 20px;
+  line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+}
+
+.delivery-export-page .workflow-tab-settings {
   display: inline-grid;
   place-items: center;
   width: 42px;
@@ -1045,10 +1065,23 @@ th {
 
 .shipment-master-detail {
   display: grid;
-  grid-template-columns: minmax(520px, .82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(520px, .82fr) 8px minmax(0, 1.18fr);
   gap: 10px;
   align-items: stretch;
   margin: 0 14px 14px;
+}
+
+.shipment-divider {
+  background: var(--line);
+  cursor: col-resize;
+  min-height: 600px;
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+}
+
+.shipment-divider:hover,
+.shipment-master-detail.resizing .shipment-divider {
+  background: var(--blue);
 }
 
 .delivery-export-page .shipment-master-detail {
@@ -1071,6 +1104,7 @@ th {
   padding: 12px 14px 16px;
 }
 
+.commercial-preview-panel,
 .co-draft-panel,
 .co-jobs-panel {
   min-height: 420px;
@@ -1087,6 +1121,31 @@ th {
   display: grid;
   gap: 14px;
   padding: 12px;
+}
+
+.co-draft-controls {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(110px, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.co-draft-controls label {
+  min-width: 0;
+  font-size: 10px;
+}
+
+.co-draft-controls input,
+.co-draft-controls select {
+  min-height: 34px;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+
+.co-controls-wide {
+  grid-column: span 2;
 }
 
 .co-section {
@@ -1195,6 +1254,316 @@ th {
   font-size: 12px;
 }
 
+.commercial-invoice-shell {
+  padding: 12px;
+  overflow-x: auto;
+  background: #eef4fa;
+}
+
+.commercial-invoice-preview {
+  min-width: 920px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px;
+  background: white;
+  color: #09233f;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  box-shadow: 0 1px 4px rgba(8, 23, 43, .1);
+}
+
+.ci-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 2px solid #d99026;
+  margin-bottom: 8px;
+}
+
+.ci-title-row h1 {
+  margin: 0 0 4px;
+  color: #001b35;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.ci-title-row span {
+  margin-top: 4px;
+  color: #0082a8;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.ci-header-grid {
+  display: grid;
+  grid-template-columns: 1.2fr .6fr .6fr 1fr;
+  border: 1px solid #b8c7d8;
+  border-bottom: 0;
+}
+
+.ci-field {
+  min-height: 46px;
+  padding: 7px 8px;
+  border-right: 1px solid #b8c7d8;
+  border-bottom: 1px solid #b8c7d8;
+  overflow-wrap: anywhere;
+}
+
+.ci-field:nth-child(4n) {
+  border-right: 0;
+}
+
+.ci-seller,
+.ci-consignee {
+  grid-row: span 4;
+}
+
+.ci-wide {
+  grid-column: span 3;
+}
+
+.ci-declaration {
+  grid-column: span 2;
+  text-align: center;
+  background: #fff5df;
+}
+
+.ci-field small {
+  display: block;
+  margin-bottom: 5px;
+  color: #375d83;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.ci-field strong,
+.ci-field b {
+  color: #001b35;
+  font-weight: 800;
+}
+
+.ci-field p {
+  margin: 5px 0 0;
+  color: #173b60;
+  line-height: 1.25;
+}
+
+.ci-field em {
+  color: #9aaabc;
+  font-style: italic;
+  font-weight: 800;
+}
+
+.ci-items {
+  min-width: 0;
+  margin-top: 10px;
+  border: 2px solid #071d35;
+  font-size: 9px;
+}
+
+.ci-items th {
+  padding: 8px 6px;
+  background: #071d35;
+  color: white;
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.ci-items td {
+  padding: 6px;
+  border-bottom: 1px solid #d7e0ea;
+  vertical-align: top;
+}
+
+.ci-items td:not(.ci-spec) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ci-spec {
+  width: 30%;
+  overflow-wrap: anywhere;
+  line-height: 1.16;
+}
+
+.ci-bottom {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.ci-bottom p {
+  color: #315b83;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ci-signature {
+  width: 260px;
+  margin-top: 26px;
+  padding-top: 10px;
+  border-top: 1px solid #071d35;
+}
+
+.ci-signature strong,
+.ci-signature span {
+  display: block;
+}
+
+.ci-signature span {
+  margin-top: 5px;
+  color: #0082a8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.ci-totals {
+  border: 1px solid #071d35;
+  align-self: start;
+}
+
+.ci-totals div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #c8d4e0;
+  font-weight: 800;
+}
+
+.ci-totals div:last-child {
+  border-bottom: 0;
+}
+
+.ci-totals .strong {
+  background: #071d35;
+  color: white;
+  font-size: 14px;
+}
+
+.certificate-summary {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.certificate-summary h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.delivery-settings-panel {
+  width: min(1180px, calc(100vw - 40px));
+  max-height: calc(100vh - 70px);
+  overflow: hidden;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-tabs button {
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.settings-tabs button.active {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.settings-panel {
+  display: none;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+.settings-grid {
+  padding: 12px 14px 16px;
+}
+
+.item-settings-wrap {
+  padding: 12px;
+}
+
+.item-settings-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.item-settings-table th:nth-child(1),
+.item-settings-table td:nth-child(1) {
+  width: 42px;
+}
+
+.item-settings-table th:nth-child(2),
+.item-settings-table td:nth-child(2) {
+  width: 19%;
+}
+
+.item-settings-table th:nth-child(3),
+.item-settings-table td:nth-child(3) {
+  width: 16%;
+}
+
+.item-settings-table th:nth-child(4),
+.item-settings-table td:nth-child(4),
+.item-settings-table th:nth-child(5),
+.item-settings-table td:nth-child(5) {
+  width: 12%;
+}
+
+.item-settings-table th:nth-child(6),
+.item-settings-table td:nth-child(6) {
+  width: 10%;
+}
+
+.item-settings-table th,
+.item-settings-table td {
+  padding: 7px 8px;
+  font-size: 11px;
+  vertical-align: top;
+}
+
+.item-settings-table input {
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.item-settings-table input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+}
+
+.item-setting-source {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .shipment-list-panel,
 .shipment-detail-panel {
   min-height: 600px;
@@ -1240,8 +1609,8 @@ th {
   display: grid;
   grid-template-columns: minmax(130px, 1.15fr) minmax(76px, .6fr) minmax(96px, .78fr) minmax(46px, .36fr) minmax(96px, .78fr) minmax(108px, .78fr) minmax(92px, .72fr) minmax(64px, .5fr) minmax(64px, .5fr) minmax(64px, .5fr);
   gap: 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
   background: var(--surface);
   color: var(--muted);
   font-size: 11px;
@@ -1254,7 +1623,7 @@ th {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-right: 1px solid var(--line);
+  border-right: 2px solid var(--line);
 }
 
 .shipment-list-table-head span:last-child {
@@ -1284,7 +1653,7 @@ th {
   padding: 4px 10px;
   background: var(--bg-elevated);
   color: var(--ink);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   font-weight: 800;
   cursor: pointer;
 }
@@ -1334,7 +1703,7 @@ th {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border-right: 1px solid var(--line);
+  border-right: 2px solid var(--line);
 }
 
 .shipment-list-row strong {
@@ -1364,6 +1733,7 @@ th {
 
 .shipment-items-table {
   min-width: 980px;
+  border: 2px solid var(--line);
 }
 
 .shipment-detail-panel .table-wrap {
@@ -1374,6 +1744,13 @@ th {
 .shipment-items-table td {
   padding: 8px 10px;
   font-size: 11px;
+  border-right: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+}
+
+.shipment-items-table th:last-child,
+.shipment-items-table td:last-child {
+  border-right: 0;
 }
 
 .shipment-modal .auth-panel {
@@ -1406,6 +1783,15 @@ th {
   .split-workflow,
   .shipment-prep-toolbar,
   .shipment-master-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .shipment-divider {
+    display: none;
+  }
+
+  .co-draft-controls,
+  .ci-bottom {
     grid-template-columns: 1fr;
   }
 }

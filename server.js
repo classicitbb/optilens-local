@@ -95,6 +95,7 @@ const {
   claimAutomationJob: claimBeSwiftAutomationJob,
   createAutomationJob: createBeSwiftAutomationJob,
   getCoForShipment,
+  getCommercialInvoicePreview,
   prepareCoDraft,
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
@@ -107,6 +108,7 @@ const {
   getCustomerParameters,
   upsertCustomerParameters
 } = require("./lib/customer-parameters");
+const { saveCatalogEntry } = require("./lib/co-item-catalog");
 const {
   findInvoiceItem,
   getStatement,
@@ -1119,6 +1121,23 @@ const server = http.createServer(async (req, res) => {
     }, 201);
   }
 
+  const commercialInvoicePreviewMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/preview$/);
+  if (commercialInvoicePreviewMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { preview: await getCommercialInvoicePreview(commercialInvoicePreviewMatch[1]) };
+    });
+  }
+
+  const commercialInvoicePrintMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\.pdf$/);
+  if (commercialInvoicePrintMatch && req.method === "GET") {
+    return handleHtml(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const preview = await getCommercialInvoicePreview(commercialInvoicePrintMatch[1]);
+      return renderCommercialInvoiceHtml(preview);
+    });
+  }
+
   const coDraftMatch = url.pathname.match(/^\/api\/delivery\/co-applications\/([^/]+)\/draft$/);
   if (coDraftMatch && req.method === "PUT") {
     return handleApi(res, async () => {
@@ -1154,6 +1173,15 @@ const server = http.createServer(async (req, res) => {
         actor.userId
       );
       return { parameters };
+    });
+  }
+
+  const catalogEntryMatch = url.pathname.match(/^\/api\/delivery\/co-item-catalog\/(.+)$/);
+  if (catalogEntryMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const entry = await saveCatalogEntry(decodeURIComponent(catalogEntryMatch[1]), await readJsonBody(req), actor.userId);
+      return { entry };
     });
   }
 
@@ -2033,6 +2061,15 @@ function sendText(res, text, status = 200) {
   res.end(text);
 }
 
+function sendHtml(res, html, status = 200) {
+  writeSecurityHeaders(res);
+  res.writeHead(status, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(html);
+}
+
 async function handleApi(res, action, status = 200) {
   try {
     return sendJson(res, await action(), status);
@@ -2040,6 +2077,14 @@ async function handleApi(res, action, status = 200) {
     return sendJson(res, {
       error: error.message || "Server error"
     }, error.statusCode || 500);
+  }
+}
+
+async function handleHtml(res, action, status = 200) {
+  try {
+    return sendHtml(res, await action(), status);
+  } catch (error) {
+    return sendHtml(res, `<p>${escapeHtmlServer(error.message || "Server error")}</p>`, error.statusCode || 500);
   }
 }
 
@@ -2065,6 +2110,101 @@ async function readJsonBody(req) {
     err.statusCode = 400;
     throw err;
   }
+}
+
+function renderCommercialInvoiceHtml(preview) {
+  const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const rows = (preview.items || []).map((item) => `
+    <tr>
+      <td>${escapeHtmlServer(item.lineNumber)}</td>
+      <td>${escapeHtmlServer(item.ref)}</td>
+      <td>${escapeHtmlServer(item.specification)}</td>
+      <td>${escapeHtmlServer(item.hsCode)}</td>
+      <td>${escapeHtmlServer(item.origin)}</td>
+      <td>${escapeHtmlServer(item.quantity)}</td>
+      <td><span>$</span>${money(item.unitPrice)}</td>
+      <td><span>$</span>${money(item.amount)}</td>
+    </tr>
+  `).join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Commercial Invoice ${escapeHtmlServer(preview.invoiceNo)}</title>
+  <style>
+    @page { size: Letter; margin: 0.35in; }
+    body { margin: 0; font-family: Arial, sans-serif; color: #08213d; font-size: 10px; }
+    .invoice { width: 100%; }
+    h1 { margin: 0 0 6px; font-size: 24px; color: #001b35; border-bottom: 2px solid #d89023; }
+    .brand { float: right; margin-top: -28px; color: #0082a8; font-size: 8px; letter-spacing: 3px; font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #b7c4d3; border-bottom: 0; }
+    .cell { min-height: 38px; padding: 7px 8px; border-right: 1px solid #b7c4d3; border-bottom: 1px solid #b7c4d3; }
+    .cell:nth-child(even) { border-right: 0; }
+    .label { display: block; text-transform: uppercase; color: #3b628a; font-size: 7px; letter-spacing: .6px; font-weight: 700; margin-bottom: 5px; }
+    .strong { font-weight: 700; color: #001b35; }
+    .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
+    th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
+    td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
+    td:nth-child(1), td:nth-child(2), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) { text-align: center; white-space: nowrap; }
+    td:nth-child(3) { width: 30%; overflow-wrap: anywhere; }
+    .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; }
+    .cert { padding: 8px 4px; color: #315b83; line-height: 1.4; }
+    .sig { margin-top: 26px; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
+    .totals { border: 1px solid #071d35; align-self: start; }
+    .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
+    .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
+    .total-row span:last-child { text-align: right; }
+    footer { margin-top: 18px; padding-top: 6px; border-top: 1px solid #c8d4e0; color: #6d86a1; font-size: 7px; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+  <section class="invoice">
+    <h1>Commercial Invoice</h1>
+    <div class="brand">CLASSIC VISIONS · EXPORT</div>
+    <div class="grid">
+      <div class="cell"><span class="label">Seller (name, full address, country)</span><div class="strong">${escapeHtmlServer(preview.seller.name)}</div>${escapeHtmlServer((preview.seller.addressLines || []).join(", "))}<br>${escapeHtmlServer(preview.seller.phone)}</div>
+      <div class="cell"><span class="label">Date / Inv No / Customer Order No</span><span class="strong">${escapeHtmlServer(preview.invoiceDate)} · ${escapeHtmlServer(preview.invoiceNo)} · ${escapeHtmlServer(preview.customerOrderNo)}</span></div>
+      <div class="cell"><span class="label">Consignee</span><div class="strong">${escapeHtmlServer(preview.consignee.name)}</div>${escapeHtmlServer(preview.consignee.address)}<br>${escapeHtmlServer(preview.consignee.country)} ${escapeHtmlServer(preview.consignee.phone)}</div>
+      <div class="cell"><span class="label">PO Numbers</span><span class="strong">${escapeHtmlServer(preview.poNumbers)}</span></div>
+      <div class="cell"><span class="label">Port of Loading / Destination</span><span class="strong">${escapeHtmlServer(preview.transport.portOfLoading)} → ${escapeHtmlServer(preview.transport.countryOfDestination)}</span></div>
+      <div class="cell"><span class="label">Bank / Origin / Terms</span>${escapeHtmlServer(preview.presentingBank)}<br><span class="strong">${escapeHtmlServer(preview.countryOfOriginOfGoods)}</span><br>${escapeHtmlServer(preview.deliveryTerms)}</div>
+      <div class="cell"><span class="label">Transportation / Marks</span><span class="strong">${escapeHtmlServer(preview.transport.carrier)}</span> ${escapeHtmlServer(preview.transport.trackingNumber)}<br>${escapeHtmlServer(preview.transport.marksAndNumbers)}</div>
+      <div class="cell declaration"><span class="label">Declaration</span>${escapeHtmlServer(preview.declarationText)}<br><br>${escapeHtmlServer(preview.declarationHsCode)}</div>
+    </div>
+    <table>
+      <thead><tr><th>Line #</th><th>Ref #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="8">No invoice lines.</td></tr>`}</tbody>
+    </table>
+    <div class="bottom">
+      <div class="cert">
+        <p>${escapeHtmlServer(preview.itemCount)} Items &nbsp;&nbsp; ${escapeHtmlServer(preview.noChargeNote)}</p>
+        <p>${escapeHtmlServer(preview.certificationText)}</p>
+        <div class="sig">Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div>
+      </div>
+      <div class="totals">
+        <div class="total-row"><span>Sub Total</span><span>$${money(preview.totals.subTotal)}</span></div>
+        <div class="total-row"><span>Packaging</span><span>$${money(preview.totals.packaging)}</span></div>
+        <div class="total-row"><span>Freight</span><span>$${money(preview.totals.freight)}</span></div>
+        <div class="total-row"><span>Other Costs</span><span>$${money(preview.totals.other)}</span></div>
+        <div class="total-row"><span>Insurance</span><span>$${money(preview.totals.insurance)}</span></div>
+        <div class="total-row"><span>Invoice Total</span><span>$${money(preview.totals.invoiceTotal)}</span></div>
+      </div>
+    </div>
+    <footer><span>Classic Visions · TIN# 1000006494000 · Uplands, St. John, Barbados · Tel 246-433-4928</span><span>Generated ${escapeHtmlServer(preview.generatedAt)}</span></footer>
+  </section>
+</body>
+</html>`;
+}
+
+function escapeHtmlServer(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 async function enrichShipmentSessions(sessions) {
@@ -2128,9 +2268,10 @@ function normalizeSourceShipmentItem(item) {
     shipmentItemId: item.shipmentItemId || "",
     shipmentId: item.shipmentId || "",
     orderId: item.orderId || "",
-    orderType: item.orderType || "Rx",
+    orderType: item.orderTypeName || item.orderType || "Rx",
     customerAccount: item.customerAccount || "",
     invoiceNumber: item.invoiceNumber || "",
+    rxNumber: item.rxNumber || "",
     patientName: item.patientName || "",
     price: item.price ?? null,
     itemState: Number(item.sourceShipped) === 1 ? "shipped" : "open",
@@ -2149,6 +2290,7 @@ function normalizeAppShipmentItem(item) {
     orderType: item.orderType || "Rx",
     customerAccount: "",
     invoiceNumber: item.invoiceNumber || "",
+    rxNumber: item.rxNumber || "",
     patientName: item.patientName || "",
     price: item.price ?? null,
     itemState: item.itemState || "prep",
