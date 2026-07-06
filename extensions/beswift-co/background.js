@@ -181,23 +181,30 @@ async function startJob(baseUrl, claimCode) {
   const automationJobId = data.job?.automationJobId;
 
   try {
-    const tab = await chrome.tabs.create({ url: data.portal.url, active: true });
+    const tab = await chrome.tabs.create({ url: certificateStartUrl(data.portal.url), active: true });
     tabJobs.set(tab.id, { baseUrl, automationJobId });
 
-    // Step 1: land on the BeSwift home page and click Sign In. This triggers a
-    // real cross-origin OAuth redirect to a Keycloak SSO login page, which
-    // fully unloads this tab's script context (confirmed live) — so the login
-    // step below has to run as a *separate* content.js injection on the new
-    // page, driven by this background script watching tab navigation, rather
-    // than one continuous script surviving the redirect.
+    // Step 1: try the certificate route on the BeSwift app origin first.
+    // If the browser still has a valid BeSwift session, that tab can fill
+    // immediately. If not, BeSwift either shows a Sign In trigger or redirects
+    // to SSO; both branches below still fall back to the normal login flow.
+    // Opening a fresh app tab per claimed job also means concurrent jobs do
+    // not have to share or reuse one live form tab.
     await waitForTabState(tab.id, (url) => /^https?:\/\//i.test(url || ""));
     await settle(600);
-    const clickResult = await sendToTab(tab.id, { type: "clickSignIn", baseUrl, automationJobId });
+    let currentTab = await chromeTab(tab.id);
+    let clickResult = { alreadySignedIn: false };
+
+    if (!isSsoUrl(currentTab.url)) {
+      clickResult = await sendToTab(tab.id, { type: "clickSignIn", baseUrl, automationJobId });
+    }
 
     if (!clickResult.alreadySignedIn) {
       // Step 2: wait for the SSO redirect to finish loading, then fill + submit
       // Keycloak's login form (fields confirmed live: #username, #password, #kc-login).
-      await waitForTabState(tab.id, (url) => /^https:\/\/sso\./i.test(url || ""));
+      if (!isSsoUrl(currentTab.url)) {
+        await waitForTabState(tab.id, (url) => isSsoUrl(url));
+      }
       await settle(600);
       await sendToTab(tab.id, {
         type: "fillLogin",
@@ -210,7 +217,7 @@ async function startJob(baseUrl, claimCode) {
       // Step 3: wait for the post-login redirect back to the BeSwift app.
       await waitForTabState(
         tab.id,
-        (url) => /^https:\/\/(?:training\.)?beswift\.gov\.bb/i.test(url || "") && !/^https:\/\/sso\./i.test(url || "")
+        (url) => isBeswiftAppUrl(url) && !isSsoUrl(url)
       );
       await settle(600);
     }
@@ -224,6 +231,44 @@ async function startJob(baseUrl, claimCode) {
     await reportJobError(baseUrl, automationJobId, error.message || "Failed during the BeSwift sign-in/fill flow.");
     throw error;
   }
+}
+
+function certificateStartUrl(portalUrl) {
+  const origin = appOriginForPortalUrl(portalUrl);
+  return `${origin}/#/lpco/certificates/new`;
+}
+
+function appOriginForPortalUrl(portalUrl) {
+  const raw = String(portalUrl || "").trim();
+  try {
+    const url = new URL(raw || "https://training.beswift.gov.bb/");
+    const host = url.hostname.toLowerCase();
+    if (host.includes("training.beswift.gov.bb")) return "https://training.beswift.gov.bb";
+    if (host.includes("beswift.gov.bb")) return "https://beswift.gov.bb";
+  } catch {
+    // Fall through to the training app default below.
+  }
+  return "https://training.beswift.gov.bb";
+}
+
+function isSsoUrl(url) {
+  return /^https:\/\/sso\./i.test(String(url || ""));
+}
+
+function isBeswiftAppUrl(url) {
+  return /^https:\/\/(?:training\.)?beswift\.gov\.bb/i.test(String(url || ""));
+}
+
+function chromeTab(tabId) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(tab);
+    });
+  });
 }
 
 function sendToTab(tabId, message) {

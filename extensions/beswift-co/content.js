@@ -85,15 +85,18 @@
   }
 
   async function handleClickSignIn() {
-    // Poll for either a Sign In button (need to log in) or the actual CO
-    // application form already being present (an existing session means
-    // we're already signed in) — actively waiting for one of these two
-    // positive signals avoids silently concluding "already signed in" just
-    // because the button happened to be slow to render on a fresh page.
+    // Poll for either a Sign In button (need to log in), the actual CO
+    // application form, or a signed-in BeSwift app shell. The last case is
+    // important for concurrent automation: each claim opens its own fresh
+    // certificate-route tab, and if the browser session is already valid the
+    // app may render the authenticated shell before this exact form route has
+    // finished mounting. Treat that as authenticated and let runFill()
+    // navigate/wait for the certificate form.
     const result = await waitFor(() => {
       const btn = findSignInButton();
       if (btn) return { type: "button", el: btn };
       if (findByAny(["applicant reference", "customer order no"])) return { type: "already" };
+      if (isSignedInBeswiftShell()) return { type: "already" };
       return null;
     }, 10000, 300);
 
@@ -105,6 +108,16 @@
     }
     result.el.click();
     return { alreadySignedIn: false };
+  }
+
+  function isSignedInBeswiftShell() {
+    if (!/^https:\/\/(?:training\.)?beswift\.gov\.bb/i.test(location.href)) return false;
+    if (findSignInButton()) return false;
+
+    const text = document.body?.innerText || "";
+    const hasAuthenticatedNav = /LPCO Applications|My Account|Dashboards|Online Payment|Query|Reports/i.test(text);
+    const hasUserMenu = Boolean(document.querySelector(".v-avatar, .v-menu, [aria-label*='account' i], [aria-label*='profile' i]"));
+    return hasAuthenticatedNav && hasUserMenu;
   }
 
   async function handleFillLogin({ username, password }) {
