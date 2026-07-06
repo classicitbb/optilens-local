@@ -62,6 +62,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
+  if (message?.type === "cdpTypeText") {
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      sendResponse({ ok: false, error: "No tab id on the type request." });
+      return false;
+    }
+    handleCdpTypeText(tabId, message.text)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === "cdpDetach") {
     const tabId = sender.tab?.id;
     if (tabId) detachDebugger(tabId);
@@ -119,6 +130,22 @@ async function handleCdpClick(tabId, x, y) {
   await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none" });
   await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
   await cdpSend(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+}
+
+async function handleCdpTypeText(tabId, text) {
+  if (!debuggedTabs.has(tabId)) {
+    await new Promise((resolve, reject) => {
+      chrome.debugger.attach({ tabId }, "1.3", () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        debuggedTabs.add(tabId);
+        resolve();
+      });
+    });
+  }
+  await cdpSend(tabId, "Input.insertText", { text: String(text || "") });
 }
 
 function cdpSend(tabId, method, params) {

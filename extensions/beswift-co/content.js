@@ -158,15 +158,23 @@
     // the form is empty, verify the concrete, known side effect of a real
     // commit (the next field/section actually becoming available) and pause
     // for a manual fix immediately if it doesn't show up.
+    await dismissBlockingOverlay();
+    if (!(await waitFor(() => isFieldEditable("Regime"), 10000, 200))) {
+      await dismissBlockingOverlay();
+    }
+    if (!(await waitFor(() => isFieldEditable("Regime"), 3000, 200))) {
+      await pauseForFieldFix(ctx, findByAny(["regime"]), "Regime", payload.regime || "Export",
+        "Regime is still disabled/covered after the certificate form appeared.");
+    }
     await pickByLabel("Regime", payload.regime || "Export");
     if (!(await waitFor(() => isFieldEditable("Service Type"), 3000, 200))) {
       await pauseForFieldFix(ctx, findByAny(["regime"]), "Regime", payload.regime || "Export",
         "Service Type is still disabled/absent after picking Regime — the dropdown selection likely didn't commit.");
     }
     await pickByLabel("Service Type", payload.serviceType || "Certificate of Origin - CARICOM");
-    if (!(await waitFor(() => findByAny(["applicant reference"]), 3000, 200))) {
+    if (!(await waitFor(() => findSectionContainer("Importer Details"), 5000, 200))) {
       await pauseForFieldFix(ctx, findByAny(["service type"]), "Service Type", payload.serviceType || "Certificate of Origin - CARICOM",
-        "The rest of the form (Applicant Reference onward) never appeared after picking Service Type — the dropdown selection likely didn't commit.");
+        "The Exporter/Importer/Producer/Consignee sections never appeared after picking Service Type — the dropdown selection likely didn't commit.");
     }
     setByLabel("Applicant Reference", payload.applicantReference);
     setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
@@ -182,40 +190,40 @@
     // to be set here. Scope both the radio click and the TIN pick to the Applicant
     // Details section — "Other" and "TIN" both also appear in Exporter/Producer/
     // Consignee sections further down the form.
-    const applicantSection = findSectionContainer("Applicant Details");
+    const applicantSection = requireSectionContainer("Applicant Details");
     if ((payload.applicantType || "Other").toLowerCase() === "other") {
-      clickByText("Other", applicantSection || document);
+      clickByText("Other", applicantSection);
       await wait(300);
-      await pickByLabel("TIN", payload.applicant?.tin, applicantSection || document);
+      await pickByLabel("TIN", payload.applicant?.tin, applicantSection);
     }
     await checkpoint(ctx, "Applicant Details set (Applicant Type=Other, TIN picked).");
 
     // Exporter/Supplier Details defaults to "Same as Applicant" checked
     // (confirmed live) — this click is a no-op safety net in case it isn't.
-    const exporterSection = findSectionContainer("Exporter/Supplier Details");
-    clickByText("Same as Applicant", exporterSection || document);
+    const exporterSection = requireSectionContainer("Exporter/Supplier Details");
+    clickByText("Same as Applicant", exporterSection);
     await checkpoint(ctx, "Exporter/Supplier Details: Same as Applicant confirmed.");
 
     // Importer Details is a separate section (Name/Address/Country only) that
     // sits side-by-side with Exporter/Supplier — must scope to it specifically,
     // since Applicant/Exporter/Producer/Consignee all expose fields with the
     // exact same labels (confirmed live: Name/Address/Country repeat 4+ times).
-    const importerSection = findSectionContainer("Importer Details");
-    setByLabel("Name", imp.name, importerSection || document);
-    setByLabel("Address", imp.address, importerSection || document);
-    await pickByLabel("Country", imp.country, importerSection || document);
+    const importerSection = requireSectionContainer("Importer Details");
+    setByLabel("Name", imp.name, importerSection);
+    setByLabel("Address", imp.address, importerSection);
+    await pickByLabel("Country", imp.country, importerSection);
     await checkpoint(ctx, "Importer Details filled.", { importer: imp });
 
     // Producer/Manufacturer Details — assume a single producer (Classic
     // Visions itself) and reuse the Exporter/Supplier details for it.
-    const producerSection = findSectionContainer("Producer/Manufacturer Details");
-    clickByText("Single", producerSection || document);
-    clickByText("Same as Exporter", producerSection || document);
+    const producerSection = requireSectionContainer("Producer/Manufacturer Details");
+    clickByText("Single", producerSection);
+    clickByText("Same as Exporter", producerSection);
     await checkpoint(ctx, "Producer/Manufacturer Details: Single + Same as Exporter confirmed.");
 
     // Consignee Details — same company as Importer.
-    const consigneeSection = findSectionContainer("Consignee Details");
-    clickByText("Same As Importer", consigneeSection || document);
+    const consigneeSection = requireSectionContainer("Consignee Details");
+    clickByText("Same As Importer", consigneeSection);
     await checkpoint(ctx, "Consignee Details: Same As Importer confirmed.");
 
     // Transport Information
@@ -224,8 +232,16 @@
     setByLabel("Other Transport Information", t.trackingNumber ? `AWB: ${t.trackingNumber}` : "");
     await pickByLabel("Port Of Loading", t.portOfLoading || "GRANTLEY");
     await pickByLabel("Country Of Destination", t.countryOfDestination);
+    if (!(await waitFor(() => isFieldEditable("Port Of Discharge"), 5000, 200))) {
+      await pauseForFieldFix(ctx, findByAny(["country of destination"]), "Country Of Destination", t.countryOfDestination,
+        "Port Of Discharge is still disabled after picking Country Of Destination — the country selection likely didn't commit yet.");
+    }
     await pickByLabel("Port Of Discharge", t.portOfDischarge);
     await pickByLabel("Mode Of Transport", t.modeOfTransport);
+    if (!(await waitFor(() => isFieldEditable("Carrier"), 5000, 200))) {
+      await pauseForFieldFix(ctx, findByAny(["mode of transport"]), "Mode Of Transport", t.modeOfTransport,
+        "Carrier is still disabled after picking Mode Of Transport — the transport-mode selection likely didn't commit yet.");
+    }
     await pickByLabel("Carrier", t.carrier);
     await pickByLabel("Delivery Terms", t.deliveryTerms || "Free on Board");
     await checkpoint(ctx, "Transport Information filled.", { transport: t });
@@ -336,7 +352,8 @@
     // trusted, same mechanism Puppeteer/Playwright rely on.
     await cdpClickElement(el);
     await wait(250);
-    typeValue(el, String(value));
+    selectElementText(el);
+    await cdpTypeText(String(value));
 
     // Some option lists (e.g. Country, seen live showing a loading spinner
     // and "field is required" error) appear to load asynchronously and may
@@ -345,7 +362,8 @@
     // loading, and use a longer overall timeout for this class of field.
     let option = await waitFor(() => findVisibleDropdownOption(value), 3000, 150);
     if (!option) {
-      typeValue(el, String(value));
+      selectElementText(el);
+      await cdpTypeText(String(value));
       option = await waitFor(() => findVisibleDropdownOption(value), 5000, 150);
     }
     if (option) {
@@ -385,6 +403,46 @@
     });
   }
 
+  function cdpTypeText(text) {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: "cdpTypeText", text }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (response && response.ok === false) {
+          reject(new Error(response.error || "CDP type failed."));
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  function selectElementText(el) {
+    el.focus();
+    if (typeof el.setSelectionRange === "function") {
+      try {
+        el.setSelectionRange(0, String(el.value || "").length);
+      } catch {
+        // Some Vuetify inputs do not allow selection APIs in every state.
+      }
+    }
+  }
+
+  async function dismissBlockingOverlay() {
+    if (document.querySelector(".v-dialog--active")) return false;
+    const overlay = [...document.querySelectorAll(".v-overlay--active")]
+      .find((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && getComputedStyle(el).pointerEvents !== "none";
+      });
+    if (!overlay) return false;
+    await cdpClickElement(overlay);
+    await wait(400);
+    return true;
+  }
+
   function findVisibleDropdownOption(value) {
     const menu = [...document.querySelectorAll(".v-menu__content.menuable__content__active, .v-autocomplete__content, .v-select-list")]
       .find((el) => {
@@ -398,6 +456,20 @@
       || items.find((li) => (li.textContent || "").trim().toLowerCase().includes(needle));
   }
 
+  const SECTION_HEADINGS = [
+    "Applicant Details",
+    "Exporter/Supplier Details",
+    "Importer Details",
+    "Producer/Manufacturer Details",
+    "Consignee Details"
+  ];
+
+  function requireSectionContainer(headingText) {
+    const section = findSectionContainer(headingText);
+    if (!section) throw new Error(`${headingText} section was not found.`);
+    return section;
+  }
+
   function findSectionContainer(headingText) {
     // BeSwift's form repeats field labels (Name/Address/Country/TIN) across
     // multiple side-by-side sections (Applicant, Exporter/Supplier, Importer,
@@ -407,23 +479,58 @@
     // the ancestor still contains exactly that one section heading, stopping
     // right before it would also swallow a sibling section's heading.
     const needle = headingText.trim().toLowerCase();
-    const allHeadings = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,.v-card__title,.v-toolbar__title,.v-subheader,legend")]
-      .filter((el) => (el.textContent || "").trim().length > 0);
-    const heading = allHeadings.find((el) => (el.textContent || "").trim().toLowerCase() === needle);
+    const allHeadings = findSectionHeadings();
+    const heading = allHeadings.find((el) => sectionHeadingText(el) === needle);
     if (!heading) return null;
 
     let container = heading.parentElement;
-    let best = container;
+    let best = null;
     while (container && container !== document.body) {
       const headingsInside = allHeadings.filter((h) => container.contains(h));
-      if (headingsInside.length === 1) {
-        best = container;
+      if (headingsInside.length === 1 && headingsInside[0] === heading) {
+        if (container.querySelector("input,textarea,select")) best = container;
         container = container.parentElement;
       } else {
         break;
       }
     }
-    return best;
+    return best || heading.parentElement;
+  }
+
+  function findSectionHeadings() {
+    // IMPORTANT: keep this candidate selector narrow. It used to also include
+    // plain "div,span" to be more lenient about markup changes, but this page
+    // has a hidden "jump to section" outline panel (rendered off-screen /
+    // as disabled .v-list-item__title entries) that duplicates every section
+    // name as plain text in a div/span — broadening the selector to div/span
+    // picks that decoy up as a heading candidate too, and which one
+    // findSectionContainer picks then depends on DOM nesting order rather
+    // than which is the real form section. Confirmed live 2026-07-06: this
+    // caused "Name is not editable" on Importer Details because
+    // requireSectionContainer("Applicant Details") resolved to the outline
+    // panel's entry instead of the real section on some runs. Only match
+    // actual heading-ish elements.
+    const sectionNames = new Set(SECTION_HEADINGS.map((text) => text.toLowerCase()));
+    const candidates = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,.v-card__title,.v-toolbar__title,.v-subheader,legend")]
+      .filter((el) => {
+        const text = sectionHeadingText(el);
+        if (!sectionNames.has(text)) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+    return candidates.filter((el) => !candidates.some((other) => {
+      return other !== el && el.contains(other) && sectionHeadingText(other) === sectionHeadingText(el);
+    }));
+  }
+
+  function sectionHeadingText(el) {
+    const directText = [...el.childNodes]
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent || "")
+      .join(" ")
+      .trim();
+    return (directText || el.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
   }
 
   function findByAny(labels, root = document) {
