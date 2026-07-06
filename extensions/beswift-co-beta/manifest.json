@@ -33,4 +33,11 @@
         "https://sso.training.beswift.gov.bb/*",
         "https://training.beswift.gov.bb/*",
         "https://*.training.beswift.gov.bb/*",
-        "https:
+        "https://beswift.gov.bb/*",
+        "https://*.beswift.gov.bb/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
