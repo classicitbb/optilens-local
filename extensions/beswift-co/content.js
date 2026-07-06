@@ -149,8 +149,25 @@
     // rest of the form (Applicant/Exporter/Importer/Producer/Consignee/
     // Transport/Invoice sections) doesn't even render until both are picked
     // (confirmed live — the form is empty except these two fields at first).
+    // Regime and Service Type are the two known "silent failure" fields —
+    // history here (see the pickByLabel comment below) is that a bad pick can
+    // still leave the right-looking text sitting in the input while the
+    // component's real v-model/selection never committed, and nothing
+    // downstream ever renders as a result — with no exception thrown anywhere.
+    // Rather than trusting the pick and finding out five sections later that
+    // the form is empty, verify the concrete, known side effect of a real
+    // commit (the next field/section actually becoming available) and pause
+    // for a manual fix immediately if it doesn't show up.
     await pickByLabel("Regime", payload.regime || "Export");
+    if (!(await waitFor(() => isFieldEditable("Service Type"), 3000, 200))) {
+      await pauseForFieldFix(ctx, findByAny(["regime"]), "Regime", payload.regime || "Export",
+        "Service Type is still disabled/absent after picking Regime — the dropdown selection likely didn't commit.");
+    }
     await pickByLabel("Service Type", payload.serviceType || "Certificate of Origin - CARICOM");
+    if (!(await waitFor(() => findByAny(["applicant reference"]), 3000, 200))) {
+      await pauseForFieldFix(ctx, findByAny(["service type"]), "Service Type", payload.serviceType || "Certificate of Origin - CARICOM",
+        "The rest of the form (Applicant Reference onward) never appeared after picking Service Type — the dropdown selection likely didn't commit.");
+    }
     setByLabel("Applicant Reference", payload.applicantReference);
     setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
     setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
@@ -508,10 +525,14 @@
   // design: a real human review step shouldn't be raced against a clock, but
   // this content-script instance is torn down for free if the tab
   // navigates/closes, so it can't leak beyond the page's own lifetime.
-  async function pauseForInteraction(ctx, reason) {
+  async function pauseForInteraction(ctx, reason, el) {
     const pausedAt = new Date();
+    if (el) highlightElement(el);
     await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paused", reason);
-    showBanner(`PAUSED — ${reason} (waiting for Resume)`);
+    showBanner(
+      `PAUSED — ${reason} Fix it on the page, then either click Resume in the OptiLens BeSwift popup, ` +
+      `or right-click anywhere on this page and choose "OptiLens BeSwift: Resume automation".`
+    );
     for (;;) {
       await wait(2000);
       const job = await pollJobStatus(ctx.baseUrl, ctx.job.automationJobId);
@@ -519,10 +540,44 @@
       const log = Array.isArray(job.logs) ? job.logs : [];
       const resumed = log.some((entry) => entry?.status === "resume_signal" && new Date(entry.at) > pausedAt);
       if (resumed || job.status === "filling") {
+        if (el) unhighlightElement(el);
         showBanner(`Resumed — continuing: ${reason}`);
         return;
       }
     }
+  }
+
+  // Stops for a fix to one specific field — same wait/resume mechanism as
+  // pauseForInteraction, just with the field named, highlighted, and scrolled
+  // into view so whoever's watching doesn't have to go hunting for it.
+  async function pauseForFieldFix(ctx, el, label, expectedValue, reason) {
+    await pauseForInteraction(
+      ctx,
+      `Field "${label}" needs a manual fix (expected "${expectedValue}"). ${reason}`,
+      el
+    );
+  }
+
+  function isFieldEditable(label) {
+    const el = findByAny([label]);
+    return el && isEditable(el) ? el : null;
+  }
+
+  function highlightElement(el) {
+    if (!el) return;
+    el.dataset.optilensPrevOutline = el.style.outline || "";
+    el.dataset.optilensPrevOutlineOffset = el.style.outlineOffset || "";
+    el.style.outline = "3px solid #e8462a";
+    el.style.outlineOffset = "2px";
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  function unhighlightElement(el) {
+    if (!el) return;
+    el.style.outline = el.dataset.optilensPrevOutline || "";
+    el.style.outlineOffset = el.dataset.optilensPrevOutlineOffset || "";
+    delete el.dataset.optilensPrevOutline;
+    delete el.dataset.optilensPrevOutlineOffset;
   }
 
   function pollJobStatus(baseUrl, jobId) {

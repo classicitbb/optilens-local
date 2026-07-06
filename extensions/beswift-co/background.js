@@ -1,3 +1,33 @@
+// Right-click "companion" to the popup's Resume button — lets an operator fix
+// a stuck field directly on the page (no need to switch focus to the popup,
+// which unloads its own log/Resume view anyway when it loses focus) and
+// resume from wherever they are. Not field-specific: it resumes whichever job
+// is currently paused for this tab, which is enough context for the operator
+// (the paused banner/log entry already says which field needed a look).
+// removeAll+create at top-level (not gated on onInstalled) because MV3 service
+// workers restart frequently and onInstalled only fires on actual
+// install/update — this way the menu item is always there whenever the
+// worker wakes up, without erroring on a duplicate id.
+chrome.contextMenus.removeAll(() => {
+  chrome.contextMenus.create({
+    id: "optilens-beswift-resume",
+    title: "OptiLens BeSwift: Resume automation",
+    contexts: ["all"]
+  });
+});
+
+// Tracks which job (if any) is running in which tab, so the context-menu
+// handler (which only gets a tabId, not the job) knows what to resume.
+const tabJobs = new Map();
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== "optilens-beswift-resume" || !tab?.id) return;
+  const job = tabJobs.get(tab.id);
+  if (!job) return; // no known paused job for this tab — silently no-op
+  resumeJobDirect(job.baseUrl, job.automationJobId, "Resumed via right-click.")
+    .catch(() => {}); // best-effort; content.js's own poll loop will just keep waiting if this fails
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "reportStatus") {
     // The BeSwift page is HTTPS; a fetch() to our http:// OptiLens server made
@@ -111,7 +141,10 @@ function detachDebugger(tabId) {
 
 // If the tab navigates or closes mid-fill, drop our bookkeeping so a later
 // job against a reused tabId doesn't skip re-attaching.
-chrome.tabs.onRemoved.addListener((tabId) => debuggedTabs.delete(tabId));
+chrome.tabs.onRemoved.addListener((tabId) => {
+  debuggedTabs.delete(tabId);
+  tabJobs.delete(tabId);
+});
 
 async function startJob(baseUrl, claimCode) {
   const response = await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(claimCode)}`, { cache: "no-store" });
@@ -122,6 +155,7 @@ async function startJob(baseUrl, claimCode) {
 
   try {
     const tab = await chrome.tabs.create({ url: data.portal.url, active: true });
+    tabJobs.set(tab.id, { baseUrl, automationJobId });
 
     // Step 1: land on the BeSwift home page and click Sign In. This triggers a
     // real cross-origin OAuth redirect to a Keycloak SSO login page, which
@@ -239,5 +273,18 @@ async function fetchJobStatus(baseUrl, automationJobId) {
   const response = await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(automationJobId)}/status`, { cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Status poll failed.");
+  return data.job;
+}
+
+// Used by the right-click "Resume automation" menu item — a service-worker
+// fetch, same as everywhere else in this file, so no mixed-content concern.
+async function resumeJobDirect(baseUrl, automationJobId, message) {
+  if (!automationJobId) throw new Error("No automation job id to resume.");
+  const response = await fetch(
+    `${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(automationJobId)}/resume?message=${encodeURIComponent(message || "")}`,
+    { cache: "no-store" }
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Resume failed.");
   return data.job;
 }
