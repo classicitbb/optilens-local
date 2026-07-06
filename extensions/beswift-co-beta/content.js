@@ -949,14 +949,23 @@
     style.id = STYLE_ID;
     style.textContent = `
       #${TOAST_ID}{position:fixed!important;z-index:2147483647!important;top:16px;right:16px;
-        width:min(420px,calc(100vw - 32px));max-height:70vh;display:flex;flex-direction:column;
+        width:420px;max-width:calc(100vw - 32px);height:auto;max-height:70vh;display:flex;flex-direction:column;
         background:#0f172a;color:#e2e8f0;border:1px solid #1e293b;border-radius:10px;
-        font:12.5px/1.4 Segoe UI,Arial,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.4);overflow:hidden}
-      #${TOAST_ID} .olb-head{display:flex;align-items:center;gap:8px;padding:9px 12px;
-        background:#111827;border-bottom:1px solid #1e293b;font-weight:600;letter-spacing:.2px}
+        font:12.5px/1.4 Segoe UI,Arial,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.4);overflow:hidden;
+        resize:both;min-width:240px;min-height:44px;transition:opacity .12s ease}
+      #${TOAST_ID}.olb-transparent{opacity:.35}
+      #${TOAST_ID}.olb-transparent:hover{opacity:1}
+      #${TOAST_ID}.olb-collapsed{height:auto!important;max-height:none;resize:none}
+      #${TOAST_ID}.olb-collapsed .olb-pinned,#${TOAST_ID}.olb-collapsed .olb-feed{display:none!important}
+      #${TOAST_ID} .olb-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:move;
+        background:#111827;border-bottom:1px solid #1e293b;font-weight:600;letter-spacing:.2px;user-select:none}
       #${TOAST_ID} .olb-tag{background:#f97316;color:#111827;font-size:10px;font-weight:700;
         padding:1px 6px;border-radius:999px;letter-spacing:.5px}
       #${TOAST_ID} .olb-head .olb-spacer{flex:1}
+      #${TOAST_ID} .olb-ctrl{cursor:pointer;background:transparent;border:0;color:#94a3b8;font-size:14px;
+        line-height:1;padding:2px 5px;border-radius:5px}
+      #${TOAST_ID} .olb-ctrl:hover{background:#1e293b;color:#e2e8f0}
+      #${TOAST_ID} .olb-ctrl.on{color:#f97316}
       #${TOAST_ID} .olb-pinned{padding:11px 12px;border-bottom:1px solid #1e293b;line-height:1.4}
       #${TOAST_ID} .olb-pinned.olb-pause{background:#7c2d12;color:#fed7aa}
       #${TOAST_ID} .olb-pinned.olb-done{background:#14532d;color:#bbf7d0}
@@ -983,15 +992,29 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+  const TOAST_STATE_KEY = "optilensBeswiftToastState";
+  let toastState = { left: null, top: null, width: null, height: null, collapsed: false, transparent: false };
+
   function ensureToast() {
     ensureToastStyle();
     let root = document.getElementById(TOAST_ID);
     if (root) return root;
     root = document.createElement("div");
     root.id = TOAST_ID;
+
     const head = document.createElement("div");
     head.className = "olb-head";
-    head.innerHTML = `OptiLens BeSwift <span class="olb-tag">BETA</span><span class="olb-spacer"></span>`;
+    const title = document.createElement("span");
+    title.innerHTML = `OptiLens BeSwift <span class="olb-tag">BETA</span>`;
+    const spacer = document.createElement("span");
+    spacer.className = "olb-spacer";
+    const opacityBtn = mkCtrl("◐", "Toggle see-through");
+    const collapseBtn = mkCtrl("▾", "Collapse / expand");
+    head.appendChild(title);
+    head.appendChild(spacer);
+    head.appendChild(opacityBtn);
+    head.appendChild(collapseBtn);
+
     const pinned = document.createElement("div");
     pinned.className = "olb-pinned";
     pinned.hidden = true;
@@ -1003,7 +1026,117 @@
     document.body.appendChild(root);
     toastPinnedEl = pinned;
     toastFeedEl = feed;
+
+    wireToastControls(root, head, opacityBtn, collapseBtn);
+    loadToastState(root, opacityBtn, collapseBtn);
     return root;
+  }
+
+  function mkCtrl(glyph, title) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "olb-ctrl";
+    b.textContent = glyph;
+    b.title = title;
+    return b;
+  }
+
+  // Drag (via header), collapse, transparency toggle, and native resize. Size
+  // (from CSS resize) and position/flags persist to chrome.storage.local so the
+  // panel stays where the operator parked it across fills and page reloads.
+  function wireToastControls(root, head, opacityBtn, collapseBtn) {
+    let drag = null;
+    head.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".olb-ctrl")) return; // let buttons click
+      const rect = root.getBoundingClientRect();
+      drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      // Switch from right-anchored to explicit left/top so dragging is absolute.
+      root.style.right = "auto";
+      root.style.left = `${rect.left}px`;
+      root.style.top = `${rect.top}px`;
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!drag) return;
+      const maxLeft = window.innerWidth - 60;
+      const maxTop = window.innerHeight - 30;
+      const left = Math.min(Math.max(0, e.clientX - drag.dx), maxLeft);
+      const top = Math.min(Math.max(0, e.clientY - drag.dy), maxTop);
+      root.style.left = `${left}px`;
+      root.style.top = `${top}px`;
+    });
+    document.addEventListener("mouseup", () => {
+      if (!drag) return;
+      drag = null;
+      toastState.left = parseInt(root.style.left, 10);
+      toastState.top = parseInt(root.style.top, 10);
+      saveToastState();
+    });
+
+    collapseBtn.addEventListener("click", () => {
+      const collapsed = root.classList.toggle("olb-collapsed");
+      collapseBtn.textContent = collapsed ? "▸" : "▾";
+      toastState.collapsed = collapsed;
+      saveToastState();
+    });
+
+    opacityBtn.addEventListener("click", () => {
+      const on = root.classList.toggle("olb-transparent");
+      opacityBtn.classList.toggle("on", on);
+      toastState.transparent = on;
+      saveToastState();
+    });
+
+    // Persist the size the operator drags the native resize grip to.
+    if (typeof ResizeObserver === "function") {
+      let t = null;
+      const ro = new ResizeObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (root.classList.contains("olb-collapsed")) return;
+          toastState.width = root.offsetWidth;
+          toastState.height = root.offsetHeight;
+          saveToastState();
+        }, 300);
+      });
+      ro.observe(root);
+    }
+  }
+
+  function loadToastState(root, opacityBtn, collapseBtn) {
+    try {
+      chrome.storage.local.get([TOAST_STATE_KEY], (data) => {
+        if (chrome.runtime.lastError) return;
+        const s = data && data[TOAST_STATE_KEY];
+        if (!s || typeof s !== "object") return;
+        toastState = Object.assign(toastState, s);
+        if (Number.isFinite(s.width)) root.style.width = `${s.width}px`;
+        if (Number.isFinite(s.height) && !s.collapsed) root.style.height = `${s.height}px`;
+        if (Number.isFinite(s.left) && Number.isFinite(s.top)) {
+          root.style.right = "auto";
+          root.style.left = `${Math.min(s.left, window.innerWidth - 60)}px`;
+          root.style.top = `${Math.min(s.top, window.innerHeight - 30)}px`;
+        }
+        if (s.collapsed) {
+          root.classList.add("olb-collapsed");
+          collapseBtn.textContent = "▸";
+        }
+        if (s.transparent) {
+          root.classList.add("olb-transparent");
+          opacityBtn.classList.add("on");
+        }
+      });
+    } catch {
+      // chrome.storage unavailable (e.g. detached) — panel just won't persist.
+    }
+  }
+
+  function saveToastState() {
+    try {
+      chrome.storage.local.set({ [TOAST_STATE_KEY]: toastState }, () => void chrome.runtime.lastError);
+    } catch {
+      // best-effort persistence only
+    }
   }
 
   // Appends one line to the rolling feed with an optional compact summary of the
