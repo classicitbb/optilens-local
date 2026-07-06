@@ -457,87 +457,6 @@ async function updateAutomationJobStatus(jobId, body = {}) {
   return job;
 }
 
-// Read-only status/log lookup for a running job, keyed by automation_job_id
-// (a GUID, same low-friction bearer-style access pattern as the claim code
-// itself). Used by the extension's popup (direct fetch, no mixed-content
-// issue from a chrome-extension:// origin) and by an operator/tooling tab
-// polling progress without mutating anything — safe to call repeatedly.
-async function getAutomationJobStatus(automationJobId) {
-  const pool = await getAppPool();
-  const result = await pool.request()
-    .input("automation_job_id", String(automationJobId || "").trim())
-    .query(`
-      SELECT
-        automation_job_id AS automationJobId,
-        co_application_id AS coApplicationId,
-        claim_code AS claimCode,
-        portal_environment AS portalEnvironment,
-        job_status AS status,
-        log_json AS logJson,
-        error_message AS errorMessage,
-        created_at AS createdAt,
-        expires_at AS expiresAt,
-        claimed_at AS claimedAt,
-        completed_at AS completedAt
-      FROM delivery.co_automation_jobs
-      WHERE automation_job_id = @automation_job_id
-    `);
-
-  if (!result.recordset.length) {
-    const error = new Error("Automation job not found.");
-    error.statusCode = 404;
-    throw error;
-  }
-
-  return hydrateJob(result.recordset[0]);
-}
-
-// Signals a job paused via pauseForInteraction() in content.js to continue.
-// Only transitions a job that is actually 'paused' (guards against a stale
-// double-click or a resume sent against a job that already moved on/failed);
-// appends a 'resume_signal' log entry so content.js's poll loop can tell a
-// fresh signal apart from the earlier 'paused' entry by timestamp/status.
-async function resumeAutomationJob(automationJobId, message = "") {
-  const logEntry = {
-    at: new Date().toISOString(),
-    status: "resume_signal",
-    message: String(message || "Resumed by operator.").slice(0, 1000),
-    details: null
-  };
-  const pool = await getAppPool();
-  const result = await pool.request()
-    .input("automation_job_id", String(automationJobId || "").trim())
-    .input("job_status", "filling")
-    .input("log_entry", JSON.stringify(logEntry))
-    .query(`
-      UPDATE delivery.co_automation_jobs
-      SET job_status = @job_status,
-          log_json = JSON_MODIFY(COALESCE(log_json, N'[]'), 'append $', JSON_QUERY(@log_entry))
-      OUTPUT
-        inserted.automation_job_id AS automationJobId,
-        inserted.co_application_id AS coApplicationId,
-        inserted.claim_code AS claimCode,
-        inserted.portal_environment AS portalEnvironment,
-        inserted.job_status AS status,
-        inserted.log_json AS logJson,
-        inserted.error_message AS errorMessage,
-        inserted.created_at AS createdAt,
-        inserted.expires_at AS expiresAt,
-        inserted.claimed_at AS claimedAt,
-        inserted.completed_at AS completedAt
-      WHERE automation_job_id = @automation_job_id
-        AND job_status = N'paused'
-    `);
-
-  if (!result.recordset.length) {
-    const error = new Error("Job is not currently paused (already resumed, finished, or not found).");
-    error.statusCode = 409;
-    throw error;
-  }
-
-  return hydrateJob(result.recordset[0]);
-}
-
 async function listAutomationJobs(coApplicationId) {
   const pool = await getAppPool();
   const result = await pool.request()
@@ -669,11 +588,6 @@ async function buildPayloadFromShipment(session, draftInput = {}) {
     applicantReference: `SHP-${shipmentId}`,
     regime: CONFIG.defaults.regime,
     serviceType: CONFIG.defaults.serviceType,
-    // Confirmed live: Applicant Type defaults to "Personal" (prefilled with the
-    // logged-in BeSwift user's own individual TIN/name), but Classic Visions
-    // must file as "Other" (a company), which exposes CONFIG.company.tin's
-    // single dropdown option and auto-fills Name/Address/Country/Parish from it.
-    applicantType: "Other",
     applicant: CONFIG.company,
     importer: {
       name: [contactName, text(h.CustomerName)].filter(Boolean).join(" - "),
@@ -1088,7 +1002,7 @@ function normalizeEnvironment(value) {
 
 function normalizeJobStatus(value) {
   const status = String(value || "").toLowerCase();
-  return ["claimed", "logging_in", "filling", "paused", "filled_review", "error", "cancelled"].includes(status) ? status : "filling";
+  return ["claimed", "logging_in", "filling", "filled_review", "error", "cancelled"].includes(status) ? status : "filling";
 }
 
 function parseJson(raw, fallback) {
@@ -1120,7 +1034,5 @@ module.exports = {
   getCoForShipment,
   prepareCoDraft,
   saveCoDraft,
-  updateAutomationJobStatus,
-  getAutomationJobStatus,
-  resumeAutomationJob
+  updateAutomationJobStatus
 };
