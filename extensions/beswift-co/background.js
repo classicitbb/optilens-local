@@ -4,8 +4,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // from the content script (page context) gets blocked as mixed content.
     // Service worker fetches aren't subject to that page-level restriction, so
     // content.js relays status reports through here instead of fetching itself.
-    reportJobStatus(message.baseUrl, message.jobId, message.status, message.message)
+    reportJobStatus(message.baseUrl, message.jobId, message.status, message.message, message.details)
       .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+  if (message?.type === "pollJobStatus") {
+    // Same mixed-content reasoning as reportStatus, other direction: content.js
+    // (running on the HTTPS BeSwift page) can't GET our http:// status
+    // endpoint directly during pauseForInteraction()'s poll loop, so it asks
+    // the service worker to fetch it instead.
+    fetchJobStatus(message.baseUrl, message.jobId)
+      .then((job) => sendResponse({ ok: true, job }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -30,7 +40,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message?.type !== "startJob") return false;
   startJob(message.baseUrl, message.claimCode)
-    .then(() => sendResponse({ ok: true }))
+    .then((result) => sendResponse({ ok: true, ...result }))
     .catch((error) => sendResponse({ ok: false, error: error.message || "Job failed" }));
   return true;
 });
@@ -146,6 +156,7 @@ async function startJob(baseUrl, claimCode) {
 
     // Step 4: fill the certificate form (now authenticated either way).
     await sendToTab(tab.id, { type: "fillBeswiftCo", baseUrl, job: data.job, portal: data.portal, payload: data.payload });
+    return { automationJobId };
   } catch (error) {
     // If anything in the sign-in/fill flow fails, report it so the job doesn't
     // sit stuck in "claimed" forever with no explanation and no way to retry.
@@ -212,11 +223,21 @@ async function reportJobError(baseUrl, automationJobId, message) {
   await reportJobStatus(baseUrl, automationJobId, "error", message).catch(() => {});
 }
 
-async function reportJobStatus(baseUrl, automationJobId, status, message) {
+async function reportJobStatus(baseUrl, automationJobId, status, message, details) {
   if (!automationJobId) return;
   await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(automationJobId)}/status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, message })
+    body: JSON.stringify({ status, message, details: details ?? null })
   });
+}
+
+// Read-only poll of the job's current status/log — used by
+// pauseForInteraction()'s wait loop to notice a resume signal.
+async function fetchJobStatus(baseUrl, automationJobId) {
+  if (!automationJobId) throw new Error("No automation job id to poll.");
+  const response = await fetch(`${baseUrl}/api/beswift-extension/jobs/${encodeURIComponent(automationJobId)}/status`, { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Status poll failed.");
+  return data.job;
 }

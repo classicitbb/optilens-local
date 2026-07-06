@@ -97,7 +97,9 @@ const {
   getCoForShipment,
   prepareCoDraft,
   saveCoDraft,
-  updateAutomationJobStatus: updateBeSwiftAutomationJobStatus
+  updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
+  getAutomationJobStatus: getBeSwiftAutomationJobStatus,
+  resumeAutomationJob: resumeBeSwiftAutomationJob
 } = require("./lib/beswift-co");
 const {
   getCustomerParameters,
@@ -1162,6 +1164,27 @@ const server = http.createServer(async (req, res) => {
   if (extensionStatusMatch && req.method === "POST") {
     return handleApi(res, async () => {
       const job = await updateBeSwiftAutomationJobStatus(extensionStatusMatch[1], await readJsonBody(req));
+      return { job };
+    });
+  }
+  // Read-only poll used by the popup's live status panel and by anyone
+  // watching a staged test run (e.g. a tab opened just to poll this URL) —
+  // deliberately GET/no-auth like the claim endpoint above, same bearer-style
+  // posture (automation_job_id is a GUID, not guessable).
+  if (extensionStatusMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      const job = await getBeSwiftAutomationJobStatus(extensionStatusMatch[1]);
+      return { job };
+    });
+  }
+
+  // Signals a job paused via pauseForInteraction() (content.js) to continue.
+  // GET, matching the claim endpoint's existing GET-mutates precedent, so a
+  // plain tab navigation (no form/JS needed) can trigger it.
+  const extensionResumeMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)\/resume$/);
+  if (extensionResumeMatch && req.method === "GET") {
+    return handleApi(res, async () => {
+      const job = await resumeBeSwiftAutomationJob(extensionResumeMatch[1], url.searchParams.get("message"));
       return { job };
     });
   }

@@ -35,8 +35,14 @@
     const payload = ctx.payload.payload;
     await ensureOnCertificateForm();
     await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
-    await fillHeader(payload);
-    await fillItems(payload);
+    await fillHeader(ctx, payload);
+    await pauseForInteraction(
+      ctx,
+      "Header filled (Applicant/Exporter/Importer/Producer/Consignee/Transport/Invoice). " +
+      "Verify these sections before Items are added — Importer scoping and the Applicant TIN pick are the parts most " +
+      "likely to need a manual fix. Resume when ready to continue."
+    );
+    await fillItems(ctx, payload);
     await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
     // Detach chrome.debugger now that pickByLabel is done using it — leaves
     // the tab in a normal, non-debugged state (removing Chrome's "this
@@ -134,7 +140,7 @@
     });
   }
 
-  async function fillHeader(payload) {
+  async function fillHeader(ctx, payload) {
     const t = payload.transport || {};
     const inv = payload.invoiceDetails || {};
     const imp = payload.importer || {};
@@ -149,6 +155,7 @@
     setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
     setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
     setByLabel("Contact Email", payload.applicant?.contacts?.[0]?.email);
+    await checkpoint(ctx, "General Information filled (Regime/Service Type/Applicant Reference/Contact).");
 
     // Applicant Details — Applicant Type defaults to "Personal" (confirmed live:
     // prefills the logged-in BeSwift user's own individual TIN/name), but Classic
@@ -164,11 +171,13 @@
       await wait(300);
       await pickByLabel("TIN", payload.applicant?.tin, applicantSection || document);
     }
+    await checkpoint(ctx, "Applicant Details set (Applicant Type=Other, TIN picked).");
 
     // Exporter/Supplier Details defaults to "Same as Applicant" checked
     // (confirmed live) — this click is a no-op safety net in case it isn't.
     const exporterSection = findSectionContainer("Exporter/Supplier Details");
     clickByText("Same as Applicant", exporterSection || document);
+    await checkpoint(ctx, "Exporter/Supplier Details: Same as Applicant confirmed.");
 
     // Importer Details is a separate section (Name/Address/Country only) that
     // sits side-by-side with Exporter/Supplier — must scope to it specifically,
@@ -178,16 +187,19 @@
     setByLabel("Name", imp.name, importerSection || document);
     setByLabel("Address", imp.address, importerSection || document);
     await pickByLabel("Country", imp.country, importerSection || document);
+    await checkpoint(ctx, "Importer Details filled.", { importer: imp });
 
     // Producer/Manufacturer Details — assume a single producer (Classic
     // Visions itself) and reuse the Exporter/Supplier details for it.
     const producerSection = findSectionContainer("Producer/Manufacturer Details");
     clickByText("Single", producerSection || document);
     clickByText("Same as Exporter", producerSection || document);
+    await checkpoint(ctx, "Producer/Manufacturer Details: Single + Same as Exporter confirmed.");
 
     // Consignee Details — same company as Importer.
     const consigneeSection = findSectionContainer("Consignee Details");
     clickByText("Same As Importer", consigneeSection || document);
+    await checkpoint(ctx, "Consignee Details: Same As Importer confirmed.");
 
     // Transport Information
     setByLabel("Shipping Marks", (t.shippingMarks || "").slice(0, 35));
@@ -199,6 +211,7 @@
     await pickByLabel("Mode Of Transport", t.modeOfTransport);
     await pickByLabel("Carrier", t.carrier);
     await pickByLabel("Delivery Terms", t.deliveryTerms || "Free on Board");
+    await checkpoint(ctx, "Transport Information filled.", { transport: t });
 
     // Invoice Details
     await pickByLabel("Currency", inv.currency === "BB$" ? "BARBADOS DOLLAR" : inv.currency);
@@ -206,14 +219,18 @@
     setByLabel("Presenting Bank", inv.presentingBank);
     setByLabel("Cube Quantity", inv.cubeQuantity);
     setByLabel("Freight Cost", inv.freightCost);
+    await checkpoint(ctx, "Invoice Details filled.", { invoiceDetails: inv });
   }
 
-  async function fillItems(payload) {
-    for (let i = 0; i < (payload.items || []).length; i += 1) {
-      const item = payload.items[i];
+  async function fillItems(ctx, payload) {
+    const items = payload.items || [];
+    await checkpoint(ctx, `Starting Items (${items.length} item(s) to add).`);
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i];
       const opened = await clickAddItem();
       if (!opened) {
         showBanner(`Header filled. Add Item button was not found; add item ${i + 1} manually from the OptiLens payload.`);
+        await checkpoint(ctx, `Item ${i + 1}/${items.length}: Add Item button not found — stopped for manual add.`);
         return;
       }
       await wait(900);
@@ -228,9 +245,9 @@
       // bare HS code via setByLabel instead of pickByLabel, which avoids
       // wasting ~8s on pickByLabel's dropdown-wait/retry logic against a field
       // that never opens one. Whether BeSwift's save validation accepts a bare
-      // code without going through that modal was NOT confirmed live — check
-      // the first real run and switch to driving the search modal if it's
-      // rejected.
+      // code without going through that modal was NOT confirmed live — this is
+      // exactly the kind of thing to check during the pause below before Save
+      // is clicked.
       setByLabel("Commodity", item.hsCode, root);
       setByLabel("Commercial Description", item.commercialDescription, root);
       clickByText(payload.origin?.commodityType || "Manufactured", root);
@@ -246,9 +263,12 @@
       setByLabel("Item Quantity", item.quantity, root);
       await pickByLabel("Unit of Measure", item.uom || "Number of Units", root);
       setByLabel("Unit Cost", item.unitCost, root);
+      await checkpoint(ctx, `Item ${i + 1}/${items.length}: fields filled, about to Save.`, { hsCode: item.hsCode, description: item.commercialDescription });
       clickDialogSave(root);
       await wait(900);
+      await checkpoint(ctx, `Item ${i + 1}/${items.length}: Save clicked.`);
     }
+    await checkpoint(ctx, `All ${items.length} item(s) processed.`);
   }
 
   async function clickAddItem() {
@@ -463,6 +483,72 @@
     const box = el.getBoundingClientRect();
     const top = document.elementFromPoint(box.left + Math.min(8, box.width / 2), box.top + Math.min(8, box.height / 2));
     return !el.disabled && !el.readOnly && style.pointerEvents !== "none" && (!top || top === el || el.contains(top) || top.contains(el));
+  }
+
+  // Granular progress marker — always reports job_status "filling" (so it
+  // never looks stuck/errored to anything watching just the status field),
+  // but appends a distinct, timestamped message+details entry to the job's
+  // log_json every time it's called. This is the "observe behavior during
+  // fill" trace: poll GET /api/beswift-extension/jobs/:id/status (from the
+  // popup, or any tab navigated at the URL directly — it's read-only) and
+  // watch the log array grow through fillHeader/fillItems in near-real time.
+  async function checkpoint(ctx, message, details) {
+    await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "filling", message, details);
+  }
+
+  // Stops the fill and waits for an explicit resume signal before continuing
+  // — for steps where Russell (or whoever's watching) genuinely needs to look
+  // at the real page before it's safe to proceed (e.g. right after the header
+  // fill, before Items starts touching dialogs). Reports "paused" with the
+  // reason, shows the same reason as an on-page banner (visible to whoever's
+  // sitting at the keyboard), then polls the job's status every 2s for a
+  // 'resume_signal' log entry newer than this pause — either the popup's
+  // Resume button (fetched directly, no relay needed there) or a plain GET to
+  // .../resume from any other tab can produce that signal. No hard timeout by
+  // design: a real human review step shouldn't be raced against a clock, but
+  // this content-script instance is torn down for free if the tab
+  // navigates/closes, so it can't leak beyond the page's own lifetime.
+  async function pauseForInteraction(ctx, reason) {
+    const pausedAt = new Date();
+    await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paused", reason);
+    showBanner(`PAUSED — ${reason} (waiting for Resume)`);
+    for (;;) {
+      await wait(2000);
+      const job = await pollJobStatus(ctx.baseUrl, ctx.job.automationJobId);
+      if (!job) continue; // transient poll failure — keep waiting rather than giving up
+      const log = Array.isArray(job.logs) ? job.logs : [];
+      const resumed = log.some((entry) => entry?.status === "resume_signal" && new Date(entry.at) > pausedAt);
+      if (resumed || job.status === "filling") {
+        showBanner(`Resumed — continuing: ${reason}`);
+        return;
+      }
+    }
+  }
+
+  function pollJobStatus(baseUrl, jobId) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "pollJobStatus", baseUrl, jobId }, (response) => {
+          if (chrome.runtime.lastError || !response?.ok) {
+            resolve(null);
+            return;
+          }
+          resolve(response.job);
+        });
+      } catch (error) {
+        resolve(null);
+      }
+    });
+  }
+
+  async function reportDetailed(baseUrl, jobId, status, message, details) {
+    await new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "reportStatus", baseUrl, jobId, status, message, details }, () => resolve());
+      } catch (error) {
+        resolve();
+      }
+    });
   }
 
   async function report(baseUrl, jobId, status, message) {
