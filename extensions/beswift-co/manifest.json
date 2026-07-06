@@ -21,6 +21,12 @@
     "https://beswift.gov.bb/*",
     "https://*.beswift.gov.bb/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup.js", "popup.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
