@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OptiLens BeSwift CO (Beta)</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <h1>BeSwift CO <span class="tag">BETA</span></h1>
+    <label>OptiLens URL
+      <input id="baseUrl" value="http://192.168.254.7:8080">
+    </label>
+    <label>Claim code
+      <input id="claimCode" autocomplete="off">
+    </label>
+    <button id="startBtn" type="button">Claim and fill</button>
+    <p id="status" role="status"></p>
+    <section id="jobPanel" hidden>
+      <p id="jobStatusLine"></p>
+      <fieldset id="resolutionBox" hidden>
+        <legend>Record the fix (optional)</legend>
+        <label>Field<input id="resField" type="text" autocomplete="off"></label>
+        <label>Expected<input id="resExpected" type="text" autocomplete="off"></label>
+        <label>Actually had<input id="resActual" type="text" autocomplete="off"></label>
+        <label>What you did<textarea id="resFix" rows="2"></textarea></label>
+        <label>Notes / root cause<textarea id="resNote" rows="2"></textarea></label>
+      </fieldset>
+      <button id="resumeBtn" type="button" hidden>Save fix &amp; Resume</button>
+      <ol id="jobLog"></ol>
+    </section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

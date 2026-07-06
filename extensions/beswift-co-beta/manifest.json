@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "OptiLens BeSwift CO (Beta)",
+  "version": "0.2.0",
+  "description": "BETA: Claims OptiLens BeSwift CO jobs and fills the BeSwift certificate form for operator review. Adds a rolling on-page progress feed and operator error/resolution capture for AI refinement. Load side-by-side with the stable extension.",
+  "action": {
+    "default_title": "OptiLens BeSwift CO (Beta)",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "tabs", "scripting", "debugger", "contextMenus"],
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*",
+    "http://192.168.254.7:8080/*",
+    "https://sso.training.beswift.gov.bb/*",
+    "https://training.beswift.gov.bb/*",
+    "https://*.training.beswift.gov.bb/*",
+    "https://beswift.gov.bb/*",
+    "https://*.beswift.gov.bb/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "popup.js", "popup.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sso.training.beswift.gov.bb/*",
+        "https://training.beswift.gov.bb/*",
+        "https://*.training.beswift.gov.bb/*",
+        "https:

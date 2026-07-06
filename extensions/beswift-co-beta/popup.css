@@ -1,0 +1,99 @@
+body {
+  width: 320px;
+  margin: 0;
+  font: 13px "Segoe UI", Arial, sans-serif;
+  color: #0b1e35;
+  background: #f4f2ed;
+}
+
+main {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 17px;
+}
+
+label {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+}
+
+input {
+  min-height: 34px;
+  border: 1px solid #cdd5df;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font: inherit;
+}
+
+button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: #1a8a9c;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+p {
+  min-height: 18px;
+  margin: 0;
+  color: #4a6880;
+  line-height: 1.35;
+}
+
+.tag {
+  display: inline-block;
+  background: #f97316;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+#resolutionBox {
+  border: 1px solid #f0a878;
+  background: #fff7ed;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 7px;
+}
+
+#resolutionBox legend {
+  font-weight: 800;
+  color: #9a3412;
+  padding: 0 4px;
+}
+
+#resolutionBox label {
+  font-weight: 700;
+  font-size: 12px;
+  color: #7c2d12;
+}
+
+#resolutionBox textarea {
+  border: 1px solid #cdd5df;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font: inherit;
+  resize: vertical;
+}
+
+#jobLog {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  color: #33506a;
+}

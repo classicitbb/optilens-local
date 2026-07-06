@@ -99,7 +99,9 @@ const {
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
   getAutomationJobStatus: getBeSwiftAutomationJobStatus,
-  resumeAutomationJob: resumeBeSwiftAutomationJob
+  resumeAutomationJob: resumeBeSwiftAutomationJob,
+  recordFillResolution: recordBeSwiftFillResolution,
+  listFillResolutions: listBeSwiftFillResolutions
 } = require("./lib/beswift-co");
 const {
   getCustomerParameters,
@@ -1186,6 +1188,29 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       const job = await resumeBeSwiftAutomationJob(extensionResumeMatch[1], url.searchParams.get("message"));
       return { job };
+    });
+  }
+
+  // Beta extension: capture an operator's error + resolution note for a stuck
+  // field. POST, no-auth (same GUID-bearer posture as the sibling job
+  // endpoints above) so content.js can relay it via the background worker.
+  const extensionResolutionMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)\/resolution$/);
+  if (extensionResolutionMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const resolution = await recordBeSwiftFillResolution(extensionResolutionMatch[1], await readJsonBody(req));
+      return { resolution };
+    }, 201);
+  }
+
+  // Beta extension: read-only aggregated resolutions for an AI refinement pass.
+  if (url.pathname === "/api/beswift-extension/resolutions" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const resolutions = await listBeSwiftFillResolutions({
+        field: url.searchParams.get("field"),
+        automationJobId: url.searchParams.get("automationJobId"),
+        limit: url.searchParams.get("limit")
+      });
+      return { resolutions };
     });
   }
 
