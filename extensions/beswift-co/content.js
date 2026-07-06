@@ -1,4 +1,13 @@
 (function () {
+  const HUMAN_DELAY = {
+    clickMin: 220,
+    clickMax: 620,
+    typeMin: 55,
+    typeMax: 145,
+    fieldMin: 380,
+    fieldMax: 900
+  };
+
   // BeSwift's Sign In flow spans three separate page loads (confirmed live):
   //   1. Home page (training.beswift.gov.bb) — click Sign In.
   //   2. Real cross-origin OAuth redirect to a Keycloak login page
@@ -93,6 +102,7 @@
     // finished mounting. Treat that as authenticated and let runFill()
     // navigate/wait for the certificate form.
     const result = await waitFor(() => {
+      if (isSsoLoginPage()) return { type: "sso" };
       const btn = findSignInButton();
       if (btn) return { type: "button", el: btn };
       if (findByAny(["applicant reference", "customer order no"])) return { type: "already" };
@@ -106,8 +116,16 @@
     if (result.type === "already") {
       return { alreadySignedIn: true };
     }
-    result.el.click();
+    if (result.type === "sso") {
+      return { alreadySignedIn: false };
+    }
+    await cdpClickElement(result.el);
     return { alreadySignedIn: false };
+  }
+
+  function isSsoLoginPage() {
+    return /^https:\/\/sso\./i.test(location.href)
+      && Boolean(document.querySelector("input#username, input[name='username'], input[type='password']"));
   }
 
   function isSignedInBeswiftShell() {
@@ -130,14 +148,22 @@
     if (!found) {
       throw new Error("The BeSwift sign-in form never appeared.");
     }
-    typeValue(found.u, username);
-    typeValue(found.p, password);
+    await humanTypeElement(found.u, username);
+    await humanTypeElement(found.p, password);
     const submit = document.querySelector("#kc-login, button[type='submit'], input[type='submit']")
       || [...document.querySelectorAll("button,input[type='submit']")].find((el) => /login|sign in|submit/i.test(el.textContent || el.value || ""));
     if (!submit) {
       throw new Error("Could not find the BeSwift sign-in submit button.");
     }
-    submit.click();
+    // Clicking Keycloak's submit button starts a full page navigation. If the
+    // click happens before this message handler can answer background.js,
+    // Chrome tears down the content-script channel and the job is marked as
+    // "A listener indicated an asynchronous response..." even though the
+    // login click itself was correct. Schedule the navigation so the message
+    // response can be sent first.
+    setTimeout(() => {
+      cdpClickElement(submit).catch(() => submit.click());
+    }, randomDelayMs(650, 1200));
   }
 
   function waitFor(fn, timeoutMs, intervalMs) {
@@ -189,10 +215,10 @@
       await pauseForFieldFix(ctx, findByAny(["service type"]), "Service Type", payload.serviceType || "Certificate of Origin - CARICOM",
         "The Exporter/Importer/Producer/Consignee sections never appeared after picking Service Type — the dropdown selection likely didn't commit.");
     }
-    setByLabel("Applicant Reference", payload.applicantReference);
-    setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
-    setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
-    setByLabel("Contact Email", payload.applicant?.contacts?.[0]?.email);
+    await setByLabel("Applicant Reference", payload.applicantReference);
+    await setByLabel("Contact Name", payload.applicant?.contacts?.[0]?.name);
+    await setByLabel("Contact Mobile No", payload.applicant?.contacts?.[0]?.mobile);
+    await setByLabel("Contact Email", payload.applicant?.contacts?.[0]?.email);
     await checkpoint(ctx, "General Information filled (Regime/Service Type/Applicant Reference/Contact).");
 
     // Applicant Details — Applicant Type defaults to "Personal" (confirmed live:
@@ -205,16 +231,16 @@
     // Consignee sections further down the form.
     const applicantSection = requireSectionContainer("Applicant Details");
     if ((payload.applicantType || "Other").toLowerCase() === "other") {
-      clickByText("Other", applicantSection);
-      await wait(300);
-      await pickByLabel("TIN", payload.applicant?.tin, applicantSection);
+      await clickByText("Other", applicantSection);
+      await humanDelay(450, 900);
+      await pickExistingOptionByLabel("TIN", payload.applicant?.tin, applicantSection);
     }
     await checkpoint(ctx, "Applicant Details set (Applicant Type=Other, TIN picked).");
 
     // Exporter/Supplier Details defaults to "Same as Applicant" checked
     // (confirmed live) — this click is a no-op safety net in case it isn't.
     const exporterSection = requireSectionContainer("Exporter/Supplier Details");
-    clickByText("Same as Applicant", exporterSection);
+    await clickByText("Same as Applicant", exporterSection);
     await checkpoint(ctx, "Exporter/Supplier Details: Same as Applicant confirmed.");
 
     // Importer Details is a separate section (Name/Address/Country only) that
@@ -222,27 +248,27 @@
     // since Applicant/Exporter/Producer/Consignee all expose fields with the
     // exact same labels (confirmed live: Name/Address/Country repeat 4+ times).
     const importerSection = requireSectionContainer("Importer Details");
-    setByLabel("Name", imp.name, importerSection);
-    setByLabel("Address", imp.address, importerSection);
+    await setByLabel("Name", imp.name, importerSection);
+    await setByLabel("Address", imp.address, importerSection);
     await pickByLabel("Country", imp.country, importerSection);
     await checkpoint(ctx, "Importer Details filled.", { importer: imp });
 
     // Producer/Manufacturer Details — assume a single producer (Classic
     // Visions itself) and reuse the Exporter/Supplier details for it.
     const producerSection = requireSectionContainer("Producer/Manufacturer Details");
-    clickByText("Single", producerSection);
-    clickByText("Same as Exporter", producerSection);
+    await clickByText("Single", producerSection);
+    await clickByText("Same as Exporter", producerSection);
     await checkpoint(ctx, "Producer/Manufacturer Details: Single + Same as Exporter confirmed.");
 
     // Consignee Details — same company as Importer.
     const consigneeSection = requireSectionContainer("Consignee Details");
-    clickByText("Same As Importer", consigneeSection);
+    await clickByText("Same As Importer", consigneeSection);
     await checkpoint(ctx, "Consignee Details: Same As Importer confirmed.");
 
     // Transport Information
-    setByLabel("Shipping Marks", (t.shippingMarks || "").slice(0, 35));
-    setByLabel("Shipping Date", t.shippingDate);
-    setByLabel("Other Transport Information", t.trackingNumber ? `AWB: ${t.trackingNumber}` : "");
+    await setByLabel("Shipping Marks", (t.shippingMarks || "").slice(0, 35));
+    await setByLabel("Shipping Date", t.shippingDate);
+    await setByLabel("Other Transport Information", t.trackingNumber ? `AWB: ${t.trackingNumber}` : "");
     await pickByLabel("Port Of Loading", t.portOfLoading || "GRANTLEY");
     await pickByLabel("Country Of Destination", t.countryOfDestination);
     if (!(await waitFor(() => isFieldEditable("Port Of Discharge"), 5000, 200))) {
@@ -261,10 +287,10 @@
 
     // Invoice Details
     await pickByLabel("Currency", inv.currency === "BB$" ? "BARBADOS DOLLAR" : inv.currency);
-    setByLabel("Customer Order No.", inv.customerOrderNo);
-    setByLabel("Presenting Bank", inv.presentingBank);
-    setByLabel("Cube Quantity", inv.cubeQuantity);
-    setByLabel("Freight Cost", inv.freightCost);
+    await setByLabel("Customer Order No.", inv.customerOrderNo);
+    await setByLabel("Presenting Bank", inv.presentingBank);
+    await setByLabel("Cube Quantity", inv.cubeQuantity);
+    await setByLabel("Freight Cost", inv.freightCost);
     await checkpoint(ctx, "Invoice Details filled.", { invoiceDetails: inv });
   }
 
@@ -294,23 +320,27 @@
       // code without going through that modal was NOT confirmed live — this is
       // exactly the kind of thing to check during the pause below before Save
       // is clicked.
-      setByLabel("Commodity", item.hsCode, root);
-      setByLabel("Commercial Description", item.commercialDescription, root);
-      clickByText(payload.origin?.commodityType || "Manufactured", root);
-      setByLabel("Manufacturer Name", payload.producer?.name, root);
+      await setByLabel("Commodity", item.hsCode, root);
+      await setByLabel("Commercial Description", item.commercialDescription, root);
+      await clickByText(payload.origin?.commodityType || "Manufactured", root);
+      await setByLabel("Manufacturer Name", payload.producer?.name, root, { acceptExistingDisabled: true });
       await pickByLabel("Country of Origin", payload.origin?.countryOfOrigin, root);
       await pickByLabel("Rule Of Origin", payload.origin?.ruleOfOrigin || "Percentage Value", root);
       await pickByLabel("Origin Criterion", payload.origin?.originCriterion || "L", root);
-      setByLabel("Gross Weight", item.weightKg, root);
-      setByLabel("Invoice #", payload.invoiceDetails?.invoiceNumbers, root);
-      setByLabel("Invoice Date", payload.invoiceDetails?.invoiceDate, root);
-      setByLabel("Number of Package", payload.packaging?.numberOfPackages, root);
+      await setByLabel("Gross Weight", item.weightKg, root);
+      await setByLabel("Invoice #", payload.invoiceDetails?.invoiceNumbers, root);
+      await setByLabel("Invoice Date", payload.invoiceDetails?.invoiceDate, root);
+      await setByLabel("Number of Package", payload.packaging?.numberOfPackages, root);
       await pickByLabel("Package Type", payload.packaging?.packageType || "Box, fibreboard", root);
-      setByLabel("Item Quantity", item.quantity, root);
-      await pickByLabel("Unit of Measure", item.uom || "Number of Units", root);
-      setByLabel("Unit Cost", item.unitCost, root);
+      await setByLabel("Item Quantity", item.quantity, root);
+      await refreshFieldOptionsByLabel("Unit of Measure", root);
+      if (!fieldHasValue("Unit of Measure", root)) {
+        await pickByLabel("Unit of Measure", "Number of Units", root);
+      }
+      if (!fieldHasValue("Unit of Measure", root)) throw new Error("Unit of Measure did not commit.");
+      await setByLabel("Unit Cost", item.unitCost, root);
       await checkpoint(ctx, `Item ${i + 1}/${items.length}: fields filled, about to Save.`, { hsCode: item.hsCode, description: item.commercialDescription });
-      clickDialogSave(root);
+      await clickDialogSave(root);
       await wait(900);
       await checkpoint(ctx, `Item ${i + 1}/${items.length}: Save clicked.`);
     }
@@ -319,24 +349,47 @@
 
   async function clickAddItem() {
     const button = [...document.querySelectorAll("button")]
-      .find((el) => /add item|add commodity|item/i.test(el.textContent || "") && !el.disabled);
+      .find((el) => /^(add item|add commodity)$/i.test((el.textContent || "").trim()) && !el.disabled);
     if (!button) return false;
-    button.click();
+    await cdpClickElement(button);
+    await humanDelay(500, 950);
     return true;
   }
 
-  function clickDialogSave(root) {
+  async function clickDialogSave(root) {
     const buttons = [...root.querySelectorAll("button")];
     const save = buttons.find((el) => /save|ok|add|check|✓/i.test(el.textContent || el.getAttribute("aria-label") || "") && !el.disabled);
-    if (save) save.click();
+    if (save) {
+      const dialog = root.closest?.(".v-dialog") || root;
+      await cdpClickElement(save);
+      await humanDelay(600, 1100);
+      const yes = await waitFor(() => findVisibleButtonByText("Yes"), 5000, 200);
+      if (yes) {
+        await cdpClickElement(yes);
+        await waitFor(() => !findVisibleButtonByText("Yes"), 10000, 250);
+        await humanDelay(900, 1600);
+      }
+      const closed = await waitFor(() => !isVisibleElement(dialog), 15000, 300);
+      if (!closed) {
+        const validation = [...dialog.querySelectorAll(".v-messages__message")]
+          .map((el) => (el.textContent || "").trim())
+          .filter(Boolean)
+          .join("; ");
+        throw new Error(validation ? `Item dialog stayed open after Save: ${validation}` : "Item dialog stayed open after Save.");
+      }
+    }
   }
 
-  function setByLabel(label, value, root = document) {
+  async function setByLabel(label, value, root = document, options = {}) {
     if (value === undefined || value === null || value === "") return false;
     const el = findByAny([label], root);
     if (!el) return false;
-    if (!isEditable(el)) throw new Error(`${label} is not editable.`);
-    typeValue(el, String(value));
+    if (!isEditable(el)) {
+      const existing = String(el.value || "").trim();
+      if (options.acceptExistingDisabled && existing) return true;
+      throw new Error(`${label} is not editable.`);
+    }
+    await humanTypeElement(el, String(value));
     return true;
   }
 
@@ -353,9 +406,9 @@
     // toggle the field wrapper's "is-menu-active" CSS class, but the real
     // .v-menu__content overlay stays at 0x0 with no "active" class — so
     // there's never an option to click. Only a genuinely trusted click (like
-    // a real OS-level mouse click) opens it. typeValue() below still writes
-    // the correct-looking text straight into the input regardless (that part
-    // is just DOM manipulation), which is exactly why this failure mode looks
+    // a real OS-level mouse click) opens it. Earlier direct DOM value writes
+    // still put the correct-looking text straight into the input, which is
+    // exactly why this failure mode looks
     // like a "stuck" or "not committed" dropdown rather than an obvious
     // error: the field visibly shows the right text, but the component's
     // real selection state — and everything that cascades from it, e.g.
@@ -363,8 +416,8 @@
     // Fix: ask background.js to open the field via chrome.debugger (Chrome
     // DevTools Protocol), which injects mouse events the page treats as
     // trusted, same mechanism Puppeteer/Playwright rely on.
-    await cdpClickElement(el);
-    await wait(250);
+    await openDropdownForElement(el);
+    await humanDelay(250, 550);
     selectElementText(el);
     await cdpTypeText(String(value));
 
@@ -383,24 +436,75 @@
       // The resolved option is a real rendered element too — click it the
       // same trusted way, for the same reason as above.
       await cdpClickElement(option);
+      await humanDelay(450, 900);
     } else {
       // Last-resort fallback for any field that isn't this autocomplete
-      // widget (kept from before the CDP fix, cheap to leave in place).
+    // widget (kept from before the CDP fix, cheap to leave in place).
       el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
       await wait(200);
       el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
     }
-    await wait(300);
+    await humanDelay(450, 850);
     return true;
+  }
+
+  async function pickExistingOptionByLabel(label, value, root = document) {
+    if (!value) return false;
+    const el = findByAny([label], root);
+    if (!el) return false;
+    if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+
+    await openDropdownForElement(el);
+    await humanDelay(300, 700);
+
+    let option = await waitFor(() => findVisibleDropdownOption(value) || findSingleVisibleDropdownOption(), 5000, 150);
+    if (!option) {
+      await openDropdownForElement(el);
+      option = await waitFor(() => findVisibleDropdownOption(value) || findSingleVisibleDropdownOption(), 3000, 150);
+    }
+    if (!option) throw new Error(`${label} option "${value}" was not found.`);
+
+    await cdpClickElement(option);
+    await humanDelay(650, 1200);
+    return true;
+  }
+
+  async function openDropdownForElement(el) {
+    await cdpClickElement(el);
+    if (await waitFor(() => findVisibleDropdownMenu(), 900, 100)) return true;
+
+    const wrapper = el.closest(".v-input, .v-text-field, .v-autocomplete, .v-select") || el.parentElement;
+    const append = wrapper?.querySelector(".v-input__append-inner, .v-input__icon, .v-icon");
+    if (append) {
+      await cdpClickElement(append);
+      if (await waitFor(() => findVisibleDropdownMenu(), 1200, 100)) return true;
+    }
+
+    if (wrapper) {
+      await cdpClickElementAt(wrapper, 0.94, 0.5);
+      if (await waitFor(() => findVisibleDropdownMenu(), 1200, 100)) return true;
+    }
+    return false;
   }
 
   // Asks background.js to click the center of `el` via chrome.debugger
   // (Input.dispatchMouseEvent) instead of el.click() — see pickByLabel's
   // comment for why a content-script click doesn't work for this component.
-  function cdpClickElement(el) {
+  async function cdpClickElement(el) {
+    return cdpClickElementAt(el, 0.5, 0.5);
+  }
+
+  async function cdpClickElementAt(el, xRatio, yRatio) {
+    el.scrollIntoView({ block: "center", inline: "nearest" });
+    await humanDelay(HUMAN_DELAY.clickMin, HUMAN_DELAY.clickMax);
     const rect = el.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
+    const x = rect.left + rect.width * xRatio;
+    const y = rect.top + rect.height * yRatio;
+    await cdpClickPoint(x, y);
+    await humanDelay(HUMAN_DELAY.clickMin, HUMAN_DELAY.clickMax);
+  }
+
+  function cdpClickPoint(x, y) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: "cdpClickPoint", x, y }, (response) => {
         if (chrome.runtime.lastError) {
@@ -416,7 +520,14 @@
     });
   }
 
-  function cdpTypeText(text) {
+  async function cdpTypeText(text) {
+    for (const char of String(text || "")) {
+      await cdpInsertText(char);
+      await humanDelay(HUMAN_DELAY.typeMin, HUMAN_DELAY.typeMax);
+    }
+  }
+
+  function cdpInsertText(text) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: "cdpTypeText", text }, (response) => {
         if (chrome.runtime.lastError) {
@@ -430,6 +541,20 @@
         resolve();
       });
     });
+  }
+
+  async function humanTypeElement(el, value) {
+    if (String(el.type || "").toLowerCase() === "date") {
+      setNativeValue(el, value);
+      await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+      return;
+    }
+    await cdpClickElement(el);
+    selectElementText(el);
+    await humanDelay(180, 420);
+    await cdpTypeText(value);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
   }
 
   function selectElementText(el) {
@@ -457,16 +582,61 @@
   }
 
   function findVisibleDropdownOption(value) {
-    const menu = [...document.querySelectorAll(".v-menu__content.menuable__content__active, .v-autocomplete__content, .v-select-list")]
-      .find((el) => {
-        const r = el.getBoundingClientRect();
-        return r.width > 0 && r.height > 0;
-      });
+    const menu = findVisibleDropdownMenu();
     if (!menu) return null;
     const needle = String(value).trim().toLowerCase();
     const items = [...menu.querySelectorAll(".v-list-item")];
     return items.find((li) => (li.textContent || "").trim().toLowerCase() === needle)
       || items.find((li) => (li.textContent || "").trim().toLowerCase().includes(needle));
+  }
+
+  function findSingleVisibleDropdownOption() {
+    const menu = findVisibleDropdownMenu();
+    if (!menu) return null;
+    const items = [...menu.querySelectorAll(".v-list-item")];
+    return items.length === 1 ? items[0] : null;
+  }
+
+  function findVisibleDropdownMenu() {
+    return [...document.querySelectorAll(".v-menu__content.menuable__content__active, .v-autocomplete__content, .v-select-list")]
+      .find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      }) || null;
+  }
+
+  function fieldHasValue(label, root = document) {
+    const el = findByAny([label], root);
+    return Boolean(String(el?.value || "").trim());
+  }
+
+  async function refreshFieldOptionsByLabel(label, root = document) {
+    const el = findByAny([label], root);
+    if (!el) return false;
+    const wrapper = el.closest(".v-input, .v-text-field, .v-autocomplete, .v-select");
+    const reload = wrapper?.querySelector(".v-input__prepend-inner button, .v-input__prepend-inner .v-icon");
+    if (!reload) return false;
+    await cdpClickElement(reload);
+    await humanDelay(1400, 2600);
+    return true;
+  }
+
+  function findVisibleButtonByText(text) {
+    const needle = String(text || "").trim().toLowerCase();
+    return [...document.querySelectorAll("button")]
+      .find((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.width > 0
+          && rect.height > 0
+          && !button.disabled
+          && (button.textContent || button.getAttribute("aria-label") || "").trim().toLowerCase() === needle;
+      }) || null;
+  }
+
+  function isVisibleElement(el) {
+    if (!el || !document.contains(el)) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   }
 
   const SECTION_HEADINGS = [
@@ -579,7 +749,7 @@
     return (editableMatch || pool[0]).el;
   }
 
-  function clickByText(text, root = document) {
+  async function clickByText(text, root = document) {
     // A radio/checkbox GROUP wrapper (e.g. Applicant Type's outer .v-input,
     // containing both "Personal" and "Other" .v-radio children) also matches
     // an `includes(needle)` text search for either option's name, and appears
@@ -596,22 +766,29 @@
     const needle = String(text).toLowerCase();
     const candidates = [...root.querySelectorAll("label,button,.v-input,.v-label,.v-radio")]
       .filter((el) => String(el.textContent || "").toLowerCase().includes(needle));
-    if (!candidates.length) return;
+    if (!candidates.length) return false;
     candidates.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
     const hit = candidates[0];
     const input = hit.matches("input") ? hit : hit.querySelector?.("input");
-    if (input && !input.checked) input.click();
-    else if (hit.matches("button")) hit.click();
+    if (input && !input.checked) {
+      await cdpClickElement(hit);
+      return true;
+    }
+    if (hit.matches("button")) {
+      await cdpClickElement(hit);
+      return true;
+    }
+    await cdpClickElement(hit);
+    return true;
   }
 
-  function typeValue(el, value) {
+  function setNativeValue(el, value) {
     el.focus();
     const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const desc = Object.getOwnPropertyDescriptor(proto, "value");
-    if (desc?.set) desc.set.call(el, value);
-    else el.value = value;
-    el.dispatchEvent(new InputEvent("beforeinput", { bubbles: true, inputType: "insertText", data: value }));
-    el.dispatchEvent(new Event("input", { bubbles: true }));
+    if (desc?.set) desc.set.call(el, String(value));
+    else el.value = String(value);
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: String(value) }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
@@ -746,11 +923,38 @@
     const banner = document.createElement("div");
     banner.id = "optilens-beswift-banner";
     banner.textContent = message;
-    banner.style.cssText = "position:fixed;z-index:2147483647;left:16px;right:16px;bottom:16px;padding:12px 14px;background:#0b1e35;color:#fff;border-radius:8px;font:13px Segoe UI,Arial,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,.28)";
+    banner.style.cssText = [
+      "position:fixed",
+      "z-index:2147483647",
+      "top:16px",
+      "right:16px",
+      "width:min(520px,calc(100vw - 32px))",
+      "max-height:38vh",
+      "overflow:auto",
+      "padding:12px 14px",
+      "background:#f97316",
+      "color:#111827",
+      "border:1px solid rgba(124,45,18,.35)",
+      "border-radius:8px",
+      "font:13px Segoe UI,Arial,sans-serif",
+      "line-height:1.35",
+      "box-shadow:0 10px 30px rgba(0,0,0,.24)",
+      "pointer-events:none"
+    ].join(";");
     document.body.appendChild(banner);
   }
 
   function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function humanDelay(minMs, maxMs) {
+    return wait(randomDelayMs(minMs, maxMs));
+  }
+
+  function randomDelayMs(minMs, maxMs) {
+    const min = Math.max(0, Number(minMs) || 0);
+    const max = Math.max(min, Number(maxMs) || min);
+    return Math.round(min + Math.random() * (max - min));
   }
 })();

@@ -191,12 +191,14 @@ async function startJob(baseUrl, claimCode) {
     // Opening a fresh app tab per claimed job also means concurrent jobs do
     // not have to share or reuse one live form tab.
     await waitForTabState(tab.id, (url) => /^https?:\/\//i.test(url || ""));
-    await settle(600);
+    await settle(2500);
     let currentTab = await chromeTab(tab.id);
     let clickResult = { alreadySignedIn: false };
 
     if (!isSsoUrl(currentTab.url)) {
       clickResult = await sendToTab(tab.id, { type: "clickSignIn", baseUrl, automationJobId });
+      await settle(800);
+      currentTab = await chromeTab(tab.id);
     }
 
     if (!clickResult.alreadySignedIn) {
@@ -206,7 +208,7 @@ async function startJob(baseUrl, claimCode) {
         await waitForTabState(tab.id, (url) => isSsoUrl(url));
       }
       await settle(600);
-      await sendToTab(tab.id, {
+      await sendToTabAllowingNavigation(tab.id, {
         type: "fillLogin",
         baseUrl,
         automationJobId,
@@ -276,6 +278,27 @@ function sendToTab(tabId, message) {
     chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (response && response.ok === false) {
+        reject(new Error(response.error || "A BeSwift automation step failed."));
+        return;
+      }
+      resolve(response || {});
+    });
+  });
+}
+
+function sendToTabAllowingNavigation(tabId, message) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        const message = chrome.runtime.lastError.message || "";
+        if (/message channel closed|receiving end does not exist|could not establish connection/i.test(message)) {
+          resolve({});
+          return;
+        }
+        reject(new Error(message));
         return;
       }
       if (response && response.ok === false) {
