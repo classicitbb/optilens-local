@@ -4,4 +4,4 @@ C:\DEV\optilens-local is the local repo to work from or, \\INO-3FRC3Q3\GitHub\o
 
 you can use this ssh Administrator@ino-3frc3q3 with the password U$E0cuc0
 
-Make all sites, apps, extesions and scripts, drivable and accesible by calude and codex
+Make all sites, apps, extesions and scripts, drivable and accesible by claude and codex
