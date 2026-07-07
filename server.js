@@ -110,6 +110,7 @@ const {
   upsertCustomerParameters
 } = require("./lib/customer-parameters");
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
+const { getStandardsCatalog } = require("./lib/standards-catalog");
 const {
   findInvoiceItem,
   getStatement,
@@ -1250,6 +1251,14 @@ const server = http.createServer(async (req, res) => {
         limit: url.searchParams.get("limit")
       });
       return { resolutions };
+    });
+  }
+
+  if (url.pathname === "/api/standards-catalog" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const field = url.searchParams.get("field");
+      const catalog = await getStandardsCatalog(field || null);
+      return field ? { field, options: catalog } : { catalog };
     });
   }
 

@@ -494,12 +494,35 @@ function renderCommercialInvoicePreview() {
           ${renderTotalRow("Invoice Total", preview.totals?.invoiceTotal, true)}
         </aside>
       </footer>
+      ${renderCiCompliance(preview.compliance)}
     </article>
   `;
 }
 
 function renderTotalRow(label, value, strong = false) {
   return `<div class="${strong ? "strong" : ""}"><span>${escapeHtml(label)}</span><b>${formatMoneyBbd(value || 0)}</b></div>`;
+}
+
+// Standardisation/validation panel: shows whether the invoice has every required
+// CARICOM/Barbados field (Incoterms-2020 delivery terms included) and the filing
+// reminders. Data comes from preview.compliance (server-side, lib/beswift-co.js).
+function renderCiCompliance(c) {
+  if (!c) return "";
+  const status = c.ready
+    ? `<p class="ci-compliance-ok">✓ Standardised — all required CARICOM / Barbados invoice fields are present.</p>`
+    : `<p class="ci-compliance-warn">⚠ Not ready to certify — missing: ${(c.missing || []).map(escapeHtml).join("; ")}</p>`;
+  const checks = (c.checks || [])
+    .map((chk) => `<li class="${chk.ok ? "ci-check-ok" : "ci-check-miss"}">${chk.ok ? "✓" : "✗"} ${escapeHtml(chk.label)}</li>`)
+    .join("");
+  const reminders = (c.reminders || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+  return `
+    <section class="ci-compliance" aria-label="Commercial invoice compliance">
+      <h2>Incoterms 2020 · CARICOM / Barbados compliance</h2>
+      ${status}
+      <ul class="ci-compliance-checks">${checks}</ul>
+      <details><summary>Filing reminders</summary><ul class="ci-compliance-reminders">${reminders}</ul></details>
+    </section>
+  `;
 }
 
 function renderItemDefaults() {
