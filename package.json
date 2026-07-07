@@ -20,5 +20,21 @@
   "dependencies": {
     "mssql": "^12.5.5",
     "odbc": "^2.5.0"
-  }
+  },
+  "directories": {
+    "doc": "docs",
+    "lib": "lib"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/classicitbb/optilens-local.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/classicitbb/optilens-local/issues"
+  },
+  "homepage": "https://github.com/classicitbb/optilens-local#readme"
 }
