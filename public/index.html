@@ -5,13 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0B1E35">
   <title>OptiLens Local</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="auth-pending">
 
@@ -27,47 +23,16 @@
   </div>
 
   <!-- ─── Header ─── -->
-  <header class="top">
-    <div class="top-left">
-      <button class="launcher-btn auth-hide-signed-out" id="launcherBtn" type="button" aria-label="Open app launcher">
-        <span class="material-symbols-outlined">apps</span>
-      </button>
-      <a class="brand" href="/" aria-label="OptiLens Local home">
-        <strong>OptiLens Local</strong>
-        <span class="top-sep">·</span>
-        <span class="top-crumb">Launch Pad</span>
-      </a>
-    </div>
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Launch Pad",
+    authHideSignedOut: true,
+    showNotifications: true,
+    showDashboardEdit: true
+  };
+</script>
 
-    <div class="top-center auth-hide-signed-out">
-      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)">
-        <span class="material-symbols-outlined">search</span>
-        <span class="sb-text">Search modules, wiki, settings…</span>
-        <kbd>Ctrl+K</kbd>
-      </button>
-    </div>
-
-    <div class="top-right">
-      <button class="top-action-btn" id="notifBtn" type="button" aria-label="Notifications">
-        <span class="material-symbols-outlined">notifications</span>
-        <span class="notif-count" id="notifCount" hidden>0</span>
-      </button>
-      <button class="top-action-btn auth-hide-signed-out" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Edit dashboard">
-        <span class="material-symbols-outlined">edit</span>
-      </button>
-      <button class="top-action-btn auth-hide-signed-out" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
-        <span class="material-symbols-outlined">help</span>
-      </button>
-      <button class="top-action-btn theme-toggle material-symbols-outlined" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">dark_mode</button>
-      <button class="user-chip auth-hide-signed-out" type="button" aria-label="User">
-        <span class="user-avatar">RH</span>
-        <span class="user-name">Russell H.</span>
-      </button>
-    </div>
-  </header>
 
   <main>
 
@@ -166,3 +131,5 @@
   <script src="/pwa.js"></script>
 </body>
 </html>
+
+
