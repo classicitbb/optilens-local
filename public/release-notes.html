@@ -53,7 +53,7 @@
         </div>
         <div class="info-card">
           <span class="label">Last updated</span>
-          <strong>June 30, 2026</strong>
+          <strong>July 7, 2026</strong>
         </div>
       </aside>
     </section>
@@ -70,16 +70,17 @@
 
         <ol class="timeline">
           <li class="timeline-item">
-            <span class="timeline-date">Current</span>
+            <span class="timeline-date">July 7, 2026</span>
             <div class="timeline-content">
-              <h3>Release notes page added</h3>
+              <h3>Phase 2 UI shell refactor completed</h3>
               <p>
-                Added a protected internal changelog page and surfaced it from the authenticated launch surfaces
-                so signed-in users can find release history without digging through menus.
+                Completed the shared UI cleanup pass so module pages now sit on a cleaner shell/CSS structure
+                before the pricing-first modularization work starts.
               </p>
               <ul>
-                <li>Static, read-only content only.</li>
-                <li>No database writes and no secrets exposed.</li>
+                <li>Shared CSS split into `tokens`, `base`, `components`, and `shell` layers.</li>
+                <li>Shell-page inline styles moved into external page CSS files.</li>
+                <li>Service worker cache list updated for the new shared CSS layout.</li>
               </ul>
             </div>
           </li>
@@ -96,7 +97,7 @@
           </li>
 
           <li class="timeline-item">
-            <span class="timeline-date">Foundation</span>
+            <span class="timeline-date">Earlier</span>
             <div class="timeline-content">
               <h3>Delivery and export groundwork</h3>
               <p>
@@ -123,6 +124,13 @@
         </div>
 
         <ul class="todo-list">
+          <li class="todo-item">
+            <span class="todo-pill">Planned</span>
+            <p>Phase 3 begins with Pricing Automation modularization under `public/tools/pricing-automation/`.</p>
+            <div class="todo-note">
+              Pricing keeps `/modules/pricing-automation` as the canonical route while Delivery &amp; Export stays in place for the next follow-up pass.
+            </div>
+          </li>
           <li class="todo-item">
             <span class="todo-pill">Planned</span>
             <p>Implement classicvisions.net as the private SSO provider for LAN sign-in.</p>

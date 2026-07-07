@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B1E35">
+<title>Pricing Automation · OptiLens Local</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/tools/pricing-automation/pricing.css">
+</head>
+<body>
+<div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Pricing Automation"
+  };
+</script>
+
+<div class="pl-app">
+  <div class="pl-sidebar">
+    <div class="pl-sb-logo">
+      <div class="lmark"><img src="/assets/logo/logo_linen.svg" alt="Classic Visions"></div>
+      <div><h1>Classic Visions</h1><p>Pricelist Builder</p></div>
+    </div>
+
+    <div class="pl-sb-section">Workspace</div>
+    <div class="pl-sb-item active" data-action="show-view" data-view="saved" id="nav-saved">📂 Saved Pricelists</div>
+    <div class="pl-sb-item" data-action="show-view" data-view="builder" id="nav-builder">⚡ Build Pricelist</div>
+    <div class="pl-sb-item" data-action="show-view" data-view="sourcing" id="nav-sourcing">🔍 Sourcing Review</div>
+    <div class="pl-sb-item" data-action="show-view" data-view="sources" id="nav-sources">🗄 Data Sources</div>
+    <div class="pl-sb-item" data-action="show-view" data-view="connectors" id="nav-connectors">🔌 Connectors</div>
+    <div class="pl-sb-divider"></div>
+
+    <div class="pl-sb-section">Pricing Settings</div>
+    <div class="pl-settings-box">
+      <label>Anchor Floor Margin %</label>
+      <input type="number" id="set-floor" value="15" min="5" max="80" step="1">
+      <label>Retail Markup %</label>
+      <input type="number" id="set-markup" value="100" min="0" max="500" step="5">
+      <details class="pl-landed-box">
+        <summary>Landed-cost rates</summary>
+        <div class="pl-landed-grid">
+          <label>Freight TOG %</label><input type="number" id="set-fr-tog" value="12" min="0" step="1">
+          <label>Freight VisionRx %</label><input type="number" id="set-fr-vrx" value="12" min="0" step="1">
+          <label>Freight Optex %</label><input type="number" id="set-fr-optex" value="10" min="0" step="1">
+          <label>Freight SkyLab %</label><input type="number" id="set-fr-sky" value="10" min="0" step="1">
+          <label>Duty %</label><input type="number" id="set-duty" value="0" min="0" step="1">
+          <label>Env. levy %</label><input type="number" id="set-levy" value="1" min="0" step="0.5">
+          <label>Clearance %</label><input type="number" id="set-clear" value="3" min="0" step="0.5">
+          <label>Brokerage $/pair</label><input type="number" id="set-broker" value="0.50" min="0" step="0.25">
+        </div>
+        <p class="pl-landed-note">VAT excluded (recoverable). Tune with your broker.</p>
+      </details>
+    </div>
+    <div class="pl-sb-divider"></div>
+
+    <div class="pl-sb-section">Pricelist Groupings</div>
+    <div id="group-visibility" class="pl-group-box"></div>
+    <div class="pl-sb-divider"></div>
+
+    <div class="pl-sb-section">Suppliers</div>
+    <div id="sup-legend"></div>
+  </div>
+
+  <div class="pl-main">
+    <div class="pl-topbar">
+      <h2 id="topbar-title">Saved Pricelists</h2>
+      <span id="editing-status" class="editing-pill new">New — unsaved</span>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" type="button" data-action="collapse-all" data-collapsed="1">⊖ Collapse</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" type="button" data-action="collapse-all" data-collapsed="0">⊕ Expand</button>
+      <button class="pl-btn pl-btn-gold pl-builder-action" type="button" data-action="auto-price">✦ Auto-Price</button>
+      <button class="pl-btn pl-btn-secondary pl-builder-action" type="button" data-action="reset-prices">↺ Reset</button>
+      <button id="pricing-preview-btn" class="pl-btn pl-btn-secondary pl-builder-action" type="button" data-action="preview-pricelist">◉ Preview</button>
+      <button class="pl-btn pl-btn-secondary" type="button" data-action="new-blank-pricelist">New Blank</button>
+      <button id="pricing-save-btn" class="pl-btn pl-btn-primary pl-builder-action" type="button" data-action="save-pricelist">Save</button>
+      <button id="pricing-saveas-btn" class="pl-btn pl-btn-secondary pl-builder-action" type="button" data-action="saveas-pricelist" title="Create a separate new copy">Save As New</button>
+      <button id="pricing-export-btn" class="pl-btn pl-btn-teal pl-builder-action" type="button" data-action="export-pricelist">↓ Export</button>
+    </div>
+
+    <div class="pl-content">
+      <div id="view-builder" style="display:none">
+        <div class="pl-customer-bar">
+          <label>Customer</label>
+          <select id="customer-select" style="min-width:190px">
+            <option value="">— Select customer —</option>
+          </select>
+          <span id="customer-pill" class="customer-pill" style="display:none"></span>
+          <label>List Name</label>
+          <input type="text" id="pricelist-name" placeholder="e.g. Wade Oct 2026 – Export USD" style="flex:1; min-width:160px">
+          <label>Currency</label>
+          <div class="pl-toggle">
+            <button class="active" id="curr-usd" type="button" data-action="set-currency" data-currency="USD">USD</button>
+            <button id="curr-bbd" type="button" data-action="set-currency" data-currency="BBD">BBD</button>
+          </div>
+          <label>Mode</label>
+          <div class="pl-toggle">
+            <button class="active" id="mode-ws" type="button" data-action="set-mode" data-mode="wholesale">Wholesale</button>
+            <button id="mode-rt" type="button" data-action="set-mode" data-mode="retail">Retail</button>
+          </div>
+        </div>
+        <div id="matrix-container"></div>
+      </div>
+
+      <div id="view-saved"><div id="saved-list"></div></div>
+
+      <div id="view-sourcing" style="display:none">
+        <div class="classify-panel">
+          <div class="classify-hdr">
+            <div><b>Classify catalog</b> <span class="muted" id="classify-count"></span></div>
+            <div class="classify-actions">
+              <label class="classify-toggle"><input type="checkbox" id="classify-unonly"> Unclassified only</label>
+              <label class="classify-toggle"><input type="checkbox" id="classify-adeptonly"> ADEPT / conventional</label>
+            </div>
+          </div>
+          <div id="classify-body" class="classify-list"><div class="pl-empty-state">Loading catalog…</div></div>
+        </div>
+        <div class="sourcing-summary" id="sourcing-summary"></div>
+        <table class="sourcing-table">
+          <thead id="sourcing-head"></thead>
+          <tbody id="sourcing-body"></tbody>
+        </table>
+      </div>
+
+      <div id="view-sources" style="display:none"><div id="sources-body"></div></div>
+
+      <div id="view-connectors" style="display:none"><div id="connectors-body"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="pl-overlay" id="source-rows-overlay">
+  <div class="pl-panel source-rows-panel">
+    <div class="pl-panel-toolbar">
+      <h3 id="source-rows-title">Catalog rows</h3>
+      <button class="pl-btn pl-btn-danger" type="button" data-action="close-source-rows">✕</button>
+    </div>
+    <div class="pl-panel-body">
+      <div class="source-rows-meta" id="source-rows-meta"></div>
+      <table class="source-rows-table">
+        <thead><tr><th>Status</th><th>Catalog row</th><th>Type</th><th>Material</th><th class="num">Cost</th><th>Classification</th></tr></thead>
+        <tbody id="source-rows-body"></tbody>
+      </table>
+      <div class="source-rows-meta" id="source-rows-limit"></div>
+    </div>
+  </div>
+</div>
+
+<div class="pl-overlay" id="preview-overlay">
+  <div class="pl-panel">
+    <div class="pl-panel-toolbar">
+      <h3>Pricelist Preview</h3>
+      <button class="pl-btn pl-btn-secondary" type="button" style="font-size:10.5px" data-action="print-preview">🖨 Print / PDF</button>
+      <button class="pl-btn pl-btn-danger" type="button" data-action="close-preview">✕</button>
+    </div>
+    <div class="pl-panel-body" id="preview-body"></div>
+  </div>
+</div>
+
+<div class="pl-overlay" id="audit-overlay">
+  <div class="pl-panel audit-panel">
+    <div class="pl-panel-toolbar" id="audit-drag-handle">
+      <h3>🔍 Price Audit — source &amp; calculation</h3>
+      <div class="audit-window-controls">
+        <button class="window-btn" type="button" data-action="audit-minimize" aria-label="Minimize audit window">−</button>
+        <button class="window-btn" type="button" data-action="audit-maximize" aria-label="Maximize audit window">▢</button>
+      </div>
+      <button class="pl-btn pl-btn-danger" type="button" data-action="close-audit">✕</button>
+    </div>
+    <div class="pl-panel-body" id="audit-body"></div>
+    <div class="audit-resize-handle" aria-hidden="true"></div>
+  </div>
+</div>
+
+<div class="pl-toast" id="toast"></div>
+<script src="/shared.js"></script>
+<script type="module" src="/tools/pricing-automation/main.js"></script>
+</body>
+</html>

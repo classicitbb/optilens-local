@@ -166,6 +166,9 @@ function getShellPageConfig() {
     "/pricing-automation.html": {
       crumb: "Pricing Automation"
     },
+    "/tools/pricing-automation/index.html": {
+      crumb: "Pricing Automation"
+    },
     "/modules/doc-studio": {
       crumb: "Doc Studio"
     },

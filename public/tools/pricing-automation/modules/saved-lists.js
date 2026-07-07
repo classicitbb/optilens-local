@@ -1,0 +1,193 @@
+import { $, app, createDefaultClassOverrides, createDefaultOverrides, createDefaultSettings, deepClone, normalizeClassOverrides, normalizeOverrides, normalizeSettings, state, toast } from "./state.js";
+import { createPricelist, fetchPricelist, fetchPricelists, removePricelist, updatePricelist } from "./api.js";
+
+export function pricelistPayload(name) {
+  return {
+    name,
+    customer: state.currentCustomer?.account || null,
+    customerName: state.currentCustomer?.name || null,
+    currency: state.currency,
+    priceMode: state.priceMode,
+    settings: normalizeSettings(state.settings),
+    overrides: normalizeOverrides(state.overrides),
+    classOverrides: normalizeClassOverrides(state.classOverrides),
+    prices: deepClone(state.prices),
+  };
+}
+
+export function updateEditingIndicator() {
+  const element = $("editing-status");
+  if (!element) return;
+  if (state.currentPricelistId) {
+    element.textContent = `Editing: ${state.currentPricelistName || "saved list"}`;
+    element.className = "editing-pill editing";
+    element.title = "Save updates this list. Save As New creates a copy.";
+  } else {
+    element.textContent = "New — unsaved";
+    element.className = "editing-pill new";
+    element.title = "Not yet saved.";
+  }
+}
+
+export function applyPricelistState(pricelist, { asCopy = false } = {}) {
+  const loaded = pricelist || {};
+  state.currentPricelistId = asCopy ? null : (loaded.id || null);
+  state.currentPricelistName = asCopy ? null : (loaded.name || "");
+  $("pricelist-name").value = asCopy && loaded.name ? `${loaded.name} Copy` : (loaded.name || "");
+  state.prices = deepClone(loaded.prices || {});
+  state.settings = normalizeSettings(loaded.settings);
+  state.overrides = normalizeOverrides(loaded.overrides);
+  state.classOverrides = normalizeClassOverrides(loaded.classOverrides);
+  state.currency = loaded.currency || "USD";
+  state.priceMode = loaded.priceMode || "wholesale";
+  state.collapsed = {};
+  state.currentAuditKey = null;
+
+  const customerSelect = $("customer-select");
+  if (customerSelect) customerSelect.value = loaded.customer || "";
+  state.currentCustomer = loaded.customer
+    ? state.customers.find((customer) => customer.account === loaded.customer) || null
+    : null;
+
+  const pill = $("customer-pill");
+  if (pill) {
+    if (state.currentCustomer) {
+      pill.textContent = `${state.currentCustomer.buyingGroup || "—"} · ${state.currentCustomer.priceList || "No list assigned"}`;
+      pill.style.display = "";
+    } else {
+      pill.style.display = "none";
+    }
+  }
+
+  app.syncSettingsInputs();
+  app.buildSupplierPanel();
+  app.buildGroupPanel();
+  app.setCurrency(state.currency);
+  app.setMode(state.priceMode);
+  app.refreshClassifiedCatalog({ render: false, reprice: false }).catch((error) => toast(`Classifications unavailable: ${error.message}`));
+  updateEditingIndicator();
+}
+
+export function newBlankPricelist() {
+  if (!confirm("Start a blank pricelist? Unsaved changes on this screen will be lost.")) return;
+  applyPricelistState({
+    id: null,
+    name: "",
+    customer: null,
+    currency: "USD",
+    priceMode: "wholesale",
+    settings: createDefaultSettings(),
+    overrides: createDefaultOverrides(),
+    classOverrides: createDefaultClassOverrides(),
+    prices: {},
+  }, { asCopy: true });
+  app.showView("builder");
+  toast("Blank pricelist ready — all groups, suppliers, and lenses are enabled");
+}
+
+export async function savePricelist() {
+  const name = $("pricelist-name").value.trim();
+  if (!name) {
+    toast("Enter a pricelist name first");
+    return;
+  }
+  const unsafe = app.unsafePriceEntries();
+  const payload = pricelistPayload(name);
+  if (state.currentPricelistId) {
+    await updatePricelist(state.currentPricelistId, payload);
+    state.currentPricelistName = name;
+    toast(unsafe.length
+      ? `Saved ✓ "${name}" — ${unsafe.length} price${unsafe.length === 1 ? "" : "s"} still below the margin floor`
+      : `Saved ✓ "${name}"`);
+  } else {
+    const created = await createPricelist(payload);
+    state.currentPricelistId = created.id;
+    state.currentPricelistName = name;
+    toast(unsafe.length
+      ? `Pricelist saved ✓ "${name}" — ${unsafe.length} price${unsafe.length === 1 ? "" : "s"} still below the margin floor`
+      : `Pricelist saved ✓ "${name}"`);
+  }
+  updateEditingIndicator();
+}
+
+export async function saveAsNewPricelist() {
+  const name = $("pricelist-name").value.trim();
+  if (!name) {
+    toast("Enter a pricelist name first");
+    return;
+  }
+  const unsafe = app.unsafePriceEntries();
+  if (unsafe.length) {
+    app.revealBlockedPriceEntry();
+    toast(`Cannot save as new: ${unsafe.length} price${unsafe.length === 1 ? "" : "s"} below margin floor`);
+    return;
+  }
+  if (state.currentPricelistId && name === state.currentPricelistName) {
+    if (!confirm("This will create a separate new copy with the same name. Continue?")) return;
+  }
+  const created = await createPricelist(pricelistPayload(name));
+  state.currentPricelistId = created.id;
+  state.currentPricelistName = name;
+  updateEditingIndicator();
+  toast(`Saved as new ✓ "${name}" — original untouched`);
+}
+
+export async function loadSavedList() {
+  const list = await fetchPricelists();
+  const element = $("saved-list");
+  if (!list.length) {
+    element.innerHTML = '<div class="pl-empty-state"><p>No saved pricelists yet.</p></div>';
+    return;
+  }
+  element.innerHTML = list
+    .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))
+    .map((pricelist) => `
+      <div class="saved-item">
+        <div><div class="si-name">${pricelist.name}</div><div class="si-meta">${pricelist.customerName || pricelist.customer || "No customer"} · ${new Date(pricelist.updatedAt).toLocaleDateString()}</div></div>
+        <div class="si-actions">
+          <button class="pl-btn pl-btn-secondary" type="button" data-action="open-pricelist" data-id="${pricelist.id}">Open</button>
+          <button class="pl-btn pl-btn-secondary" type="button" data-action="open-pricelist-copy" data-id="${pricelist.id}">Open Copy</button>
+          <button class="pl-btn pl-btn-danger" type="button" data-action="delete-pricelist" data-id="${pricelist.id}">✕</button>
+        </div>
+      </div>`)
+    .join("");
+}
+
+export async function loadPricelist(id) {
+  const pricelist = await fetchPricelist(id);
+  applyPricelistState({ ...pricelist, id });
+  app.showView("builder");
+  toast(`Loaded "${pricelist.name || "pricelist"}" — Save updates it, Save As New copies it`);
+}
+
+export async function loadPricelistCopy(id) {
+  const pricelist = await fetchPricelist(id);
+  applyPricelistState(pricelist, { asCopy: true });
+  app.showView("builder");
+  toast(`Loaded copy of "${pricelist.name || "pricelist"}" — Save creates a separate list`);
+}
+
+export async function deletePricelist(id) {
+  if (!confirm("Delete this pricelist?")) return;
+  await removePricelist(id);
+  if (state.currentPricelistId === id) {
+    state.currentPricelistId = null;
+    state.currentPricelistName = null;
+    updateEditingIndicator();
+  }
+  loadSavedList();
+  toast("Deleted");
+}
+
+Object.assign(app, {
+  applyPricelistState,
+  deletePricelist,
+  loadPricelist,
+  loadPricelistCopy,
+  loadSavedList,
+  newBlankPricelist,
+  pricelistPayload,
+  saveAsNewPricelist,
+  savePricelist,
+  updateEditingIndicator,
+});
