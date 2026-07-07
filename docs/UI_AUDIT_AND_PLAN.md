@@ -105,11 +105,11 @@ The barebones shell            The toolbox (each self-contained)
 The ordering is deliberate: kill duplication before splitting files, so we split *clean* code.
 
 ### Phase 0 — Housekeeping (½ day, zero visual risk)
-1. Move all `*.bak-*` files out of `public/` and the repo root into an ignored `/_snapshots/` folder (or delete — they're in git). Add the pattern to `.gitignore`.
-2. Standardise `<head>`: one font block, load Material Symbols in `<head>` everywhere, consistent `?v=` cache token strategy (a single build/version constant).
+1. Move all `*.bak-*` files out of live repo paths into an ignored `/_snapshots/` folder (or delete — they're in git), preserving enough structure to trace what they came from. Add both `/_snapshots/` and `*.bak-*` to `.gitignore`.
+2. Standardise `<head>` on the shell pages: one font block, load Material Symbols in `<head>` everywhere, and normalise the shared manifest / icon / stylesheet links. Defer a single cache-token/versioning scheme until the shell delivery path is settled.
 
 ### Phase 1 — Single-source the shell header (1–2 days, removes the #1 inconsistency)
-3. Author the header exactly once and have `shared.js` **render** it into a `<div id="app-shell-header"></div>` mount that each page includes, driven by a small per-page config: `window.OptiLensPage = { crumb: "Delivery & Export", showDashboardTools: false }`.
+3. Author the header exactly once and have `shared.js` **render** it into a `<div id="app-shell-header"></div>` mount that each page includes, driven by a small per-page config: `window.OptiLensPage = { crumb: "Delivery & Export", searchHref: "/", showDashboardEdit: false }`.
 4. Delete the 11 hand-copied `<header>` blocks and the `normalizeHeaderIcons()` runtime patch — no longer needed once there's one source.
 5. Fold the launcher app catalogue (already centralised in `SHELL_APP_CATALOG`) and the header into the same shell module so they cannot drift.
 
@@ -149,10 +149,11 @@ _Result: a card, button, or table looks identical in every tool because it's def
       catalog.js       ← SHELL_APP_CATALOG (single source of app list)
     ```
     Load as ES modules (`<script type="module" src="/shell/shell.js">`), or concatenate at build time if you want to avoid a build step.
+11. Once the shell loader is split or templated, introduce one shared asset-version source for `styles.css`, `shared.js`, and other shell-owned assets instead of hand-maintained per-page `?v=` strings.
 
 ### Phase 5 — Consolidate administration into Settings (1–2 days)
-11. Rebuild `settings.html` as a tabbed shell page: **General / Users / Credentials / Integrations / Modules / Release Notes**. Move the bodies of `admin-users.html`, `credentials.html`, and `release-notes.html` in as tab panels (each becomes a small partial/module, not a top-level page).
-12. Keep the old routes (`/credentials`, `/admin/users`, `/release-notes`) as redirects into the relevant Settings tab so existing links and the server permission map keep working.
+12. Rebuild `settings.html` as a tabbed shell page: **General / Users / Credentials / Integrations / Modules / Release Notes**. Move the bodies of `admin-users.html`, `credentials.html`, and `release-notes.html` in as tab panels (each becomes a small partial/module, not a top-level page).
+13. Keep the old routes (`/credentials`, `/admin/users`, `/release-notes`) as redirects into the relevant Settings tab so existing links and the server permission map keep working.
 
 ## 6. Conventions to lock in (so it stays consistent)
 
@@ -166,7 +167,7 @@ _Result: a card, button, or table looks identical in every tool because it's def
 
 | Phase | Outcome | Est. | Visual risk |
 |---|---|---|---|
-| 0 Housekeeping | clean repo, consistent `<head>` | ½ day | none |
+| 0 Housekeeping | clean repo, consistent shell-page `<head>` | ½ day | none |
 | 1 Single-source header | app finally feels unified | 1–2 days | low |
 | 2 Component + token layer | cards/buttons/tables identical everywhere | 2–3 days | medium |
 | 3 Tool module folders | manageable, split code | incremental | low per tool |
@@ -177,4 +178,4 @@ _Result: a card, button, or table looks identical in every tool because it's def
 
 ## 8. Suggested first pull request
 
-Phase 0 + Phase 1 together: remove `.bak` clutter, normalise `<head>`, and replace all 11 hand-copied headers with a single `shared.js`-rendered header driven by `window.OptiLensPage`. Small, safe, and it delivers the "one app" feeling immediately.
+Phase 0 + Phase 1 together: remove `.bak` clutter, normalise shell-page `<head>` assets, and replace all 11 hand-copied headers with a single `shared.js`-rendered header driven by `window.OptiLensPage`. Intentionally leave global asset-versioning for the later shell split so the first PR stays narrow and low-risk while still delivering the "one app" feeling immediately.

@@ -40,6 +40,7 @@ const AUTH_STATE = {
 (function bootstrap() {
   // Apply theme immediately to prevent flash
   applyTheme();
+  renderShellHeader();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", setup);
@@ -49,8 +50,6 @@ const AUTH_STATE = {
 })();
 
 function setup() {
-  ensureMaterialSymbolsFont();
-  normalizeHeaderIcons();
   injectOverlays();
   wireThemeToggle();
   wireLauncher();
@@ -72,37 +71,171 @@ function exposeShellCatalog() {
 
 exposeShellCatalog();
 
-// ─── Material Symbols font ─────────────────────────────────────────────────────
+// ─── Shell header ────────────────────────────────────────────────────────────
 
-// shared.js renders Material Symbols icons (launcher tiles, search results, theme
-// toggle) on every page. Ensure the font stylesheet is present even on pages whose
-// markup doesn't include it, so ligature names don't render as raw text.
-function ensureMaterialSymbolsFont() {
-  if (document.querySelector('link[href*="Material+Symbols+Outlined"]')) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200";
-  document.head.appendChild(link);
+function renderShellHeader() {
+  const mount = document.getElementById("app-shell-header");
+  if (!mount) return;
+  const config = getShellPageConfig();
+  const topCenterClasses = ["top-center"];
+  const launcherClasses = ["launcher-btn"];
+  const helpClasses = ["top-action-btn"];
+  const editClasses = ["top-action-btn"];
+  const userChipClasses = ["user-chip"];
+
+  if (config.authHideSignedOut) {
+    topCenterClasses.push("auth-hide-signed-out");
+    launcherClasses.push("auth-hide-signed-out");
+    helpClasses.push("auth-hide-signed-out");
+    editClasses.push("auth-hide-signed-out");
+    userChipClasses.push("auth-hide-signed-out");
+  }
+
+  mount.innerHTML = `
+  <header class="top">
+    <div class="top-left">
+      <button class="${launcherClasses.join(" ")}" id="launcherBtn" type="button" aria-label="Open app launcher">
+        <span class="material-symbols-outlined">apps</span>
+      </button>
+      <a class="brand" href="/" aria-label="OptiLens Local home">
+        <strong>OptiLens Local</strong>
+        <span class="top-sep">·</span>
+        <span class="top-crumb">${esc(config.crumb)}</span>
+      </a>
+    </div>
+
+    <div class="${topCenterClasses.join(" ")}">
+      <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </button>
+      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)"${config.searchHref ? ` data-search-href="${esc(config.searchHref)}"` : ""}>
+        <span class="material-symbols-outlined">search</span>
+        <span class="sb-text">Search modules, wiki, settings…</span>
+        <kbd>Ctrl+K</kbd>
+      </button>
+    </div>
+
+    <div class="top-right">
+      ${config.showNotifications ? `
+      <button class="top-action-btn" id="notifBtn" type="button" aria-label="Notifications">
+        <span class="material-symbols-outlined">notifications</span>
+        <span class="notif-count" id="notifCount" hidden>0</span>
+      </button>` : ""}
+      ${config.showDashboardEdit ? `
+      <button class="${editClasses.join(" ")}" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Edit dashboard">
+        <span class="material-symbols-outlined">edit</span>
+      </button>` : ""}
+      <button class="${helpClasses.join(" ")}" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+        <span class="material-symbols-outlined">help</span>
+      </button>
+      <button class="top-action-btn theme-toggle material-symbols-outlined" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">dark_mode</button>
+      <button class="${userChipClasses.join(" ")}" type="button" aria-label="User">
+        <span class="user-avatar">IN</span>
+        <span class="user-name">Sign in</span>
+      </button>
+    </div>
+  </header>`;
 }
 
-// Normalize legacy SVG header icons to Material Symbols so every page matches the
-// launchpad header. Only swaps buttons that still contain an <svg>; pages already
-// migrated (e.g. index.html) are left untouched.
-function normalizeHeaderIcons() {
-  const swap = (el, icon) => {
-    if (!el) return;
-    const svg = el.querySelector("svg");
-    if (!svg) return;
-    const span = document.createElement("span");
-    span.className = "material-symbols-outlined";
-    span.textContent = icon;
-    svg.replaceWith(span);
+function getShellPageConfig() {
+  const route = normalizePath(window.location.pathname);
+  const routeDefaults = {
+    "/": {
+      crumb: "Launch Pad",
+      authHideSignedOut: true,
+      showNotifications: true,
+      showDashboardEdit: true
+    },
+    "/index.html": {
+      crumb: "Launch Pad",
+      authHideSignedOut: true,
+      showNotifications: true,
+      showDashboardEdit: true
+    },
+    "/modules/delivery-export": {
+      crumb: "Delivery & Export",
+      searchHref: "/"
+    },
+    "/delivery-export.html": {
+      crumb: "Delivery & Export",
+      searchHref: "/"
+    },
+    "/modules/pricing-automation": {
+      crumb: "Pricing Automation"
+    },
+    "/pricing-automation.html": {
+      crumb: "Pricing Automation"
+    },
+    "/modules/doc-studio": {
+      crumb: "Doc Studio"
+    },
+    "/doc-studio.html": {
+      crumb: "Doc Studio"
+    },
+    "/modules/business-metrics": {
+      crumb: "Business Metrics"
+    },
+    "/business-metrics.html": {
+      crumb: "Business Metrics"
+    },
+    "/modules/integrations": {
+      crumb: "Integrations"
+    },
+    "/integrations.html": {
+      crumb: "Integrations"
+    },
+    "/modules/automation": {
+      crumb: "Automation"
+    },
+    "/automation.html": {
+      crumb: "Automation"
+    },
+    "/settings": {
+      crumb: "Settings",
+      searchHref: "/"
+    },
+    "/settings.html": {
+      crumb: "Settings",
+      searchHref: "/"
+    },
+    "/credentials": {
+      crumb: "Credentials"
+    },
+    "/credentials.html": {
+      crumb: "Credentials"
+    },
+    "/admin/users": {
+      crumb: "Users"
+    },
+    "/admin-users.html": {
+      crumb: "Users"
+    },
+    "/release-notes": {
+      crumb: "Release Notes",
+      searchHref: "/"
+    },
+    "/release-notes.html": {
+      crumb: "Release Notes",
+      searchHref: "/"
+    }
   };
-  swap(document.querySelector("#launcherBtn"), "apps");
-  swap(document.querySelector(".back-btn"), "arrow_back");
-  swap(document.querySelector("#searchTrigger"), "search");
-  swap(document.querySelector('.top-action-btn[aria-label="Help"]'), "help");
-  swap(document.querySelector('.top-action-btn[aria-label="Notifications"]'), "notifications");
+  const pageConfig = window.OptiLensPage && typeof window.OptiLensPage === "object"
+    ? window.OptiLensPage
+    : {};
+  return {
+    crumb: "OptiLens Local",
+    searchHref: "",
+    authHideSignedOut: false,
+    showNotifications: false,
+    showDashboardEdit: false,
+    ...routeDefaults[route],
+    ...pageConfig
+  };
+}
+
+function normalizePath(pathname) {
+  if (!pathname || pathname === "/") return "/";
+  return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -256,6 +389,7 @@ function wireSearch() {
   const input   = document.querySelector("#searchInput");
   const results = document.querySelector("#searchResults");
   if (!overlay) return;
+  const searchHref = trigger?.dataset.searchHref || "";
 
   function open()  { overlay.hidden = false; input?.focus(); renderResults(""); document.body.style.overflow = "hidden"; }
   function close() { 
@@ -268,7 +402,13 @@ function wireSearch() {
     }, 200);
   }
 
-  trigger?.addEventListener("click", open);
+  trigger?.addEventListener("click", () => {
+    if (searchHref) {
+      window.location.href = searchHref;
+      return;
+    }
+    open();
+  });
   overlay?.addEventListener("click", e => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", e => {
     if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); open(); }
