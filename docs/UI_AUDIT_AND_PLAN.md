@@ -106,10 +106,10 @@ The ordering is deliberate: kill duplication before splitting files, so we split
 
 ### Status snapshot (updated after implementation)
 
-- **Completed:** Phase 0 and Phase 1 are done in the current repo state.
-- **Verified:** the shared shell header now renders from `shared.js`, protected routes such as Delivery & Export use the shared shell, and the repo no longer serves tracked `*.bak-*` snapshots from live paths.
-- **Adjusted during implementation:** shell font assets were moved local so the header no longer depends on remote Google-hosted font CSS for Material Symbols or Plus Jakarta Sans.
-- **Next recommended phase:** Phase 2, starting with shared shell/component CSS extraction before any large per-tool JS moves.
+- **Completed:** Phase 0, Phase 1, and Phase 2 are done in the current repo state.
+- **Verified:** shared CSS now serves through `/styles/tokens.css`, `/styles/base.css`, `/styles/components.css`, and `/styles/shell.css`; shell-page inline `<style>` blocks were moved into external page CSS files; and the service worker cache manifest was updated for the new asset layout.
+- **Adjusted during implementation:** shell font assets remain local, and large page-local style blocks were moved out of HTML into scoped `/styles/pages/*.css` files without mixing in the Phase 3 folder/module reorganisation.
+- **Next recommended phase:** Phase 3, starting with per-tool folder/module extraction for the largest tool surfaces, beginning with Pricing Automation.
 
 ### Phase 0 — Housekeeping (completed)
 1. Done: moved tracked `*.bak-*` files out of live repo paths and ignored future snapshots via `/_snapshots/` and `*.bak-*` in `.gitignore`.
@@ -123,14 +123,14 @@ The ordering is deliberate: kill duplication before splitting files, so we split
 
 _Result: one header, one behaviour, one place to change it. This alone makes the app "feel like one app."_
 
-### Phase 2 — Extract a shared component & token layer (next)
-7. Split `styles.css` into a small, intentional set:
+### Phase 2 — Extract a shared component & token layer (completed)
+7. Done: split `styles.css` into a small, intentional set:
    - `tokens.css` — the `:root` variables + dark theme (already exists, just isolate it).
    - `base.css` — reset, typography, layout primitives (`.band`, `.section-head`, `.module-main`).
    - `components.css` — buttons, cards, badges, tables, form controls, tabs, endpoint lists, status pills. These are the repeated patterns currently re-implemented inline.
    - `shell.css` — header, launcher, search palette, overlays, user menu.
-8. Migrate the big inline `<style>` blocks (pricing-automation, release-notes, credentials, statement-template) onto shared components. Whatever is genuinely tool-specific moves to that tool's own scoped CSS file (Phase 3), not an inline block.
-9. Start with the shell-facing surfaces first: header/search/launcher styles, shared buttons, shared cards, shared tables, and form controls. Do not start Phase 3 JS splitting until these shared CSS contracts exist.
+8. Done: moved the large inline `<style>` blocks (`pricing-automation`, `release-notes`, `credentials`, `statement-template`) out of HTML and into scoped `/styles/pages/*.css` files, and did the same for smaller shell pages that still had embedded CSS (`login`, `doc-studio`, `business-metrics`, `integrations`).
+9. Done: established the shared shell/component CSS contracts first, so Phase 3 can now focus on JS/module ownership and per-tool folder moves instead of continuing to untangle presentation logic from markup.
 
 _Result: a card, button, or table looks identical in every tool because it's defined once._
 

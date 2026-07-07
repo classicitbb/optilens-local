@@ -1,0 +1,151 @@
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-400.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-400-italic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-500.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-700.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-800.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/assets/fonts/material-symbols-outlined-400.ttf") format("truetype");
+}
+
+:root {
+  --bg: #F4F2ED;
+  --surface: #ffffff;
+  --bg-elevated: #f8f6f1;
+  --input-bg: #ffffff;
+  --top-bg: rgba(244, 242, 237, .92);
+  --top-hover: #e9e5da;
+  --top-border: rgba(180, 175, 165, .5);
+  --ink: #0B1E35;
+  --muted: #4a6880;
+  --line: #cdd5df;
+  --navy: #0B1E35;
+  --blue: #1A8A9C;
+  --blue-dark: #148598;
+  --green: #389457;
+  --amber: #C89130;
+  --red: #d63031;
+  --badge-default-bg: #e8e5de;
+  --badge-ok-bg: #d4f0f5;
+  --badge-warn-bg: #fbefd4;
+  --shadow-1: 0 1px 3px rgba(11, 30, 53, 0.12), 0 1px 2px rgba(11, 30, 53, 0.24);
+  --shadow: 0 4px 6px rgba(11, 30, 53, 0.1), 0 2px 4px rgba(11, 30, 53, 0.06);
+  --shadow-hover: 0 10px 20px rgba(11, 30, 53, 0.15), 0 6px 6px rgba(11, 30, 53, 0.1);
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --focus-ring: 0 0 0 3px rgba(26, 138, 156, 0.22);
+  --transition-standard: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color-scheme: light;
+  font-family: 'Plus Jakarta Sans', "Segoe UI", Arial, sans-serif;
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1E35;
+    --surface: #14304f;
+    --bg-elevated: #163252;
+    --input-bg: #0e2440;
+    --top-bg: rgba(11, 30, 53, .85);
+    --top-hover: #1e3558;
+    --top-border: rgba(35, 65, 100, .85);
+    --ink: #F4F2ED;
+    --muted: #8faabb;
+    --line: #1e3a5c;
+    --navy: #F4F2ED;
+    --blue: #28a7bb;
+    --blue-dark: #1A8A9C;
+    --green: #4dba6e;
+    --amber: #dba744;
+    --red: #ef5555;
+    --badge-default-bg: #1e3558;
+    --badge-ok-bg: #0a4a58;
+    --badge-warn-bg: #6b4510;
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.5), 0 6px 6px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0B1E35;
+  --surface: #14304f;
+  --bg-elevated: #163252;
+  --input-bg: #0e2440;
+  --top-bg: rgba(11, 30, 53, .85);
+  --top-hover: #1e3558;
+  --top-border: rgba(35, 65, 100, .85);
+  --ink: #F4F2ED;
+  --muted: #8faabb;
+  --line: #1e3a5c;
+  --navy: #F4F2ED;
+  --blue: #28a7bb;
+  --blue-dark: #1A8A9C;
+  --green: #4dba6e;
+  --amber: #dba744;
+  --red: #ef5555;
+  --badge-default-bg: #1e3558;
+  --badge-ok-bg: #0a4a58;
+  --badge-warn-bg: #6b4510;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.5), 0 6px 6px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}

@@ -1,0 +1,297 @@
+body.release-notes-body {
+      background:
+        radial-gradient(circle at top left, rgba(26, 138, 156, 0.14), transparent 32%),
+        radial-gradient(circle at 85% 0%, rgba(109, 40, 217, 0.12), transparent 26%),
+        linear-gradient(180deg, rgba(11, 30, 53, 0.02), transparent 30%),
+        var(--bg);
+    }
+
+    .release-notes-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px clamp(18px, 3vw, 40px) 56px;
+    }
+
+    .notes-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .hero-panel,
+    .info-panel,
+    .notes-panel,
+    .todo-panel {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(24px, 4vw, 40px);
+      background:
+        linear-gradient(135deg, rgba(26, 138, 156, 0.08), transparent 35%),
+        linear-gradient(315deg, rgba(109, 40, 217, 0.08), transparent 40%),
+        var(--surface);
+    }
+
+    .hero-panel::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -90px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(26, 138, 156, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero-panel h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.2rem, 4.8vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .hero-panel p {
+      margin: 0;
+      max-width: 62ch;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .hero-link,
+    .hero-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .hero-link {
+      background: var(--ink);
+      color: var(--bg);
+    }
+
+    .hero-chip {
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      color: var(--ink);
+    }
+
+    .info-panel {
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+    }
+
+    .info-card {
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+    }
+
+    .info-card .label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .info-card strong {
+      display: block;
+      font-size: 1.05rem;
+      line-height: 1.25;
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .notes-panel {
+      padding: 20px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .timeline {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 14px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+    }
+
+    .timeline-date {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(26, 138, 156, 0.14);
+      color: var(--blue);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .timeline-content h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+
+    .timeline-content p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .timeline-content ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--ink);
+    }
+
+    .timeline-content li + li {
+      margin-top: 6px;
+    }
+
+    .todo-panel {
+      padding: 20px;
+      position: sticky;
+      top: 88px;
+    }
+
+    .todo-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .todo-item {
+      padding: 16px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(200, 145, 48, 0.12), rgba(200, 145, 48, 0.05));
+      border: 1px solid rgba(200, 145, 48, 0.25);
+    }
+
+    .todo-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(200, 145, 48, 0.18);
+      color: var(--amber);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .todo-item p {
+      margin: 0;
+      color: var(--ink);
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .todo-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .release-footnote {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(56, 148, 87, 0.1);
+      border: 1px solid rgba(56, 148, 87, 0.18);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 980px) {
+      .notes-hero,
+      .notes-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .todo-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .timeline-item {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+    }
