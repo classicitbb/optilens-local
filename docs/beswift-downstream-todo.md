@@ -2,29 +2,45 @@
 
 Deferred "nice to have" items to implement later. Captured 2026-07-07.
 
-## 1. Resume automation from any stage (page-state aware)
-Today "Resume automation" continues the paused flow but does not re-derive where
-the form actually is. Make resume **read the live page**, detect the current
-section/stage and scroll position (which section headings are present, which
-fields are already committed, whether an item dialog is open and how many item
-rows exist), and resume from that detected stage instead of assuming linear
-position. Should let an operator fix something out of order and resume safely.
-Builds on the existing checkpoint log (`log_json`) — reconcile the last logged
-stage against the DOM before continuing.
+## 1. Resume automation from any stage (page-state aware) — DONE (double-entry variant, 2026-07-07)
+Realised as **idempotent re-run / double-entry protection** rather than a stage
+jump: because the paused flow is an in-memory `await` that already continues
+where it left off, the real gap was re-running `fillHeader`/`fillItems` on a
+partially-filled form (after a reload or restart) re-entering everything. The
+fill now treats the **live DOM as source of truth**:
+- `setByLabel` / `pickByLabel` skip any field that's already committed. If it
+  matches the payload → skip silently; if it's filled but **wrong**, it's left
+  as-is and flagged to the feed + `log_json` (`flagAlreadyFilled`) — never
+  overwritten (Russell's call: leave + flag).
+- `fillItems` counts existing saved item rows (`countExistingItemRows`) and
+  resumes the loop past them, so a re-run never adds duplicate customs lines.
+- Remaining nicety (deferred): reconcile the *last logged stage* explicitly and
+  handle an item dialog left **open** mid-entry. Field/item idempotency covers
+  the double-entry risk today.
+- ⚠ `countExistingItemRows`' items-table selector is best-effort (matches a data
+  table whose header reads Commodity/Description/HS/Gross Weight) and defaults to
+  0 (fill all) when unsure — **confirm against BeSwift's saved-items grid live.**
 
-## 2. Make dropdown option-index hints data-driven
-`OPTION_INDEX_HINTS` in `content.js` (Country of Origin = 3, Package Type = 18)
-is currently hardcoded to BeSwift's list order. Move these to
-`delivery.standards_catalog` (add a `beswift_option_index` column) and carry them
-in the payload, so operators can correct positions without a code change and the
-extension stays in sync when BeSwift reorders a list.
+## 2. Make dropdown option-index hints data-driven — DONE (2026-07-07)
+`OPTION_INDEX_HINTS` moved out of `content.js` into `delivery.standards_catalog`
+via **migration 020** (`beswift_option_index` column, seeded Country of Origin=3,
+Package Type=18). `getBeswiftOptionIndexHints()` in `lib/standards-catalog.js`
+resolves label→index from the default option; `buildPayloadFromShipment` carries
+it as `payload.optionIndexHints`; `runFill` merges it over the built-in
+`OPTION_INDEX_HINTS_FALLBACK`. Operators can now correct a position by editing the
+catalog row — no code change. **Run `database/020-standards-catalog-option-index.sql`
+(rollback alongside it) to add the column.**
 
-## 3. Auto-learn / self-verify BeSwift option positions
-Extend the item field audit to record the position at which each option was
-actually found (or failed), so the catalog's index hints become self-correcting
-over time — similar to the co-item catalog "learn" pattern.
+## 3. Auto-learn / self-verify BeSwift option positions — DONE (suggest-only, 2026-07-07)
+When a positional hint points at the wrong row, `tryIndexPick` locates where the
+option actually is in the open list and logs a **suggestion** to the feed +
+`log_json` (`maybeSuggestOptionIndex`): "Package Type found at index 17, catalog
+hint is 18 — set beswift_option_index = 17 to apply." **Suggest-only** — the hint
+is never rewritten automatically (Russell's call). Deduped once per field per
+fill. Only fires for fields that have a hint but drifted; unhinted fields aren't
+learned yet (acceptable for v1).
 
-## 4. Commercial-invoice UI polish
+## 4. Commercial-invoice UI polish (still deferred)
 - Add CSS for the compliance panel (`.ci-compliance`, `.ci-compliance-ok`,
   `.ci-compliance-warn`, `.ci-check-ok`, `.ci-check-miss`, `.ci-compliance-*`)
   in `public/styles.css` — currently renders unstyled but functional.

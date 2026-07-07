@@ -42,6 +42,11 @@
 
   async function runFill(ctx) {
     const payload = ctx.payload.payload;
+    // Wire up the data-driven positional hints (#2) and expose ctx to the
+    // reconciliation/learning helpers so they can append to the job log_json.
+    fillCtx = ctx;
+    indexSuggested.clear();
+    optionIndexHints = { ...OPTION_INDEX_HINTS_FALLBACK, ...(payload.optionIndexHints || {}) };
     await ensureOnCertificateForm();
     await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
     await fillHeader(ctx, payload);
@@ -298,8 +303,23 @@
 
   async function fillItems(ctx, payload) {
     const items = payload.items || [];
-    await checkpoint(ctx, `Starting Items (${items.length} item(s) to add).`);
-    for (let i = 0; i < items.length; i += 1) {
+    // Double-entry guard for items (#1): if the certificate already lists saved
+    // item rows (e.g. a re-run after a reload, or resuming a partially-filled
+    // form), resume past them instead of adding duplicate customs lines.
+    const existingRows = countExistingItemRows();
+    let startIndex = 0;
+    if (items.length && existingRows >= items.length) {
+      await checkpoint(ctx, `All ${items.length} item(s) already present on the certificate (${existingRows} row(s) found) — skipping item entry (double-entry guard).`, { existingItemRows: existingRows });
+      pushFeed(`Items already present (${existingRows}) — nothing to add.`, "info");
+      return;
+    }
+    if (existingRows > 0) {
+      startIndex = existingRows;
+      await checkpoint(ctx, `Detected ${existingRows} item row(s) already on the certificate — resuming at item ${existingRows + 1}/${items.length} (double-entry guard).`, { existingItemRows: existingRows });
+      pushFeed(`Resuming items at ${existingRows + 1}/${items.length}; ${existingRows} already present.`, "info");
+    }
+    await checkpoint(ctx, `Starting Items (${items.length} item(s) to add, ${startIndex} already present).`);
+    for (let i = startIndex; i < items.length; i += 1) {
       const item = items[i];
       const opened = await clickAddItem();
       if (!opened) {
@@ -401,26 +421,126 @@
       if (options.acceptExistingDisabled && existing) return true;
       throw new Error(`${label} is not editable.`);
     }
+    // Double-entry guard (#1): don't re-type into a field that's already filled.
+    // Matches payload -> skip silently; differs -> leave it and flag the mismatch.
+    const existingText = String(el.value || "").trim();
+    if (existingText) {
+      if (valuesMatch(existingText, value)) return true;
+      await flagAlreadyFilled(label, existingText, value);
+      return true;
+    }
     await humanTypeElement(el, String(value));
     return true;
   }
 
   // BeSwift option-list positions for fields where CDP-typed text does NOT filter
   // the Vuetify autocomplete (the full list stays visible), so a positional click
-  // is the reliable path. 1-based, mirrors BeSwift's current list order — if the
-  // portal reorders its lists these need updating (downstream: make data-driven).
-  const OPTION_INDEX_HINTS = {
+  // is the reliable path. 1-based, mirrors BeSwift's current list order. These are
+  // now DATA-DRIVEN (migration 020): the server carries the operator-editable
+  // positions in payload.optionIndexHints, and runFill merges them over this
+  // built-in fallback. This constant only takes effect when the DB/payload has no
+  // hint (offline / pre-020), so both sides degrade to the same known-good order.
+  const OPTION_INDEX_HINTS_FALLBACK = {
     "country of origin": 3, // Barbados
     "package type": 18      // Bag, plastic
   };
+  // Live, merged map (fallback <- payload). Reassigned at the start of runFill.
+  let optionIndexHints = { ...OPTION_INDEX_HINTS_FALLBACK };
+  // The active fill's ctx, so reconciliation/learning helpers can append to the
+  // job log_json (not just the on-page feed). Set at the start of runFill.
+  let fillCtx = null;
+  // Per-fill dedupe so a repeated field only logs one index suggestion.
+  const indexSuggested = new Set();
+
+  // Loose value equality for double-entry checks: our payload values and
+  // BeSwift's committed/display text often differ in case or extra descriptor
+  // (e.g. our "L" vs BeSwift "L — wholly produced"), so match on containment
+  // either way rather than strict equality.
+  function valuesMatch(current, wanted) {
+    const c = String(current || "").trim().toLowerCase();
+    const w = String(wanted || "").trim().toLowerCase();
+    if (!c || !w) return false;
+    return c === w || c.includes(w) || w.includes(c);
+  }
+
+  // The text a field currently holds — the input value, or a Vuetify selection
+  // chip/text when the autocomplete shows its choice without an input value.
+  function currentFieldText(el) {
+    if (!el) return "";
+    const v = String(el.value || "").trim();
+    if (v) return v;
+    const wrapper = el.closest(".v-input, .v-select, .v-autocomplete, .v-text-field");
+    const sel = wrapper && wrapper.querySelector(".v-select__selection, .v-select__selection-text, .v-chip");
+    return sel ? String(sel.textContent || "").trim() : "";
+  }
+
+  // Double-entry guard flag: a field is already filled but with a value that does
+  // NOT match the payload. Per Russell's call (2026-07-07): leave the existing
+  // value (DOM is source of truth on a re-run) and surface the mismatch on the
+  // feed + job log so the operator can decide — never silently overwrite.
+  async function flagAlreadyFilled(label, current, wanted) {
+    const msg = `${label} already holds "${current}" (expected "${wanted}") — left as-is (double-entry guard).`;
+    pushFeed(msg, "warn");
+    if (fillCtx) {
+      try {
+        await checkpoint(fillCtx, msg, { field: label, current, expected: wanted, reconcile: "left_existing" });
+      } catch (error) { /* logging must never break the fill */ }
+    }
+  }
+
+  // Suggest-only position learning (#3): when a positional hint points at the
+  // wrong row and we locate where the option actually is in the open list, log a
+  // suggestion to update delivery.standards_catalog.beswift_option_index. Never
+  // rewrites the hint automatically (Russell's call, 2026-07-07: suggest only).
+  async function maybeSuggestOptionIndex(label, observedIndex, hintIndex) {
+    const key = String(label || "").toLowerCase().trim();
+    if (!key || !observedIndex) return;
+    const currentHint = hintIndex || optionIndexHints[key] || null;
+    if (currentHint && Number(currentHint) === Number(observedIndex)) return; // hint already correct
+    if (indexSuggested.has(key)) return;
+    indexSuggested.add(key);
+    const msg = `Suggested position: "${label}" found at index ${observedIndex}`
+      + (currentHint ? ` (catalog hint is ${currentHint})` : "")
+      + ` — set delivery.standards_catalog.beswift_option_index = ${observedIndex} to apply. (suggestion only)`;
+    pushFeed(msg, "warn");
+    if (fillCtx) {
+      try {
+        await checkpoint(fillCtx, msg, { field: label, observedIndex, hintIndex: currentHint, suggestion: "beswift_option_index" });
+      } catch (error) { /* logging must never break the fill */ }
+    }
+  }
+
+  // Locate the wanted option by text within the currently-open (unfiltered) list,
+  // returning its true 1-based position — the raw signal for maybeSuggestOptionIndex.
+  function findOptionByTextInOpenMenu(wanted) {
+    const menu = findVisibleDropdownMenu();
+    if (!menu) return null;
+    const items = [...menu.querySelectorAll(".v-list-item")];
+    const w = String(wanted || "").trim().toLowerCase();
+    if (!w) return null;
+    for (let i = 0; i < items.length; i += 1) {
+      const txt = String(items[i].textContent || "").trim().toLowerCase();
+      if (txt.includes(w)) return { index: i + 1, el: items[i] };
+    }
+    return null;
+  }
 
   async function pickByLabel(label, value, root = document, options = {}) {
     if (!value) return false;
     const el = findByAny([label], root);
     if (!el) return false;
     if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+    // Double-entry guard (#1): if the dropdown already committed a selection,
+    // don't re-pick. Skip silently when it matches the payload; flag when it
+    // doesn't and leave the existing value.
+    if (dropdownFieldCommitted(el)) {
+      const current = currentFieldText(el);
+      if (valuesMatch(current, value)) return true;
+      await flagAlreadyFilled(label, current, value);
+      return true;
+    }
     const indexHint = options.optionIndex
-      || OPTION_INDEX_HINTS[String(label).toLowerCase().trim()]
+      || optionIndexHints[String(label).toLowerCase().trim()]
       || null;
 
     // Root-caused live (2026-07-04): this Vuetify autocomplete's dropdown
@@ -446,7 +566,7 @@
     // committed). Method order: type-to-filter → positional click at a known
     // index → retype-and-match → keyboard.
     if (await tryTextPick(el, value)) return true;
-    if (indexHint && await tryIndexPick(el, indexHint, value)) return true;
+    if (indexHint && await tryIndexPick(el, indexHint, value, label)) return true;
     if (await tryTextPick(el, value, { retype: true })) return true;
     el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
     await wait(200);
@@ -478,7 +598,7 @@
   // target into view first, so a below-the-fold option (e.g. #18) still clicks.
   // Falls through (returns false) if the option text clearly doesn't match the
   // expected value, so a reordered list can't silently pick the wrong entry.
-  async function tryIndexPick(el, index, value) {
+  async function tryIndexPick(el, index, value, label = null) {
     await openDropdownForElement(el);
     await humanDelay(200, 450);
     let option = await waitFor(() => findDropdownOptionByIndex(index), 3000, 150);
@@ -489,7 +609,16 @@
     if (!option) return false;
     const optText = String(option.textContent || "").trim().toLowerCase();
     const wanted = String(value || "").trim().toLowerCase();
-    if (wanted && optText && !optText.includes(wanted)) return false;
+    if (wanted && optText && !optText.includes(wanted)) {
+      // The hinted position no longer holds the wanted option (BeSwift reordered
+      // its list). Locate where it actually is in the still-open list and suggest
+      // that position (#3, suggest-only) before falling through to text/keyboard.
+      if (label) {
+        const found = findOptionByTextInOpenMenu(value);
+        if (found) await maybeSuggestOptionIndex(label, found.index, index);
+      }
+      return false;
+    }
     await cdpClickElement(option);
     await humanDelay(350, 750);
     return dropdownFieldCommitted(el);
@@ -731,6 +860,27 @@
   function fieldHasValue(label, root = document) {
     const el = findByAny([label], root);
     return Boolean(String(el?.value || "").trim());
+  }
+
+  // Count item rows already saved on the certificate, so a re-run resumes past
+  // them rather than duplicating customs lines (#1). Deliberately conservative:
+  // only counts a data table whose HEADER looks like the items grid (Commodity /
+  // Description / HS / Gross Weight), and returns 0 when no such table is found —
+  // i.e. it falls back to the pre-020 "fill everything" behaviour rather than
+  // risk skipping real items. A wrong (under-)count therefore surfaces as a
+  // visible duplicate on the feed, never a silent drop. NOTE: the items-table
+  // selector was matched to BeSwift's saved-items layout as understood on
+  // 2026-07; confirm it live and tighten if BeSwift restyles the grid.
+  function countExistingItemRows() {
+    const tables = [...document.querySelectorAll(".v-data-table, table")];
+    for (const t of tables) {
+      const headText = String(t.querySelector("thead")?.textContent || "").toLowerCase();
+      if (!/commodity|description|hs code|gross weight/.test(headText)) continue;
+      const rows = [...t.querySelectorAll("tbody tr")];
+      const real = rows.filter((r) => !/no data|no items|no matching/i.test(r.textContent || ""));
+      if (real.length) return real.length;
+    }
+    return 0;
   }
 
   async function refreshFieldOptionsByLabel(label, root = document) {
