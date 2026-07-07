@@ -716,6 +716,40 @@
     return (directText || el.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
   }
 
+  // BeSwift's field markup puts the visible label in a <label>/.v-label element
+  // rather than on the input's own aria-label/name/id/placeholder for some
+  // fields — so a finder that only reads those attributes can't locate the
+  // input and the field is silently left blank (confirmed live 2026-07:
+  // Presenting Bank on Invoice Details, and Country of Origin + Package Type on
+  // the item dialog). Collect every label-ish text associated with an input so
+  // matching can also work off the visible label. `el.labels` covers both
+  // <label for=id> and a wrapping <label>; aria-labelledby covers ARIA wiring;
+  // the scoped `.v-label` covers Vuetify's own label span (its most common
+  // pattern, which is NOT a real <label for>). A trailing "*" required marker
+  // and collapsed whitespace are normalized away so "Presenting Bank *" still
+  // matches "presenting bank".
+  function labelTextsForInput(el) {
+    const norm = (s) => String(s || "").replace(/\*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    const texts = [];
+    try {
+      if (el.labels) for (const l of el.labels) texts.push(norm(l.textContent));
+    } catch {
+      // el.labels can throw on non-labelable elements in some engines — ignore.
+    }
+    const labelledby = el.getAttribute("aria-labelledby");
+    if (labelledby) {
+      for (const id of labelledby.split(/\s+/)) {
+        const ref = id && document.getElementById(id);
+        if (ref) texts.push(norm(ref.textContent));
+      }
+    }
+    const wrapper = el.closest(".v-input, .v-text-field, .v-select, .v-autocomplete");
+    if (wrapper) {
+      for (const l of wrapper.querySelectorAll(".v-label")) texts.push(norm(l.textContent));
+    }
+    return texts.filter(Boolean);
+  }
+
   function findByAny(labels, root = document) {
     const wanted = labels.map((label) => String(label).toLowerCase().trim());
     const inputs = [...root.querySelectorAll("input,textarea,select")];
@@ -724,7 +758,8 @@
         String(el.getAttribute("aria-label") || "").toLowerCase().trim(),
         String(el.getAttribute("name") || "").toLowerCase().trim(),
         String(el.id || "").toLowerCase().trim(),
-        String(el.getAttribute("placeholder") || "").toLowerCase().trim()
+        String(el.getAttribute("placeholder") || "").toLowerCase().trim(),
+        ...labelTextsForInput(el)
       ];
       const exact = wanted.some((label) => fields.includes(label));
       const partial = !exact && wanted.some((label) => fields.some((field) => field.includes(label)));
