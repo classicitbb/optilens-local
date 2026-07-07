@@ -460,7 +460,17 @@
     const c = String(current || "").trim().toLowerCase();
     const w = String(wanted || "").trim().toLowerCase();
     if (!c || !w) return false;
-    return c === w || c.includes(w) || w.includes(c);
+    if (c === w) return true;
+    // Short codes (e.g. Origin Criterion "L") must not match by substring —
+    // "blister" contains "l" but isn't "L". Require a whole-token match so the
+    // guard still recognises "L — wholly produced" while rejecting unrelated
+    // values that merely contain the letter.
+    if (w.length <= 2 || c.length <= 2) {
+      const tokens = c.split(/[^a-z0-9]+/).filter(Boolean);
+      const wTokens = w.split(/[^a-z0-9]+/).filter(Boolean);
+      return tokens.includes(w) || wTokens.includes(c);
+    }
+    return c.includes(w) || w.includes(c);
   }
 
   // The text a field currently holds — the input value, or a Vuetify selection
