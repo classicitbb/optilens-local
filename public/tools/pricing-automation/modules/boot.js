@@ -68,6 +68,9 @@ async function runAction(target) {
     case "saveas-pricelist":
       await app.saveAsNewPricelist();
       break;
+    case "close-builder-sheet":
+      await app.autoSaveAndClosePricelist();
+      break;
     case "set-currency":
       app.setCurrency(target.dataset.currency);
       break;
