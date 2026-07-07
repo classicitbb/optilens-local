@@ -288,7 +288,9 @@
     // Invoice Details
     await pickByLabel("Currency", inv.currency === "BB$" ? "BARBADOS DOLLAR" : inv.currency);
     await setByLabel("Customer Order No.", inv.customerOrderNo);
-    await setByLabel("Presenting Bank", inv.presentingBank);
+    // Presenting Bank is a dropdown whose first option is always our own bank,
+    // so select the top option rather than typing a value in.
+    await pickFirstOptionByLabel("Presenting Bank");
     await setByLabel("Cube Quantity", inv.cubeQuantity);
     await setByLabel("Freight Cost", inv.freightCost);
     await checkpoint(ctx, "Invoice Details filled.", { invoiceDetails: inv });
@@ -597,6 +599,41 @@
     return items.length === 1 ? items[0] : null;
   }
 
+  // First real, visible option in the open dropdown, skipping any disabled
+  // "No data available" placeholder row. Used by pickFirstOptionByLabel.
+  function firstVisibleDropdownOption() {
+    const menu = findVisibleDropdownMenu();
+    if (!menu) return null;
+    const items = [...menu.querySelectorAll(".v-list-item")].filter((li) => {
+      const r = li.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return false;
+      if (li.getAttribute("aria-disabled") === "true" || li.classList.contains("v-list-item--disabled")) return false;
+      return !/no data available/i.test((li.textContent || "").trim());
+    });
+    return items[0] || null;
+  }
+
+  // Some fields always take the top option (e.g. Presenting Bank — our own bank
+  // is the first entry). It's a Vuetify autocomplete, not a text field, so
+  // typing a name in is both unnecessary and unreliable. Just open the dropdown
+  // via the trusted CDP click and select the first real option.
+  async function pickFirstOptionByLabel(label, root = document) {
+    const el = findByAny([label], root);
+    if (!el) return false;
+    if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+    await openDropdownForElement(el);
+    await humanDelay(300, 700);
+    let option = await waitFor(() => firstVisibleDropdownOption(), 5000, 150);
+    if (!option) {
+      await openDropdownForElement(el);
+      option = await waitFor(() => firstVisibleDropdownOption(), 3000, 150);
+    }
+    if (!option) throw new Error(`${label}: no options appeared in the dropdown to select.`);
+    await cdpClickElement(option);
+    await humanDelay(450, 900);
+    return true;
+  }
+
   function findVisibleDropdownMenu() {
     return [...document.querySelectorAll(".v-menu__content.menuable__content__active, .v-autocomplete__content, .v-select-list")]
       .find((el) => {
@@ -750,38 +787,61 @@
     return texts.filter(Boolean);
   }
 
+  // Given a scored candidate list, pick the best element: prefer exact matches
+  // over partial, and within the winning precision tier prefer one that's
+  // editable right now rather than blindly the first in DOM order — a label can
+  // match several fields in the same scope (e.g. a disabled field from a
+  // section that hasn't cascaded/unlocked yet, alongside the one actually meant
+  // to be filled), and grabbing the wrong one was throwing "not editable" even
+  // though a usable field existed.
+  function pickBestCandidate(candidates) {
+    if (!candidates.length) return undefined;
+    const exactMatches = candidates.filter((c) => c.exact);
+    const pool = exactMatches.length ? exactMatches : candidates;
+    const editableMatch = pool.find((c) => isEditable(c.el));
+    return (editableMatch || pool[0]).el;
+  }
+
   function findByAny(labels, root = document) {
     const wanted = labels.map((label) => String(label).toLowerCase().trim());
     const inputs = [...root.querySelectorAll("input,textarea,select")];
-    const candidates = inputs.map((el) => {
+
+    // Pass 1 (original behaviour, unchanged): match on the input's OWN
+    // aria-label/name/id/placeholder. Kept as the sole first pass so every
+    // field that already resolved this way (e.g. Port Of Discharge) picks the
+    // exact same element it always did — label-text matching below can never
+    // reorder or override a field that Pass 1 can resolve.
+    const attrCandidates = inputs.map((el) => {
       const fields = [
         String(el.getAttribute("aria-label") || "").toLowerCase().trim(),
         String(el.getAttribute("name") || "").toLowerCase().trim(),
         String(el.id || "").toLowerCase().trim(),
-        String(el.getAttribute("placeholder") || "").toLowerCase().trim(),
-        ...labelTextsForInput(el)
+        String(el.getAttribute("placeholder") || "").toLowerCase().trim()
       ];
+      // A short/generic label like "Name" or "Country" is a substring of more
+      // specific labels elsewhere ("Contact Name", "Country Of Destination") —
+      // prefer an exact match so those don't get grabbed by accident.
       const exact = wanted.some((label) => fields.includes(label));
       const partial = !exact && wanted.some((label) => fields.some((field) => field.includes(label)));
       return { el, exact, partial };
     }).filter((c) => c.exact || c.partial);
 
-    if (!candidates.length) return undefined;
+    const byAttr = pickBestCandidate(attrCandidates);
+    if (byAttr) return byAttr;
 
-    // A short/generic label like "Name" or "Country" is a substring of more
-    // specific labels elsewhere on the form ("Contact Name", "Country Of
-    // Destination") — prefer an exact (trimmed) label match over a partial
-    // one so those don't get matched by accident. Within whichever precision
-    // tier actually has candidates, prefer one that's editable right now
-    // rather than blindly taking the first in DOM order — a label can match
-    // several fields in the same scope (e.g. a disabled field from a section
-    // that hasn't cascaded/unlocked yet, alongside the one actually meant to
-    // be filled), and grabbing the wrong one was throwing "not editable" even
-    // though a usable field existed.
-    const exactMatches = candidates.filter((c) => c.exact);
-    const pool = exactMatches.length ? exactMatches : candidates;
-    const editableMatch = pool.find((c) => isEditable(c.el));
-    return (editableMatch || pool[0]).el;
+    // Pass 2 (fallback, only when Pass 1 found NOTHING): resolve from the
+    // input's associated visible label (<label>/.v-label/aria-labelledby).
+    // BeSwift carries some fields' label only there — Presenting Bank, Country
+    // Of Origin, Package Type — so those were being left blank. Scoped strictly
+    // as a fallback so it cannot change which input a Pass-1 field resolves to.
+    const labelCandidates = inputs.map((el) => {
+      const texts = labelTextsForInput(el);
+      const exact = wanted.some((label) => texts.includes(label));
+      const partial = !exact && wanted.some((label) => texts.some((t) => t.includes(label)));
+      return { el, exact, partial };
+    }).filter((c) => c.exact || c.partial);
+
+    return pickBestCandidate(labelCandidates);
   }
 
   async function clickByText(text, root = document) {
