@@ -61,9 +61,10 @@ USING (VALUES
     -- Presenting bank (our bank is always the first option)
     (N'presentingBank', N'Bank of Nova Scotia', NULL, N'Bank of Nova Scotia (Scotiabank)', NULL, 1, 10),
     -- Package type
-    (N'packageType', N'Box, fibreboard', NULL, N'Box, fibreboard', NULL, 1, 10),
-    (N'packageType', N'Carton',          NULL, N'Carton',          NULL, 0, 20),
-    (N'packageType', N'Case',            NULL, N'Case',            NULL, 0, 30),
+    (N'packageType', N'Bag, plastic',    NULL, N'Bag, plastic',    NULL, 1, 10),
+    (N'packageType', N'Box, fibreboard', NULL, N'Box, fibreboard', NULL, 0, 20),
+    (N'packageType', N'Carton',          NULL, N'Carton',          NULL, 0, 30),
+    (N'packageType', N'Case',            NULL, N'Case',            NULL, 0, 40),
     -- Country of origin
     (N'countryOfOrigin', N'Barbados', NULL, N'Barbados', NULL, 1, 10),
     -- Mode of transport

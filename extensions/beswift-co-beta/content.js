@@ -333,7 +333,7 @@
       await setByLabel("Invoice #", payload.invoiceDetails?.invoiceNumbers, root);
       await setByLabel("Invoice Date", payload.invoiceDetails?.invoiceDate, root);
       await setByLabel("Number of Package", payload.packaging?.numberOfPackages, root);
-      await pickByLabel("Package Type", payload.packaging?.packageType || "Box, fibreboard", root);
+      await pickByLabel("Package Type", payload.packaging?.packageType || "Bag, plastic", root);
       await setByLabel("Item Quantity", item.quantity, root);
       await refreshFieldOptionsByLabel("Unit of Measure", root);
       if (!fieldHasValue("Unit of Measure", root)) {
@@ -341,6 +341,16 @@
       }
       if (!fieldHasValue("Unit of Measure", root)) throw new Error("Unit of Measure did not commit.");
       await setByLabel("Unit Cost", item.unitCost, root);
+      // Verify the required item dropdowns actually committed; retry any that
+      // stayed blank (a different entry method each time via pickByLabel) before
+      // Save, and surface anything still blank to the operator/resolution feed.
+      await auditAndRetryItemFields(ctx, root, i, items.length, [
+        { label: "Country of Origin", value: payload.origin?.countryOfOrigin },
+        { label: "Rule Of Origin", value: payload.origin?.ruleOfOrigin || "Percentage Value" },
+        { label: "Origin Criterion", value: payload.origin?.originCriterion || "L" },
+        { label: "Package Type", value: payload.packaging?.packageType || "Bag, plastic" },
+        { label: "Unit of Measure", value: "Number of Units" }
+      ]);
       await checkpoint(ctx, `Item ${i + 1}/${items.length}: fields filled, about to Save.`, { hsCode: item.hsCode, description: item.commercialDescription });
       await clickDialogSave(root);
       await wait(900);
@@ -395,11 +405,23 @@
     return true;
   }
 
-  async function pickByLabel(label, value, root = document) {
+  // BeSwift option-list positions for fields where CDP-typed text does NOT filter
+  // the Vuetify autocomplete (the full list stays visible), so a positional click
+  // is the reliable path. 1-based, mirrors BeSwift's current list order — if the
+  // portal reorders its lists these need updating (downstream: make data-driven).
+  const OPTION_INDEX_HINTS = {
+    "country of origin": 3, // Barbados
+    "package type": 18      // Bag, plastic
+  };
+
+  async function pickByLabel(label, value, root = document, options = {}) {
     if (!value) return false;
     const el = findByAny([label], root);
     if (!el) return false;
     if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+    const indexHint = options.optionIndex
+      || OPTION_INDEX_HINTS[String(label).toLowerCase().trim()]
+      || null;
 
     // Root-caused live (2026-07-04): this Vuetify autocomplete's dropdown
     // never actually opens from anything a content script can dispatch —
@@ -418,36 +440,100 @@
     // Fix: ask background.js to open the field via chrome.debugger (Chrome
     // DevTools Protocol), which injects mouse events the page treats as
     // trusted, same mechanism Puppeteer/Playwright rely on.
+    // Try several entry methods and VERIFY the selection committed after each,
+    // so a field that stays blank is retried a different way rather than left
+    // silently empty (previously it always "return true" even when nothing
+    // committed). Method order: type-to-filter → positional click at a known
+    // index → retype-and-match → keyboard.
+    if (await tryTextPick(el, value)) return true;
+    if (indexHint && await tryIndexPick(el, indexHint, value)) return true;
+    if (await tryTextPick(el, value, { retype: true })) return true;
+    el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+    await wait(200);
+    el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    await humanDelay(450, 850);
+    return dropdownFieldCommitted(el);
+  }
+
+  // Type the value to filter the list, then click the matching option. Returns
+  // true only if the field actually committed a selection afterwards.
+  async function tryTextPick(el, value, { retype = false } = {}) {
     await openDropdownForElement(el);
-    await humanDelay(250, 550);
+    await humanDelay(200, 450);
     selectElementText(el);
     await cdpTypeText(String(value));
-
-    // Some option lists (e.g. Country, seen live showing a loading spinner
-    // and "field is required" error) appear to load asynchronously and may
-    // not be ready right when typing happens — retype once partway through
-    // the wait to re-trigger filtering against a list that's since finished
-    // loading, and use a longer overall timeout for this class of field.
-    let option = await waitFor(() => findVisibleDropdownOption(value), 3000, 150);
-    if (!option) {
+    let option = await waitFor(() => findVisibleDropdownOption(value), retype ? 5000 : 3000, 150);
+    if (!option && retype) {
       selectElementText(el);
       await cdpTypeText(String(value));
-      option = await waitFor(() => findVisibleDropdownOption(value), 5000, 150);
+      option = await waitFor(() => findVisibleDropdownOption(value), 4000, 150);
     }
-    if (option) {
-      // The resolved option is a real rendered element too — click it the
-      // same trusted way, for the same reason as above.
-      await cdpClickElement(option);
-      await humanDelay(450, 900);
-    } else {
-      // Last-resort fallback for any field that isn't this autocomplete
-    // widget (kept from before the CDP fix, cheap to leave in place).
-      el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
-      await wait(200);
-      el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    if (!option) return false;
+    await cdpClickElement(option);
+    await humanDelay(350, 750);
+    return dropdownFieldCommitted(el);
+  }
+
+  // Click the Nth option (1-based) in the open list. cdpClickElement scrolls the
+  // target into view first, so a below-the-fold option (e.g. #18) still clicks.
+  // Falls through (returns false) if the option text clearly doesn't match the
+  // expected value, so a reordered list can't silently pick the wrong entry.
+  async function tryIndexPick(el, index, value) {
+    await openDropdownForElement(el);
+    await humanDelay(200, 450);
+    let option = await waitFor(() => findDropdownOptionByIndex(index), 3000, 150);
+    if (!option) {
+      await openDropdownForElement(el);
+      option = await waitFor(() => findDropdownOptionByIndex(index), 2500, 150);
     }
-    await humanDelay(450, 850);
-    return true;
+    if (!option) return false;
+    const optText = String(option.textContent || "").trim().toLowerCase();
+    const wanted = String(value || "").trim().toLowerCase();
+    if (wanted && optText && !optText.includes(wanted)) return false;
+    await cdpClickElement(option);
+    await humanDelay(350, 750);
+    return dropdownFieldCommitted(el);
+  }
+
+  function findDropdownOptionByIndex(n) {
+    const menu = findVisibleDropdownMenu();
+    if (!menu) return null;
+    const items = [...menu.querySelectorAll(".v-list-item")];
+    return items[n - 1] || null;
+  }
+
+  // Has the Vuetify autocomplete actually committed a selection? True if the
+  // input holds text or the field shows a selection chip / selection text.
+  function dropdownFieldCommitted(el) {
+    if (!el) return false;
+    if (String(el.value || "").trim()) return true;
+    const wrapper = el.closest(".v-input, .v-select, .v-autocomplete, .v-text-field");
+    return Boolean(wrapper && wrapper.querySelector(".v-select__selection, .v-select__selection-text, .v-chip"));
+  }
+
+  // Post-fill verification for the item dialog: re-check each required dropdown
+  // committed a value; retry any blank one (pickByLabel itself cycles entry
+  // methods), then report anything still blank to the rolling feed + job log so
+  // the operator can fix it during the review pause instead of a bad Save.
+  async function auditAndRetryItemFields(ctx, root, itemIndex, itemCount, fields) {
+    const stillBlank = [];
+    for (const f of fields) {
+      if (!f.value) continue;
+      let el = findByAny([f.label], root);
+      if (el && dropdownFieldCommitted(el)) continue;
+      pushFeed(`Item ${itemIndex + 1}/${itemCount}: ${f.label} not committed — retrying.`, "warn");
+      try {
+        await pickByLabel(f.label, f.value, root);
+      } catch (error) {
+        pushFeed(`Item ${itemIndex + 1}/${itemCount}: ${f.label} retry error — ${error.message}`, "warn");
+      }
+      el = findByAny([f.label], root);
+      if (!(el && dropdownFieldCommitted(el))) stillBlank.push(f.label);
+    }
+    if (stillBlank.length) {
+      await checkpoint(ctx, `Item ${itemIndex + 1}/${itemCount}: still blank after retry — ${stillBlank.join(", ")}.`, { stillBlank });
+    }
+    return stillBlank;
   }
 
   async function pickExistingOptionByLabel(label, value, root = document) {

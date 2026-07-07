@@ -104,29 +104,38 @@ The barebones shell            The toolbox (each self-contained)
 
 The ordering is deliberate: kill duplication before splitting files, so we split *clean* code.
 
-### Phase 0 — Housekeeping (½ day, zero visual risk)
-1. Move all `*.bak-*` files out of live repo paths into an ignored `/_snapshots/` folder (or delete — they're in git), preserving enough structure to trace what they came from. Add both `/_snapshots/` and `*.bak-*` to `.gitignore`.
-2. Standardise `<head>` on the shell pages: one font block, load Material Symbols in `<head>` everywhere, and normalise the shared manifest / icon / stylesheet links. Defer a single cache-token/versioning scheme until the shell delivery path is settled.
+### Status snapshot (updated after implementation)
 
-### Phase 1 — Single-source the shell header (1–2 days, removes the #1 inconsistency)
-3. Author the header exactly once and have `shared.js` **render** it into a `<div id="app-shell-header"></div>` mount that each page includes, driven by a small per-page config: `window.OptiLensPage = { crumb: "Delivery & Export", searchHref: "/", showDashboardEdit: false }`.
-4. Delete the 11 hand-copied `<header>` blocks and the `normalizeHeaderIcons()` runtime patch — no longer needed once there's one source.
-5. Fold the launcher app catalogue (already centralised in `SHELL_APP_CATALOG`) and the header into the same shell module so they cannot drift.
+- **Completed:** Phase 0 and Phase 1 are done in the current repo state.
+- **Verified:** the shared shell header now renders from `shared.js`, protected routes such as Delivery & Export use the shared shell, and the repo no longer serves tracked `*.bak-*` snapshots from live paths.
+- **Adjusted during implementation:** shell font assets were moved local so the header no longer depends on remote Google-hosted font CSS for Material Symbols or Plus Jakarta Sans.
+- **Next recommended phase:** Phase 2, starting with shared shell/component CSS extraction before any large per-tool JS moves.
+
+### Phase 0 — Housekeeping (completed)
+1. Done: moved tracked `*.bak-*` files out of live repo paths and ignored future snapshots via `/_snapshots/` and `*.bak-*` in `.gitignore`.
+2. Done: standardised shell-page `<head>` usage around shared manifest / icon / stylesheet links.
+3. Done: replaced remote shell font dependencies with local font assets so shared header icons and typography work in external browsers without relying on Google font CSS.
+
+### Phase 1 — Single-source the shell header (completed)
+4. Done: authored the header once in `shared.js` and rendered it into a `<div id="app-shell-header"></div>` mount on each shell page, driven by `window.OptiLensPage`.
+5. Done: deleted the 11 hand-copied `<header>` blocks and removed the `normalizeHeaderIcons()` runtime patch.
+6. Done: kept the launcher app catalogue and header behavior in the same shell module so they no longer drift independently.
 
 _Result: one header, one behaviour, one place to change it. This alone makes the app "feel like one app."_
 
-### Phase 2 — Extract a shared component & token layer (2–3 days)
-6. Split `styles.css` into a small, intentional set:
+### Phase 2 — Extract a shared component & token layer (next)
+7. Split `styles.css` into a small, intentional set:
    - `tokens.css` — the `:root` variables + dark theme (already exists, just isolate it).
    - `base.css` — reset, typography, layout primitives (`.band`, `.section-head`, `.module-main`).
    - `components.css` — buttons, cards, badges, tables, form controls, tabs, endpoint lists, status pills. These are the repeated patterns currently re-implemented inline.
    - `shell.css` — header, launcher, search palette, overlays, user menu.
-7. Migrate the big inline `<style>` blocks (pricing-automation, release-notes, credentials, statement-template) onto shared components. Whatever is genuinely tool-specific moves to that tool's own scoped CSS file (Phase 3), not an inline block.
+8. Migrate the big inline `<style>` blocks (pricing-automation, release-notes, credentials, statement-template) onto shared components. Whatever is genuinely tool-specific moves to that tool's own scoped CSS file (Phase 3), not an inline block.
+9. Start with the shell-facing surfaces first: header/search/launcher styles, shared buttons, shared cards, shared tables, and form controls. Do not start Phase 3 JS splitting until these shared CSS contracts exist.
 
 _Result: a card, button, or table looks identical in every tool because it's defined once._
 
 ### Phase 3 — Make each tool a self-contained module folder (incremental, one tool at a time)
-8. Adopt a per-tool folder convention and migrate tools one at a time (start with the messiest, pricing-automation):
+10. Adopt a per-tool folder convention and migrate tools one at a time (start with the messiest, pricing-automation):
    ```
    public/tools/pricing-automation/
      index.html          ← markup only; includes shell mount + tool root
@@ -135,10 +144,10 @@ _Result: a card, button, or table looks identical in every tool because it's def
      modules/            ← split the 101 KB pricing-automation.js here
        rules.js  ladder.js  sourcing-review.js  api.js  render.js
    ```
-9. Split the oversized JS. `pricing-automation.js` (~101 KB) and `delivery-export.js` (~33 KB) should become several focused ES modules imported by a thin `main.js`. Keep each file to a single responsibility.
+11. Split the oversized JS. `pricing-automation.js` (~101 KB) and `delivery-export.js` (~33 KB) should become several focused ES modules imported by a thin `main.js`. Keep each file to a single responsibility.
 
 ### Phase 4 — Split the shell itself into chunks (1–2 days)
-10. Break `shared.js` (~33 KB, currently header + launcher + search + auth + account + drag-reorder in one file) into:
+12. Break `shared.js` (~33 KB, currently header + launcher + search + auth + account + drag-reorder in one file) into:
     ```
     public/shell/
       shell.js         ← bootstrap + header render + page config
@@ -149,11 +158,11 @@ _Result: a card, button, or table looks identical in every tool because it's def
       catalog.js       ← SHELL_APP_CATALOG (single source of app list)
     ```
     Load as ES modules (`<script type="module" src="/shell/shell.js">`), or concatenate at build time if you want to avoid a build step.
-11. Once the shell loader is split or templated, introduce one shared asset-version source for `styles.css`, `shared.js`, and other shell-owned assets instead of hand-maintained per-page `?v=` strings.
+13. Once the shell loader is split or templated, introduce one shared asset-version source for `styles.css`, `shared.js`, and other shell-owned assets instead of hand-maintained per-page `?v=` strings.
 
 ### Phase 5 — Consolidate administration into Settings (1–2 days)
-12. Rebuild `settings.html` as a tabbed shell page: **General / Users / Credentials / Integrations / Modules / Release Notes**. Move the bodies of `admin-users.html`, `credentials.html`, and `release-notes.html` in as tab panels (each becomes a small partial/module, not a top-level page).
-13. Keep the old routes (`/credentials`, `/admin/users`, `/release-notes`) as redirects into the relevant Settings tab so existing links and the server permission map keep working.
+14. Rebuild `settings.html` as a tabbed shell page: **General / Users / Credentials / Integrations / Modules / Release Notes**. Move the bodies of `admin-users.html`, `credentials.html`, and `release-notes.html` in as tab panels (each becomes a small partial/module, not a top-level page).
+15. Keep the old routes (`/credentials`, `/admin/users`, `/release-notes`) as redirects into the relevant Settings tab so existing links and the server permission map keep working.
 
 ## 6. Conventions to lock in (so it stays consistent)
 
@@ -167,15 +176,17 @@ _Result: a card, button, or table looks identical in every tool because it's def
 
 | Phase | Outcome | Est. | Visual risk |
 |---|---|---|---|
-| 0 Housekeeping | clean repo, consistent shell-page `<head>` | ½ day | none |
-| 1 Single-source header | app finally feels unified | 1–2 days | low |
-| 2 Component + token layer | cards/buttons/tables identical everywhere | 2–3 days | medium |
+| 0 Housekeeping | complete | done | none |
+| 1 Single-source header | complete | done | low |
+| 2 Component + token layer | next priority | 2–3 days | medium |
 | 3 Tool module folders | manageable, split code | incremental | low per tool |
 | 4 Split the shell | maintainable shell | 1–2 days | low |
 | 5 Settings tabs (Users/Creds/Notes) | cleaner IA | 1–2 days | low |
 
-**Highest leverage for least effort: Phases 0 → 1.** They remove the duplication that causes most of the visible inconsistency and stop the drift from getting worse, without touching tool internals. Phases 2–5 can then proceed one tool at a time with no big-bang rewrite.
+**What is next:** Phase 2. The highest-leverage remaining work is to extract the shared CSS/component layer before splitting large tool JS files or reorganising folders. That keeps the next change set focused on visual consistency and avoids mixing styling cleanup with module-structure churn.
 
 ## 8. Suggested first pull request
 
-Phase 0 + Phase 1 together: remove `.bak` clutter, normalise shell-page `<head>` assets, and replace all 11 hand-copied headers with a single `shared.js`-rendered header driven by `window.OptiLensPage`. Intentionally leave global asset-versioning for the later shell split so the first PR stays narrow and low-risk while still delivering the "one app" feeling immediately.
+Completed: Phase 0 + Phase 1 together removed `.bak` clutter, normalised shell-page assets, replaced all 11 hand-copied headers with a single `shared.js`-rendered header driven by `window.OptiLensPage`, and moved shell font assets local.
+
+Suggested next pull request: Phase 2, scoped to extracting `tokens.css`, `base.css`, `components.css`, and `shell.css`, then moving the largest inline tool styles onto those shared components without changing route structure or tool JS ownership yet.
