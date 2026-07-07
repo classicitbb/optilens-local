@@ -231,7 +231,7 @@ function renderCoDraft() {
 
   const saveBtn = document.querySelector("#saveCoDraftBtn");
   const queueBtn = document.querySelector("#queueCoJobBtn");
-  if (saveBtn) saveBtn.disabled = !hasDraft;
+  if (saveBtn) saveBtn.disabled = !(hasDraft || moduleState.invoicePreview);
   if (queueBtn) queueBtn.disabled = !hasDraft;
 
   if (!hasDraft) {
@@ -326,7 +326,7 @@ function renderCoItems(items) {
     <tr data-co-item="${index}">
       <td class="co-item-name" title="${escapeHtml(item.name || "")}">${escapeHtml(item.name || "")}</td>
       <td>${escapeHtml(item.hsCode || "")}</td>
-      <td>${escapeHtml(item.commercialDescription || "")}</td>
+      <td>${escapeHtml(item.name || "")}</td>
       <td>${escapeHtml(item.quantity ?? "")}</td>
       <td>${escapeHtml(item.uom || "")}</td>
       <td>${escapeHtml(item.weightKg ?? "")}</td>
@@ -401,17 +401,31 @@ function renderCommercialInvoicePreview() {
   }
 
   const rows = (preview.items || []).map((item) => `
-    <tr>
-      <td>${escapeHtml(item.lineNumber || "")}</td>
-      <td>${escapeHtml(item.ref || "")}</td>
-      <td class="ci-spec">${escapeHtml(item.specification || "")}</td>
-      <td>${escapeHtml(item.hsCode || "")}</td>
-      <td>${escapeHtml(item.origin || "")}</td>
-      <td>${escapeHtml(item.quantity ?? "")}</td>
-      <td><span>$</span>${formatPlainMoney(item.unitPrice)}</td>
-      <td><span>$</span>${formatPlainMoney(item.amount)}</td>
+    <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
+      <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
+      <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
+      <td class="ci-spec"><textarea class="ci-line-input" data-ci-field="specification" rows="1" aria-label="Specification">${escapeHtml(item.specification || "")}</textarea></td>
+      <td><input class="ci-line-input" data-ci-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="HS code"></td>
+      <td><input class="ci-line-input" data-ci-field="origin" value="${escapeHtml(item.origin || "")}" aria-label="Origin"></td>
+      <td><input class="ci-line-input ci-line-small" data-ci-field="quantity" value="${escapeHtml(item.quantity ?? "")}" aria-label="Quantity"></td>
+      <td><input class="ci-line-input ci-line-money" data-ci-field="unitPrice" value="${escapeHtml(formatPlainMoney(item.unitPrice))}" aria-label="Unit price"></td>
+      <td><input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount"></td>
     </tr>
   `).join("");
+
+  const tariffRows = preview.tariffHeadings?.length
+    ? preview.tariffHeadings.map((heading) => `
+      <div class="ci-declaration-line">
+        <strong>${escapeHtml(heading.heading || "")}</strong>
+        <b>${escapeHtml(heading.hsCode || "")}</b>
+      </div>
+    `).join("")
+    : `
+      <div class="ci-declaration-line">
+        <strong>${escapeHtml(preview.declarationText || "")}</strong>
+        <b>${escapeHtml(preview.declarationHsCode || "")}</b>
+      </div>
+    `;
 
   target.innerHTML = `
     <article class="commercial-invoice-preview">
@@ -447,8 +461,7 @@ function renderCommercialInvoicePreview() {
         <div class="ci-field"><small>Cube</small><em>${escapeHtml(preview.packaging?.cube || "Cube")}</em></div>
         <div class="ci-field ci-declaration">
           <small>Declaration</small>
-          <strong>${escapeHtml(preview.declarationText || "")}</strong>
-          <b>${escapeHtml(preview.declarationHsCode || "")}</b>
+          ${tariffRows}
         </div>
       </section>
       <table class="ci-items">
@@ -499,11 +512,11 @@ function renderItemDefaults() {
       <tr data-item-setting="${index}" data-item-name="${escapeHtml(key)}">
         <td><input data-setting-field="certificateEligible" type="checkbox" ${item.certificateEligible ? "checked" : ""} aria-label="Certificate eligible for ${escapeHtml(key)}"></td>
         <td class="item-setting-source" title="${escapeHtml(item.sourceName || key)}">${escapeHtml(item.sourceName || key)}</td>
-        <td><input data-setting-field="shortName" value="${escapeHtml(item.specification || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="shortName" value="${escapeHtml(item.catalogName || item.specification || item.sourceName || "")}" autocomplete="off"></td>
         <td><input data-setting-field="hsCode" value="${escapeHtml(item.hsCode || "")}" autocomplete="off"></td>
         <td><input data-setting-field="countryOfOrigin" value="${escapeHtml(item.origin || "")}" autocomplete="off"></td>
         <td><input data-setting-field="unitOfMeasure" value="${escapeHtml(item.uom || "")}" autocomplete="off"></td>
-        <td><input data-setting-field="commercialDescription" value="${escapeHtml(item.specification || "")}" autocomplete="off"></td>
+        <td><input data-setting-field="commercialDescription" value="${escapeHtml(item.sourceName || item.specification || item.catalogName || "")}" autocomplete="off"></td>
       </tr>
     `;
   }).join("") || `<tr><td colspan="7">Load an export shipment to edit item defaults.</td></tr>`;
@@ -692,6 +705,8 @@ async function loadCommercialInvoicePreview(session = getSelectedSession()) {
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/preview`, { preview: null });
   moduleState.invoicePreview = data.preview || null;
   if (printBtn) printBtn.disabled = !moduleState.invoicePreview;
+  const saveBtn = document.querySelector("#saveCoDraftBtn");
+  if (saveBtn) saveBtn.disabled = !(moduleState.coApplication || moduleState.invoicePreview);
   renderCommercialInvoicePreview();
   renderItemDefaults();
 }
@@ -788,7 +803,16 @@ async function prepareCoDraft() {
 
 async function saveCoDraft() {
   const app = moduleState.coApplication;
-  if (!app) return;
+  try {
+    await saveCommercialInvoiceLines();
+  } catch (error) {
+    setCoMessage(error.message, true);
+    return;
+  }
+  if (!app) {
+    setCoMessage("");
+    return;
+  }
   const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, readCoDraftForm()).catch((error) => {
     setCoMessage(error.message, true);
     return null;
@@ -832,6 +856,24 @@ function readCoDraftForm() {
     originNotes: valueOf("#coOriginNotes"),
     items: readCoItems()
   };
+}
+
+function readCommercialInvoiceLines() {
+  return [...document.querySelectorAll("[data-ci-line]")].map((row) => {
+    const line = { lineKey: row.dataset.ciLine || "" };
+    row.querySelectorAll("[data-ci-field]").forEach((input) => {
+      line[input.dataset.ciField] = input.value;
+    });
+    return line;
+  }).filter((line) => line.lineKey);
+}
+
+async function saveCommercialInvoiceLines() {
+  const session = getSelectedSession();
+  const lines = readCommercialInvoiceLines();
+  if (!session || !lines.length) return;
+  await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/lines`, { lines });
+  await loadCommercialInvoicePreview();
 }
 
 function readCoItems() {
@@ -1051,6 +1093,7 @@ function setCoMessage(message, isError = false) {
   if (!target) return;
   target.textContent = message || "";
   target.classList.toggle("error", Boolean(isError));
+  target.hidden = !(message && isError);
 }
 
 function setText(selector, value) {

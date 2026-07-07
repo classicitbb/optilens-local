@@ -173,7 +173,7 @@
               </div>
             </div>
 
-            <div class="shipment-status-line" id="coMessage" role="status"></div>
+            <div class="shipment-status-line" id="coMessage" role="status" hidden></div>
             <div class="co-warning-list" id="coWarnings" hidden></div>
 
             <form id="coDraftForm" class="co-draft-controls">
@@ -212,8 +212,11 @@
               <p class="shipment-empty">Select an export shipment to load the commercial invoice preview.</p>
             </div>
 
-            <section class="certificate-summary">
-              <h3>Certificate draft items</h3>
+            <details class="certificate-summary">
+              <summary>
+                <h3>Certificate draft items</h3>
+                <span>Expand</span>
+              </summary>
               <div class="table-wrap">
                 <table class="co-items-table">
                   <thead>
@@ -234,7 +237,7 @@
                   </tbody>
                 </table>
               </div>
-            </section>
+            </details>
           </section>
 
           <section class="workflow-block co-jobs-panel">

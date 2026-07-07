@@ -97,6 +97,7 @@ const {
   getCoForShipment,
   getCommercialInvoicePreview,
   prepareCoDraft,
+  saveCommercialInvoiceLineOverrides,
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
   getAutomationJobStatus: getBeSwiftAutomationJobStatus,
@@ -1129,6 +1130,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  const commercialInvoiceLinesMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/lines$/);
+  if (commercialInvoiceLinesMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      const result = await saveCommercialInvoiceLineOverrides(commercialInvoiceLinesMatch[1], body.lines || [], actor.userId);
+      return result;
+    });
+  }
+
   const commercialInvoicePrintMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\.pdf$/);
   if (commercialInvoicePrintMatch && req.method === "GET") {
     return handleHtml(res, async () => {
@@ -2114,6 +2125,9 @@ async function readJsonBody(req) {
 
 function renderCommercialInvoiceHtml(preview) {
   const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tariffRows = preview.tariffHeadings?.length
+    ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
+    : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
   const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
@@ -2150,8 +2164,8 @@ function renderCommercialInvoiceHtml(preview) {
     td:nth-child(1), td:nth-child(2), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) { text-align: center; white-space: nowrap; }
     td:nth-child(3) { width: 30%; overflow-wrap: anywhere; }
     .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; }
-    .cert { padding: 8px 4px; color: #315b83; line-height: 1.4; }
-    .sig { margin-top: 26px; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
+    .cert { display: flex; min-height: 126px; flex-direction: column; padding: 8px 4px; color: #315b83; line-height: 1.4; }
+    .sig { margin-top: auto; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
     .totals { border: 1px solid #071d35; align-self: start; }
     .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
     .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
@@ -2171,7 +2185,7 @@ function renderCommercialInvoiceHtml(preview) {
       <div class="cell"><span class="label">Port of Loading / Destination</span><span class="strong">${escapeHtmlServer(preview.transport.portOfLoading)} → ${escapeHtmlServer(preview.transport.countryOfDestination)}</span></div>
       <div class="cell"><span class="label">Bank / Origin / Terms</span>${escapeHtmlServer(preview.presentingBank)}<br><span class="strong">${escapeHtmlServer(preview.countryOfOriginOfGoods)}</span><br>${escapeHtmlServer(preview.deliveryTerms)}</div>
       <div class="cell"><span class="label">Transportation / Marks</span><span class="strong">${escapeHtmlServer(preview.transport.carrier)}</span> ${escapeHtmlServer(preview.transport.trackingNumber)}<br>${escapeHtmlServer(preview.transport.marksAndNumbers)}</div>
-      <div class="cell declaration"><span class="label">Declaration</span>${escapeHtmlServer(preview.declarationText)}<br><br>${escapeHtmlServer(preview.declarationHsCode)}</div>
+      <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
     </div>
     <table>
       <thead><tr><th>Line #</th><th>Ref #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th></tr></thead>
