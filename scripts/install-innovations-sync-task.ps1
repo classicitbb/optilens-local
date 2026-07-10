@@ -1,5 +1,5 @@
 param(
-    [string] $TaskName = "OptiLens Innovations Sync",
+    [string] $TaskName = "",
     [string] $ProjectRoot = "",
     [int] $IntervalMinutes = 60,
     [switch] $DryRun,
@@ -15,6 +15,12 @@ param(
 # Keep it protected — it unlocks the CV API credential.
 
 $ErrorActionPreference = "Stop"
+
+# The full sync and the cloud-request poller are separate schedules. Giving
+# them distinct defaults prevents the second install from replacing the first.
+if (-not $TaskName) {
+    $TaskName = if ($ServeRequests) { "OptiLens Innovations Sync Requests" } else { "OptiLens Innovations Sync" }
+}
 
 if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent $PSScriptRoot
@@ -42,8 +48,8 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
-    -Description "Pushes selected Innovations data to the Classic Visions cloud every $IntervalMinutes minute(s)." `
+    -Description $(if ($ServeRequests) { "Processes Classic Visions Sync now requests every $IntervalMinutes minute(s)." } else { "Pushes selected Innovations data to the Classic Visions cloud every $IntervalMinutes minute(s)." }) `
     -Force | Out-Null
 
-Write-Host "Installed scheduled task: $TaskName (every $IntervalMinutes min, DryRun=$($DryRun.IsPresent))."
+Write-Host "Installed scheduled task: $TaskName (every $IntervalMinutes min, DryRun=$($DryRun.IsPresent), ServeRequests=$($ServeRequests.IsPresent))."
 Write-Host "Reminder: set OPTILENS_SYNC_PASSPHRASE (Machine scope) so the task can unlock the vault."

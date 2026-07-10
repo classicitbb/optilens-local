@@ -164,6 +164,7 @@ const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
+const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
@@ -1769,6 +1770,15 @@ const server = http.createServer(async (req, res) => {
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getCvApi(body.token);
       return innovationsSync.runRequested(creds, {});
+    });
+  }
+
+  // Recent local operator log. The cloud remains the source of truth for
+  // received rows/dead letters; this explains whether the office agent ran.
+  if (url.pathname === "/api/connectors/innovations-sync/logs" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return { logFile: innovationsSyncLog.LOG_FILE, events: innovationsSyncLog.readRecent(url.searchParams.get("limit")) };
     });
   }
 
