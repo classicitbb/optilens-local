@@ -92,6 +92,16 @@
               <input type="password" id="syncPass" autocomplete="current-password" placeholder="Unlock the credentials vault">
             </label>
           </div>
+          <section class="live-gateway-control" aria-labelledby="liveGatewayTitle">
+            <h4 id="liveGatewayTitle">On-demand live gateway</h4>
+            <p>Delivers approved Innovations account data and OptiLens delivery status to CV Web only when an authorized customer opens it. No periodic customer-data sync is required.</p>
+            <div class="sync-row">
+              <button class="btn btn-primary" id="gatewayStartBtn" type="button">Start live gateway</button>
+              <button class="btn" id="gatewayStopBtn" type="button">Stop</button>
+              <span id="gatewayStatus" class="badge" role="status" aria-live="polite">Checking…</span>
+            </div>
+            <p id="gatewayDetail" class="sync-help"></p>
+          </section>
           <div class="sync-row sync-entities">
             <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
             <label><input type="checkbox" class="sync-entity" value="contacts" checked> Contacts</label>
@@ -105,7 +115,7 @@
           <div class="sync-row">
             <button class="btn" id="syncDryBtn" type="button">Dry run</button>
             <button class="btn btn-primary" id="syncRunBtn" type="button">Sync now (write)</button>
-            <span id="syncStatus" class="badge"></span>
+            <span id="syncStatus" class="badge" role="status" aria-live="polite"></span>
           </div>
           <pre id="syncResult" class="sync-result" hidden></pre>
         </article>
@@ -134,10 +144,89 @@
       const resultEl = document.getElementById("syncResult");
       const dryBtn = document.getElementById("syncDryBtn");
       const runBtn = document.getElementById("syncRunBtn");
+      const gatewayStartBtn = document.getElementById("gatewayStartBtn");
+      const gatewayStopBtn = document.getElementById("gatewayStopBtn");
+      const gatewayStatusEl = document.getElementById("gatewayStatus");
+      const gatewayDetailEl = document.getElementById("gatewayDetail");
       if (!dryBtn) return;
 
       const setStatus = (text, kind) => { statusEl.textContent = text; statusEl.className = "badge " + (kind || ""); };
       const entities = () => [...document.querySelectorAll(".sync-entity:checked")].map(c => c.value);
+
+      async function unlockVault() {
+        const passphrase = passEl.value.trim();
+        if (!passphrase) { passEl.focus(); throw new Error("Enter the vault passphrase"); }
+        const response = await fetch("/api/connectors/unlock", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ passphrase })
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.token) throw new Error(body.error || "Unlock failed");
+        return body.token;
+      }
+
+      function renderGatewayStatus(status) {
+        const online = !!status.running && !status.lastError;
+        gatewayStatusEl.textContent = online ? "Live · connected" : status.running ? "Starting / retrying" : "Stopped";
+        gatewayStatusEl.className = "badge " + (online ? "ready-for-import" : status.running ? "credentials-needed" : "planned");
+        gatewayDetailEl.textContent = status.lastError
+          ? `Latest connection message: ${status.lastError}`
+          : status.lastSeenAt
+            ? `Last cloud heartbeat ${new Date(status.lastSeenAt).toLocaleString()} · ${status.processed || 0} requests delivered.`
+            : "The gateway sends only control heartbeats until CV Web requests customer data.";
+        gatewayStartBtn.disabled = !!status.running;
+        gatewayStopBtn.disabled = !status.running;
+      }
+
+      async function loadGatewayStatus() {
+        try {
+          const response = await fetch("/api/connectors/live-gateway/status");
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Status unavailable");
+          renderGatewayStatus(body);
+        } catch (error) {
+          gatewayStatusEl.textContent = "Status unavailable";
+          gatewayStatusEl.className = "badge credentials-needed";
+          gatewayDetailEl.textContent = error.message || String(error);
+        }
+      }
+
+      gatewayStartBtn.addEventListener("click", async () => {
+        gatewayStartBtn.disabled = true;
+        try {
+          const token = await unlockVault();
+          const response = await fetch("/api/connectors/live-gateway/start", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token })
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Could not start the gateway");
+          renderGatewayStatus(body);
+          setTimeout(loadGatewayStatus, 1200);
+        } catch (error) {
+          gatewayStatusEl.textContent = "Could not start";
+          gatewayStatusEl.className = "badge credentials-needed";
+          gatewayDetailEl.textContent = error.message || String(error);
+          gatewayStartBtn.disabled = false;
+        } finally {
+          passEl.value = "";
+        }
+      });
+
+      gatewayStopBtn.addEventListener("click", async () => {
+        gatewayStopBtn.disabled = true;
+        try {
+          const response = await fetch("/api/connectors/live-gateway/stop", { method: "POST" });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Could not stop the gateway");
+          renderGatewayStatus(body);
+        } catch (error) {
+          gatewayDetailEl.textContent = error.message || String(error);
+        }
+      });
+
+      loadGatewayStatus();
+      setInterval(loadGatewayStatus, 10000);
 
       async function run(commit) {
         const passphrase = passEl.value.trim();

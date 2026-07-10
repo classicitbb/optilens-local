@@ -164,6 +164,7 @@ const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
+const liveGatewayWorker = require("./lib/live-gateway-worker");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -1771,6 +1772,33 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // ── On-demand CV Web live-data gateway ───────────────────────────────────
+  // The worker makes outbound-only calls to CV Web and performs strictly
+  // allow-listed reads against Innovations and the OptiLens app database.
+  if (url.pathname === "/api/connectors/live-gateway/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return liveGatewayWorker.status();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/live-gateway/start" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const error = new Error("Locked — unlock the vault first."); error.statusCode = 401; throw error; }
+      return liveGatewayWorker.start(plSecure.getCvApi(body.token));
+    });
+  }
+
+  if (url.pathname === "/api/connectors/live-gateway/stop" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      return liveGatewayWorker.stop();
+    });
+  }
+
   // ── Doc Studio API ────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/docstudio/users" && req.method === "GET") {
@@ -2462,4 +2490,15 @@ function readJsonFile(filePath, fallback) {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
+  if (passphrase) {
+    try {
+      const token = plSecure.unlock(passphrase);
+      if (!token) throw new Error("configured passphrase did not unlock the vault");
+      liveGatewayWorker.start(plSecure.getCvApi(token));
+      console.log("OptiLens live-data gateway worker started.");
+    } catch (error) {
+      console.error("OptiLens live-data gateway did not start:", error.message);
+    }
+  }
 });
