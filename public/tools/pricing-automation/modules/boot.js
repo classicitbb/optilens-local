@@ -161,6 +161,12 @@ async function runAction(target) {
     case "cv-pull":
       await app.cvPull();
       break;
+    case "innova-save":
+      await app.innovaSave();
+      break;
+    case "innova-reveal":
+      await app.innovaReveal();
+      break;
     case "conn-save":
       await app.connSave();
       break;

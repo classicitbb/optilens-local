@@ -30,6 +30,7 @@ export async function buildConnectorsView() {
 
   const optilens = state.connStatus.optilens || {};
   const cvapi = state.connStatus.cvapi || {};
+  const innovaapi = state.connStatus.innovaapi || {};
   element.innerHTML = `
     <div class="conn-card">
       <div class="conn-row"><h3>🔑 Classic Visions API (x-api-key)</h3><button class="pl-btn pl-btn-secondary" type="button" data-action="conn-lock">🔒 Lock</button></div>
@@ -43,6 +44,17 @@ export async function buildConnectorsView() {
         <button class="pl-btn pl-btn-teal" type="button" data-action="cv-pull">⇩ Pull live catalog</button>
       </div>
       <div id="cv-result" class="conn-result">${cvapi.updatedAt ? `<span class="muted">Key saved ${new Date(cvapi.updatedAt).toLocaleString()}</span>` : ""}</div>
+    </div>
+    <div class="conn-card">
+      <div class="conn-row"><h3>🔐 InnovaAPI (Rx order status)</h3><button class="pl-btn pl-btn-secondary" type="button" data-action="conn-lock">🔒 Lock</button></div>
+      <p class="conn-note">Bearer token for the local Innovations API. It is encrypted at rest and used only by the on-premises live gateway worker.</p>
+      <label>Base URL</label><input id="innova-base" value="${innovaapi.baseUrl || "https://localhost/api/v2"}" placeholder="https://localhost/api/v2">
+      <label>Bearer token <span class="muted">current: ${innovaapi.bearerTokenMasked || "not set"}</span></label><input id="innova-token" type="password" placeholder="paste to set / replace">
+      <div class="conn-actions">
+        <button class="pl-btn pl-btn-primary" type="button" data-action="innova-save">Save (encrypted)</button>
+        <button class="pl-btn pl-btn-secondary" type="button" data-action="innova-reveal">👁 Reveal</button>
+      </div>
+      <div class="conn-result">${innovaapi.updatedAt ? `<span class="muted">Token saved ${new Date(innovaapi.updatedAt).toLocaleString()}</span>` : ""}</div>
     </div>
     <div class="conn-card">
       <div class="conn-row"><h3>🗄 Optilens (Supabase) catalog</h3><button class="pl-btn pl-btn-secondary" type="button" data-action="conn-lock">🔒 Lock</button></div>
@@ -105,6 +117,27 @@ export async function cvReveal() {
   if ($("cv-key")) {
     $("cv-key").type = "text";
     $("cv-key").value = result.apiKey || "";
+  }
+}
+
+export async function innovaSave() {
+  const result = await connectorPost("innovaapi/config", {
+    token: state.connToken,
+    baseUrl: $("innova-base")?.value.trim(),
+    bearerToken: $("innova-token")?.value.trim() || undefined,
+  });
+  if (result.error) return toast(result.error);
+  toast("InnovaAPI token saved (encrypted)");
+  await buildConnectorsView();
+}
+
+export async function innovaReveal() {
+  const result = await connectorPost("innovaapi/reveal", { token: state.connToken });
+  if (result.error) return toast(result.error);
+  if ($("innova-base")) $("innova-base").value = result.baseUrl || "https://localhost/api/v2";
+  if ($("innova-token")) {
+    $("innova-token").type = "text";
+    $("innova-token").value = result.bearerToken || "";
   }
 }
 
@@ -229,4 +262,6 @@ Object.assign(app, {
   cvReveal,
   cvSave,
   cvTest,
+  innovaReveal,
+  innovaSave,
 });
