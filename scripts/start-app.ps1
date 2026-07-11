@@ -33,6 +33,49 @@ if ($existingOwners) {
     return
 }
 
+function Import-OptiLensEnvironment {
+    $names = @(
+        "OPTILENS_SYNC_PASSPHRASE",
+        "OPTILENS_HOST",
+        "OPTILENS_DB_SERVER",
+        "OPTILENS_DB_NAME",
+        "OPTILENS_DB_USER",
+        "OPTILENS_DB_PASSWORD",
+        "OPTILENS_SOURCE_MSSQL_SERVER",
+        "OPTILENS_SOURCE_MSSQL_DATABASE",
+        "OPTILENS_SOURCE_MSSQL_USER",
+        "OPTILENS_SOURCE_MSSQL_PASSWORD",
+        "OPTILENS_SOURCE_MSSQL_ENCRYPT",
+        "OPTILENS_SOURCE_MSSQL_TRUST_CERT",
+        "OPTILENS_SOURCE_MSSQL_MODE",
+        "OPTILENS_SOURCE_PSQL_DSN",
+        "OPTILENS_SOURCE_PSQL_DRIVER",
+        "OPTILENS_SOURCE_PSQL_HOST",
+        "OPTILENS_SOURCE_PSQL_PORT",
+        "OPTILENS_SOURCE_PSQL_DATABASE",
+        "OPTILENS_SOURCE_PSQL_USER",
+        "OPTILENS_SOURCE_PSQL_PASSWORD",
+        "OPTILENS_SOURCE_PSQL_MODE",
+        "OPTILENS_WRITEBACK_ENABLED"
+    )
+
+    foreach ($name in $names) {
+        if ([Environment]::GetEnvironmentVariable($name, "Process")) {
+            continue
+        }
+
+        $value = [Environment]::GetEnvironmentVariable($name, "User")
+        if (-not $value) {
+            $value = [Environment]::GetEnvironmentVariable($name, "Machine")
+        }
+        if ($value) {
+            [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        }
+    }
+}
+
+Import-OptiLensEnvironment
+
 $node = (Get-Command node -ErrorAction Stop).Source
 $stdout = Join-Path $ProjectRoot "server.out.log"
 $stderr = Join-Path $ProjectRoot "server.err.log"
