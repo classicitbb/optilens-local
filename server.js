@@ -1641,24 +1641,6 @@ const server = http.createServer(async (req, res) => {
       return plSecure.revealCvApi(body.token);
     });
   }
-  if (url.pathname === "/api/connectors/innovaapi/config" && req.method === "POST") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "credentials.manage");
-      const body = await readJsonBody(req);
-      const key = body.token && plSecure.keyForToken(body.token);
-      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
-      return plSecure.saveInnovaApi(body.token, body);
-    });
-  }
-  if (url.pathname === "/api/connectors/innovaapi/reveal" && req.method === "POST") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "credentials.manage");
-      const body = await readJsonBody(req);
-      const key = body.token && plSecure.keyForToken(body.token);
-      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
-      return plSecure.revealInnovaApi(body.token);
-    });
-  }
   if (url.pathname === "/api/connectors/cvapi/test" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
@@ -1817,7 +1799,6 @@ const server = http.createServer(async (req, res) => {
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const error = new Error("Locked — unlock the vault first."); error.statusCode = 401; throw error; }
       const credentials = plSecure.getCvApi(body.token);
-      try { credentials.innovaApi = plSecure.getInnovaApi(body.token); } catch { credentials.innovaApi = null; }
       return liveGatewayWorker.start(credentials);
     });
   }
@@ -2526,7 +2507,6 @@ server.listen(port, host, () => {
       const token = plSecure.unlock(passphrase);
       if (!token) throw new Error("configured passphrase did not unlock the vault");
       const credentials = plSecure.getCvApi(token);
-      try { credentials.innovaApi = plSecure.getInnovaApi(token); } catch { credentials.innovaApi = null; }
       liveGatewayWorker.start(credentials);
       console.log("OptiLens live-data gateway worker started.");
     } catch (error) {

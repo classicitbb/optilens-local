@@ -122,7 +122,16 @@
       </section>
 
       <section class="workflow-panel" id="logs">
-        <div class="placeholder-pane">Integration sync logs and error history will be streamed here once connectors are active.</div>
+        <article class="sync-console">
+          <div class="sync-row" style="justify-content:space-between;align-items:center">
+            <div>
+              <h3>Recent Innovations sync activity</h3>
+              <p class="sync-help">Local operator log from OptiLens Local. Cloud-side dead letters remain in CV Web/Supabase.</p>
+            </div>
+            <button class="btn" id="syncLogsRefreshBtn" type="button">Refresh logs</button>
+          </div>
+          <pre id="syncLogsResult" class="sync-result">Loading sync logs...</pre>
+        </article>
       </section>
     </section>
   </main>
@@ -228,6 +237,26 @@
       loadGatewayStatus();
       setInterval(loadGatewayStatus, 10000);
 
+      const logsBtn = document.getElementById("syncLogsRefreshBtn");
+      const logsEl = document.getElementById("syncLogsResult");
+      async function loadSyncLogs() {
+        if (!logsEl) return;
+        logsEl.textContent = "Loading sync logs...";
+        try {
+          const response = await fetch("/api/connectors/innovations-sync/logs?limit=80");
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Logs unavailable");
+          logsEl.textContent = (body.events || []).map((event) => {
+            const payload = event.payload ? JSON.stringify(event.payload) : "";
+            return `${event.ts || ""} ${event.event || ""} ${payload}`;
+          }).join("\n") || "No local sync events have been recorded yet.";
+        } catch (error) {
+          logsEl.textContent = error.message || String(error);
+        }
+      }
+      logsBtn?.addEventListener("click", loadSyncLogs);
+      loadSyncLogs();
+
       async function run(commit) {
         const passphrase = passEl.value.trim();
         if (!passphrase) { setStatus("Enter passphrase", "credentials-needed"); passEl.focus(); return; }
@@ -255,6 +284,7 @@
           if (!r.ok) { setStatus(rj.error || ("HTTP " + r.status), "credentials-needed"); return; }
           setStatus((rj.dryRun ? "Dry run · " : "Synced · ") + (rj.ok ? "all ok" : "issues"),
             rj.ok ? "ready-for-import" : "credentials-needed");
+          loadSyncLogs();
         } catch (e) {
           setStatus("Failed: " + (e.message || e), "credentials-needed");
         } finally {

@@ -1,52 +1,54 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  dispatch, normalizeRequest, positiveInteger, dateOnly, OPERATIONS, statementPayload, statementLinePayload,
+  dispatch, normalizeRequest, positiveInteger, dateOnly, OPERATIONS, statementPayload, statementLinePayload, orderPayload,
 } = require('../lib/live-data-gateway');
 
 test('gateway exposes only approved reads', () => {
-  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_rx_order_status', 'optilens.customer_deliveries']);
+  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_orders', 'optilens.customer_deliveries']);
 });
 
-test('Rx order status uses the configured bearer token and returns only Rx rows', async () => {
-  const originalFetch = global.fetch;
-  let requestUrl = '';
-  let authorization = '';
-  global.fetch = async (url, options) => {
-    requestUrl = String(url);
-    authorization = options.headers.Authorization;
-    return new Response(JSON.stringify({
-      data: {
-        orderSummary: [
-          { orderTypeName: 'Credit', orderID: 12, startDate: '2026-07-11T09:00:00Z' },
-          { orderTypeName: 'Rx', orderID: 8, startDate: '2026-07-10T09:00:00Z', statusName: 'Remote Rx' },
-          { orderTypeName: 'RX', orderID: 9, startDate: '2026-07-11T10:00:00Z', statusName: 'In progress' },
-        ],
-      },
-    }), { status: 200, headers: { 'content-type': 'application/json' } });
-  };
-
-  try {
-    const data = await dispatch(
-      { operation: 'innovations.customer_rx_order_status', target: { account_number: 'RETAIL' } },
-      { innovaApi: { baseUrl: 'https://localhost/api/v2', bearerToken: 'test-token' } },
-    );
-    assert.match(requestUrl, /\/order_summary\?account_number=RETAIL$/);
-    assert.equal(authorization, 'Bearer test-token');
-    assert.deepEqual(data.orders.map((row) => row.order_id), [9, 8]);
-  } finally {
-    global.fetch = originalFetch;
-  }
+test('order payload keeps full order-status fields from MSSQL rows', () => {
+  assert.deepEqual(orderPayload({
+    order_id: 9,
+    invoice_id: 53,
+    account_number: 'RETAIL',
+    order_type_name: 'Rx',
+    start_date: '2026-07-11T10:00:00Z',
+    status_name: 'In progress',
+    rx_number: 'RX-99',
+    patient: 'PATIENT ONE',
+  }), {
+    order_id: 9,
+    invoice_id: 53,
+    account_number: 'RETAIL',
+    customer_name: null,
+    bill_to_account: null,
+    ship_to_account: null,
+    order_type: null,
+    order_type_name: 'Rx',
+    start_date: '2026-07-11T10:00:00Z',
+    promised_date: null,
+    shipped_date: null,
+    status_id: null,
+    status_name: 'In progress',
+    status_date: null,
+    gen_status: null,
+    job_id: null,
+    tray_id: null,
+    rx_number: 'RX-99',
+    patient: 'PATIENT ONE',
+    po_number: null,
+    reference: null,
+    shipping_number: null,
+    result_message: null,
+  });
 });
 
-test('Rx order status requires the mapped LMS account and configured bearer token', async () => {
+test('order status requires the mapped LMS account', async () => {
   await assert.rejects(
-    dispatch({ operation: 'innovations.customer_rx_order_status', target: { innovations_customer_id: 42 } }),
+    dispatch({ operation: 'innovations.customer_orders', target: { innovations_customer_id: 42 } }),
     (error) => error.code === 'account_number_missing',
-  );
-  await assert.rejects(
-    dispatch({ operation: 'innovations.customer_rx_order_status', target: { account_number: 'RETAIL' } }),
-    (error) => error.code === 'innova_api_not_configured',
   );
 });
 
