@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { summarizeEntities, trim } = require('../lib/innovations-sync-log');
+const { normalizeEntitySelection } = require('../lib/innovations-sync');
 
 test('sync log summaries preserve counts but cap diagnostic text', () => {
   const result = summarizeEntities({
@@ -11,4 +12,12 @@ test('sync log summaries preserve counts but cap diagnostic text', () => {
   });
   assert.equal(result.customers.error.length, 500);
   assert.equal(trim('a\nb'), 'a b');
+});
+
+test('statement sync selection automatically includes statement lines in dependency order', () => {
+  assert.deepEqual(normalizeEntitySelection(['statements']), ['statements', 'statement_lines']);
+  assert.deepEqual(
+    normalizeEntitySelection(['statement_lines', 'customers', 'statements']),
+    ['customers', 'statements', 'statement_lines'],
+  );
 });

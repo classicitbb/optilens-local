@@ -5,6 +5,9 @@
     .sync-field input { margin-top:2px; padding:8px 10px; min-width:260px; border:1px solid var(--border,#cbd5e1); border-radius:8px; }
     .sync-entities label { display:inline-flex; align-items:center; gap:6px; font-weight:500; }
     .sync-result { margin-top:14px; padding:12px; background:rgba(11,30,53,.04); border:1px solid var(--border,#cbd5e1); border-radius:8px; font-size:12px; max-height:340px; overflow:auto; white-space:pre-wrap; }
+    .sync-table { width:100%; border-collapse:collapse; white-space:normal; }
+    .sync-table th, .sync-table td { padding:7px 8px; border-bottom:1px solid var(--border,#cbd5e1); text-align:left; }
+    .sync-table th { color:var(--muted,#64748b); font-weight:700; }
     .live-gateway-control { margin-top:16px; padding:16px; border:1px solid rgba(13,148,136,.35); border-radius:12px; background:rgba(13,148,136,.06); }
     .live-gateway-control h4 { margin:0 0 6px; font-size:16px; }
     .live-gateway-control p { margin:0; max-width:820px; }

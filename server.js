@@ -1756,7 +1756,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const tables = Array.isArray(body.tables) && body.tables.length
         ? body.tables
-        : ["Customers", "Contacts", "CustomerAddresses", "CustomerBalances", "FinExportedInvoices", "FinARStatements"];
+        : ["Customers", "Contacts", "CustomerAddresses", "CustomerBalances", "FinExportedInvoices", "FinARStatements", "FinARStatementItems"];
       return innovationsSync.describeTables(tables);
     });
   }

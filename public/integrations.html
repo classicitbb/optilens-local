@@ -109,6 +109,7 @@
             <label><input type="checkbox" class="sync-entity" value="statements"> Statements</label>
             <label><input type="checkbox" class="sync-entity" value="statement_lines"> Statement lines</label>
           </div>
+          <p id="syncDependencyHelp" class="sync-help" hidden>Statement lines are included automatically whenever Statements is selected, so statement headers do not arrive without item rows.</p>
           <div class="sync-row sync-entities">
             <label title="First historical backfill only — stops the receiver emailing every customer a 'statement ready' notice at once. Ignored on dry runs and when Statements isn't selected."><input type="checkbox" id="syncSuppressEmails"> Suppress statement emails (backfill)</label>
           </div>
@@ -117,6 +118,7 @@
             <button class="btn btn-primary" id="syncRunBtn" type="button">Sync now (write)</button>
             <span id="syncStatus" class="badge" role="status" aria-live="polite"></span>
           </div>
+          <div id="syncEntitySummary" class="sync-result" hidden></div>
           <pre id="syncResult" class="sync-result" hidden></pre>
         </article>
       </section>
@@ -151,8 +153,10 @@
       const passEl = document.getElementById("syncPass");
       const statusEl = document.getElementById("syncStatus");
       const resultEl = document.getElementById("syncResult");
+      const summaryEl = document.getElementById("syncEntitySummary");
       const dryBtn = document.getElementById("syncDryBtn");
       const runBtn = document.getElementById("syncRunBtn");
+      const dependencyHelpEl = document.getElementById("syncDependencyHelp");
       const gatewayStartBtn = document.getElementById("gatewayStartBtn");
       const gatewayStopBtn = document.getElementById("gatewayStopBtn");
       const gatewayStatusEl = document.getElementById("gatewayStatus");
@@ -160,7 +164,55 @@
       if (!dryBtn) return;
 
       const setStatus = (text, kind) => { statusEl.textContent = text; statusEl.className = "badge " + (kind || ""); };
-      const entities = () => [...document.querySelectorAll(".sync-entity:checked")].map(c => c.value);
+      const entityLabel = {
+        customers: "Customers",
+        contacts: "Contacts",
+        balances: "Balances",
+        statements: "Statements",
+        statement_lines: "Statement lines"
+      };
+      const orderedEntities = ["customers", "contacts", "balances", "statements", "statement_lines"];
+      const entities = () => {
+        const selected = new Set([...document.querySelectorAll(".sync-entity:checked")].map(c => c.value));
+        if (selected.has("statements")) selected.add("statement_lines");
+        return orderedEntities.filter((entity) => selected.has(entity));
+      };
+      const syncEntityCheckboxes = [...document.querySelectorAll(".sync-entity")];
+      function enforceStatementLineDependency() {
+        const statementsBox = syncEntityCheckboxes.find((box) => box.value === "statements");
+        const linesBox = syncEntityCheckboxes.find((box) => box.value === "statement_lines");
+        if (statementsBox?.checked && linesBox) linesBox.checked = true;
+        if (dependencyHelpEl) dependencyHelpEl.hidden = !(statementsBox?.checked);
+      }
+      syncEntityCheckboxes.forEach((box) => box.addEventListener("change", enforceStatementLineDependency));
+      enforceStatementLineDependency();
+
+      function renderEntitySummary(result) {
+        if (!summaryEl) return;
+        const rows = orderedEntities
+          .filter((entity) => result?.entities?.[entity])
+          .map((entity) => {
+            const item = result.entities[entity];
+            return `<tr>
+              <td>${entityLabel[entity] || entity}</td>
+              <td>${item.ok ? "OK" : "Issue"}</td>
+              <td>${item.read ?? 0}</td>
+              <td>${item.received ?? 0}</td>
+              <td>${item.upserted ?? 0}</td>
+              <td>${item.failed ?? 0}</td>
+            </tr>`;
+          });
+        if (!rows.length) {
+          summaryEl.hidden = true;
+          summaryEl.innerHTML = "";
+          return;
+        }
+        summaryEl.hidden = false;
+        summaryEl.innerHTML = `<table class="sync-table">
+          <thead><tr><th>Entity</th><th>Status</th><th>Read</th><th>Received</th><th>Upserted</th><th>Failed</th></tr></thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>`;
+      }
 
       async function unlockVault() {
         const passphrase = passEl.value.trim();
@@ -266,6 +318,7 @@
         dryBtn.disabled = runBtn.disabled = true;
         setStatus(commit ? "Syncing…" : "Dry running…", "open");
         resultEl.hidden = true;
+        if (summaryEl) summaryEl.hidden = true;
         try {
           const u = await fetch("/api/connectors/unlock", {
             method: "POST", headers: { "content-type": "application/json" },
@@ -281,6 +334,7 @@
           const rj = await r.json().catch(() => ({}));
           resultEl.hidden = false;
           resultEl.textContent = JSON.stringify(rj, null, 2);
+          renderEntitySummary(rj);
           if (!r.ok) { setStatus(rj.error || ("HTTP " + r.status), "credentials-needed"); return; }
           setStatus((rj.dryRun ? "Dry run · " : "Synced · ") + (rj.ok ? "all ok" : "issues"),
             rj.ok ? "ready-for-import" : "credentials-needed");
