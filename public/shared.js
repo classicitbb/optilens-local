@@ -35,6 +35,12 @@ const AUTH_STATE = {
   needsBootstrap: false
 };
 
+let DEFERRED_INSTALL_PROMPT = null;
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  DEFERRED_INSTALL_PROMPT = event;
+});
+
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 (function bootstrap() {
@@ -251,6 +257,16 @@ function applyTheme() {
   updateThemeBtn(theme);
 }
 
+// "system" clears the stored override so prefers-color-scheme takes over (matches applyTheme's fallback).
+function setShellTheme(preference) {
+  if (preference === "system") {
+    localStorage.removeItem("optilens.theme");
+  } else {
+    localStorage.setItem("optilens.theme", preference);
+  }
+  applyTheme();
+}
+
 function updateThemeBtn(theme) {
   const btn = document.querySelector("#themeToggle");
   if (!btn) return;
@@ -265,9 +281,7 @@ function wireThemeToggle() {
   if (!btn) return;
   btn.addEventListener("click", () => {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    localStorage.setItem("optilens.theme", next);
-    document.documentElement.dataset.theme = next;
-    updateThemeBtn(next);
+    setShellTheme(next);
   });
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if (!localStorage.getItem("optilens.theme")) applyTheme();
@@ -281,8 +295,13 @@ function injectOverlays() {
 <div class="launcher-overlay" id="launcherOverlay" hidden aria-modal="true" role="dialog" aria-label="App launcher">
   <div class="launcher-panel">
     <div class="launcher-head">
-      <h2>Applications <span class="material-symbols-outlined launcher-head-info" aria-hidden="true">info</span></h2>
-      <button class="launcher-close" id="launcherClose" type="button" aria-label="Close launcher">&#x2715;</button>
+      <h2>Applications</h2>
+      <div class="launcher-head-actions">
+        <button class="launcher-help" id="launcherHelp" type="button" aria-label="Help / Wiki" title="Help / Wiki">
+          <span class="material-symbols-outlined">help</span>
+        </button>
+        <button class="launcher-close" id="launcherClose" type="button" aria-label="Close launcher">&#x2715;</button>
+      </div>
     </div>
     <div class="launcher-grid" id="launcherGrid"></div>
   </div>
@@ -357,10 +376,13 @@ function injectOverlays() {
 
 // ─── Launcher ────────────────────────────────────────────────────────────────
 
+const LAUNCHER_SHOWN_SESSION_KEY = "optilens.launcherShown";
+
 function wireLauncher() {
   const btn     = document.querySelector("#launcherBtn");
   const overlay = document.querySelector("#launcherOverlay");
   const closeBtn = document.querySelector("#launcherClose");
+  const helpBtn = document.querySelector("#launcherHelp");
   const grid    = document.querySelector("#launcherGrid");
   if (!overlay) return;
 
@@ -368,20 +390,27 @@ function wireLauncher() {
   wireLauncherReordering(grid);
 
   function open()  { overlay.hidden = false; document.body.style.overflow = "hidden"; btn?.setAttribute("aria-expanded","true"); }
-  function close() { 
+  function close() {
     overlay.classList.add("closing");
     setTimeout(() => {
-      overlay.hidden = true;  
+      overlay.hidden = true;
       overlay.classList.remove("closing");
-      document.body.style.overflow = "";       
-      btn?.setAttribute("aria-expanded","false"); 
+      document.body.style.overflow = "";
+      btn?.setAttribute("aria-expanded","false");
     }, 200);
   }
 
   btn?.addEventListener("click", open);
   closeBtn?.addEventListener("click", close);
+  helpBtn?.addEventListener("click", () => { close(); window.location.href = "/release-notes"; });
   overlay?.addEventListener("click", e => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !overlay.hidden) close(); });
+
+  // Auto-open once per browser session, mirroring the admin shell's first-visit launcher reveal.
+  if (!sessionStorage.getItem(LAUNCHER_SHOWN_SESSION_KEY)) {
+    sessionStorage.setItem(LAUNCHER_SHOWN_SESSION_KEY, "1");
+    open();
+  }
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
@@ -532,16 +561,28 @@ function wireAuth() {
   refreshAuthState();
 }
 
+const THEME_OPTIONS = [
+  { value: "light", label: "Theme · Light", icon: "light_mode" },
+  { value: "dark", label: "Theme · Dark", icon: "dark_mode" },
+  { value: "system", label: "Theme · System", icon: "computer" }
+];
+
 function renderUserDropdown(chip, dropdown) {
   const user = AUTH_STATE.user;
   const name = user ? (user.displayName || user.username) : "";
   const role = user ? (user.role || "User") : "";
+  const activeTheme = localStorage.getItem("optilens.theme") || "system";
+
   dropdown.innerHTML = `
     <div class="user-dropdown-header">
       <div class="user-dropdown-name">${esc(name)}</div>
       <div class="user-dropdown-role">${esc(role)}</div>
     </div>
     <div class="user-dropdown-divider"></div>
+    <a class="user-dropdown-item" href="/release-notes" role="menuitem">
+      <span class="material-symbols-outlined" style="font-size:14px">history_edu</span>
+      Release notes
+    </a>
     <button class="user-dropdown-item" id="ddResetPassword" type="button" role="menuitem">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
@@ -549,6 +590,22 @@ function renderUserDropdown(chip, dropdown) {
       </svg>
       Reset password
     </button>
+    <button class="user-dropdown-item" id="ddInstallApp" type="button" role="menuitem" hidden>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M7 1.5v8M4 6.5L7 9.5l3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M2 10.5v1a1 1 0 001 1h8a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Install app
+    </button>
+    <div class="user-dropdown-divider"></div>
+    <div class="user-dropdown-theme-group" role="group" aria-label="Theme">
+      ${THEME_OPTIONS.map((opt) => `
+        <button class="user-dropdown-item${opt.value === activeTheme ? " active" : ""}" type="button" role="menuitemradio" aria-checked="${opt.value === activeTheme}" data-theme-option="${opt.value}">
+          <span class="material-symbols-outlined" style="font-size:14px">${opt.icon}</span>
+          ${opt.label}
+        </button>`).join("")}
+    </div>
+    <div class="user-dropdown-divider"></div>
     <button class="user-dropdown-item danger" id="ddSignOut" type="button" role="menuitem">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <path d="M5 2H2.5A1.5 1.5 0 001 3.5v7A1.5 1.5 0 002.5 12H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -561,6 +618,24 @@ function renderUserDropdown(chip, dropdown) {
   dropdown.querySelector("#ddResetPassword").addEventListener("click", () => {
     closeAllDropdowns();
     openAccount();
+  });
+
+  const installBtn = dropdown.querySelector("#ddInstallApp");
+  if (installBtn && DEFERRED_INSTALL_PROMPT) {
+    installBtn.hidden = false;
+    installBtn.addEventListener("click", async () => {
+      closeAllDropdowns();
+      DEFERRED_INSTALL_PROMPT.prompt();
+      await DEFERRED_INSTALL_PROMPT.userChoice.catch(() => {});
+      DEFERRED_INSTALL_PROMPT = null;
+    });
+  }
+
+  dropdown.querySelectorAll("[data-theme-option]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setShellTheme(btn.dataset.themeOption);
+      closeAllDropdowns();
+    });
   });
 
   dropdown.querySelector("#ddSignOut").addEventListener("click", () => {
@@ -603,8 +678,8 @@ function renderLauncherApps() {
 
   grid.innerHTML = getOrderedLauncherApps().filter(canAccessSharedItem).map(app => `
     <a class="launcher-tile" href="${esc(app.href)}" data-launcher-key="${esc(launcherAppKey(app))}">
-      <span class="launcher-icon material-symbols-outlined" style="background:${esc(app.color)}">${esc(app.icon)}</span>
-      <span>${esc(app.label)}</span>
+      <span class="launcher-icon material-symbols-outlined" style="color:${esc(launcherTileColor(app))}">${esc(app.icon)}</span>
+      <span class="launcher-tile-label">${esc(app.label)}</span>
     </a>`).join("");
 }
 
@@ -728,6 +803,17 @@ function saveLauncherOrder(grid) {
 
 function launcherAppKey(app) {
   return app.href;
+}
+
+// The launcher's dark glass tiles color the icon glyph directly (no background
+// swatch), so near-black catalog colors need a brighter stand-in to stay legible.
+const LAUNCHER_ICON_COLOR_OVERRIDES = {
+  integrations: "#3b6ea8",
+  users: "#5b8fd6"
+};
+
+function launcherTileColor(app) {
+  return LAUNCHER_ICON_COLOR_OVERRIDES[app.id] || app.color;
 }
 
 function canAccessSharedItem(item) {

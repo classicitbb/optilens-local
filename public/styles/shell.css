@@ -111,14 +111,14 @@ label {
 .theme-toggle {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-right: 8px;
-  border: 1px solid var(--line);
+  width: 32px;
+  height: 32px;
+  margin-right: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: transparent;
   color: var(--ink);
-  font-size: 16px;
+  font-size: 19px;
   line-height: 1;
   cursor: pointer;
 }
@@ -139,16 +139,16 @@ label {
 .top {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
-  min-height: 48px;
-  /* Compact top bar keeps the shell closer to Material app chrome proportions. */
-  padding: 6px clamp(14px, 3vw, 32px) 6px 8px;
+  gap: 10px;
+  min-height: 44px;
+  /* Compact top bar mirrors the admin shell's h-11 (44px) chrome density. */
+  padding: 4px clamp(14px, 3vw, 32px) 4px 8px;
 }
 
 .top-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   justify-self: start;
 }
 
@@ -164,7 +164,7 @@ label {
 .top-right {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   justify-self: end;
 }
 
@@ -205,37 +205,41 @@ label {
 .launcher-btn {
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--line);
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   flex-shrink: 0;
 }
 
+.launcher-btn .material-symbols-outlined { font-size: 19px; }
+
 .launcher-btn:hover {
   background: var(--top-hover);
   color: var(--blue);
-  border-color: var(--blue);
+  border-color: var(--line);
 }
 
 /* Back button */
 .back-btn {
   display: inline-grid;
   place-items: center;
-  min-width: 40px;
-  height: 40px;
-  border: 1px solid var(--line);
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   flex-shrink: 0;
   font-size: 15px;
   transition: all var(--transition-standard);
 }
+
+.back-btn .material-symbols-outlined { font-size: 19px; }
 
 .back-btn:hover {
   background: var(--top-hover);
@@ -287,8 +291,8 @@ label {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -297,6 +301,8 @@ label {
   font-size: 15px;
   transition: all var(--transition-standard);
 }
+
+.top-action-btn .material-symbols-outlined { font-size: 19px; }
 
 .top-action-btn:hover {
   background: var(--top-hover);
@@ -337,20 +343,20 @@ label {
 
 .notif-count[hidden] { display: none !important; }
 
-/* User chip */
+/* User chip — borderless ghost pill, matching the admin shell's account button */
 .user-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 40px;
-  border: 1px solid var(--line);
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid transparent;
   border-radius: 999px;
-  padding: 0 12px 0 4px;
-  background: var(--surface);
+  padding: 0 8px 0 3px;
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -467,8 +473,10 @@ label {
   font-weight: 700;
   font-family: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.1s;
+  box-sizing: border-box;
 }
 
 .user-dropdown-item:hover {
@@ -494,20 +502,38 @@ label {
   margin: 2px 0;
 }
 
+.user-dropdown-theme-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-dropdown-item.active {
+  color: var(--blue);
+}
+
+.user-dropdown-item.active svg,
+.user-dropdown-item.active .material-symbols-outlined {
+  color: var(--blue);
+}
+
 /* ════════════════════════════════════════════════════════
    LAUNCHER OVERLAY
 ════════════════════════════════════════════════════════ */
+
+/* Colors below are hardcoded (not theme tokens) to match the admin shell's
+   AppLauncher, which renders as a fixed dark-glass flyout regardless of
+   light/dark site theme. */
 
 .launcher-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(11, 30, 53, .46);
-  backdrop-filter: blur(8px) saturate(1.1);
+  /* No dimmed backdrop — a transparent click-catcher, like the admin flyout launcher. */
+  background: transparent;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 64px 0 0 clamp(14px, 3vw, 32px);
+  padding: 54px 0 0 clamp(14px, 3vw, 32px);
   opacity: 1;
   transition: opacity 0.2s ease;
 }
@@ -521,11 +547,18 @@ label {
 }
 
 .launcher-panel {
-  width: 480px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: var(--surface);
-  box-shadow: var(--shadow-hover);
+  /* 4 × 100px tiles + 3 × 12px gaps need 436px of content space.
+     The 20px inset and 1px border on both sides bring the total to 478px,
+     keeping the final tile's right edge aligned with the first tile's left. */
+  width: 478px;
+  max-width: calc(100vw - 20px);
+  padding: 20px;
+  border: 1px solid hsla(215, 25%, 40%, 0.2);
+  border-radius: 12px;
+  background: hsla(215, 15%, 42%, 0.7);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  box-shadow: 0 20px 50px -12px hsla(215, 40%, 5%, 0.7), inset 0 1px 0 0 hsla(0, 0%, 100%, 0.08);
   overflow: hidden;
   transform: translateY(0);
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -535,51 +568,96 @@ label {
   transform: translateY(-20px);
 }
 
+@media (max-width: 600px) {
+  .launcher-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .launcher-panel {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .launcher-head {
+    margin-bottom: 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid hsl(215, 25%, 22%);
+  }
+
+  .launcher-grid {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .launcher-tile {
+    width: auto;
+    height: auto;
+    padding: 16px 8px;
+  }
+}
+
 .launcher-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
 }
 
 .launcher-head h2 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(210, 20%, 85%);
+}
+
+.launcher-head-actions {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
-.launcher-head-info {
-  opacity: .52;
-  font-size: 16px;
-}
-
+.launcher-help,
 .launcher-close {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  color: var(--muted);
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(215, 65%, 50%);
   cursor: pointer;
   font-size: 12px;
+  transition: background 0.15s ease;
 }
 
-.launcher-close:hover { background: var(--top-hover); color: var(--ink); }
+.launcher-close { color: hsl(210, 20%, 85%); }
+
+.launcher-help:hover,
+.launcher-close:hover { background: rgba(255, 255, 255, 0.1); }
+
+.launcher-help .material-symbols-outlined { font-size: 18px; }
+
+/* Desktop closes via outside click / Escape, matching the admin flyout — only mobile shows an explicit close button. */
+@media (min-width: 601px) {
+  .launcher-close { display: none; }
+}
 
 .launcher-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  padding: 18px;
+  justify-items: center;
+  gap: 12px;
 }
 
 .launcher-grid.is-reordering {
@@ -590,45 +668,47 @@ label {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 18px 10px 16px;
-  border: 1px solid transparent;
-  border-radius: 18px;
-  background: transparent;
+  width: 100px;
+  height: 100px;
+  /* Solid (non-translucent) fill so every tile reads the same border/contrast
+     regardless of what page content sits behind the blurred panel. */
+  border: 1px solid hsl(215, 25%, 40%);
+  border-radius: 8px;
+  background: hsl(215, 25%, 18%);
+  box-shadow: 0 2px 8px -2px hsla(215, 40%, 5%, 0.4), inset 0 1px 0 0 hsla(0, 0%, 100%, 0.05);
   cursor: grab;
-  color: var(--ink);
+  color: hsl(210, 20%, 85%);
   text-align: center;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1.25;
   font-family: inherit;
   touch-action: none;
-  transition: background .1s, border-color .1s, box-shadow .1s, opacity .1s, transform .1s;
+  transition: background .15s, border-color .15s, box-shadow .15s, opacity .15s, transform .15s;
 }
 
 .launcher-tile:hover {
-  background: rgba(26, 138, 156, 0.06);
-  border-color: var(--line);
+  border-color: hsl(168, 76%, 42%);
+  background: hsl(215, 25%, 22%);
+  transform: scale(1.05);
 }
 
 .launcher-tile.is-dragging {
   cursor: grabbing;
   opacity: .72;
   transform: scale(.98);
-  box-shadow: var(--shadow);
-  border-color: var(--blue);
-  background: var(--bg-elevated);
+}
+
+.launcher-tile-label {
+  padding: 0 4px;
 }
 
 .launcher-icon {
-  display: grid;
-  place-items: center;
-  width: 88px;
-  height: 88px;
-  border-radius: 22px;
-  font-size: 38px;
-  color: #fff;
+  font-size: 32px;
+  line-height: 1;
 }
 
 .launcher-foot {
