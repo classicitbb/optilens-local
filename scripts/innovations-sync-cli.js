@@ -7,7 +7,7 @@
  * from the server, so it unlocks the vault itself. Provide it via
  *   --passphrase <p>   or   the OPTILENS_SYNC_PASSPHRASE environment variable.
  * Commits by default; pass --dry-run to preview without writing.
- * Optional: --entities customers,contacts
+ * Optional: --entities customers,contacts,order_activity
  * Optional: --backfill-statements — first-ever historical sync of statements;
  *   suppresses the "statement ready" email that would otherwise fire for
  *   every pre-existing statement (they'd all look "new" on an empty table).

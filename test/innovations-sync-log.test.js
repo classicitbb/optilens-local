@@ -22,6 +22,33 @@ test('statement sync selection automatically includes statement lines in depende
   );
 });
 
+test('order activity is included in the default scheduled sync and emits only the cloud contract fields', () => {
+  assert.ok(normalizeEntitySelection().includes('order_activity'));
+  assert.deepEqual(ENTITIES.order_activity.map({
+    CustomerID: 12345,
+    LastOrderDate: '2026-07-11',
+    OrdersLast7Days: 9,
+    OrdersLast30Days: 41,
+    OrdersLast90Days: 122,
+    AvgGapDays: '1.4',
+  }), {
+    innovations_customer_id: 12345,
+    last_order_date: '2026-07-11',
+    orders_last_7_days: 9,
+    orders_last_30_days: 41,
+    orders_last_90_days: 122,
+    avg_gap_days: 1.4,
+  });
+  assert.equal(ENTITIES.order_activity.map({
+    CustomerID: 12345,
+    LastOrderDate: null,
+    OrdersLast7Days: 0,
+    OrdersLast30Days: 0,
+    OrdersLast90Days: 2,
+    AvgGapDays: null,
+  }).avg_gap_days, null);
+});
+
 test('bank sync preserves the exact Innovations EFT institution name', () => {
   const sourceName = 'First Caribbean International ';
   assert.deepEqual(ENTITIES.banks.map({ EFTInstitutionID: 3, EFTInstitutionName: sourceName }), {
