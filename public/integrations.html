@@ -106,6 +106,7 @@
             <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
             <label><input type="checkbox" class="sync-entity" value="contacts" checked> Contacts</label>
             <label><input type="checkbox" class="sync-entity" value="balances"> Balances</label>
+            <label title="Per-customer order recency + rhythm feed that powers the CV Web CRM retention alarm (Customers Gone Quiet)."><input type="checkbox" class="sync-entity" value="order_activity"> Order activity (CRM feed)</label>
             <label><input type="checkbox" class="sync-entity" value="statements"> Statements</label>
             <label><input type="checkbox" class="sync-entity" value="statement_lines"> Statement lines</label>
           </div>
@@ -118,6 +119,7 @@
             <button class="btn btn-primary" id="syncRunBtn" type="button">Sync now (write)</button>
             <span id="syncStatus" class="badge" role="status" aria-live="polite"></span>
           </div>
+          <p id="syncLastRun" class="sync-help"></p>
           <div id="syncEntitySummary" class="sync-result" hidden></div>
           <pre id="syncResult" class="sync-result" hidden></pre>
         </article>
@@ -168,10 +170,11 @@
         customers: "Customers",
         contacts: "Contacts",
         balances: "Balances",
+        order_activity: "Order activity",
         statements: "Statements",
         statement_lines: "Statement lines"
       };
-      const orderedEntities = ["customers", "contacts", "balances", "statements", "statement_lines"];
+      const orderedEntities = ["customers", "contacts", "balances", "order_activity", "statements", "statement_lines"];
       const entities = () => {
         const selected = new Set([...document.querySelectorAll(".sync-entity:checked")].map(c => c.value));
         if (selected.has("statements")) selected.add("statement_lines");
@@ -338,6 +341,7 @@
           if (!r.ok) { setStatus(rj.error || ("HTTP " + r.status), "credentials-needed"); return; }
           setStatus((rj.dryRun ? "Dry run · " : "Synced · ") + (rj.ok ? "all ok" : "issues"),
             rj.ok ? "ready-for-import" : "credentials-needed");
+          renderLastRun(rj, ents);
           loadSyncLogs();
         } catch (e) {
           setStatus("Failed: " + (e.message || e), "credentials-needed");
@@ -347,9 +351,38 @@
         }
       }
 
+      const lastRunEl = document.getElementById("syncLastRun");
+      function renderLastRun(result, ents) {
+        if (!lastRunEl) return;
+        const totals = ents.reduce((acc, entity) => {
+          const item = result?.entities?.[entity];
+          if (!item) return acc;
+          acc.upserted += Number(item.upserted || 0);
+          acc.failed += Number(item.failed || 0);
+          return acc;
+        }, { upserted: 0, failed: 0 });
+        const mode = result?.dryRun ? "Dry run" : "Write sync";
+        lastRunEl.textContent = `${mode} finished ${new Date().toLocaleString()} · ${ents.map((e) => entityLabel[e] || e).join(", ")} · ${totals.upserted} upserted, ${totals.failed} failed. Detail is in the Sync logs tab.`;
+      }
+
       dryBtn.addEventListener("click", () => run(false));
+      // Two-step inline confirmation (no native confirm() — it blocks the page
+      // for assistive tech and automation alike).
+      let armTimer = null;
       runBtn.addEventListener("click", () => {
-        if (confirm("Write synced data to the Classic Visions cloud now?")) run(true);
+        if (runBtn.dataset.armed === "1") {
+          clearTimeout(armTimer);
+          runBtn.dataset.armed = "";
+          runBtn.textContent = "Sync now (write)";
+          run(true);
+          return;
+        }
+        runBtn.dataset.armed = "1";
+        runBtn.textContent = "Click again to confirm write";
+        armTimer = setTimeout(() => {
+          runBtn.dataset.armed = "";
+          runBtn.textContent = "Sync now (write)";
+        }, 6000);
       });
     })();
   </script>
