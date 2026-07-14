@@ -91,6 +91,9 @@
             <label class="sync-field">Vault passphrase
               <input type="password" id="syncPass" autocomplete="current-password" placeholder="Unlock the credentials vault">
             </label>
+            <label class="sync-help" title="Caches the short-lived unlock token in this tab's session only — the passphrase itself is never stored. Closing the tab forgets it.">
+              <input type="checkbox" id="syncRemember" checked> Keep unlocked for this tab
+            </label>
           </div>
           <section class="live-gateway-control" aria-labelledby="liveGatewayTitle">
             <h4 id="liveGatewayTitle">On-demand live gateway</h4>
@@ -217,7 +220,15 @@
         </table>`;
       }
 
+      // Vault unlock with session-scoped token caching: the passphrase is used
+      // once and never stored; only the short-lived unlock token is kept, in
+      // sessionStorage, so it dies with the tab.
+      const TOKEN_KEY = "optilens.vaultToken";
+      const rememberEl = document.getElementById("syncRemember");
+      function forgetVaultToken() { sessionStorage.removeItem(TOKEN_KEY); }
       async function unlockVault() {
+        const cached = sessionStorage.getItem(TOKEN_KEY);
+        if (cached) return cached;
         const passphrase = passEl.value.trim();
         if (!passphrase) { passEl.focus(); throw new Error("Enter the vault passphrase"); }
         const response = await fetch("/api/connectors/unlock", {
@@ -226,6 +237,7 @@
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok || !body.token) throw new Error(body.error || "Unlock failed");
+        if (rememberEl?.checked) sessionStorage.setItem(TOKEN_KEY, body.token);
         return body.token;
       }
 
@@ -302,8 +314,13 @@
           const body = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(body.error || "Logs unavailable");
           logsEl.textContent = (body.events || []).map((event) => {
-            const payload = event.payload ? JSON.stringify(event.payload) : "";
-            return `${event.ts || ""} ${event.event || ""} ${payload}`;
+            // Entries are written with an `at` ISO timestamp plus arbitrary
+            // run-metadata fields alongside `event` — show all of it.
+            const { at, ts, event: name, payload, ...rest } = event;
+            const stamp = at || ts;
+            const when = stamp ? new Date(stamp).toLocaleString() : "(no time)";
+            const detail = payload ?? (Object.keys(rest).length ? rest : "");
+            return `${when}  ${name || ""}  ${detail ? JSON.stringify(detail) : ""}`.trimEnd();
           }).join("\n") || "No local sync events have been recorded yet.";
         } catch (error) {
           logsEl.textContent = error.message || String(error);
@@ -313,8 +330,6 @@
       loadSyncLogs();
 
       async function run(commit) {
-        const passphrase = passEl.value.trim();
-        if (!passphrase) { setStatus("Enter passphrase", "credentials-needed"); passEl.focus(); return; }
         const ents = entities();
         if (!ents.length) { setStatus("Pick at least one entity", "credentials-needed"); return; }
 
@@ -323,17 +338,33 @@
         resultEl.hidden = true;
         if (summaryEl) summaryEl.hidden = true;
         try {
-          const u = await fetch("/api/connectors/unlock", {
-            method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ passphrase })
-          });
-          const uj = await u.json().catch(() => ({}));
-          if (!u.ok || !uj.token) { setStatus(uj.error || "Unlock failed", "credentials-needed"); return; }
+          let token;
+          try {
+            token = await unlockVault();
+          } catch (unlockErr) {
+            setStatus(unlockErr.message || "Unlock failed", "credentials-needed");
+            return;
+          }
 
-          const r = await fetch("/api/connectors/innovations-sync/run", {
+          let r = await fetch("/api/connectors/innovations-sync/run", {
             method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ token: uj.token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
+            body: JSON.stringify({ token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
           });
+          // A cached token can expire between runs — forget it and retry once
+          // with a fresh unlock if the passphrase is still in the field.
+          if (r.status === 401 || r.status === 403) {
+            forgetVaultToken();
+            try {
+              token = await unlockVault();
+              r = await fetch("/api/connectors/innovations-sync/run", {
+                method: "POST", headers: { "content-type": "application/json" },
+                body: JSON.stringify({ token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
+              });
+            } catch {
+              setStatus("Vault token expired — enter the passphrase again", "credentials-needed");
+              return;
+            }
+          }
           const rj = await r.json().catch(() => ({}));
           resultEl.hidden = false;
           resultEl.textContent = JSON.stringify(rj, null, 2);
