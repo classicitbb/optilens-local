@@ -102,8 +102,14 @@
               <button class="btn btn-primary" id="gatewayStartBtn" type="button">Start live gateway</button>
               <button class="btn" id="gatewayStopBtn" type="button">Stop</button>
               <span id="gatewayStatus" class="badge" role="status" aria-live="polite">Checking…</span>
+              <span id="gatewayBuild" class="sync-help"></span>
             </div>
             <p id="gatewayDetail" class="sync-help"></p>
+            <div class="sync-row">
+              <input type="text" id="selftestAccount" class="sync-field" placeholder="Sample account # (optional dry run)" style="max-width:240px">
+              <button class="btn" id="selftestBtn" type="button">Run self-test</button>
+            </div>
+            <pre id="selftestResult" class="sync-result" hidden></pre>
           </section>
           <div class="sync-row sync-entities">
             <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
@@ -241,10 +247,12 @@
         return body.token;
       }
 
+      const gatewayBuildEl = document.getElementById("gatewayBuild");
       function renderGatewayStatus(status) {
         const online = !!status.running && !status.lastError;
         gatewayStatusEl.textContent = online ? "Live · connected" : status.running ? "Starting / retrying" : "Stopped";
         gatewayStatusEl.className = "badge " + (online ? "ready-for-import" : status.running ? "credentials-needed" : "planned");
+        if (gatewayBuildEl) gatewayBuildEl.textContent = status.localBuild ? `build ${status.localBuild} · agent ${status.agentVersion || ""}` : "";
         gatewayDetailEl.textContent = status.lastError
           ? `Latest connection message: ${status.lastError}`
           : status.lastSeenAt
@@ -303,6 +311,34 @@
 
       loadGatewayStatus();
       setInterval(loadGatewayStatus, 10000);
+
+      // ── Gateway self-test: one click walks the whole chain (build, worker,
+      //    both databases + freshness, cloud auth, and a per-account dry run
+      //    of the orders + deliveries operations). ─────────────────────────
+      const selftestBtn = document.getElementById("selftestBtn");
+      const selftestResultEl = document.getElementById("selftestResult");
+      selftestBtn?.addEventListener("click", async () => {
+        selftestBtn.disabled = true;
+        selftestResultEl.hidden = false;
+        selftestResultEl.textContent = "Running self-test…";
+        try {
+          let token = null;
+          try { token = await unlockVault(); } catch { /* cloud-auth step will report it */ }
+          const response = await fetch("/api/connectors/live-gateway/selftest", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token, account: document.getElementById("selftestAccount")?.value?.trim() || "" })
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+          selftestResultEl.textContent = (body.steps || [])
+            .map((step) => `${step.ok ? "✔" : "✘"} ${step.name}: ${step.detail}`)
+            .join("\n") + `\n\n${body.ok ? "ALL CHECKS PASSED" : "FAILURES ABOVE — fix the first ✘ and re-run"} · ${body.ran_at || ""}`;
+        } catch (error) {
+          selftestResultEl.textContent = "Self-test failed to run: " + (error.message || error);
+        } finally {
+          selftestBtn.disabled = false;
+        }
+      });
 
       const logsBtn = document.getElementById("syncLogsRefreshBtn");
       const logsEl = document.getElementById("syncLogsResult");

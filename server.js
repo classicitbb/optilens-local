@@ -1792,6 +1792,15 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/connectors/live-gateway/selftest" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      const body = await readJsonBody(req);
+      const credentials = body.token && plSecure.keyForToken(body.token) ? plSecure.getCvApi(body.token) : null;
+      return liveGatewayWorker.selfTest({ credentials, account: body.account });
+    });
+  }
+
   if (url.pathname === "/api/connectors/live-gateway/start" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
