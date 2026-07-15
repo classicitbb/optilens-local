@@ -376,8 +376,6 @@ function injectOverlays() {
 
 // ─── Launcher ────────────────────────────────────────────────────────────────
 
-const LAUNCHER_SHOWN_SESSION_KEY = "optilens.launcherShown";
-
 function wireLauncher() {
   const btn     = document.querySelector("#launcherBtn");
   const overlay = document.querySelector("#launcherOverlay");
@@ -405,12 +403,6 @@ function wireLauncher() {
   helpBtn?.addEventListener("click", () => { close(); window.location.href = "/release-notes"; });
   overlay?.addEventListener("click", e => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !overlay.hidden) close(); });
-
-  // Auto-open once per browser session, mirroring the admin shell's first-visit launcher reveal.
-  if (!sessionStorage.getItem(LAUNCHER_SHOWN_SESSION_KEY)) {
-    sessionStorage.setItem(LAUNCHER_SHOWN_SESSION_KEY, "1");
-    open();
-  }
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────
