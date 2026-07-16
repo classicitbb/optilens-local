@@ -166,6 +166,8 @@ const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
+const zenMirrorWorker = require("./lib/zen-mirror-worker");
+const sourceBackend = require("./lib/source-backend");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -1819,6 +1821,41 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // ── Innovations source backend (live vendor MSSQL vs Zen-fed mirror) ─────
+  // Temporary bridge while the vendor Innovations MSSQL is unreliable. See
+  // docs/operations-agent/IMPLEMENTATION_PLAN.md.
+  if (url.pathname === "/api/connectors/source-backend" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return sourceBackend.getStatus();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/source-backend/switch" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      return sourceBackend.switchTo(body.target, { force: !!body.force, actorUserId: user.userId });
+    });
+  }
+
+  if (url.pathname === "/api/connectors/zen-mirror/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return zenMirrorWorker.status();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/zen-mirror/sync" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      // A full sync can run for minutes; kick it off and let the UI poll status.
+      zenMirrorWorker.runOnce({ full: !!body.full }).catch(() => {});
+      return { started: true, full: !!body.full };
+    });
+  }
+
   // ── Doc Studio API ────────────────────────────────────────────────────────
 
   if (url.pathname === "/api/docstudio/users" && req.method === "GET") {
@@ -2510,6 +2547,8 @@ function readJsonFile(filePath, fallback) {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  const mirrorWorkerState = zenMirrorWorker.start();
+  console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
   const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
   if (passphrase) {
     try {

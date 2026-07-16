@@ -2,6 +2,18 @@
 
 Status: implementation brief for a production-shaped prototype.
 
+> **Amendments 2026-07-16** (decisions in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)):
+>
+> 1. Supplier status files are XLSX in practice. `exceljs` is the approved,
+>    deliberately reviewed dependency — read values only, never evaluate formulas
+>    or macros. CSV support remains required.
+> 2. The job-match adapter is an interface with two implementations: a mock
+>    (default for tests/dev) and a read-only implementation backed by the
+>    `innovations_mirror` database, selected by configuration.
+> 3. The source MSSQL connection may be pointed at `innovations_mirror` (fed from
+>    Actian Zen) instead of the vendor database. This is transparent to all code
+>    using `getSourcePool()`; an integrations-page switch selects the profile.
+
 ## Objective
 
 Build an event-driven operations layer inside OptiLens Local so routine work can be received, interpreted, validated, approved where necessary, executed, audited, and surfaced as exceptions.
@@ -268,7 +280,7 @@ The simulation endpoint is development-only and must be disabled through configu
 - Sanitize filenames and generate server-owned stored names.
 - Never execute spreadsheet formulas or macros.
 - CSV parsing must handle quoted values safely.
-- XLSX support is not required in the foundation milestone unless a safe dependency is deliberately approved.
+- XLSX support is approved for the foundation milestone via `exceljs` (2026-07-16 amendment): values only, no formula or macro evaluation, size-limited, covered by tests.
 - Do not send raw customer or supplier datasets to an AI service in this milestone.
 - No AI-generated SQL.
 - No direct source database write access.

@@ -46,6 +46,22 @@
             <p>Source shipment, customer, and product data via SQL Server. Credentials stored in the secure credentials vault.</p>
             <span class="badge credentials-needed">Credentials needed</span>
           </article>
+          <article class="source-backend-card">
+            <span class="icon" style="background:#0f766e">SRC</span>
+            <h3>Innovations source backend</h3>
+            <p>Switch approved read-only consumers between vendor MSSQL and the Zen-fed mirror after health and row-count checks.</p>
+            <div class="source-backend-status">
+              <span id="sourceBackendActive" class="badge planned">Checking...</span>
+              <span id="sourceBackendParity" class="sync-help"></span>
+            </div>
+            <div id="sourceBackendProfiles" class="source-profile-grid"></div>
+            <div class="sync-row">
+              <button class="btn" id="sourceSwitchLiveBtn" type="button">Use live MSSQL</button>
+              <button class="btn btn-primary" id="sourceSwitchMirrorBtn" type="button">Use mirror</button>
+              <button class="btn" id="mirrorSyncBtn" type="button">Sync mirror now</button>
+            </div>
+            <p id="sourceBackendMessage" class="sync-help" role="status" aria-live="polite"></p>
+          </article>
           <article>
             <span class="icon" style="background:#389457">PG</span>
             <h3>PSQL — Innovations</h3>
@@ -158,6 +174,121 @@
         document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
       });
     });
+
+    // ── Innovations source backend switch ─────────────────────────────────
+    (function () {
+      const activeEl = document.getElementById("sourceBackendActive");
+      const parityEl = document.getElementById("sourceBackendParity");
+      const profilesEl = document.getElementById("sourceBackendProfiles");
+      const messageEl = document.getElementById("sourceBackendMessage");
+      const liveBtn = document.getElementById("sourceSwitchLiveBtn");
+      const mirrorBtn = document.getElementById("sourceSwitchMirrorBtn");
+      const syncBtn = document.getElementById("mirrorSyncBtn");
+      if (!activeEl || !profilesEl) return;
+
+      let latest = null;
+      let forceTarget = "";
+      let forceTimer = null;
+
+      const profileLabel = { live: "Live MSSQL", mirror: "Zen mirror" };
+      const badgeClass = (state) => state === "online" ? "ready-for-import" : state === "credentials-needed" ? "credentials-needed" : "planned";
+
+      function renderProfile(profile, item) {
+        const counts = item?.counts
+          ? `${Number(item.counts.customers || 0).toLocaleString()} customers · ${Number(item.counts.shipments || 0).toLocaleString()} shipments · ${Number(item.counts.orders || 0).toLocaleString()} orders`
+          : "";
+        return `<div class="source-profile">
+          <div class="source-profile-head">
+            <strong>${profileLabel[profile] || profile}</strong>
+            <span class="badge ${badgeClass(item?.state)}">${item?.state || "unknown"}</span>
+          </div>
+          <p>${item?.detail || "Not checked yet."}</p>
+          ${counts ? `<p class="sync-help">${counts}</p>` : ""}
+        </div>`;
+      }
+
+      function renderStatus(data) {
+        latest = data;
+        activeEl.textContent = `Active: ${profileLabel[data.active] || data.active}`;
+        activeEl.className = "badge " + (data.active === "mirror" ? "ready-for-import" : "open");
+        const parity = data.parity || [];
+        parityEl.textContent = parity.length ? `Parity warning: ${parity.join("; ")}` : "Live and mirror row-count parity is within tolerance.";
+        profilesEl.innerHTML = ["live", "mirror"].map((profile) => renderProfile(profile, data.profiles?.[profile] || { profile })).join("");
+        liveBtn.disabled = data.active === "live";
+        mirrorBtn.disabled = data.active === "mirror";
+      }
+
+      async function loadSourceBackendStatus() {
+        try {
+          const response = await fetch("/api/connectors/source-backend");
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Source backend status unavailable");
+          renderStatus(body);
+        } catch (error) {
+          activeEl.textContent = "Status unavailable";
+          activeEl.className = "badge credentials-needed";
+          messageEl.textContent = error.message || String(error);
+        }
+      }
+
+      async function switchSource(target) {
+        const parity = latest?.parity || [];
+        const force = forceTarget === target;
+        if (parity.length && !force) {
+          forceTarget = target;
+          messageEl.textContent = `Parity warning detected. Click "${target === "mirror" ? "Use mirror" : "Use live MSSQL"}" again within 8 seconds to force the switch.`;
+          clearTimeout(forceTimer);
+          forceTimer = setTimeout(() => {
+            forceTarget = "";
+            messageEl.textContent = "";
+          }, 8000);
+          return;
+        }
+
+        liveBtn.disabled = mirrorBtn.disabled = true;
+        messageEl.textContent = `Switching source backend to ${profileLabel[target] || target}...`;
+        try {
+          const response = await fetch("/api/connectors/source-backend/switch", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ target, force })
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Switch failed");
+          forceTarget = "";
+          messageEl.textContent = body.switched ? `Source backend switched from ${body.from} to ${body.active}.` : body.detail;
+          await loadSourceBackendStatus();
+        } catch (error) {
+          messageEl.textContent = error.message || String(error);
+          await loadSourceBackendStatus();
+        }
+      }
+
+      async function startMirrorSync() {
+        syncBtn.disabled = true;
+        messageEl.textContent = "Mirror sync queued. Polling status...";
+        try {
+          const response = await fetch("/api/connectors/zen-mirror/sync", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ full: false })
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error || "Could not start mirror sync");
+          setTimeout(loadSourceBackendStatus, 2000);
+        } catch (error) {
+          messageEl.textContent = error.message || String(error);
+        } finally {
+          setTimeout(() => { syncBtn.disabled = false; }, 5000);
+        }
+      }
+
+      liveBtn.addEventListener("click", () => switchSource("live"));
+      mirrorBtn.addEventListener("click", () => switchSource("mirror"));
+      syncBtn.addEventListener("click", startMirrorSync);
+      loadSourceBackendStatus();
+      setInterval(loadSourceBackendStatus, 30000);
+    })();
 
     // ── Innovations → Classic Visions sync console ──────────────────────────
     (function () {
