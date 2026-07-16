@@ -76,3 +76,28 @@ Must support:
 - Add setup scripts and docs when adding new operational requirements.
 - Do not refactor unrelated files unless needed for the requested milestone.
 
+## Operations Agent Direction
+
+OptiLens Local is also the intended internal business-operations engine. The separate `classicitbb/optilens` repository is the customer-facing website and must consume customer-safe APIs rather than duplicate operational logic or connect directly to legacy source databases.
+
+Before implementing operations-agent work, read these files in order:
+
+1. `/docs/operations-agent/BUSINESS_AUTOMATION_REVIEW_BRIEF.md`
+2. `/docs/operations-agent/README.md`
+3. `/docs/operations-agent/CODEX_BUILD_TASK.md`
+4. Relevant existing modules, migrations, and tests
+
+The full review brief contains the product direction and long-term architecture. `CODEX_BUILD_TASK.md` defines the immediate Milestone 1 scope. Do not implement future milestones merely because they are described in the full brief.
+
+Operations-agent non-negotiables:
+
+- External messages, attachments, webhooks, schedules, and AI outputs must create durable events before processing.
+- AI may return validated structured proposals but may not receive direct database write access or produce executable SQL.
+- Every business write must be an idempotent action with audit context and an explicit risk/approval policy.
+- Unknown or ambiguous matches become exceptions; do not guess.
+- Customer-facing status must remain separate from supplier and internal status.
+- Source Innovations/PSQL write-back remains disabled until a later explicitly approved milestone.
+- IMAP is the preferred email synchronization route, POP3 may be supported as a fallback, and SMTP is used for controlled outbound email.
+- WhatsApp integration must use the official WhatsApp Business Platform, not browser scraping or unofficial personal-account automation.
+- Durable queues, retries, dead-letter handling, reconciliation, feature flags, health monitoring, and emergency disable controls are part of the architecture.
+- Work on a feature branch, keep changes small and reversible, preserve existing behavior, and report tests honestly.
