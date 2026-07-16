@@ -6,6 +6,7 @@ const {
   buildCreateTableSql,
   buildDeleteMissingSql,
   buildMergeSql,
+  buildZenSelectList,
   buildZenSelectQuery,
   coerceValue,
   formatZenTimestamp,
@@ -103,7 +104,7 @@ test('Orders initial mirror sync uses a bounded recent range instead of full tab
   assert.equal(query.sourceComplete, false);
   assert.equal(query.boundedInitial, true);
   assert.equal(query.rangeColumn, 'ReceivedTime');
-  assert.match(query.query, /^SELECT \* FROM "Orders" WHERE "ReceivedTime" >= \{ts '/);
+  assert.match(query.query, /^SELECT "OrderID", "ReceivedTime", "LastUpdated" FROM "Orders" WHERE "ReceivedTime" >= \{ts '/);
 });
 
 test('watermarked mirror sync uses LastUpdated and full sync remains complete', () => {
@@ -122,8 +123,29 @@ test('watermarked mirror sync uses LastUpdated and full sync remains complete', 
     { full: true },
   );
   assert.deepEqual(full, {
-    query: 'SELECT * FROM "Orders"',
+    query: 'SELECT "ReceivedTime", "LastUpdated" FROM "Orders"',
     sourceComplete: true,
     boundedInitial: false,
   });
+});
+
+test('unsigned Zen integer columns are selected via a widening CONVERT', () => {
+  // USMALLINT values above 32767 (e.g. RxArchive.RLensItem = 50349) overflow
+  // the signed C type the ODBC driver binds, failing every fetch.
+  assert.equal(
+    buildZenSelectList([
+      { name: 'RLensItem', type: 'USMALLINT' },
+      { name: 'NewStringRec', type: 'UTINYINT' },
+      { name: 'SerialNum', type: 'INTEGER' },
+      { name: 'Patient', type: 'VARCHAR' },
+    ]),
+    'CONVERT("RLensItem", SQL_INTEGER) AS "RLensItem", CONVERT("NewStringRec", SQL_SMALLINT) AS "NewStringRec", "SerialNum", "Patient"',
+  );
+
+  const query = buildZenSelectQuery(
+    { name: 'RxArchive' },
+    [{ name: 'RLensItem', type: 'USMALLINT' }, { name: 'LastUpdated', type: 'TIMESTAMP' }],
+    { full: true },
+  );
+  assert.equal(query.query, 'SELECT CONVERT("RLensItem", SQL_INTEGER) AS "RLensItem", "LastUpdated" FROM "RxArchive"');
 });
