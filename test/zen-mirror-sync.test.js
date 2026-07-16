@@ -2,14 +2,34 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  TABLES,
   buildCreateTableSql,
   buildDeleteMissingSql,
   buildMergeSql,
+  buildZenSelectQuery,
   coerceValue,
   formatZenTimestamp,
   mapZenTypeToSqlDecl,
 } = require('../lib/zen-mirror-sync');
 const { parityIssues } = require('../lib/source-backend');
+
+test('mirror sync includes source tables needed by live customer reads', () => {
+  const mirrored = new Set(TABLES.map((table) => table.name));
+  for (const table of [
+    'Customers',
+    'CustomerBalances',
+    'FinARPeriods',
+    'FinARStatements',
+    'FinARStatementItems',
+    'OrderTypes',
+    'Orders',
+    'GenStatus',
+    'RxArchive',
+    'StatusItems',
+  ]) {
+    assert.equal(mirrored.has(table), true, `${table} must be mirrored`);
+  }
+});
 
 test('mirror DDL preserves source names and creates primary keys when catalog exposes them', () => {
   const sql = buildCreateTableSql('Orders', [
@@ -71,4 +91,39 @@ test('source backend parity flags only material row-count drift', () => {
 test('Zen timestamp literals are ODBC timestamp literals', () => {
   const text = formatZenTimestamp(new Date(2026, 6, 16, 9, 5, 7));
   assert.match(text, /^\{ts '2026-07-16 09:05:07'\}$/);
+});
+
+test('Orders initial mirror sync uses a bounded recent range instead of full table scan', () => {
+  const query = buildZenSelectQuery(
+    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
+    [{ name: 'OrderID' }, { name: 'ReceivedTime' }, { name: 'LastUpdated' }],
+    { now: new Date(Date.UTC(2026, 6, 16, 12, 0, 0)) },
+  );
+
+  assert.equal(query.sourceComplete, false);
+  assert.equal(query.boundedInitial, true);
+  assert.equal(query.rangeColumn, 'ReceivedTime');
+  assert.match(query.query, /^SELECT \* FROM "Orders" WHERE "ReceivedTime" >= \{ts '/);
+});
+
+test('watermarked mirror sync uses LastUpdated and full sync remains complete', () => {
+  const watermarked = buildZenSelectQuery(
+    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
+    [{ name: 'ReceivedTime' }, { name: 'LastUpdated' }],
+    { watermark: new Date(2026, 6, 16, 12, 0, 0) },
+  );
+  assert.equal(watermarked.sourceComplete, false);
+  assert.equal(watermarked.boundedInitial, false);
+  assert.match(watermarked.query, /"LastUpdated" >=/);
+
+  const full = buildZenSelectQuery(
+    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
+    [{ name: 'ReceivedTime' }, { name: 'LastUpdated' }],
+    { full: true },
+  );
+  assert.deepEqual(full, {
+    query: 'SELECT * FROM "Orders"',
+    sourceComplete: true,
+    boundedInitial: false,
+  });
 });
