@@ -16,7 +16,8 @@ runMirrorSync({ full })
     }
     for (const table of summary.tables) {
       const status = table.error ? `ERROR ${table.error}` : `${table.rows} pulled, ${table.totalRows} total`;
-      console.log(`  ${table.table.padEnd(22)} [${table.strategy}] ${status}`);
+      const warning = table.warning ? ` WARNING ${table.warning}` : "";
+      console.log(`  ${table.table.padEnd(22)} [${table.strategy}] ${status}${warning}`);
     }
     console.log(`${summary.ok ? "Sync OK" : "Sync finished WITH ERRORS"} (${summary.startedAt} -> ${summary.finishedAt})`);
     process.exit(summary.ok ? 0 : 1);
