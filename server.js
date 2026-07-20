@@ -166,6 +166,7 @@ const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
+const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
 const zenMirrorWorker = require("./lib/zen-mirror-worker");
 const sourceBackend = require("./lib/source-backend");
 
@@ -779,8 +780,41 @@ function testOdbcConnection(connectionString) {
     .then(() => undefined);
 }
 
+function isLoopbackRequest(req) {
+  const address = req.socket && req.socket.remoteAddress;
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+
+function isAllowedLocalOrigin(origin) {
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(parsed.hostname) || parsed.hostname.endsWith(".local");
+  } catch {
+    return false;
+  }
+}
+
+function writeLocalDevCors(res, req) {
+  const origin = req.headers.origin || "";
+  if (isAllowedLocalOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "http://127.0.0.1");
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  if (url.pathname === "/api/connectors/live-gateway/direct") {
+    writeLocalDevCors(res, req);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      return res.end();
+    }
+  }
 
   // ── Platform Auth API ─────────────────────────────────────────────────────
 
@@ -1791,6 +1825,23 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
       return liveGatewayWorker.status();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/live-gateway/direct" && req.method === "POST") {
+    return handleApi(res, async () => {
+      if (!isLoopbackRequest(req) || !isAllowedLocalOrigin(req.headers.origin || "")) {
+        const error = new Error("Local live-data fallback is only available from localhost.");
+        error.statusCode = 403;
+        throw error;
+      }
+      const body = await readJsonBody(req);
+      const data = await dispatchLiveDataRequest({
+        operation: body.operation,
+        target: body.target,
+        arguments: body.arguments,
+      });
+      return { data };
     });
   }
 
