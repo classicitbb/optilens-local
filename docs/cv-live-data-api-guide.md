@@ -13,7 +13,7 @@ The active private-source operations are:
 
 - `innovations.customer_account`: balance plus recent posted statement headers.
 - `innovations.customer_statement`: one statement header plus visible statement items.
-- `innovations.customer_orders`: active Rx/stock WIP plus valid shipments created today, scoped to the mapped Innovations customer. It returns only Rx number, patient, received date, and current status for the customer portal.
+- `innovations.customer_orders`: active Rx/stock WIP plus valid shipments created today, scoped to the mapped Innovations customer. It returns Rx number, patient, received date, promise date, and current status for the customer portal.
 - `optilens.customer_deliveries`: OptiLens Local delivery sessions and tracking.
 
 InnovaAPI is not used by this flow.
