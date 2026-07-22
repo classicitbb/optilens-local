@@ -7,11 +7,17 @@ Implement Milestone 1 of the OptiLens Local Operations Agent as a production-sha
 Read these files before editing code:
 
 1. `/AGENTS.md`
-2. `/docs/operations-agent/README.md`
-3. `/package.json`
-4. `/server.js`
-5. `/lib/migrations.js`
-6. Existing authentication, audit, database, integration-health, and automation-job modules.
+2. `/docs/operations-agent/README.md` (including the 2026-07-16 amendments block)
+3. `/docs/operations-agent/IMPLEMENTATION_PLAN.md` (decision log and phase plan)
+4. `/package.json`
+5. `/server.js`
+6. `/lib/migrations.js`
+7. Existing authentication, audit, database, integration-health, and automation-job modules.
+
+Note: the source MSSQL pool (`getSourcePool()`) may be pointing at the
+`innovations_mirror` database (fed from Actian Zen) rather than the vendor
+database. This is transparent to your code — always go through `getSourcePool()`
+and never hardcode a server or database name.
 
 Do not begin by rewriting `server.js`. First understand existing route registration, response helpers, authentication checks, and database patterns.
 
@@ -117,7 +123,7 @@ Validation must identify:
 - unsupported statuses
 - malformed dates
 
-Do not add XLSX parsing in this milestone unless it is implemented with an explicitly reviewed dependency and tests. CSV is sufficient.
+XLSX parsing IS in scope (2026-07-16 amendment): real suppliers send XLSX. Use `exceljs`, read cell values only (never evaluate formulas or macros), enforce a size limit, and cover it with tests. CSV support is still required.
 
 ### Step 4: Simulated ingestion
 
@@ -141,7 +147,7 @@ Implement `supplier.status_file.received` workflow:
 - load attachment
 - select parser
 - parse and normalize
-- match against a development/read-only job adapter
+- match against the job-match adapter interface: mock implementation is the default for tests/development; a read-only `innovations_mirror`-backed implementation is selected by configuration (2026-07-16 amendment)
 - create proposed status actions
 - create exceptions for unresolved rows
 - place medium-risk updates in `WAITING_APPROVAL`

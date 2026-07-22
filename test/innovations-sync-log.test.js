@@ -56,3 +56,74 @@ test('bank sync preserves the exact Innovations EFT institution name', () => {
     bank_name: sourceName,
   });
 });
+
+test('contact sync pre-fills CRM address fields from the linked customer address', () => {
+  assert.deepEqual(ENTITIES.contacts.map({
+    ContactID: 80,
+    CustomerID: 12345,
+    FirstName: 'Jane',
+    Surname: 'Smith',
+    CustomerName: 'North Coast Optical',
+    EmailAddress: 'jane@example.com',
+    PhoneNumber: '',
+    MobileNumber: '555-0100',
+    AddressLine1: '1 Main Street',
+    AddressLine2: 'Suite 2',
+    City: 'Bridgetown',
+    State: 'St Michael',
+    PostalCode: 'BB11000',
+    CountryName: 'Barbados',
+    CountryCode: 'BB',
+  }), {
+    innovations_contact_id: 80,
+    innovations_parent_customer_id: 12345,
+    name: 'Jane Smith',
+    business_name: 'North Coast Optical',
+    email: 'jane@example.com',
+    phone: '555-0100',
+    street: '1 Main Street',
+    street2: 'Suite 2',
+    city: 'Bridgetown',
+    state: 'St Michael',
+    zip: 'BB11000',
+    country: 'Barbados',
+    country_code: 'BB',
+    is_company: false,
+  });
+});
+
+test('customer sync folds the source address into customer contact fields', () => {
+  assert.deepEqual(ENTITIES.customers.map({
+    CustomerID: 12345,
+    CustomerName: 'North Coast Optical',
+    AccountNumber: 'NORTH',
+    IsActive: 1,
+    EmailAddress: 'accounts@example.com',
+    PhoneNumber: '555-0111',
+    AddressLine1: '1 Main Street',
+    AddressLine2: 'Suite 2',
+    AddressLine3: '',
+    City: 'Bridgetown',
+    State: 'St Michael',
+    PostalCode: 'BB11000',
+    CountryName: 'Barbados',
+    CountryCode: 'BB',
+    PayByCard: true,
+    PayByEFT: false,
+    EFTInstitutionName: 'Bank',
+    DefaultPaymentType: 1,
+  }), {
+    innovations_customer_id: 12345,
+    name: 'North Coast Optical',
+    account_number: 'NORTH',
+    address: '1 Main Street, Suite 2, Bridgetown, St Michael, BB11000, Barbados',
+    country_code: 'BB',
+    email: 'accounts@example.com',
+    phone: '555-0111',
+    notes: 'Innovations: active',
+    pay_by_card: true,
+    pay_by_eft: false,
+    eft_institution_name: 'Bank',
+    default_payment_type: 1,
+  });
+});

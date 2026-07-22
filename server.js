@@ -166,6 +166,9 @@ const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
+const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
+const zenMirrorWorker = require("./lib/zen-mirror-worker");
+const sourceBackend = require("./lib/source-backend");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -777,8 +780,41 @@ function testOdbcConnection(connectionString) {
     .then(() => undefined);
 }
 
+function isLoopbackRequest(req) {
+  const address = req.socket && req.socket.remoteAddress;
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+
+function isAllowedLocalOrigin(origin) {
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(parsed.hostname) || parsed.hostname.endsWith(".local");
+  } catch {
+    return false;
+  }
+}
+
+function writeLocalDevCors(res, req) {
+  const origin = req.headers.origin || "";
+  if (isAllowedLocalOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "http://127.0.0.1");
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  if (url.pathname === "/api/connectors/live-gateway/direct") {
+    writeLocalDevCors(res, req);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      return res.end();
+    }
+  }
 
   // ── Platform Auth API ─────────────────────────────────────────────────────
 
@@ -1792,6 +1828,23 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/connectors/live-gateway/direct" && req.method === "POST") {
+    return handleApi(res, async () => {
+      if (!isLoopbackRequest(req) || !isAllowedLocalOrigin(req.headers.origin || "")) {
+        const error = new Error("Local live-data fallback is only available from localhost.");
+        error.statusCode = 403;
+        throw error;
+      }
+      const body = await readJsonBody(req);
+      const data = await dispatchLiveDataRequest({
+        operation: body.operation,
+        target: body.target,
+        arguments: body.arguments,
+      });
+      return { data };
+    });
+  }
+
   if (url.pathname === "/api/connectors/live-gateway/selftest" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
@@ -1816,6 +1869,41 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
       return liveGatewayWorker.stop();
+    });
+  }
+
+  // ── Innovations source backend (live vendor MSSQL vs Zen-fed mirror) ─────
+  // Temporary bridge while the vendor Innovations MSSQL is unreliable. See
+  // docs/operations-agent/IMPLEMENTATION_PLAN.md.
+  if (url.pathname === "/api/connectors/source-backend" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return sourceBackend.getStatus();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/source-backend/switch" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      return sourceBackend.switchTo(body.target, { force: !!body.force, actorUserId: user.userId });
+    });
+  }
+
+  if (url.pathname === "/api/connectors/zen-mirror/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return zenMirrorWorker.status();
+    });
+  }
+
+  if (url.pathname === "/api/connectors/zen-mirror/sync" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      // A full sync can run for minutes; kick it off and let the UI poll status.
+      zenMirrorWorker.runOnce({ full: !!body.full }).catch(() => {});
+      return { started: true, full: !!body.full };
     });
   }
 
@@ -2510,6 +2598,8 @@ function readJsonFile(filePath, fallback) {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  const mirrorWorkerState = zenMirrorWorker.start();
+  console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
   const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
   if (passphrase) {
     try {

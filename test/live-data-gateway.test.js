@@ -15,6 +15,7 @@ test('order payload exposes only the portal order-list fields', () => {
     account_number: 'RETAIL',
     order_type_name: 'Rx',
     received_at: '2026-07-11T10:00:00Z',
+    promise_date: '2026-07-15T16:00:00Z',
     status_name: 'In progress',
     rx_number: 'RX-99',
     patient: 'PATIENT ONE',
@@ -22,6 +23,7 @@ test('order payload exposes only the portal order-list fields', () => {
     rx_number: 'RX-99',
     patient: 'PATIENT ONE',
     received_at: '2026-07-11T10:00:00Z',
+    promise_date: '2026-07-15T16:00:00Z',
     status_name: 'In progress',
   });
 });
@@ -30,6 +32,8 @@ test('order query is limited to active WIP and valid shipments made today', () =
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /INNER JOIN dbo\.GenStatus/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /b\.Active = 1/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /a\.OrderType IN \(1, 3\)/);
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /a\.PromisedTime AS promise_date/);
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /b\.PromisedTime AS promise_date/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /a\.ShipDate = CAST\(SYSDATETIME\(\) AS date\)/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /Terminating = 1/);
   assert.doesNotMatch(CUSTOMER_ORDER_STATUS_QUERY, /dbo\.Now\(\)/);

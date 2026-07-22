@@ -12,3 +12,13 @@
     .live-gateway-control h4 { margin:0 0 6px; font-size:16px; }
     .live-gateway-control p { margin:0; max-width:820px; }
     .sync-help { margin-top:10px !important; color:var(--muted,#64748b); font-size:12px; }
+    .source-backend-card { grid-column:span 2; }
+    .source-backend-status { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .source-profile-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+    .source-profile { border:1px solid var(--border,#cbd5e1); border-radius:8px; padding:10px; background:rgba(255,255,255,.58); }
+    .source-profile-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .source-profile p { margin:7px 0 0; font-size:12px; color:var(--muted,#64748b); }
+    @media (max-width: 900px) {
+      .source-backend-card { grid-column:span 1; }
+      .source-profile-grid { grid-template-columns:1fr; }
+    }
