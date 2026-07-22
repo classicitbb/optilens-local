@@ -112,6 +112,8 @@ const {
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
+const { getSetting, setSetting } = require("./lib/app-settings");
+const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
   getStatement,
@@ -826,6 +828,23 @@ const server = http.createServer(async (req, res) => {
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
   // routes only expose approved configuration, previews, and deliveries.
+  if (url.pathname === "/api/rx/order-settings" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "automation.read");
+      const settings = parseOrderSettings(await getSetting(orderSettingsKey(actor)));
+      return { success: true, settings };
+    });
+  }
+
+  if (url.pathname === "/api/rx/order-settings" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "automation.manage");
+      const settings = normaliseOrderSettings((await readJsonBody(req)).settings);
+      await setSetting(orderSettingsKey(actor), JSON.stringify(settings), actor.username || actor.userId || "unknown");
+      return { success: true, settings };
+    });
+  }
+
   if (url.pathname === "/api/rx/catalog" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "automation.read");

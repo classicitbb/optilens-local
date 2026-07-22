@@ -94,6 +94,21 @@
     };
   }
 
+  function orderSettings() {
+    return {
+      batchSize: Number(formValue("batchSize")), randomSeed: formValue("randomSeed"), instructions: formValue("instructions"),
+      custNum: formValue("custNum"), custSeqNum: formValue("custSeqNum"), shipName: formValue("shipName"),
+      labNum: formValue("labNum"), remoteOperator: formValue("remoteOperator"), extension: formValue("extension")
+    };
+  }
+
+  function applyOrderSettings(settings) {
+    if (!settings) return;
+    for (const [name, value] of Object.entries(settings)) {
+      if (form.elements[name]) form.elements[name].value = value;
+    }
+  }
+
   function showPreview(preview) {
     $("#rxFilename").textContent = preview.filename;
     $("#rxPatient").textContent = preview.summary.patient;
@@ -117,6 +132,14 @@
     state.stagedFiles = result.generated.map((item) => item.filename);
     $("#releaseRx").disabled = !state.stagedFiles.length;
     setStatus(`${result.batchSize} RX ${result.batchSize === 1 ? "file was" : "files were"} safely staged.`, "success");
+  }
+
+  async function saveOrderSettings() {
+    clearStatus();
+    const response = await postJson("/api/rx/order-settings", { settings: orderSettings() });
+    const result = await response.json();
+    applyOrderSettings(result.settings);
+    setStatus("Order settings saved for your account.", "success");
   }
 
   async function download() {
@@ -149,8 +172,9 @@
 
   async function load() {
     try {
-      const [catalogResponse, coatingResponse] = await Promise.all([request("/api/rx/catalog"), request("/api/rx/coatings")]);
-      const [catalog, coatings] = await Promise.all([catalogResponse.json(), coatingResponse.json()]);
+      const [catalogResponse, coatingResponse, settingsResponse] = await Promise.all([request("/api/rx/catalog"), request("/api/rx/coatings"), request("/api/rx/order-settings")]);
+      const [catalog, coatings, savedSettings] = await Promise.all([catalogResponse.json(), coatingResponse.json(), settingsResponse.json()]);
+      applyOrderSettings(savedSettings.settings);
       state.catalog = catalog.items || [];
       const categories = [...new Set(state.catalog.map((item) => item.category))].sort();
       fillSelect($("#lensCatalog"), [{ value: "All valid lenses", label: "All valid lenses" }, ...categories.map((item) => ({ value: item, label: item }))]);
@@ -172,6 +196,7 @@
   ["patientMode", "lensMode", "prescriptionMode", "coatingMode"].forEach((name) => form.elements[name].addEventListener("change", toggleConditionalFields));
   form.elements.lensCatalog.addEventListener("change", syncLensOptions);
   $("#previewRx").addEventListener("click", () => run(preview));
+  $("#saveRxSettings").addEventListener("click", () => run(saveOrderSettings));
   $("#stageRx").addEventListener("click", () => run(stage));
   $("#downloadRx").addEventListener("click", () => run(download));
   $("#releaseRx").addEventListener("click", () => run(release));

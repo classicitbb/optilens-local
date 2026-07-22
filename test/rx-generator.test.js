@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const rx = require("../lib/rx-generator");
+const { normaliseOrderSettings } = require("../lib/rx-order-settings");
 
 const sourceLens = rx.getCatalog().find((item) => item.mfType === "Single Vision");
 assert.ok(sourceLens, "A source-validated single-vision alias is required for RX tests.");
@@ -66,4 +67,12 @@ test("batch downloads use a valid ZIP envelope without an extra dependency", () 
   const archive = rx.zip([file]);
   assert.equal(archive.readUInt32LE(0), 0x04034b50);
   assert.equal(archive.readUInt32LE(archive.length - 22), 0x06054b50);
+});
+
+test("saved order settings retain only validated order defaults", () => {
+  const settings = normaliseOrderSettings({ batchSize: 10, randomSeed: "repeatable", instructions: "test only", custNum: "5000162", custSeqNum: "1", shipName: "Retail", labNum: "1177", remoteOperator: "1177-002", extension: ".RX" });
+  assert.equal(settings.extension, ".rx");
+  assert.equal(settings.batchSize, 10);
+  assert.throws(() => normaliseOrderSettings({ ...settings, batchSize: 501 }), /Number of orders/);
+  assert.throws(() => normaliseOrderSettings({ ...settings, extension: "rx" }), /Output extension/);
 });
