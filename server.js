@@ -111,6 +111,7 @@ const {
 } = require("./lib/customer-parameters");
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
+const rxGenerator = require("./lib/rx-generator");
 const {
   findInvoiceItem,
   getStatement,
@@ -820,6 +821,76 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/auth/bootstrap-state" && req.method === "GET") {
     return handleApi(res, async () => getBootstrapState());
+  }
+
+  // ── RX file generation ───────────────────────────────────────────────────
+  // The serializer owns all line generation and filesystem access. These
+  // routes only expose approved configuration, previews, and deliveries.
+  if (url.pathname === "/api/rx/catalog" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "automation.read");
+      const items = rxGenerator.getCatalog();
+      return { success: true, count: items.length, items };
+    });
+  }
+
+  if (url.pathname === "/api/rx/coatings" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "automation.read");
+      const items = rxGenerator.getCoatings();
+      return { success: true, count: items.length, items };
+    });
+  }
+
+  if (url.pathname === "/api/rx/addons" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "automation.read");
+      const items = rxGenerator.getAddons();
+      return { success: true, count: items.length, items };
+    });
+  }
+
+  if (url.pathname === "/api/rx/preview" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "automation.read");
+      return rxGenerator.preview(await readJsonBody(req));
+    });
+  }
+
+  if (url.pathname === "/api/rx/generate" && req.method === "POST") {
+    try {
+      const actor = await requirePermission(req, "automation.manage");
+      const body = await readJsonBody(req);
+      const result = rxGenerator.generate(body, actor);
+      if (body.delivery === "stage") {
+        return sendJson(res, {
+          success: true,
+          batchSize: result.batchSize,
+          generated: result.generated.map(({ filename, summary }) => ({ filename, summary }))
+        });
+      }
+      const content = result.batchSize === 1
+        ? Buffer.from(result.generated[0].content, "utf8")
+        : rxGenerator.zip(result.generated);
+      const filename = result.batchSize === 1 ? result.generated[0].filename : `rx-batch-${Date.now()}.zip`;
+      writeSecurityHeaders(res);
+      res.writeHead(200, {
+        "Content-Type": result.batchSize === 1 ? "text/plain; charset=utf-8" : "application/zip",
+        "Content-Disposition": `attachment; filename="${filename.replace(/[^A-Za-z0-9._-]/g, "_")}"`,
+        "Cache-Control": "no-store",
+        "X-RX-Generated-Count": String(result.batchSize)
+      });
+      return res.end(content);
+    } catch (error) {
+      return sendJson(res, { error: error.message || "RX generation failed." }, error.statusCode || 500);
+    }
+  }
+
+  if (url.pathname === "/api/rx/release" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "automation.manage");
+      return rxGenerator.release(await readJsonBody(req), actor);
+    });
   }
 
   if (url.pathname === "/api/auth/bootstrap" && req.method === "POST") {

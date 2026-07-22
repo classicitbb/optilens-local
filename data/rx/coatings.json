@@ -1,0 +1,5 @@
+[
+  { "sku": "STANDARDAR", "source": "COAT", "description": "Standard AR", "active": true },
+  { "sku": "SUPERAR", "source": "COAT", "description": "Super-AR+", "active": true },
+  { "sku": "BLUEDEFENS", "source": "COAT", "description": "Blue Defense AR+", "active": true }
+]

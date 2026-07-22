@@ -8,6 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/automation.css">
 </head>
 <body class="module-body">
 
@@ -26,11 +27,12 @@
           <p class="eyebrow">Rules &amp; AI</p>
           <h1>Automation</h1>
         </div>
-        <span class="badge planned">Planned</span>
+        <span class="badge active">File generation ready</span>
       </div>
 
       <nav class="workflow-tabs" aria-label="Automation tabs">
         <button class="active" type="button" data-tab="rules">Rules engine</button>
+        <button type="button" data-tab="file-generation">File Generation</button>
         <button type="button" data-tab="llm">Local LLM</button>
         <button type="button" data-tab="scheduled">Scheduled tasks</button>
         <button type="button" data-tab="audit">Audit log</button>
@@ -65,6 +67,90 @@
         </div>
       </section>
 
+      <section class="workflow-panel" id="file-generation">
+        <div class="rx-heading">
+          <div>
+            <p class="eyebrow">Test-only RX workspace</p>
+            <h2>RX File Generator</h2>
+            <p>Create validated optical-system RX files from approved lens alias rows. Every generated file is staged first; incoming-folder release stays disabled until an administrator configures it.</p>
+          </div>
+          <span class="rx-test-badge">instructions:test only</span>
+        </div>
+
+        <div id="rxStatus" class="rx-status" role="status" aria-live="polite">Loading catalogue…</div>
+
+        <form id="rxForm" class="rx-layout" novalidate>
+          <section class="rx-card rx-settings">
+            <div class="rx-card-title"><span class="icon" style="background:#7c3aed">1</span><div><h3>Order settings</h3><p>Use a test instruction unless the lab has approved a different value.</p></div></div>
+            <div class="rx-fields rx-fields-2">
+              <label>Number of orders<input name="batchSize" type="number" min="1" max="500" value="1" required></label>
+              <label>Random seed <input name="randomSeed" placeholder="Optional repeatable batch seed"></label>
+              <label class="rx-wide">Instructions<input name="instructions" value="test only" required></label>
+              <label>Customer number<input name="custNum" value="5000150" required></label>
+              <label>Customer sequence<input name="custSeqNum" value="1" required></label>
+              <label class="rx-wide">Ship name<input name="shipName" value="Enhance Vision Optical" required></label>
+              <label>Lab number<input name="labNum" value="1177" required></label>
+              <label>Remote operator<input name="remoteOperator" value="1177-004" required></label>
+              <label>Output extension<input name="extension" value=".rx" pattern="\.[A-Za-z0-9]{1,10}" required></label>
+            </div>
+          </section>
+
+          <section class="rx-card">
+            <div class="rx-card-title"><span class="icon" style="background:#1A8A9C">2</span><div><h3>Patient &amp; lens</h3><p>Lens codes are always taken together from one valid alias record.</p></div></div>
+            <div class="rx-fields rx-fields-2">
+              <label>Patient mode<select name="patientMode" id="patientMode"><option value="random">Random test name</option><option value="fixed">Enter one name</option><option value="list">Paste name list</option></select></label>
+              <label>Lens selection<select name="lensMode" id="lensMode"><option value="random">Random valid alias</option><option value="fixed">Specific alias</option></select></label>
+              <label class="rx-wide rx-patient-fixed" hidden>Patient name<input name="patientName" placeholder="LASTNAME, FIRSTNAME"></label>
+              <label class="rx-wide rx-patient-list" hidden>Patient names<textarea name="patientNames" rows="3" placeholder="BROOKS, HAZEL&#10;HUNTE, RUSSELL"></textarea><small>A short list cycles through the batch.</small></label>
+              <label>Catalogue<select name="lensCatalog" id="lensCatalog"><option>All valid lenses</option></select></label>
+              <label class="rx-lens-alias" hidden>13-digit alias<select name="lensAlias" id="lensAlias"></select></label>
+              <label class="rx-wide rx-check"><input type="checkbox" name="uniqueAliases"> Use unique aliases across this batch</label>
+            </div>
+          </section>
+
+          <section class="rx-card">
+            <div class="rx-card-title"><span class="icon" style="background:#389457">3</span><div><h3>Prescription</h3><p>Fixed values are checked before any file is written.</p></div></div>
+            <div class="rx-fields rx-fields-2">
+              <label>Prescription mode<select name="prescriptionMode" id="prescriptionMode"><option value="plano">Plano</option><option value="random">Random</option><option value="fixed">Fixed OD / OS</option></select></label>
+              <label>OD near PD<input name="pdOd" type="number" min="0.1" step="0.1" value="33.0"></label>
+              <label>OS near PD<input name="pdOs" type="number" min="0.1" step="0.1" value="33.0"></label>
+            </div>
+            <div class="rx-rx-grid rx-fixed-rx" hidden>
+              <span></span><b>Sphere</b><b>Cylinder</b><b>Axis</b><b>ADD</b><b>Seg height</b>
+              <b>OD</b><input name="odSphere" type="number" step="0.25" value="0"><input name="odCylinder" type="number" step="0.25" value="0"><input name="odAxis" type="number" min="0" max="180" value="0"><input name="odAdd" type="number" min="0" step="0.25" value="0"><input name="odSegHeight" type="number" min="0" step="0.1" value="0">
+              <b>OS</b><input name="osSphere" type="number" step="0.25" value="0"><input name="osCylinder" type="number" step="0.25" value="0"><input name="osAxis" type="number" min="0" max="180" value="0"><input name="osAdd" type="number" min="0" step="0.25" value="0"><input name="osSegHeight" type="number" min="0" step="0.1" value="0">
+            </div>
+          </section>
+
+          <section class="rx-card">
+            <div class="rx-card-title"><span class="icon" style="background:#C89130">4</span><div><h3>Lens treatments &amp; frame</h3><p>Edged jobs automatically include the required EDGED item.</p></div></div>
+            <div class="rx-fields rx-fields-2">
+              <label>Coating<select name="coatingMode" id="coatingMode"><option value="none">No coating</option><option value="fixed" selected>Selected coating</option><option value="random">Random coating</option></select></label>
+              <label id="coatingSkuWrap">Coating<select name="coatingSku" id="coatingSku"></select></label>
+              <label>Frame mode<select name="frameMode" id="frameMode"><option value="uncut">Uncut</option><option value="edged">Edged</option><option value="random">Random uncut frame</option></select></label>
+              <label>Frame model<input name="frameModel" value="SOCA 1922"></label>
+              <label>Frame A<input name="frameA" type="number" min="0.1" step="0.1" value="55.0"></label>
+              <label>Frame B<input name="frameB" type="number" min="0.1" step="0.1" value="38.0"></label>
+              <label>Frame DBL<input name="frameDbl" type="number" min="0.1" step="0.1" value="15.0"></label>
+              <label>Frame colour<input name="frameColor" value="4"></label>
+            </div>
+            <fieldset class="rx-addons"><legend>Optional add-ons</legend><div id="rxAddons">Loading add-ons…</div></fieldset>
+          </section>
+        </form>
+
+        <section class="rx-actions" aria-label="RX generator actions">
+          <button class="button secondary" id="previewRx" type="button">Preview RX</button>
+          <button class="button secondary" id="stageRx" type="button">Stage batch</button>
+          <button class="button primary" id="downloadRx" type="button">Generate &amp; download</button>
+          <button class="button danger" id="releaseRx" type="button" disabled title="Configure an incoming folder in data/rx/config.json to enable release.">Release staged files</button>
+        </section>
+
+        <section class="rx-preview" aria-label="RX file preview">
+          <div class="rx-preview-summary"><div><span>Filename</span><strong id="rxFilename">—</strong></div><div><span>Patient</span><strong id="rxPatient">—</strong></div><div><span>Lens</span><strong id="rxLens">—</strong></div><div><span>Frame</span><strong id="rxFrame">—</strong></div></div>
+          <pre id="rxContent">Select Preview RX to validate the order and inspect its exact line order.</pre>
+        </section>
+      </section>
+
       <section class="workflow-panel" id="llm">
         <div class="placeholder-pane">
           Local LLM integration will surface here. Assistants access data through audited platform APIs only — no direct write path to business databases. Requires a locally running model endpoint (e.g. Ollama).
@@ -83,15 +169,6 @@
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
-  <script>
-    document.querySelectorAll(".workflow-tabs button").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
-        document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
-      });
-    });
-  </script>
+  <script src="/automation.js"></script>
 </body>
 </html>
-
-

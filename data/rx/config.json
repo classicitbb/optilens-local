@@ -1,0 +1,42 @@
+{
+  "defaults": {
+    "fileVersion": "1.0",
+    "agentName": "LL",
+    "agentVersion": "3",
+    "labNum": "1177",
+    "custNum": "5000150",
+    "custSeqNum": "1",
+    "remoteOperator": "1177-004",
+    "instructions": "test only",
+    "shipName": "Enhance Vision Optical",
+    "rxEye": "3"
+  },
+  "folders": {
+    "staging": "./output/rx/staging",
+    "archive": "./output/rx/archive",
+    "incoming": ""
+  },
+  "prescription": {
+    "sphereMin": -6,
+    "sphereMax": 6,
+    "sphereStep": 0.25,
+    "cylinders": [0, -0.25, -0.5, -0.75, -1, -1.25, -1.5, -2],
+    "adds": [0, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5],
+    "segmentHeights": [18, 19, 20, 21, 22],
+    "defaultMonocularPd": 33
+  },
+  "frame": {
+    "aMin": 46,
+    "aMax": 60,
+    "bMin": 30,
+    "bMax": 48,
+    "dblMin": 14,
+    "dblMax": 22
+  },
+  "output": {
+    "extension": ".rx",
+    "lineEnding": "CRLF",
+    "encoding": "utf8",
+    "maxBatchSize": 500
+  }
+}
