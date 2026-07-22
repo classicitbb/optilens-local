@@ -9,9 +9,6 @@ data/*
 !data/rx/
 data/rx/*
 !data/rx/config.json
-!data/rx/lens-catalog.csv
-!data/rx/coatings.json
-!data/rx/addons.json
 !data/rx/names.json
 .aider*
 _snapshots/

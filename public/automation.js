@@ -134,6 +134,10 @@
       fillSelect($("#lensCatalog"), [{ value: "All valid lenses", label: "All valid lenses" }, ...categories.map((item) => ({ value: item, label: item }))]);
       syncLensOptions();
       fillSelect($("#coatingSku"), (coatings.items || []).map((item) => ({ value: item.sku, label: `${item.description} (${item.sku})` })));
+      if (!(coatings.items || []).length) {
+        form.elements.coatingMode.value = "none";
+        [...form.elements.coatingMode.options].forEach((option) => { option.disabled = option.value !== "none"; });
+      }
       const addonList = document.createElement("div");
       addonList.className = "rx-addon-list";
       (addons.items || []).forEach((item) => {
@@ -144,7 +148,8 @@
         addonList.append(label);
       });
       $("#rxAddons").replaceChildren(addonList);
-      setStatus(`${state.catalog.length} valid lens aliases loaded. This starter catalogue is for test-only generation.`, "success");
+      toggleConditionalFields();
+      setStatus(`${state.catalog.length} source-validated lens aliases loaded. Only aliases matched to active Pricing Automation products are available.`, "success");
     } catch (error) { setStatus(error.message || "Unable to load RX generator data.", "error"); }
   }
 
