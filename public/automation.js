@@ -11,7 +11,7 @@
   };
   const clearStatus = () => { status.className = "rx-status"; status.textContent = ""; };
   const request = async (url, options = {}) => {
-    const response = await fetch(url, { credentials: "same-origin", ...options });
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...options });
     const type = response.headers.get("content-type") || "";
     if (!response.ok) {
       const payload = type.includes("json") ? await response.json().catch(() => ({})) : {};

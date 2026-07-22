@@ -1,4 +1,4 @@
-const CACHE_NAME = "optilens-local-v3";
+const CACHE_NAME = "optilens-local-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
