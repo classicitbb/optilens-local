@@ -12,6 +12,7 @@ function readJson(name) {
 async function verify() {
   const catalog = readJson("catalog.generated.json");
   const addons = readJson("addons.generated.json");
+  const coatings = readJson("coatings.generated.json");
   const connection = await connectZen();
   try {
     const aliases = await connection.query('SELECT "Alias" AS alias FROM "LensAlias"');
@@ -19,8 +20,9 @@ async function verify() {
     const sourceAliases = new Set(aliases.map((row) => String(row.alias || "").trim()));
     const sourceMisc = new Set(misc.flatMap((row) => [row.sku, row.alias].map((value) => String(value || "").trim())).filter(Boolean));
     const invalidAliases = catalog.map((row) => row.alias).filter((alias) => !sourceAliases.has(alias));
-    const invalidMisc = addons.map((row) => row.sku).filter((sku) => !sourceMisc.has(sku));
-    const result = { aliasesChecked: catalog.length, invalidAliases, miscChecked: addons.length, invalidMisc };
+    const miscItems = [...addons, ...coatings];
+    const invalidMisc = miscItems.map((row) => row.sku).filter((sku) => !sourceMisc.has(sku));
+    const result = { aliasesChecked: catalog.length, invalidAliases, coatingItemsChecked: coatings.length, automaticItemsChecked: addons.length, invalidMisc };
     console.log(JSON.stringify(result, null, 2));
     if (invalidAliases.length || invalidMisc.length) process.exitCode = 1;
   } finally {

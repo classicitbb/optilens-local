@@ -39,9 +39,17 @@ test("preview is non-writing and retains the required RX line ordering", () => {
   assert.match(preview.content, /rx_od_sphere:\+0\.00[\s\S]*end_order\r\n$/);
 });
 
-test("unapproved aliases and invented misc SKUs cannot enter an RX file", () => {
+test("unapproved aliases and misc SKUs outside the Coatings group cannot enter an RX file", () => {
   assert.throws(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: "0010100100001" } }), /valid 13-digit lens alias/);
-  assert.throws(() => rx.preview({ ...basePayload, coating: { mode: "fixed", sku: "STANDARDAR" } }), /valid coating/);
+  assert.throws(() => rx.preview({ ...basePayload, coating: { mode: "fixed", sku: "MOMOTEM" } }), /valid coating/);
+});
+
+test("source-approved coatings are serialized as live MiscItems", () => {
+  const coating = rx.getCoatings().find((item) => item.sku === "STANDARDAR") || rx.getCoatings()[0];
+  assert.ok(coating, "Expected at least one live coating.");
+  const preview = rx.preview({ ...basePayload, coating: { mode: "fixed", sku: coating.sku } });
+  assert.ok(preview.content.includes(`sku:${coating.sku}\r\nitem_source:MISC\r\nitem_description:${coating.description}`));
+  assert.equal(preview.summary.coating, coating.description);
 });
 
 test("edged jobs use the source-approved EDGE TO FIT misc item", () => {

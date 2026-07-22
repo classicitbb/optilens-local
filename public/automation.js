@@ -40,6 +40,28 @@
     }));
   }
 
+  function fillCoatingSelect(items) {
+    const groups = new Map();
+    for (const item of items) {
+      const group = item.groupName || "Coatings";
+      const values = groups.get(group) || [];
+      values.push(item);
+      groups.set(group, values);
+    }
+    const sections = [...groups.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([name, values]) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = name;
+      values.sort((left, right) => left.description.localeCompare(right.description)).forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.sku;
+        option.textContent = `${item.description} (${item.sku})`;
+        optgroup.append(option);
+      });
+      return optgroup;
+    });
+    $("#coatingSku").replaceChildren(...sections);
+  }
+
   function syncLensOptions() {
     const category = formValue("lensCatalog");
     const aliases = state.catalog.filter((item) => category === "All valid lenses" || item.category === category);
@@ -68,7 +90,7 @@
       },
       frame: { mode: frameMode, model: formValue("frameModel"), color: formValue("frameColor"), a: Number(formValue("frameA")), b: Number(formValue("frameB")), dbl: Number(formValue("frameDbl")) },
       coating: { mode: formValue("coatingMode"), sku: formValue("coatingSku") },
-      addons: { skus: [...document.querySelectorAll("#rxAddons input:checked")].map((input) => input.value) }
+      addons: { skus: [] }
     };
   }
 
@@ -127,27 +149,17 @@
 
   async function load() {
     try {
-      const [catalogResponse, coatingResponse, addonResponse] = await Promise.all([request("/api/rx/catalog"), request("/api/rx/coatings"), request("/api/rx/addons")]);
-      const [catalog, coatings, addons] = await Promise.all([catalogResponse.json(), coatingResponse.json(), addonResponse.json()]);
+      const [catalogResponse, coatingResponse] = await Promise.all([request("/api/rx/catalog"), request("/api/rx/coatings")]);
+      const [catalog, coatings] = await Promise.all([catalogResponse.json(), coatingResponse.json()]);
       state.catalog = catalog.items || [];
       const categories = [...new Set(state.catalog.map((item) => item.category))].sort();
       fillSelect($("#lensCatalog"), [{ value: "All valid lenses", label: "All valid lenses" }, ...categories.map((item) => ({ value: item, label: item }))]);
       syncLensOptions();
-      fillSelect($("#coatingSku"), (coatings.items || []).map((item) => ({ value: item.sku, label: `${item.description} (${item.sku})` })));
+      fillCoatingSelect(coatings.items || []);
       if (!(coatings.items || []).length) {
         form.elements.coatingMode.value = "none";
         [...form.elements.coatingMode.options].forEach((option) => { option.disabled = option.value !== "none"; });
       }
-      const addonList = document.createElement("div");
-      addonList.className = "rx-addon-list";
-      (addons.items || []).forEach((item) => {
-        const label = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox"; checkbox.value = item.sku;
-        label.append(checkbox, document.createTextNode(` ${item.description} (${item.sku})`));
-        addonList.append(label);
-      });
-      $("#rxAddons").replaceChildren(addonList);
       toggleConditionalFields();
       setStatus(`${state.catalog.length} source-validated lens aliases loaded. Only aliases matched to active Pricing Automation products are available.`, "success");
     } catch (error) { setStatus(error.message || "Unable to load RX generator data.", "error"); }
