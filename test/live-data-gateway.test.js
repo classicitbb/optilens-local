@@ -39,6 +39,19 @@ test('order query is limited to active WIP and valid shipments made today', () =
   assert.doesNotMatch(CUSTOMER_ORDER_STATUS_QUERY, /dbo\.Now\(\)/);
 });
 
+test('Bill To lookups are explicit and cannot broaden a branch account lookup', () => {
+  const request = normalizeRequest({
+    operation: 'innovations.customer_orders',
+    target: { account_number: ' ANK ', order_lookup: 'bill_to' },
+  });
+  assert.equal(request.target.accountNumber, 'ANK');
+  assert.equal(request.target.orderLookup, 'bill_to');
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_a\.CustomerID = a\.BillToID/);
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_b\.CustomerID = b\.BillToID/);
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_a\.AccountNumber = @account_number/);
+  assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_b\.AccountNumber = @account_number/);
+});
+
 test('order status requires the mapped LMS account', async () => {
   await assert.rejects(
     dispatch({ operation: 'innovations.customer_orders', target: { innovations_customer_id: 42 } }),
