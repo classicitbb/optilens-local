@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  dispatch, normalizeRequest, positiveInteger, dateOnly, OPERATIONS, statementPayload, statementLinePayload, orderPayload, CUSTOMER_ORDER_STATUS_QUERY,
+  dispatch, normalizeRequest, positiveInteger, dateOnly, OPERATIONS, statementPayload, statementLinePayload, orderPayload, CUSTOMER_ORDER_STATUS_QUERY, ZEN_ACTIVE_CUSTOMER_ORDERS_QUERY, ZEN_TODAY_SHIPPED_CUSTOMER_ORDERS_QUERY,
 } = require('../lib/live-data-gateway');
 
 test('gateway exposes only approved reads', () => {
@@ -50,6 +50,9 @@ test('Bill To lookups are explicit and cannot broaden a branch account lookup', 
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_b\.CustomerID = b\.BillToID/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_a\.AccountNumber = @account_number/);
   assert.match(CUSTOMER_ORDER_STATUS_QUERY, /bill_to_b\.AccountNumber = @account_number/);
+  assert.match(ZEN_ACTIVE_CUSTOMER_ORDERS_QUERY, /bill_to\.AccountNumber = \?/);
+  assert.match(ZEN_TODAY_SHIPPED_CUSTOMER_ORDERS_QUERY, /bill_to\.AccountNumber = \?/);
+  assert.match(ZEN_TODAY_SHIPPED_CUSTOMER_ORDERS_QUERY, /a\.ShipDate = CURDATE\(\)/);
 });
 
 test('order status requires the mapped LMS account', async () => {
