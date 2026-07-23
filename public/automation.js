@@ -21,6 +21,9 @@
   };
   const postJson = (url, body) => request(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const formValue = (name) => form.elements[name]?.value ?? "";
+  const supplierMatches = (item, supplier) => supplier === "TOG"
+    ? ["TOG Rx Lab", "TOG USA"].some((value) => (item.suppliers || []).includes(value))
+    : (item.suppliers || []).includes(supplier);
 
   function toggleConditionalFields() {
     const patientMode = formValue("patientMode");
@@ -64,8 +67,16 @@
 
   function syncLensOptions() {
     const category = formValue("lensCatalog");
-    const aliases = state.catalog.filter((item) => category === "All valid lenses" || item.category === category);
-    fillSelect($("#lensAlias"), aliases.map((item) => ({ value: item.alias, label: `${item.alias} · ${item.materialDescription} · ${item.styleDescription}` })));
+    const supplier = formValue("lensSupplier");
+    const option = formValue("lensOption");
+    const matchingCategory = state.catalog.filter((item) => category === "All valid lenses" || item.category === category);
+    const matchingSupplier = matchingCategory.filter((item) => supplier === "All supported labs" || supplierMatches(item, supplier));
+    const options = [...new Set(matchingSupplier.map((item) => item.colorDescription).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+    const previousOption = $("#lensOption").value;
+    fillSelect($("#lensOption"), [{ value: "All lens options", label: "All lens options" }, ...options.map((item) => ({ value: item, label: item }))]);
+    $("#lensOption").value = options.includes(previousOption) ? previousOption : "All lens options";
+    const aliases = matchingSupplier.filter((item) => $("#lensOption").value === "All lens options" || item.colorDescription === $("#lensOption").value);
+    fillSelect($("#lensAlias"), aliases.map((item) => ({ value: item.alias, label: `${item.alias} · ${item.materialDescription} · ${item.styleDescription} · ${item.colorDescription}` })));
   }
 
   function payload() {
@@ -82,7 +93,7 @@
       remoteOperator: formValue("remoteOperator"),
       customer: { custNum: formValue("custNum"), custSeqNum: formValue("custSeqNum"), shipName: formValue("shipName") },
       patient: { mode: patientMode, name: formValue("patientName"), names: formValue("patientNames") },
-      lens: { mode: lensMode, catalog: formValue("lensCatalog"), alias: formValue("lensAlias"), unique: form.elements.uniqueAliases.checked },
+      lens: { mode: lensMode, catalog: formValue("lensCatalog"), supplier: formValue("lensSupplier"), option: formValue("lensOption"), alias: formValue("lensAlias"), unique: form.elements.uniqueAliases.checked },
       prescription: {
         mode: prescriptionMode, pdOd: Number(formValue("pdOd")), pdOs: Number(formValue("pdOs")),
         od: { sphere: Number(formValue("odSphere")), cylinder: Number(formValue("odCylinder")), axis: Number(formValue("odAxis")), add: Number(formValue("odAdd")), segHeight: Number(formValue("odSegHeight")) },
@@ -176,6 +187,14 @@
       const [catalog, coatings, savedSettings] = await Promise.all([catalogResponse.json(), coatingResponse.json(), settingsResponse.json()]);
       applyOrderSettings(savedSettings.settings);
       state.catalog = catalog.items || [];
+      const supportedLabs = [
+        { value: "TOG", label: "TOG" },
+        { value: "Vision Rx Lab", label: "VisionRx" },
+        { value: "Optex Laboratories", label: "Optex" },
+        { value: "SkyLab", label: "SkyLab" },
+        { value: "Essilor Lab", label: "EssLab" }
+      ].filter((lab) => state.catalog.some((item) => supplierMatches(item, lab.value)));
+      fillSelect($("#lensSupplier"), [{ value: "All supported labs", label: "All supported labs" }, ...supportedLabs]);
       const categories = [...new Set(state.catalog.map((item) => item.category))].sort();
       fillSelect($("#lensCatalog"), [{ value: "All valid lenses", label: "All valid lenses" }, ...categories.map((item) => ({ value: item, label: item }))]);
       syncLensOptions();
@@ -193,7 +212,7 @@
     document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
   }));
   ["patientMode", "lensMode", "prescriptionMode", "coatingMode"].forEach((name) => form.elements[name].addEventListener("change", toggleConditionalFields));
-  form.elements.lensCatalog.addEventListener("change", syncLensOptions);
+  ["lensSupplier", "lensCatalog", "lensOption"].forEach((name) => form.elements[name].addEventListener("change", syncLensOptions));
   $("#previewRx").addEventListener("click", () => run(preview));
   $("#saveRxSettings").addEventListener("click", () => run(saveOrderSettings));
   $("#stageRx").addEventListener("click", () => run(stage));

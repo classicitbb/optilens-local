@@ -27,6 +27,21 @@ test("catalogue aliases preserve source-derived material, style, and option code
   );
 });
 
+test("supplier and lens-option constraints limit both fixed and random alias selection", () => {
+  const visionRxLens = rx.getCatalog().find((item) => item.suppliers?.includes("Vision Rx Lab"));
+  const nonVisionRxLens = rx.getCatalog().find((item) => item.suppliers?.length && !item.suppliers.includes("Vision Rx Lab"));
+  assert.ok(visionRxLens, "Expected a source-validated VisionRx lens.");
+  assert.ok(nonVisionRxLens, "Expected a source-validated lens outside VisionRx.");
+  const constrained = {
+    catalog: visionRxLens.category,
+    supplier: "Vision Rx Lab",
+    option: visionRxLens.colorDescription
+  };
+  assert.doesNotThrow(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: visionRxLens.alias, ...constrained } }));
+  assert.throws(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: nonVisionRxLens.alias, supplier: "Vision Rx Lab" } }), /does not match the current lens supplier/);
+  assert.doesNotThrow(() => rx.preview({ ...basePayload, lens: { mode: "random", ...constrained } }));
+});
+
 test("preview is non-writing and retains the required RX line ordering", () => {
   const sequenceFile = path.join(__dirname, "..", "data", "rx", "sequence.json");
   const before = fs.readFileSync(sequenceFile, "utf8");

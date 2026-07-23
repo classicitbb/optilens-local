@@ -80,6 +80,7 @@
         <div id="rxStatus" class="rx-status" role="status" aria-live="polite">Loading catalogue…</div>
 
         <form id="rxForm" class="rx-layout" novalidate>
+          <div class="rx-column">
           <section class="rx-card rx-settings">
             <div class="rx-card-title"><span class="icon" style="background:#7c3aed">1</span><div><h3>Order settings</h3><p>Use a test instruction unless the lab has approved a different value.</p></div></div>
             <div class="rx-fields rx-fields-2 rx-fields-3">
@@ -96,19 +97,6 @@
           </section>
 
           <section class="rx-card">
-            <div class="rx-card-title"><span class="icon" style="background:#1A8A9C">2</span><div><h3>Patient &amp; lens</h3><p>Lens codes are always taken together from one valid alias record.</p></div></div>
-            <div class="rx-fields rx-fields-2">
-              <label>Patient mode<select name="patientMode" id="patientMode"><option value="random">Random test name</option><option value="fixed">Enter one name</option><option value="list">Paste name list</option></select></label>
-              <label>Lens selection<select name="lensMode" id="lensMode"><option value="random">Random valid alias</option><option value="fixed">Specific alias</option></select></label>
-              <label class="rx-wide rx-patient-fixed" hidden>Patient name<input name="patientName" placeholder="LASTNAME, FIRSTNAME"></label>
-              <label class="rx-wide rx-patient-list" hidden>Patient names<textarea name="patientNames" rows="3" placeholder="BROOKS, HAZEL&#10;HUNTE, RUSSELL"></textarea><small>A short list cycles through the batch.</small></label>
-              <label>Catalogue<select name="lensCatalog" id="lensCatalog"><option>All valid lenses</option></select></label>
-              <label class="rx-lens-alias" hidden>13-digit alias<select name="lensAlias" id="lensAlias"></select></label>
-              <label class="rx-wide rx-check"><input type="checkbox" name="uniqueAliases"> Use unique aliases across this batch</label>
-            </div>
-          </section>
-
-          <section class="rx-card">
             <div class="rx-card-title"><span class="icon" style="background:#389457">3</span><div><h3>Prescription</h3><p>Fixed values are checked before any file is written.</p></div></div>
             <div class="rx-fields rx-fields-2">
               <label>Prescription mode<select name="prescriptionMode" id="prescriptionMode"><option value="plano">Plano</option><option value="random">Random</option><option value="fixed">Fixed OD / OS</option></select></label>
@@ -121,7 +109,23 @@
               <b>OS</b><input name="osSphere" type="number" step="0.25" value="0"><input name="osCylinder" type="number" step="0.25" value="0"><input name="osAxis" type="number" min="0" max="180" value="0"><input name="osAdd" type="number" min="0" step="0.25" value="0"><input name="osSegHeight" type="number" min="0" step="0.1" value="0">
             </div>
           </section>
+          </div>
 
+          <div class="rx-column">
+          <section class="rx-card">
+            <div class="rx-card-title"><span class="icon" style="background:#1A8A9C">2</span><div><h3>Patient &amp; lens</h3><p>Supplier, type, and option filters only expose aliases validated against Pricing Automation.</p></div></div>
+            <div class="rx-fields rx-fields-2">
+              <label>Patient mode<select name="patientMode" id="patientMode"><option value="random">Random test name</option><option value="fixed">Enter one name</option><option value="list">Paste name list</option></select></label>
+              <label>Lens selection<select name="lensMode" id="lensMode"><option value="random">Random valid alias</option><option value="fixed">Specific alias</option></select></label>
+              <label class="rx-wide rx-patient-fixed" hidden>Patient name<input name="patientName" placeholder="LASTNAME, FIRSTNAME"></label>
+              <label class="rx-wide rx-patient-list" hidden>Patient names<textarea name="patientNames" rows="3" placeholder="BROOKS, HAZEL&#10;HUNTE, RUSSELL"></textarea><small>A short list cycles through the batch.</small></label>
+              <label>Supplier<select name="lensSupplier" id="lensSupplier"><option>All supported labs</option></select></label>
+              <label>Lens type<select name="lensCatalog" id="lensCatalog"><option>All valid lenses</option></select></label>
+              <label class="rx-wide">Lens option<select name="lensOption" id="lensOption"><option>All lens options</option></select></label>
+              <label class="rx-wide rx-lens-alias" hidden>13-digit alias<select name="lensAlias" id="lensAlias"></select></label>
+              <label class="rx-wide rx-check"><input type="checkbox" name="uniqueAliases"> Use unique aliases across this batch</label>
+            </div>
+          </section>
           <section class="rx-card">
             <div class="rx-card-title"><span class="icon" style="background:#C89130">4</span><div><h3>Coating &amp; frame</h3><p>Choose from the live Coatings group only. Edged jobs automatically include the required EDGED item.</p></div></div>
             <div class="rx-fields rx-fields-2">
@@ -135,6 +139,7 @@
               <label>Frame colour<input name="frameColor" value="4"></label>
             </div>
           </section>
+          </div>
         </form>
 
         <section class="rx-actions" aria-label="RX generator actions">
@@ -169,6 +174,6 @@
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
-  <script src="/automation.js?v=rx-settings-20260722"></script>
+  <script src="/automation.js?v=rx-lens-filters-20260723"></script>
 </body>
 </html>
