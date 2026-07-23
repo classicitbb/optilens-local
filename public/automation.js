@@ -181,8 +181,7 @@
       syncLensOptions();
       fillCoatingSelect(coatings.items || []);
       if (!(coatings.items || []).length) {
-        form.elements.coatingMode.value = "none";
-        [...form.elements.coatingMode.options].forEach((option) => { option.disabled = option.value !== "none"; });
+        throw new Error("No live coating options were returned. Refresh the page to retry the source catalogue.");
       }
       toggleConditionalFields();
       setStatus(`${state.catalog.length} source-validated lens aliases loaded. Only aliases matched to active Pricing Automation products are available.`, "success");

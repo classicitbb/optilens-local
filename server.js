@@ -112,6 +112,7 @@ const {
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
+const { syncRxCoatings } = require("./lib/rx-catalog-sync");
 const { getSetting, setSetting } = require("./lib/app-settings");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
@@ -185,6 +186,23 @@ const PL_SOURCE_MODE = path.join(PL_DIR, "source-mode.json");
 const PL_ROWS      = path.join(PL_DIR, "catalog-rows.generated.json");   // raw mapped rows (for reclassify)
 const PL_CLASS_OV  = path.join(PL_DIR, "classification-overrides.json"); // user tag-pill classifications
 const plClassifier = require("./lib/lens-classifier");
+let rxCoatingRefreshPromise = null;
+
+async function listRxCoatings() {
+  let items = rxGenerator.getCoatings();
+  if (items.length) return { items, refreshed: false };
+  if (!rxCoatingRefreshPromise) {
+    rxCoatingRefreshPromise = syncRxCoatings().finally(() => { rxCoatingRefreshPromise = null; });
+  }
+  await rxCoatingRefreshPromise;
+  items = rxGenerator.getCoatings();
+  if (!items.length) {
+    const error = new Error("The live Coatings group returned no usable options.");
+    error.statusCode = 503;
+    throw error;
+  }
+  return { items, refreshed: true };
+}
 
 // Vocabulary for the Sourcing Review classify pills.
 const PL_TIER_OPTIONS = [
@@ -856,8 +874,8 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/rx/coatings" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "automation.read");
-      const items = rxGenerator.getCoatings();
-      return { success: true, count: items.length, items };
+      const { items, refreshed } = await listRxCoatings();
+      return { success: true, count: items.length, items, refreshed };
     });
   }
 
