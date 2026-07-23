@@ -1,7 +1,8 @@
 param(
     [string] $TaskName = "OptiLens Local Watchdog",
     [string] $ProjectRoot = "",
-    [int] $Port = 8080
+    [int] $Port = 8080,
+    [switch] $RunAsSystem
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,13 +27,20 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
-Register-ScheduledTask `
-    -TaskName $TaskName `
-    -Action $action `
-    -Trigger @($startupTrigger, $minuteTrigger) `
-    -Settings $settings `
-    -Description "Keeps the OptiLens Local Node app running on port $Port." `
-    -Force | Out-Null
+$registerArguments = @{
+    TaskName = $TaskName
+    Action = $action
+    Trigger = @($startupTrigger, $minuteTrigger)
+    Settings = $settings
+    Description = "Keeps the OptiLens Local Node app running on port $Port."
+    Force = $true
+}
+
+if ($RunAsSystem) {
+    $registerArguments.Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+}
+
+Register-ScheduledTask @registerArguments | Out-Null
 
 Start-ScheduledTask -TaskName $TaskName
 Write-Host "Installed and started scheduled task: $TaskName"

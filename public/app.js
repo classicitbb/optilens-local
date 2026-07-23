@@ -358,6 +358,10 @@ function startDashboardRefresh() {
       refreshDashboardSnapshot();
     }
   });
+
+  window.addEventListener("optilens:connection-restored", () => {
+    if (state.auth.user && !state.dashboardEditMode) refreshDashboardSnapshot();
+  });
 }
 
 async function refreshDashboardSnapshot() {

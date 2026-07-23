@@ -1,12 +1,16 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawn } = require("node:child_process");
 const { URL } = require("node:url");
 const nodeCrypto = require("node:crypto");
 const sql = require("mssql");
 const { getConfig } = require("./lib/config");
 const { runOdbcProbe } = require("./lib/odbc-probe");
 const { normalizeVaultData } = require("./lib/credential-vault");
+const { protectString, unprotectString } = require("./lib/windows-protected-store");
+const { createUpdateManager } = require("./lib/update-manager");
+const { createGitUpdateChecker } = require("./lib/git-update-checker");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -15,6 +19,11 @@ const { normalizeVaultData } = require("./lib/credential-vault");
 const dataDir   = path.join(__dirname, "data");
 const vaultFile = path.join(dataDir, "vault.json");
 const VAULT_SALT = "optilens-credentials-v1";
+const applicationStartedAt = new Date().toISOString();
+const updateManager = createUpdateManager(__dirname, applicationStartedAt);
+const gitUpdateChecker = createGitUpdateChecker(__dirname);
+const AUTO_APPLY_GIT_UPDATES = ["1", "true", "yes", "on"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "").toLowerCase());
+let scheduledUpdate = null;
 
 /** SHA-256 hash of pin+salt, returned as base64 */
 function hashPin(pin) {
@@ -533,7 +542,17 @@ const port = config.port;
 const publicDir = path.join(__dirname, "public");
 const AUTH_COOKIE = "optilens_session";
 const AUTH_TTL = 8 * 60 * 60 * 1000;
-const authSessions = new Map(); // token -> { userId, expiresAt }
+const authSessionFile = path.join(dataDir, "auth-sessions.protected");
+const legacyAuthSessionFile = path.join(dataDir, "auth-sessions.json");
+let migrateLegacyAuthSessions = false;
+const authSessions = loadAuthSessions(); // token -> { userId, expiresAt }
+if (migrateLegacyAuthSessions && persistAuthSessions()) {
+  try {
+    fs.unlinkSync(legacyAuthSessionFile);
+  } catch (error) {
+    console.error("Could not remove legacy plaintext auth sessions:", error.message);
+  }
+}
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -826,6 +845,77 @@ function writeLocalDevCors(res, req) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+function buildUpdateStatus() {
+  const application = updateManager.getStatus();
+  const git = gitUpdateChecker.getStatus();
+  const gitChange = git.updateAvailable ? [{
+    id: "git",
+    label: `${git.behind} Git commit${git.behind === 1 ? "" : "s"}`,
+    restartRequired: true
+  }] : [];
+  const changedAreas = application.changedAreas.concat(gitChange);
+  const available = application.available || git.updateAvailable;
+
+  return {
+    ...application,
+    available,
+    changedAreas,
+    git,
+    plan: {
+      ...application.plan,
+      reloadBrowser: available,
+      restartService: application.plan.restartService || git.updateAvailable,
+      pullGit: git.updateAvailable
+    }
+  };
+}
+
+function scheduleApplicationUpdate(status) {
+  scheduledUpdate = {
+    requestedAt: new Date().toISOString(),
+    targetRevision: status.availableRevision
+  };
+
+  const scriptPath = path.join(__dirname, "scripts", "apply-local-update.ps1");
+  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const args = [
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", scriptPath,
+    "-ProjectRoot", __dirname,
+    "-Port", String(port)
+  ];
+
+  if (status.plan.installDependencies || status.plan.pullGit) args.push("-InstallDependencies");
+  if (status.plan.runMigrations || status.plan.pullGit) args.push("-RunMigrations");
+  if (status.plan.pullGit) {
+    args.push("-PullGit", "-GitRemote", status.git.remote, "-GitBranch", status.git.branch);
+  }
+
+  setTimeout(() => {
+    try {
+      const child = spawn(powershell, args, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+        cwd: __dirname
+      });
+      child.unref();
+    } catch (error) {
+      scheduledUpdate = null;
+      console.error("Could not start local update:", error.message);
+    }
+  }, 250).unref();
+}
+
+async function refreshGitUpdatesOnSchedule() {
+  await gitUpdateChecker.refresh();
+  const status = buildUpdateStatus();
+  if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && !status.git.localChanges && !scheduledUpdate) {
+    scheduleApplicationUpdate(status);
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
@@ -1106,17 +1196,68 @@ const server = http.createServer(async (req, res) => {
 
   // ──────────────────────────────────────────────────────────────────────────
 
+  if (url.pathname === "/api/health/live") {
+    return sendJson(res, {
+      ok: true,
+      service: "optilens-local",
+      time: new Date().toISOString(),
+      application: {
+        revision: updateManager.getStatus().running.revision,
+        startedAt: applicationStartedAt
+      }
+    });
+  }
+
   if (url.pathname === "/api/health") {
     const snapshot = await getIntegrationHealthSnapshot();
     return sendJson(res, {
       ...snapshot,
       time: new Date().toISOString(),
+      application: {
+        revision: updateManager.getStatus().running.revision,
+        startedAt: applicationStartedAt
+      },
       database: config.appDb.database,
       sourceMode: "read-only",
       writeBack: config.writeBackEnabled ? "enabled" : "disabled",
       appDatabase: snapshot.appDatabase,
       sourceDatabase: snapshot.sourceDatabase,
       psqlDatabase: snapshot.psqlDatabase
+    });
+  }
+
+  if (url.pathname === "/api/system/updates" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      await gitUpdateChecker.refresh();
+      return buildUpdateStatus();
+    });
+  }
+
+  if (url.pathname === "/api/system/updates/apply" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      await gitUpdateChecker.refresh();
+      const status = buildUpdateStatus();
+
+      if (scheduledUpdate) {
+        const error = new Error("An update is already being applied.");
+        error.statusCode = 409;
+        throw error;
+      }
+      if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
+      if (status.plan.pullGit && status.git.localChanges) {
+        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      if (status.plan.restartService) {
+        scheduleApplicationUpdate(status);
+        return { ...status, applying: true, message: "Applying update. This page will reload when the service is ready." };
+      }
+
+      return { ...status, applying: false, message: "Browser files are ready. Reloading this page now." };
     });
   }
 
@@ -2575,11 +2716,12 @@ function createAuthSession(user) {
     userId: user.userId,
     expiresAt: Date.now() + AUTH_TTL
   });
+  persistAuthSessions();
   return token;
 }
 
 function destroyAuthSession(token) {
-  if (token) authSessions.delete(token);
+  if (token && authSessions.delete(token)) persistAuthSessions();
 }
 
 async function currentUser(req) {
@@ -2592,10 +2734,56 @@ async function currentUser(req) {
 
   if (Date.now() > session.expiresAt) {
     authSessions.delete(token);
+    persistAuthSessions();
     throwAuthError("Session expired.");
   }
 
   return getUserAccess(session.userId);
+}
+
+function loadAuthSessions() {
+  try {
+    return parseAuthSessions(unprotectString(fs.readFileSync(authSessionFile, "utf8")));
+  } catch {
+    try {
+      const sessions = parseAuthSessions(fs.readFileSync(legacyAuthSessionFile, "utf8"));
+      migrateLegacyAuthSessions = true;
+      return sessions;
+    } catch {
+      return new Map();
+    }
+  }
+}
+
+function parseAuthSessions(serialized) {
+  const saved = JSON.parse(serialized);
+  const now = Date.now();
+  const entries = Array.isArray(saved) ? saved : [];
+  const valid = entries.filter(([token, session]) => (
+    typeof token === "string"
+    && /^[a-f0-9]{64}$/i.test(token)
+    && session
+    && typeof session.userId === "string"
+    && Number(session.expiresAt) > now
+  ));
+  return new Map(valid.map(([token, session]) => [token, {
+    userId: session.userId,
+    expiresAt: Number(session.expiresAt)
+  }]));
+}
+
+function persistAuthSessions() {
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const temporaryFile = `${authSessionFile}.tmp`;
+    const protectedSessions = protectString(JSON.stringify([...authSessions]));
+    fs.writeFileSync(temporaryFile, protectedSessions, { mode: 0o600 });
+    fs.renameSync(temporaryFile, authSessionFile);
+    return true;
+  } catch (error) {
+    console.error("Could not persist authenticated sessions:", error.message);
+    return false;
+  }
 }
 
 async function optionalCurrentUser(req) {
@@ -2706,6 +2894,11 @@ function readJsonFile(filePath, fallback) {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  refreshGitUpdatesOnSchedule().catch(() => {});
+  const gitUpdateTimer = setInterval(() => {
+    refreshGitUpdatesOnSchedule().catch(() => {});
+  }, 5 * 60 * 1000);
+  gitUpdateTimer.unref();
   const mirrorWorkerState = zenMirrorWorker.start();
   console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
   const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";

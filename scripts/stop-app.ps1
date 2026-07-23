@@ -32,4 +32,16 @@ foreach ($owner in $owners) {
 
 if (-not $owners) {
     Write-Host "No process is using port $Port."
+    return
 }
+
+for ($attempt = 1; $attempt -le 40; $attempt++) {
+    $remainingOwners = Get-ListeningPortOwners -TargetPort $Port
+    if (-not $remainingOwners) {
+        Write-Host "Port $Port is free."
+        return
+    }
+    Start-Sleep -Milliseconds 250
+}
+
+throw "Port $Port is still in use after stopping PID(s): $($owners -join ', ')."

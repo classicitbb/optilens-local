@@ -36,6 +36,19 @@ const AUTH_STATE = {
 };
 
 let DEFERRED_INSTALL_PROMPT = null;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
+const UPDATE_STATE = {
+  status: null,
+  timer: null,
+  checking: false,
+  applying: false
+};
+const CONNECTION_RECOVERY_MS = 5000;
+const CONNECTION_STATE = {
+  serverReachable: navigator.onLine,
+  probing: false,
+  timer: null
+};
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   DEFERRED_INSTALL_PROMPT = event;
@@ -61,6 +74,8 @@ function setup() {
   wireLauncher();
   wireSearch();
   wireAuth();
+  wireUpdateCheck();
+  wireConnectionRecovery();
 }
 
 function exposeShellCatalog() {
@@ -122,6 +137,10 @@ function renderShellHeader() {
     </div>
 
     <div class="top-right">
+      <button class="top-action-btn update-check-btn" id="updateCheckBtn" type="button" aria-label="Check for updates" title="Check for updates" hidden>
+        <span class="material-symbols-outlined" id="updateCheckIcon">system_update</span>
+        <span class="notif-count" id="updateCount" hidden>0</span>
+      </button>
       ${config.showNotifications ? `
       <button class="top-action-btn" id="notifBtn" type="button" aria-label="Notifications">
         <span class="material-symbols-outlined">notifications</span>
@@ -457,6 +476,205 @@ function wireSearch() {
 }
 
 // ─── Authentication ─────────────────────────────────────────────────────────
+
+function wireUpdateCheck() {
+  const button = document.querySelector("#updateCheckBtn");
+  button?.addEventListener("click", async () => {
+    if (UPDATE_STATE.applying) return;
+    if (UPDATE_STATE.status?.available) {
+      await applyAvailableUpdate();
+    } else {
+      await checkForUpdates({ announce: true });
+    }
+  });
+
+  window.addEventListener("optilens:auth-changed", () => {
+    if (canManageUpdates()) {
+      startAutomaticUpdateChecks();
+    } else {
+      stopAutomaticUpdateChecks();
+      renderUpdateControl();
+    }
+  });
+}
+
+function canManageUpdates() {
+  return (AUTH_STATE.user?.permissions || []).includes("platform.admin");
+}
+
+function startAutomaticUpdateChecks() {
+  if (!canManageUpdates()) return;
+  checkForUpdates();
+  if (!UPDATE_STATE.timer) {
+    UPDATE_STATE.timer = setInterval(() => checkForUpdates(), UPDATE_CHECK_INTERVAL_MS);
+  }
+}
+
+function stopAutomaticUpdateChecks() {
+  if (UPDATE_STATE.timer) clearInterval(UPDATE_STATE.timer);
+  UPDATE_STATE.timer = null;
+  UPDATE_STATE.status = null;
+  UPDATE_STATE.checking = false;
+  UPDATE_STATE.applying = false;
+}
+
+async function checkForUpdates({ announce = false } = {}) {
+  if (!canManageUpdates() || UPDATE_STATE.checking || UPDATE_STATE.applying) return;
+  const wasAvailable = Boolean(UPDATE_STATE.status?.available);
+  UPDATE_STATE.checking = true;
+  renderUpdateControl();
+
+  try {
+    UPDATE_STATE.status = await authFetch("/api/system/updates");
+    if (UPDATE_STATE.status.available && (!wasAvailable || announce)) {
+      const areas = (UPDATE_STATE.status.changedAreas || []).map((area) => area.label).join(", ");
+      showUpdateNotice(`Update ready${areas ? `: ${areas}.` : "."} Select the update button to apply it.`);
+    } else if (announce) {
+      showUpdateNotice("OptiLens Local is already up to date.");
+    }
+  } catch (error) {
+    if (announce) showUpdateNotice(`Update check failed: ${error.message}`);
+  } finally {
+    UPDATE_STATE.checking = false;
+    renderUpdateControl();
+  }
+}
+
+function renderUpdateControl() {
+  const button = document.querySelector("#updateCheckBtn");
+  const icon = document.querySelector("#updateCheckIcon");
+  const count = document.querySelector("#updateCount");
+  if (!button || !icon || !count) return;
+
+  const status = UPDATE_STATE.status;
+  const visible = canManageUpdates();
+  button.hidden = !visible;
+  if (!visible) return;
+
+  button.disabled = UPDATE_STATE.checking || UPDATE_STATE.applying;
+  if (UPDATE_STATE.applying) {
+    icon.textContent = "sync";
+    button.title = "Applying update";
+    button.setAttribute("aria-label", "Applying update");
+    count.hidden = true;
+    return;
+  }
+  if (status?.available) {
+    icon.textContent = "system_update_alt";
+    const changeCount = status.changedAreas?.length || 1;
+    count.textContent = String(changeCount);
+    count.hidden = false;
+    button.title = "Apply updates";
+    button.setAttribute("aria-label", "Apply updates");
+    return;
+  }
+
+  icon.textContent = "system_update";
+  count.hidden = true;
+  button.title = UPDATE_STATE.checking ? "Checking for updates" : "Check for updates";
+  button.setAttribute("aria-label", button.title);
+}
+
+async function applyAvailableUpdate() {
+  UPDATE_STATE.applying = true;
+  renderUpdateControl();
+  const previousStartedAt = UPDATE_STATE.status?.running?.startedAt || "";
+
+  try {
+    const result = await authFetch("/api/system/updates/apply", { method: "POST" });
+    showUpdateNotice(result.message || "Applying update.");
+    if (!result.applying) {
+      window.setTimeout(() => window.location.reload(), 350);
+      return;
+    }
+    await waitForUpdatedService(previousStartedAt);
+    window.location.reload();
+  } catch (error) {
+    UPDATE_STATE.applying = false;
+    showUpdateNotice(`Update was not applied: ${error.message}`);
+    renderUpdateControl();
+  }
+}
+
+async function waitForUpdatedService(previousStartedAt) {
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await fetch("/api/health", { cache: "no-store" });
+      const health = await response.json();
+      if (response.ok && health.application?.startedAt && health.application.startedAt !== previousStartedAt) return;
+    } catch {
+      // Expected while the old service stops and the replacement starts.
+    }
+  }
+  throw new Error("The updated service did not become healthy within two minutes. Check data/local-update.log.");
+}
+
+function showUpdateNotice(message) {
+  let notice = document.querySelector("#updateNotice");
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = "updateNotice";
+    notice.className = "update-notice";
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    document.body.appendChild(notice);
+  }
+  notice.textContent = message;
+  notice.hidden = false;
+  clearTimeout(showUpdateNotice.timer);
+  showUpdateNotice.timer = setTimeout(() => { notice.hidden = true; }, 7000);
+}
+
+function wireConnectionRecovery() {
+  const probe = () => probeServerConnection();
+  window.addEventListener("offline", () => setServerConnectionState(false));
+  window.addEventListener("online", probe);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) probe();
+  });
+  CONNECTION_STATE.timer = setInterval(probe, CONNECTION_RECOVERY_MS);
+  probe();
+}
+
+async function probeServerConnection() {
+  if (CONNECTION_STATE.probing || !navigator.onLine) return;
+  CONNECTION_STATE.probing = true;
+  const wasReachable = CONNECTION_STATE.serverReachable;
+  try {
+    const response = await fetch("/api/health", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!response.ok) throw new Error(`Health check returned ${response.status}.`);
+    setServerConnectionState(true);
+    if (!wasReachable) {
+      await refreshAuthState();
+      window.dispatchEvent(new CustomEvent("optilens:connection-restored"));
+    }
+  } catch {
+    setServerConnectionState(false);
+  } finally {
+    CONNECTION_STATE.probing = false;
+  }
+}
+
+function setServerConnectionState(reachable) {
+  let notice = document.querySelector("#connectionNotice");
+  if (CONNECTION_STATE.serverReachable === reachable && notice) return;
+  CONNECTION_STATE.serverReachable = reachable;
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = "connectionNotice";
+    notice.className = "connection-notice";
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    document.body.appendChild(notice);
+  }
+  notice.hidden = reachable;
+  notice.textContent = "Connection to OptiLens Local was interrupted. Reconnecting automatically…";
+}
 
 function wireAuth() {
   const overlay = document.querySelector("#authOverlay");

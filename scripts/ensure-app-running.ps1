@@ -1,7 +1,7 @@
 param(
     [string] $ProjectRoot = "",
     [int] $Port = 8080,
-    [string] $HealthUrl = "http://127.0.0.1:8080/api/health"
+    [string] $HealthUrl = "http://127.0.0.1:8080/api/health/live"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,8 +10,18 @@ if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent $PSScriptRoot
 }
 
-if ($HealthUrl -eq "http://127.0.0.1:8080/api/health" -and $Port -ne 8080) {
-    $HealthUrl = "http://127.0.0.1:$Port/api/health"
+$maintenanceLock = Join-Path $ProjectRoot "data\maintenance.lock"
+if (Test-Path $maintenanceLock) {
+    $age = (Get-Date) - (Get-Item $maintenanceLock).LastWriteTime
+    if ($age.TotalMinutes -lt 15) {
+        Write-Host "OptiLens Local is being updated. Skipping watchdog restart."
+        return
+    }
+    Remove-Item -LiteralPath $maintenanceLock -Force -ErrorAction SilentlyContinue
+}
+
+if ($HealthUrl -eq "http://127.0.0.1:8080/api/health/live" -and $Port -ne 8080) {
+    $HealthUrl = "http://127.0.0.1:$Port/api/health/live"
 }
 
 $isHealthy = $false

@@ -36,6 +36,7 @@ if ($existingOwners) {
 function Import-OptiLensEnvironment {
     $names = @(
         "OPTILENS_SYNC_PASSPHRASE",
+        "OPTILENS_AUTO_APPLY_UPDATES",
         "OPTILENS_HOST",
         "OPTILENS_DB_SERVER",
         "OPTILENS_DB_NAME",
@@ -77,6 +78,7 @@ function Import-OptiLensEnvironment {
 Import-OptiLensEnvironment
 
 $node = (Get-Command node -ErrorAction Stop).Source
+$powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $stdout = Join-Path $ProjectRoot "server.out.log"
 $stderr = Join-Path $ProjectRoot "server.err.log"
 
@@ -103,11 +105,15 @@ try {
 }
 
 $started = $false
-for ($attempt = 1; $attempt -le 10; $attempt++) {
+for ($attempt = 1; $attempt -le 20; $attempt++) {
     Start-Sleep -Milliseconds 500
-    $owners = Get-ListeningPortOwners -TargetPort $Port
-    if ($owners) {
-        Write-Host "Started OptiLens Local on port $Port. PID(s): $($owners -join ', ')"
+    try {
+        $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health/live" -TimeoutSec 2
+    } catch {
+        $health = $null
+    }
+    if ($health.service -eq "optilens-local") {
+        Write-Host "Started OptiLens Local and confirmed health on port $Port."
         $started = $true
         break
     }
@@ -116,3 +122,14 @@ for ($attempt = 1; $attempt -le 10; $attempt++) {
 if (-not $started) {
     throw "Started command, but no listener appeared on port $Port. Check $stderr."
 }
+
+# Keep a lightweight host-side supervisor alive even when the optional Windows
+# Scheduled Task has not been installed. Its named mutex prevents duplicates.
+$watchdog = Join-Path $PSScriptRoot "start-app-watchdog.ps1"
+Start-Process -FilePath $powershell -ArgumentList @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-File", $watchdog,
+    "-ProjectRoot", $ProjectRoot,
+    "-Port", $Port
+) -WorkingDirectory $ProjectRoot -WindowStyle Hidden

@@ -313,6 +313,54 @@ label {
   transform: scale(0.95);
 }
 
+.update-check-btn:not([hidden]) {
+  color: var(--blue);
+}
+
+.update-check-btn:disabled .material-symbols-outlined {
+  animation: optilens-update-spin 1s linear infinite;
+}
+
+.update-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  max-width: min(440px, calc(100vw - 40px));
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--top-bg);
+  box-shadow: 0 12px 30px rgb(11 30 53 / 20%);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.update-notice[hidden] { display: none; }
+
+.connection-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1001;
+  max-width: min(440px, calc(100vw - 40px));
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--top-bg);
+  box-shadow: 0 12px 30px rgb(11 30 53 / 20%);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.connection-notice[hidden] { display: none; }
+
+@keyframes optilens-update-spin {
+  to { transform: rotate(360deg); }
+}
+
 .auth-pending [data-auth-required],
 .signed-out [data-auth-required] {
   display: none !important;
