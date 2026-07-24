@@ -83,6 +83,15 @@ test('customer mapping is mandatory and normalized', () => {
   assert.throws(() => normalizeRequest({ operation: 'innovations.customer_account', target: {} }), /no customer mapping/i);
 });
 
+test('local direct callers can explicitly pin reads to the Innovations mirror', () => {
+  const request = normalizeRequest({
+    operation: 'innovations.customer_account',
+    source_backend: 'mirror',
+    target: { account_number: 'CV-42' },
+  });
+  assert.equal(request.target.sourceBackend, 'mirror');
+});
+
 test('identifiers and dates reject malformed input', () => {
   assert.equal(positiveInteger('7'), 7);
   assert.equal(positiveInteger('../1'), null);
