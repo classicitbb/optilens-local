@@ -381,14 +381,17 @@
       const gatewayBuildEl = document.getElementById("gatewayBuild");
       function renderGatewayStatus(status) {
         const online = !!status.running && !status.lastError;
+        const autostart = status.autostart?.enabled
+          ? ` · auto-start ${status.autostart.source === "environment" ? "via service environment" : "protected on this Windows account"}`
+          : "";
         gatewayStatusEl.textContent = online ? "Live · connected" : status.running ? "Starting / retrying" : "Stopped";
         gatewayStatusEl.className = "badge " + (online ? "ready-for-import" : status.running ? "credentials-needed" : "planned");
         if (gatewayBuildEl) gatewayBuildEl.textContent = status.localBuild ? `build ${status.localBuild} · agent ${status.agentVersion || ""}` : "";
         gatewayDetailEl.textContent = status.lastError
           ? `Latest connection message: ${status.lastError}`
           : status.lastSeenAt
-            ? `Last cloud heartbeat ${new Date(status.lastSeenAt).toLocaleString()} · ${status.processed || 0} requests delivered.`
-            : "The gateway sends only control heartbeats until CV Web requests customer data.";
+            ? `Last cloud heartbeat ${new Date(status.lastSeenAt).toLocaleString()} · ${status.processed || 0} requests delivered.${autostart}`
+            : `The gateway sends only control heartbeats until CV Web requests customer data.${autostart}`;
         gatewayStartBtn.disabled = !!status.running;
         gatewayStopBtn.disabled = !status.running;
       }

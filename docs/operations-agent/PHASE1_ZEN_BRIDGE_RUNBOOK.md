@@ -14,6 +14,7 @@ OPTILENS_MIRROR_DB_NAME=innovations_mirror
 OPTILENS_MIRROR_DB_USER=optilens_app
 OPTILENS_MIRROR_DB_PASSWORD=...
 OPTILENS_MIRROR_SYNC_MINUTES=15
+OPTILENS_MIRROR_RETENTION_DAYS=92
 ```
 
 The Zen source still uses the existing `OPTILENS_SOURCE_PSQL_*` settings. The
@@ -50,6 +51,43 @@ Full run with delete reconciliation:
 ```powershell
 node scripts/run-zen-mirror-sync.js --full
 ```
+
+Transactional mirror tables are intentionally bounded by
+`OPTILENS_MIRROR_RETENTION_DAYS` (default 92). This applies to shipments,
+shipment items, orders, Rx archive rows, invoices, invoice lines, sales journal
+rows, statements, and statement items. Reference tables still fully reload so
+recent rows can be interpreted.
+
+To purge the existing accumulated transactional mirror data and resync only the
+retained window:
+
+```powershell
+node scripts/reset-zen-mirror-retention.js
+node scripts/reset-zen-mirror-retention.js --confirm-delete
+node scripts/run-zen-mirror-sync.js --full
+```
+
+The reset script writes only to `innovations_mirror`. Its default mode is a dry
+run that prints the row counts that would be deleted.
+
+If SQL Server reports `innovations_mirror` is full due to `LOG_BACKUP`, the
+mirror is still in full recovery without log backups. Because this database is a
+temporary cache, switch only the mirror database to SIMPLE recovery during reset:
+
+```powershell
+node scripts/reset-zen-mirror-retention.js --set-simple-recovery --confirm-delete
+```
+
+To inspect or compact the mirror transaction log afterward:
+
+```powershell
+node scripts/maintain-zen-mirror-log.js
+node scripts/maintain-zen-mirror-log.js --confirm-shrink --target-mb=256
+```
+
+Confirmed mode refuses to run unless the connected database is exactly
+`innovations_mirror`. A compacted SIMPLE-recovery mirror log should report
+`log_reuse_wait=NOTHING`.
 
 The web service also starts `lib/zen-mirror-worker.js` automatically when
 `OPTILENS_MIRROR_SYNC_MINUTES` is greater than zero and Zen credentials are
@@ -98,3 +136,7 @@ OPTILENS_MIRROR_SYNC_MINUTES=0
 
 Switch the active source profile back to `live` from the integrations page when
 vendor MSSQL is healthy and row-count parity passes.
+
+When the bridge is retired, disable the scheduled task "OptiLens Zen Mirror
+Sync" before dropping `innovations_mirror`. Keep source Innovations, Zen/PSQL,
+Access, and `optilens_local` untouched.
