@@ -18,12 +18,17 @@ and customer searches are not accepted.
 
 Open **Integrations → Website feeds**, enter the credentials-vault passphrase, and
 select **Start live gateway**. The screen reports the last heartbeat and request
-count.
+count. A successful manual start also saves the live gateway credentials in the
+Windows protected store for the current service account, so the worker restarts
+after an in-app update restarts Node. Selecting **Stop** clears that protected
+autostart state.
 
 For unattended startup, set `OPTILENS_SYNC_PASSPHRASE` in the Windows service
 environment. The server starts the worker after the vault unlocks. The worker
 uses the existing CV API base URL and API key stored in the vault. It does not
-use InnovaAPI.
+use InnovaAPI. This environment-variable route is still preferred when the
+watchdog runs as `SYSTEM`, because Windows protected store data is scoped to the
+Windows account that saved it.
 
 Full setup guide: `docs/cv-live-data-api-guide.md`.
 

@@ -179,6 +179,7 @@ const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
+const liveGatewayAutostart = require("./lib/live-gateway-autostart");
 const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
 const zenMirrorWorker = require("./lib/zen-mirror-worker");
 const sourceBackend = require("./lib/source-backend");
@@ -2073,7 +2074,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/connectors/live-gateway/status" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
-      return liveGatewayWorker.status();
+      return liveGatewayStatus();
     });
   }
 
@@ -2110,14 +2111,18 @@ const server = http.createServer(async (req, res) => {
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const error = new Error("Locked — unlock the vault first."); error.statusCode = 401; throw error; }
       const credentials = plSecure.getCvApi(body.token);
-      return liveGatewayWorker.start(credentials);
+      liveGatewayAutostart.save(credentials);
+      liveGatewayWorker.start(credentials);
+      return liveGatewayStatus();
     });
   }
 
   if (url.pathname === "/api/connectors/live-gateway/stop" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
-      return liveGatewayWorker.stop();
+      liveGatewayWorker.stop();
+      liveGatewayAutostart.clear();
+      return liveGatewayStatus();
     });
   }
 
@@ -2884,6 +2889,51 @@ function writeSecurityHeaders(res, pathname = "") {
   );
 }
 
+function liveGatewayStatus() {
+  return {
+    ...liveGatewayWorker.status(),
+    autostart: liveGatewayAutostartStatus(),
+  };
+}
+
+function liveGatewayAutostartStatus() {
+  if (process.env.OPTILENS_SYNC_PASSPHRASE) {
+    return { enabled: true, source: "environment", updatedAt: null };
+  }
+  const state = liveGatewayAutostart.status();
+  return {
+    ...state,
+    source: state.enabled ? "windows-protected-store" : null,
+  };
+}
+
+function loadLiveGatewayStartupCredentials() {
+  const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
+  if (passphrase) {
+    const token = plSecure.unlock(passphrase);
+    if (!token) throw new Error("configured passphrase did not unlock the vault");
+    try {
+      return { credentials: plSecure.getCvApi(token), source: "environment" };
+    } finally {
+      plSecure.lock(token);
+    }
+  }
+
+  const credentials = liveGatewayAutostart.load();
+  return credentials ? { credentials, source: "windows-protected-store" } : null;
+}
+
+function startLiveGatewayOnBoot() {
+  try {
+    const startup = loadLiveGatewayStartupCredentials();
+    if (!startup) return;
+    liveGatewayWorker.start(startup.credentials);
+    console.log(`OptiLens live-data gateway worker started from ${startup.source}.`);
+  } catch (error) {
+    console.error("OptiLens live-data gateway did not start:", error.message);
+  }
+}
+
 function readJsonFile(filePath, fallback) {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -2901,16 +2951,5 @@ server.listen(port, host, () => {
   gitUpdateTimer.unref();
   const mirrorWorkerState = zenMirrorWorker.start();
   console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
-  const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
-  if (passphrase) {
-    try {
-      const token = plSecure.unlock(passphrase);
-      if (!token) throw new Error("configured passphrase did not unlock the vault");
-      const credentials = plSecure.getCvApi(token);
-      liveGatewayWorker.start(credentials);
-      console.log("OptiLens live-data gateway worker started.");
-    } catch (error) {
-      console.error("OptiLens live-data gateway did not start:", error.message);
-    }
-  }
+  startLiveGatewayOnBoot();
 });

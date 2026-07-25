@@ -5,7 +5,9 @@ const {
   TABLES,
   buildCreateTableSql,
   buildDeleteMissingSql,
+  buildMirrorRetentionDeleteSql,
   buildMergeSql,
+  buildRetentionPredicate,
   buildZenSelectList,
   buildZenSelectQuery,
   coerceValue,
@@ -94,22 +96,38 @@ test('Zen timestamp literals are ODBC timestamp literals', () => {
   assert.match(text, /^\{ts '2026-07-16 09:05:07'\}$/);
 });
 
-test('Orders initial mirror sync uses a bounded recent range instead of full table scan', () => {
+test('Orders initial mirror sync uses the mirror retention window instead of full table scan', () => {
   const query = buildZenSelectQuery(
-    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
-    [{ name: 'OrderID' }, { name: 'ReceivedTime' }, { name: 'LastUpdated' }],
+    {
+      name: 'Orders',
+      initialRangeColumn: 'ReceivedTime',
+      initialRangeDaysConfig: 'initialOrderDays',
+      retentionDaysConfig: 'retentionDays',
+      retentionColumns: ['ReceivedTime', 'CurrentStatusDate', 'LastUpdated'],
+    },
+    [{ name: 'OrderID' }, { name: 'ReceivedTime' }, { name: 'CurrentStatusDate' }, { name: 'LastUpdated' }],
     { now: new Date(Date.UTC(2026, 6, 16, 12, 0, 0)) },
   );
 
-  assert.equal(query.sourceComplete, false);
+  assert.equal(query.sourceComplete, true);
   assert.equal(query.boundedInitial, true);
-  assert.equal(query.rangeColumn, 'ReceivedTime');
-  assert.match(query.query, /^SELECT "OrderID", "ReceivedTime", "LastUpdated" FROM "Orders" WHERE "ReceivedTime" >= \{ts '/);
+  assert.equal(query.retentionBounded, true);
+  assert.equal(query.retentionDays, 92);
+  assert.match(query.query, /^SELECT "OrderID", "ReceivedTime", "CurrentStatusDate", "LastUpdated" FROM "Orders" WHERE /);
+  assert.match(query.query, /"ReceivedTime" >= \{ts '/);
+  assert.match(query.query, /"CurrentStatusDate" >= \{ts '/);
+  assert.match(query.query, /"LastUpdated" >= \{ts '/);
 });
 
-test('watermarked mirror sync uses LastUpdated and full sync remains complete', () => {
+test('watermarked mirror sync uses LastUpdated and full sync remains retention bounded', () => {
   const watermarked = buildZenSelectQuery(
-    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
+    {
+      name: 'Orders',
+      initialRangeColumn: 'ReceivedTime',
+      initialRangeDaysConfig: 'initialOrderDays',
+      retentionDaysConfig: 'retentionDays',
+      retentionColumns: ['ReceivedTime', 'LastUpdated'],
+    },
     [{ name: 'ReceivedTime' }, { name: 'LastUpdated' }],
     { watermark: new Date(2026, 6, 16, 12, 0, 0) },
   );
@@ -118,15 +136,22 @@ test('watermarked mirror sync uses LastUpdated and full sync remains complete', 
   assert.match(watermarked.query, /"LastUpdated" >=/);
 
   const full = buildZenSelectQuery(
-    { name: 'Orders', initialRangeColumn: 'ReceivedTime', initialRangeDaysConfig: 'initialOrderDays' },
+    {
+      name: 'Orders',
+      initialRangeColumn: 'ReceivedTime',
+      initialRangeDaysConfig: 'initialOrderDays',
+      retentionDaysConfig: 'retentionDays',
+      retentionColumns: ['ReceivedTime', 'LastUpdated'],
+    },
     [{ name: 'ReceivedTime' }, { name: 'LastUpdated' }],
-    { full: true },
+    { full: true, now: new Date(Date.UTC(2026, 6, 16, 12, 0, 0)) },
   );
-  assert.deepEqual(full, {
-    query: 'SELECT "ReceivedTime", "LastUpdated" FROM "Orders"',
-    sourceComplete: true,
-    boundedInitial: false,
-  });
+  assert.equal(full.sourceComplete, true);
+  assert.equal(full.boundedInitial, false);
+  assert.equal(full.retentionBounded, true);
+  assert.match(full.query, /^SELECT "ReceivedTime", "LastUpdated" FROM "Orders" WHERE /);
+  assert.match(full.query, /"ReceivedTime" >= \{ts '/);
+  assert.match(full.query, /"LastUpdated" >= \{ts '/);
 });
 
 test('unsigned Zen integer columns are selected via a widening CONVERT', () => {
@@ -148,4 +173,31 @@ test('unsigned Zen integer columns are selected via a widening CONVERT', () => {
     { full: true },
   );
   assert.equal(query.query, 'SELECT CONVERT("RLensItem", SQL_INTEGER) AS "RLensItem", "LastUpdated" FROM "RxArchive"');
+});
+
+test('mirror retention predicates keep recent rows and open shipments', () => {
+  const table = {
+    name: 'Shipments',
+    retentionDaysConfig: 'retentionDays',
+    retentionColumns: ['ShippedTime', 'RecordCreated', 'LastUpdated'],
+    retainOpenShipments: true,
+  };
+  const columns = [
+    { name: 'ShipmentID' },
+    { name: 'Shipped' },
+    { name: 'ShippedTime' },
+    { name: 'RecordCreated' },
+    { name: 'LastUpdated' },
+  ];
+
+  const sourcePredicate = buildRetentionPredicate(table, columns, (name) => `"${name}"`, "{ts '2026-04-15 00:00:00'}");
+  assert.match(sourcePredicate, /"ShippedTime" >= \{ts '2026-04-15 00:00:00'\}/);
+  assert.match(sourcePredicate, /"RecordCreated" >= \{ts '2026-04-15 00:00:00'\}/);
+  assert.match(sourcePredicate, /"LastUpdated" >= \{ts '2026-04-15 00:00:00'\}/);
+  assert.match(sourcePredicate, /\("Shipped" = 0 OR "Shipped" IS NULL\)/);
+
+  const pruneSql = buildMirrorRetentionDeleteSql(table, columns);
+  assert.match(pruneSql, /^DELETE FROM dbo\.\[Shipments\] WHERE NOT /);
+  assert.match(pruneSql, /\[ShippedTime\] >= @cutoff/);
+  assert.match(pruneSql, /\(\[Shipped\] = 0 OR \[Shipped\] IS NULL\)/);
 });
