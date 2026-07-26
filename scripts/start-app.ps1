@@ -89,6 +89,7 @@ $startInfo.Arguments = "/c $command"
 $startInfo.WorkingDirectory = $ProjectRoot
 $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $startInfo.UseShellExecute = $false
+$startInfo.CreateNoWindow = $true
 $process = New-Object System.Diagnostics.Process
 $process.StartInfo = $startInfo
 $previousPort = $env:OPTILENS_PORT

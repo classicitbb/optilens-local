@@ -385,11 +385,25 @@ function injectOverlays() {
   </form>
 </div>`;
 
+  const updateLogHtml = `
+<div class="auth-overlay" id="updateLogOverlay" hidden aria-modal="true" role="dialog" aria-label="Update logs">
+  <section class="auth-panel update-log-panel">
+    <div class="launcher-head">
+      <h2>Update Logs</h2>
+      <button class="launcher-close" id="updateLogClose" type="button" aria-label="Close update logs">&#x2715;</button>
+    </div>
+    <div class="auth-body">
+      <pre class="update-log-output" id="updateLogOutput">Loading...</pre>
+    </div>
+  </section>
+</div>`;
+
   let html = "";
   if (!document.getElementById("launcherOverlay")) html += launcherHtml;
   if (!document.getElementById("searchOverlay")) html += searchHtml;
   if (!document.getElementById("authOverlay")) html += authHtml;
   if (!document.getElementById("accountOverlay")) html += accountHtml;
+  if (!document.getElementById("updateLogOverlay")) html += updateLogHtml;
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
@@ -479,6 +493,8 @@ function wireSearch() {
 
 function wireUpdateCheck() {
   const button = document.querySelector("#updateCheckBtn");
+  const updateLogOverlay = document.querySelector("#updateLogOverlay");
+  const updateLogClose = document.querySelector("#updateLogClose");
   button?.addEventListener("click", async () => {
     if (UPDATE_STATE.applying) return;
     if (UPDATE_STATE.status?.available) {
@@ -495,6 +511,11 @@ function wireUpdateCheck() {
       stopAutomaticUpdateChecks();
       renderUpdateControl();
     }
+  });
+
+  updateLogClose?.addEventListener("click", closeUpdateLogs);
+  updateLogOverlay?.addEventListener("click", (event) => {
+    if (event.target === updateLogOverlay) closeUpdateLogs();
   });
 }
 
@@ -625,6 +646,47 @@ function showUpdateNotice(message) {
   notice.hidden = false;
   clearTimeout(showUpdateNotice.timer);
   showUpdateNotice.timer = setTimeout(() => { notice.hidden = true; }, 7000);
+}
+
+async function openUpdateLogs() {
+  const overlay = document.querySelector("#updateLogOverlay");
+  const output = document.querySelector("#updateLogOutput");
+  if (!overlay || !output) return;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  output.textContent = "Loading update logs...";
+
+  try {
+    const data = await authFetch("/api/system/updates/logs");
+    const logs = data.logs || [];
+    output.textContent = logs.map((log) => {
+      const header = `${log.path} · ${log.exists ? `${formatBytes(log.size)} · updated ${log.updatedAt || "unknown"}` : "not created yet"}`;
+      const body = log.exists
+        ? `${log.truncated ? "[Showing tail]\n" : ""}${log.text || "[No content]"}`
+        : "No log file exists yet for this source.";
+      return `${header}\n${"=".repeat(Math.min(header.length, 80))}\n${body}`;
+    }).join("\n\n");
+  } catch (error) {
+    output.textContent = `Could not load update logs: ${error.message || error}`;
+  }
+}
+
+function closeUpdateLogs() {
+  const overlay = document.querySelector("#updateLogOverlay");
+  if (!overlay) return;
+  overlay.classList.add("closing");
+  setTimeout(() => {
+    overlay.hidden = true;
+    overlay.classList.remove("closing");
+    document.body.style.overflow = "";
+  }, 200);
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function wireConnectionRecovery() {
@@ -794,19 +856,22 @@ function renderUserDropdown(chip, dropdown) {
       Release notes
     </a>
     <button class="user-dropdown-item" id="ddResetPassword" type="button" role="menuitem">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
+      <span class="material-symbols-outlined" style="font-size:14px">lock_reset</span>
       Reset password
     </button>
     <button class="user-dropdown-item" id="ddInstallApp" type="button" role="menuitem" hidden>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M7 1.5v8M4 6.5L7 9.5l3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M2 10.5v1a1 1 0 001 1h8a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
+      <span class="material-symbols-outlined" style="font-size:14px">install_desktop</span>
       Install app
     </button>
+    ${canManageUpdates() ? `
+    <button class="user-dropdown-item" id="ddUpdateLogs" type="button" role="menuitem">
+      <span class="material-symbols-outlined" style="font-size:14px">article</span>
+      View update logs
+    </button>
+    <button class="user-dropdown-item danger" id="ddStopApp" type="button" role="menuitem">
+      <span class="material-symbols-outlined" style="font-size:14px">power_settings_new</span>
+      Stop app
+    </button>` : ""}
     <div class="user-dropdown-divider"></div>
     <div class="user-dropdown-theme-group" role="group" aria-label="Theme">
       ${THEME_OPTIONS.map((opt) => `
@@ -817,11 +882,7 @@ function renderUserDropdown(chip, dropdown) {
     </div>
     <div class="user-dropdown-divider"></div>
     <button class="user-dropdown-item danger" id="ddSignOut" type="button" role="menuitem">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M5 2H2.5A1.5 1.5 0 001 3.5v7A1.5 1.5 0 002.5 12H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        <path d="M9 9.5L12 7l-3-2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12 7H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
+      <span class="material-symbols-outlined" style="font-size:14px">logout</span>
       Sign out
     </button>`;
 
@@ -840,6 +901,23 @@ function renderUserDropdown(chip, dropdown) {
       DEFERRED_INSTALL_PROMPT = null;
     });
   }
+
+  dropdown.querySelector("#ddUpdateLogs")?.addEventListener("click", () => {
+    closeAllDropdowns();
+    openUpdateLogs();
+  });
+
+  dropdown.querySelector("#ddStopApp")?.addEventListener("click", async () => {
+    closeAllDropdowns();
+    if (!confirm("Stop OptiLens Local on this host? The app stays offline until the shortcut, tray monitor, or watchdog starts it again.")) return;
+    try {
+      const result = await authFetch("/api/system/host/stop", { method: "POST" });
+      showUpdateNotice(result.message || "Stopping OptiLens Local.");
+      setTimeout(() => setServerConnectionState(false), 1000);
+    } catch (error) {
+      showUpdateNotice(`Could not stop OptiLens Local: ${error.message || error}`);
+    }
+  });
 
   dropdown.querySelectorAll("[data-theme-option]").forEach((btn) => {
     btn.addEventListener("click", () => {

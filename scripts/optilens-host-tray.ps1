@@ -1,7 +1,22 @@
 param(
+    [string] $ProjectRoot = "",
+    [int] $Port = 8080,
     [string] $HealthUrl = "http://127.0.0.1:8080/api/health",
     [int] $RefreshSeconds = 10
 )
+
+if (-not $ProjectRoot) {
+    $ProjectRoot = Split-Path -Parent $PSScriptRoot
+}
+
+if ($HealthUrl -eq "http://127.0.0.1:8080/api/health" -and $Port -ne 8080) {
+    $HealthUrl = "http://127.0.0.1:$Port/api/health"
+}
+
+$mutex = New-Object System.Threading.Mutex($false, "Global\OptiLensLocalHostTray")
+if (-not $mutex.WaitOne(0, $false)) {
+    return
+}
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -49,6 +64,9 @@ $openStatus = $menu.Items.Add("Open status")
 $checkNow = $menu.Items.Add("Check now")
 [void]$menu.Items.Add("-")
 $openApp = $menu.Items.Add("Open OptiLens Local")
+$restartApp = $menu.Items.Add("Restart OptiLens Local")
+$stopApp = $menu.Items.Add("Stop OptiLens Local")
+[void]$menu.Items.Add("-")
 $exit = $menu.Items.Add("Exit monitor")
 
 $tray = New-Object System.Windows.Forms.NotifyIcon
@@ -64,6 +82,23 @@ function Get-HealthColour([string] $State) {
     if ($State -in @("online", "enabled", "ready-for-import")) { return [System.Drawing.Color]::ForestGreen }
     if ($State -in @("warning", "credentials-needed", "setup-needed", "discovered")) { return [System.Drawing.Color]::DarkGoldenrod }
     return [System.Drawing.Color]::Firebrick
+}
+
+function Invoke-HiddenHostScript {
+    param(
+        [string] $ScriptName,
+        [string[]] $Arguments = @()
+    )
+
+    $powerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $scriptPath = Join-Path $PSScriptRoot $ScriptName
+    $argumentList = @(
+        "-NoProfile",
+        "-WindowStyle", "Hidden",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $scriptPath
+    ) + $Arguments
+    Start-Process -FilePath $powerShell -ArgumentList $argumentList -WorkingDirectory $ProjectRoot -WindowStyle Hidden
 }
 
 function Update-HealthView {
@@ -132,11 +167,29 @@ $timer.Start()
 
 $openStatus.Add_Click({ $form.Show(); $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal; $form.Activate() })
 $checkNow.Add_Click({ Update-HealthView })
-$openApp.Add_Click({ Start-Process "http://127.0.0.1:8080/" })
-$exit.Add_Click({ $script:exitRequested = $true; $timer.Stop(); $tray.Visible = $false; $form.Close() })
+$openApp.Add_Click({ Start-Process "http://127.0.0.1:$Port/" })
+$restartApp.Add_Click({
+    $summary.Text = "Restarting OptiLens Local..."
+    Invoke-HiddenHostScript -ScriptName "restart-app.ps1" -Arguments @("-ProjectRoot", $ProjectRoot, "-Port", [string]$Port)
+    Start-Sleep -Milliseconds 500
+    Update-HealthView
+})
+$stopApp.Add_Click({
+    $summary.Text = "Stopping OptiLens Local..."
+    Invoke-HiddenHostScript -ScriptName "stop-app.ps1" -Arguments @("-Port", [string]$Port)
+    Start-Sleep -Milliseconds 500
+    Update-HealthView
+})
+$context = New-Object System.Windows.Forms.ApplicationContext
+$exit.Add_Click({ $script:exitRequested = $true; $timer.Stop(); $tray.Visible = $false; $form.Close(); $context.ExitThread() })
 $tray.Add_DoubleClick({ $form.Show(); $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal; $form.Activate() })
 $form.Add_FormClosing({ param($sender, $event) if (-not $script:exitRequested -and $event.CloseReason -eq [System.Windows.Forms.CloseReason]::UserClosing) { $event.Cancel = $true; $form.Hide() } })
 
-Update-HealthView
-[System.Windows.Forms.Application]::Run($form)
-$tray.Dispose()
+try {
+    Update-HealthView
+    [System.Windows.Forms.Application]::Run($context)
+} finally {
+    $tray.Dispose()
+    $mutex.ReleaseMutex()
+    $mutex.Dispose()
+}

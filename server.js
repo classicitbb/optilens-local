@@ -11,6 +11,7 @@ const { normalizeVaultData } = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
 const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
+const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -878,9 +879,9 @@ function scheduleApplicationUpdate(status) {
   };
 
   const scriptPath = path.join(__dirname, "scripts", "apply-local-update.ps1");
-  const powershell = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   const args = [
     "-NoProfile",
+    "-WindowStyle", "Hidden",
     "-ExecutionPolicy", "Bypass",
     "-File", scriptPath,
     "-ProjectRoot", __dirname,
@@ -907,6 +908,40 @@ function scheduleApplicationUpdate(status) {
       console.error("Could not start local update:", error.message);
     }
   }, 250).unref();
+}
+
+function scheduleHostStop() {
+  setTimeout(() => {
+    try {
+      runHostScript(__dirname, "stop-app.ps1", ["-Port", String(port)]);
+    } catch (error) {
+      console.error("Could not stop OptiLens Local:", error.message);
+    }
+  }, 250).unref();
+}
+
+function scheduleHostRestart() {
+  setTimeout(() => {
+    try {
+      runHostScript(__dirname, "restart-app.ps1", ["-ProjectRoot", __dirname, "-Port", String(port)]);
+    } catch (error) {
+      console.error("Could not restart OptiLens Local:", error.message);
+    }
+  }, 250).unref();
+}
+
+function readUpdateLogs() {
+  return {
+    checkedAt: new Date().toISOString(),
+    logs: [
+      tailTextFile(path.join(dataDir, "local-update.log")),
+      tailTextFile(path.join(dataDir, "watchdog.log")),
+      tailTextFile(path.join(__dirname, "server.err.log"), 32768),
+    ].map((log) => ({
+      ...log,
+      path: path.relative(__dirname, log.path).replaceAll("\\", "/"),
+    })),
+  };
 }
 
 async function refreshGitUpdatesOnSchedule() {
@@ -1259,6 +1294,29 @@ const server = http.createServer(async (req, res) => {
       }
 
       return { ...status, applying: false, message: "Browser files are ready. Reloading this page now." };
+    });
+  }
+
+  if (url.pathname === "/api/system/updates/logs" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      return readUpdateLogs();
+    });
+  }
+
+  if (url.pathname === "/api/system/host/stop" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      scheduleHostStop();
+      return { ok: true, message: "Stopping OptiLens Local. The browser will show reconnecting until the app is started again." };
+    });
+  }
+
+  if (url.pathname === "/api/system/host/restart" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      scheduleHostRestart();
+      return { ok: true, message: "Restarting OptiLens Local. This page will reconnect when the service is healthy." };
     });
   }
 

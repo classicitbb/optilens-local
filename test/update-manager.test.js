@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { createUpdateManager } = require("../lib/update-manager");
+const { tailTextFile } = require("../lib/host-control");
 
 function makeProject() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "optilens-update-manager-"));
@@ -41,6 +42,25 @@ test("plans dependency installation and a restart when manifests change", () => 
     const status = manager.getStatus();
     assert.equal(status.plan.restartService, true);
     assert.equal(status.plan.installDependencies, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("tails host log files without failing when they are missing", () => {
+  const root = makeProject();
+  try {
+    const logFile = path.join(root, "local-update.log");
+    fs.writeFileSync(logFile, "first\nsecond\nthird\n");
+
+    const tailed = tailTextFile(logFile, 12);
+    assert.equal(tailed.exists, true);
+    assert.equal(tailed.truncated, true);
+    assert.match(tailed.text, /second|third/);
+
+    const missing = tailTextFile(path.join(root, "missing.log"));
+    assert.equal(missing.exists, false);
+    assert.equal(missing.text, "");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

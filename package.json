@@ -13,6 +13,7 @@
     "rx:sync-catalog": "node scripts/sync-rx-catalog.js",
     "rx:verify-catalog": "node scripts/verify-rx-catalog.js",
     "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-app.ps1",
+    "app:launch": "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File scripts/launch-app.ps1",
     "app:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-app.ps1",
     "app:restart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-app.ps1",
     "app:ensure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-app-running.ps1",

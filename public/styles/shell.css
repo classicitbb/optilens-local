@@ -531,7 +531,8 @@ label {
   background: var(--top-hover);
 }
 
-.user-dropdown-item svg {
+.user-dropdown-item svg,
+.user-dropdown-item .material-symbols-outlined {
   flex-shrink: 0;
   color: var(--muted);
 }
@@ -540,7 +541,8 @@ label {
   color: var(--red, #dc2626);
 }
 
-.user-dropdown-item.danger svg {
+.user-dropdown-item.danger svg,
+.user-dropdown-item.danger .material-symbols-outlined {
   color: var(--red, #dc2626);
 }
 
@@ -948,6 +950,31 @@ label {
 
 .auth-panel .button {
   justify-content: center;
+}
+
+.update-log-panel {
+  width: min(920px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+}
+
+.update-log-panel .auth-body {
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+.update-log-output {
+  margin: 0;
+  min-height: 320px;
+  max-height: calc(100vh - 170px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--top-hover);
+  color: var(--ink);
+  font: 12px/1.45 "Consolas", "SFMono-Regular", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ════════════════════════════════════════════════════════
