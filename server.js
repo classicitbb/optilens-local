@@ -760,14 +760,42 @@ function checkAccessVaultEntry(entry) {
   }
 }
 
-function checkApiKeyVaultEntry(entry) {
+async function checkApiKeyVaultEntry(entry) {
   const fields = vaultFieldMap(entry);
   const baseUrl = fields.baseurl || fields.url || fields.endpoint || "";
   const apiKey = fields.apikey || fields.token || fields.key || "";
-  if (!baseUrl && !apiKey) {
+  if (!baseUrl || !apiKey) {
     return entryConnectivity(entry, "warning", "Credentials incomplete", "Add a base URL and API key before connectivity can be checked.");
   }
-  return entryConnectivity(entry, "warning", "Saved", "API key entries are saved, but no safe non-destructive connectivity check is configured.");
+
+  // This used to return a flat "Saved" warning for every API key entry, which
+  // meant the dot stayed amber whether the key was perfect or long revoked —
+  // so it told the operator nothing, and a revoked key looked identical to a
+  // working one. A scoped GET is non-destructive, so actually make the call.
+  const base = String(baseUrl).trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(base)) {
+    return entryConnectivity(entry, "warning", "Base URL not testable", `'${base}' is not an http(s) URL, so the key cannot be verified.`);
+  }
+  try {
+    const res = await fetch(`${base}/catalog?limit=1`, {
+      headers: { "x-api-key": apiKey },
+      signal: AbortSignal.timeout(8000),
+    });
+    // 403 means the key authenticated fine and merely lacks catalog:read — that
+    // still proves the credential itself is good, which is what's being checked.
+    if (res.ok || res.status === 403) {
+      return entryConnectivity(entry, "online", "Key accepted", `${base} accepted this key (HTTP ${res.status}).`);
+    }
+    if (res.status === 401) {
+      return entryConnectivity(entry, "error", "Key rejected", "The endpoint returned 401 — this key is invalid or has been revoked. Issue a new key and save it again.");
+    }
+    if (res.status === 404) {
+      return entryConnectivity(entry, "error", "Endpoint not found", `${base}/catalog returned 404 — check the base URL.`);
+    }
+    return entryConnectivity(entry, "warning", `HTTP ${res.status}`, `${base} responded ${res.status}; the key could not be confirmed.`);
+  } catch (error) {
+    return entryConnectivity(entry, "error", "Unreachable", `Could not reach ${base}: ${error.message || error}.`);
+  }
 }
 
 function checkWebPortalVaultEntry(entry) {
