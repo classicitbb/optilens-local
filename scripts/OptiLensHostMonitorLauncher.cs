@@ -12,6 +12,7 @@ using System.Windows.Forms;
 
 internal sealed class OptiLensHostMonitor : Form
 {
+    private static readonly string monitorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "logs", "host-monitor.log");
     private readonly string projectRoot;
     private readonly int port;
     private readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -71,8 +72,9 @@ internal sealed class OptiLensHostMonitor : Form
 
         timer.Tick += async delegate { await RefreshAll(); };
         Shown += async delegate { await RefreshAll(); await RefreshLogs(); };
-        FormClosed += delegate { timer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
+        FormClosed += delegate { Log("closed"); timer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
         timer.Start();
+        Log("started port " + port);
     }
 
     private TabPage BuildConnectionsPage()
@@ -262,23 +264,41 @@ internal sealed class OptiLensHostMonitor : Form
 
     private static Color ColorFor(string state) { return state == "online" || state == "enabled" || state == "ready-for-import" ? Color.ForestGreen : state == "warning" || state == "credentials-needed" || state == "setup-needed" || state == "discovered" ? Color.DarkGoldenrod : Color.Firebrick; }
 
+    private static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(monitorLog));
+            File.AppendAllText(monitorLog, DateTime.UtcNow.ToString("o") + " " + message + Environment.NewLine);
+        }
+        catch { }
+    }
+
     [STAThread]
     public static void Main(string[] args)
     {
-        var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var port = 8080;
-        for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
-        using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
+        try
         {
-            if (!mutex.WaitOne(0, false)) return;
-            try
+            var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var port = 8080;
+            for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
+            using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
             {
-                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port));
+                if (!mutex.WaitOne(0, false)) { Log("another instance already running"); return; }
+                try
+                {
+                    Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port));
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
             }
-            finally
-            {
-                mutex.ReleaseMutex();
-            }
+        }
+        catch (Exception error)
+        {
+            Log("fatal " + error);
+            throw;
         }
     }
 }
