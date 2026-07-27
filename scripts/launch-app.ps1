@@ -21,18 +21,9 @@ Set-Location $ProjectRoot
 & (Join-Path $PSScriptRoot "start-app.ps1") -ProjectRoot $ProjectRoot -Port $Port
 
 if (-not $NoTray) {
-    $powerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-    $trayScript = Join-Path $PSScriptRoot "optilens-host-tray.ps1"
-    Start-Process -FilePath $powerShell -ArgumentList @(
-        "-NoProfile",
-        "-WindowStyle", "Hidden",
-        "-ExecutionPolicy", "Bypass",
-        "-STA",
-        "-File", $trayScript,
-        "-ProjectRoot", $ProjectRoot,
-        "-Port", $Port,
-        "-HealthUrl", "http://127.0.0.1:$Port/api/health"
-    ) -WorkingDirectory $ProjectRoot -WindowStyle Hidden
+    $monitorExe = Join-Path $ProjectRoot "OptiLensHostMonitor.exe"
+    if (-not (Test-Path $monitorExe)) { & (Join-Path $PSScriptRoot "build-monitor-exe.ps1") -ProjectRoot $ProjectRoot }
+    Start-Process -FilePath $monitorExe -WorkingDirectory $ProjectRoot
 }
 
 if (-not $NoBrowser) {

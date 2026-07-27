@@ -149,13 +149,13 @@ http://192.168.254.9:8080/
 
 Use the browser install option to install OptiLens Local as an app. The installed app uses the PWA manifest and can be launched from a Start menu or desktop shortcut. API write actions still go through the Node service and private app database.
 
-Browser PWA service workers require a secure origin. `localhost` works for testing, but a LAN IP over plain HTTP may need HTTPS before the browser offers a full PWA install. Until HTTPS is configured, deploy a Windows launcher shortcut:
+Browser PWA service workers require a secure origin. `localhost` works for testing, but a LAN IP over plain HTTP may need HTTPS before the browser offers a full PWA install. Until HTTPS is configured, create the host-monitor desktop shortcut:
 
 ```powershell
-O:\scripts\create-desktop-shortcut.ps1 -Url "http://192.168.254.9:8080/" -PublicDesktop
+O:\scripts\create-desktop-shortcut.ps1 -PublicDesktop
 ```
 
-The shortcut runs `scripts/launch-app.ps1` hidden, ensures the Node host and watchdog are running, starts the tray monitor, and opens the app URL.
+The shortcut launches `OptiLensHostMonitor.exe` without leaving a PowerShell window open. The web UI can be opened separately from the local service/taskbar workflow.
 
 ## Create A SQL Login For The App
 
