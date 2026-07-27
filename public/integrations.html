@@ -34,8 +34,6 @@
       <nav class="workflow-tabs" aria-label="Integration tabs">
         <button class="active" type="button" data-tab="sources">Data sources</button>
         <button type="button" data-tab="fileShares">File shares</button>
-        <button type="button" data-tab="website">Website feeds</button>
-        <button type="button" data-tab="logs">Sync logs</button>
       </nav>
 
       <section class="workflow-panel active" id="sources">
@@ -99,69 +97,6 @@
         <div class="placeholder-pane">File share monitoring and folder-based ingestion will be configured here once the integration layer is active.</div>
       </section>
 
-      <section class="workflow-panel" id="website">
-        <article class="sync-console">
-          <h3>Innovations → Classic Visions sync</h3>
-          <p>Push selected Innovations data to the Classic Visions cloud. <strong>Dry run</strong> validates without writing; <strong>Sync now</strong> writes (idempotent — safe to repeat). Requires the CV API key saved in the Credentials vault.</p>
-          <div class="sync-row">
-            <label class="sync-field">Vault passphrase
-              <input type="password" id="syncPass" autocomplete="current-password" placeholder="Unlock the credentials vault">
-            </label>
-            <label class="sync-help" title="Caches the short-lived unlock token in this tab's session only — the passphrase itself is never stored. Closing the tab forgets it.">
-              <input type="checkbox" id="syncRemember" checked> Keep unlocked for this tab
-            </label>
-          </div>
-          <section class="live-gateway-control" aria-labelledby="liveGatewayTitle">
-            <h4 id="liveGatewayTitle">On-demand live gateway</h4>
-            <p>Delivers approved Innovations account data and OptiLens delivery status to CV Web only when an authorized customer opens it. No periodic customer-data sync is required.</p>
-            <div class="sync-row">
-              <button class="btn btn-primary" id="gatewayStartBtn" type="button">Start live gateway</button>
-              <button class="btn" id="gatewayStopBtn" type="button">Stop</button>
-              <span id="gatewayStatus" class="badge" role="status" aria-live="polite">Checking…</span>
-              <span id="gatewayBuild" class="sync-help"></span>
-            </div>
-            <p id="gatewayDetail" class="sync-help"></p>
-            <div class="sync-row">
-              <input type="text" id="selftestAccount" class="sync-field" placeholder="Sample account # (optional dry run)" style="max-width:240px">
-              <button class="btn" id="selftestBtn" type="button">Run self-test</button>
-            </div>
-            <pre id="selftestResult" class="sync-result" hidden></pre>
-          </section>
-          <div class="sync-row sync-entities">
-            <label><input type="checkbox" class="sync-entity" value="customers" checked> Customers</label>
-            <label><input type="checkbox" class="sync-entity" value="contacts" checked> Contacts</label>
-            <label><input type="checkbox" class="sync-entity" value="balances"> Balances</label>
-            <label title="Per-customer order recency + rhythm feed that powers the CV Web CRM retention alarm (Customers Gone Quiet)."><input type="checkbox" class="sync-entity" value="order_activity"> Order activity (CRM feed)</label>
-            <label><input type="checkbox" class="sync-entity" value="statements"> Statements</label>
-            <label><input type="checkbox" class="sync-entity" value="statement_lines"> Statement lines</label>
-          </div>
-          <p id="syncDependencyHelp" class="sync-help" hidden>Statement lines are included automatically whenever Statements is selected, so statement headers do not arrive without item rows.</p>
-          <div class="sync-row sync-entities">
-            <label title="First historical backfill only — stops the receiver emailing every customer a 'statement ready' notice at once. Ignored on dry runs and when Statements isn't selected."><input type="checkbox" id="syncSuppressEmails"> Suppress statement emails (backfill)</label>
-          </div>
-          <div class="sync-row">
-            <button class="btn" id="syncDryBtn" type="button">Dry run</button>
-            <button class="btn btn-primary" id="syncRunBtn" type="button">Sync now (write)</button>
-            <span id="syncStatus" class="badge" role="status" aria-live="polite"></span>
-          </div>
-          <p id="syncLastRun" class="sync-help"></p>
-          <div id="syncEntitySummary" class="sync-result" hidden></div>
-          <pre id="syncResult" class="sync-result" hidden></pre>
-        </article>
-      </section>
-
-      <section class="workflow-panel" id="logs">
-        <article class="sync-console">
-          <div class="sync-row" style="justify-content:space-between;align-items:center">
-            <div>
-              <h3>Recent Innovations sync activity</h3>
-              <p class="sync-help">Local operator log from OptiLens Local. Cloud-side dead letters remain in CV Web/Supabase.</p>
-            </div>
-            <button class="btn" id="syncLogsRefreshBtn" type="button">Refresh logs</button>
-          </div>
-          <pre id="syncLogsResult" class="sync-result">Loading sync logs...</pre>
-        </article>
-      </section>
     </section>
   </main>
 

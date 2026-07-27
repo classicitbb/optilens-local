@@ -8,6 +8,7 @@ const sql = require("mssql");
 const { getConfig } = require("./lib/config");
 const { runOdbcProbe } = require("./lib/odbc-probe");
 const { normalizeVaultData } = require("./lib/credential-vault");
+const credentialVault = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
 const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
@@ -2154,6 +2155,46 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // The host monitor is a loopback operator surface. It reads the persisted
+  // CV API entry directly from the Credentials Vault, so its self-test and
+  // explicit sync actions do not depend on a browser session or passphrase
+  // token that disappears on restart.
+  if (url.pathname === "/api/monitor/innovations-sync/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const health = await getIntegrationHealthSnapshot({ force: true });
+      const credentials = credentialVault.cvApiFromVault();
+      return { ...health.innovationsSync, credentialsConfigured: !!credentials };
+    });
+  }
+
+  if (url.pathname === "/api/monitor/innovations-sync/logs" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return { events: innovationsSyncLog.readRecent(url.searchParams.get("limit") || 80) };
+    });
+  }
+
+  if (url.pathname === "/api/monitor/innovations-sync/selftest" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return runMonitorSyncSelfTest();
+    });
+  }
+
+  if (url.pathname === "/api/monitor/innovations-sync/run" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      const credentials = monitorSyncCredentials();
+      return innovationsSync.sync(credentials, {
+        entities: Array.isArray(body.entities) && body.entities.length ? body.entities : undefined,
+        commit: !!body.commit,
+        suppressStatementEmails: !!body.suppressStatementEmails,
+      });
+    });
+  }
+
   // ── On-demand CV Web live-data gateway ───────────────────────────────────
   // The worker makes outbound-only calls to CV Web and performs strictly
   // allow-listed reads against Innovations and the OptiLens app database.
@@ -3007,6 +3048,49 @@ function loadLiveGatewayStartupCredentials() {
 
   const credentials = liveGatewayAutostart.load();
   return credentials ? { credentials, source: "windows-protected-store" } : null;
+}
+
+function requireLoopbackMonitor(req) {
+  if (!isLoopbackRequest(req) || !isAllowedLocalOrigin(req.headers.origin || "")) {
+    const error = new Error("Monitor actions are only available from localhost.");
+    error.statusCode = 403;
+    throw error;
+  }
+}
+
+function monitorSyncCredentials() {
+  const credentials = credentialVault.cvApiFromVault();
+  if (!credentials) {
+    const error = new Error("Classic Visions API credentials are not configured in the Credentials Vault.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return credentials;
+}
+
+async function runMonitorSyncSelfTest() {
+  const credentials = monitorSyncCredentials();
+  const health = await getIntegrationHealthSnapshot({ force: true });
+  const receiver = await innovationsSync.receiverVersion(innovationsSync.functionsBase(credentials.baseUrl));
+  const source = health.sourceDatabase || {};
+  const steps = [
+    {
+      name: "credentials store",
+      ok: true,
+      detail: `Using persisted ${credentials.entryName || "Classic Visions"} API credentials.`,
+    },
+    {
+      name: "Innovations source",
+      ok: source.state === "online",
+      detail: source.detail || source.state || "Source status unavailable.",
+    },
+    {
+      name: "Classic Visions receiver",
+      ok: !!receiver,
+      detail: receiver ? `innovations-sync ${receiver.version} accepts ${receiver.entities.length} entities.` : "Receiver version endpoint is unreachable.",
+    },
+  ];
+  return { ok: steps.every((step) => step.ok), steps, ran_at: new Date().toISOString() };
 }
 
 function getLiveGatewayCredentials(token) {
