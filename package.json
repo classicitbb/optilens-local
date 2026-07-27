@@ -18,7 +18,7 @@
     "app:restart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-app.ps1",
     "app:ensure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-app-running.ps1",
     "app:watchdog:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-app-watchdog-task.ps1 -RunAsSystem",
-    "app:tray": "powershell -NoProfile -ExecutionPolicy Bypass -STA -File scripts/optilens-host-tray.ps1",
+    "app:tray": "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File scripts/start-monitor.ps1",
     "app:tray:startup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-host-tray-startup.ps1",
     "app:monitor:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-monitor-exe.ps1",
     "app:monitor:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-desktop-shortcut.ps1"
