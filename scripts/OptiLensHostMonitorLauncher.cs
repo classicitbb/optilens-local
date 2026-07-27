@@ -161,16 +161,22 @@ internal sealed class OptiLensHostMonitor : Form
             var health = Map(json.DeserializeObject(await Api("/api/health")));
             serviceOnline = health != null;
             connections.Items.Clear();
+            var hasFailure = false;
+            var hasWarning = false;
             foreach (var key in new[] { "appDatabase", "sourceDatabase", "psqlDatabase", "mirrorDatabase", "innovationsSync" })
             {
                 var item = Map(Value(health, key)); if (item == null) continue;
-                var row = new ListViewItem(S(Value(item, "name"))); row.SubItems.Add(S(Value(item, "state")).ToUpperInvariant()); row.SubItems.Add(S(Value(item, "detail")));
-                row.ForeColor = ColorFor(S(Value(item, "state"))); connections.Items.Add(row);
+                var state = S(Value(item, "state"));
+                if (state == "error" || state == "offline" || state == "failed") hasFailure = true;
+                else if (state != "online" && state != "enabled" && state != "ready-for-import") hasWarning = true;
+                var row = new ListViewItem(S(Value(item, "name"))); row.SubItems.Add(state.ToUpperInvariant()); row.SubItems.Add(S(Value(item, "detail")));
+                row.ForeColor = ColorFor(state); connections.Items.Add(row);
             }
-            summary.Text = "All connections healthy — hosted service is responding.";
-            summary.ForeColor = Color.ForestGreen;
-            tray.Icon = SystemIcons.Information;
-            tray.Text = "OptiLens Local: service online";
+            var overall = hasFailure ? "Needs attention" : hasWarning ? "Working with warnings" : "All connections healthy";
+            summary.Text = overall + " — hosted service is responding.";
+            summary.ForeColor = hasFailure ? Color.Firebrick : hasWarning ? Color.DarkGoldenrod : Color.ForestGreen;
+            tray.Icon = hasFailure ? SystemIcons.Error : hasWarning ? SystemIcons.Warning : SystemIcons.Information;
+            tray.Text = "OptiLens Local: " + overall;
             await RefreshSource();
             await RefreshSyncStatus();
         }
@@ -254,7 +260,7 @@ internal sealed class OptiLensHostMonitor : Form
         Process.Start(new ProcessStartInfo(powershell, "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
     }
 
-    private static Color ColorFor(string state) { return state == "online" || state == "enabled" || state == "ready-for-import" ? Color.ForestGreen : state == "warning" || state == "credentials-needed" ? Color.DarkGoldenrod : Color.Firebrick; }
+    private static Color ColorFor(string state) { return state == "online" || state == "enabled" || state == "ready-for-import" ? Color.ForestGreen : state == "warning" || state == "credentials-needed" || state == "setup-needed" || state == "discovered" ? Color.DarkGoldenrod : Color.Firebrick; }
 
     [STAThread]
     public static void Main(string[] args)
@@ -262,6 +268,17 @@ internal sealed class OptiLensHostMonitor : Form
         var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var port = 8080;
         for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
-        Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port));
+        using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
+        {
+            if (!mutex.WaitOne(0, false)) return;
+            try
+            {
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port));
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+            }
+        }
     }
 }

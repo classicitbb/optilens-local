@@ -2171,7 +2171,24 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/monitor/innovations-sync/logs" && req.method === "GET") {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);
-      return { events: innovationsSyncLog.readRecent(url.searchParams.get("limit") || 80) };
+      return {
+        events: innovationsSyncLog.readRecent(url.searchParams.get("limit") || 80),
+        cliLog: tailLog(path.join(dataDir, "logs", "innovations-sync-cli.log"), 32768),
+      };
+    });
+  }
+
+  if (url.pathname === "/api/monitor/diagnostics" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return buildMonitorDiagnostics(url.searchParams.get("limit") || 120);
+    });
+  }
+
+  if (url.pathname === "/api/ai/diagnostics/context" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return buildAiDiagnosticsContext(url.searchParams.get("limit") || 120);
     });
   }
 
@@ -2186,12 +2203,7 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);
       const body = await readJsonBody(req);
-      const credentials = monitorSyncCredentials();
-      return innovationsSync.sync(credentials, {
-        entities: Array.isArray(body.entities) && body.entities.length ? body.entities : undefined,
-        commit: !!body.commit,
-        suppressStatementEmails: !!body.suppressStatementEmails,
-      });
+      return startMonitorSyncProcess(body);
     });
   }
 
@@ -2214,8 +2226,7 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);
       const body = await readJsonBody(req);
-      zenMirrorWorker.runOnce({ full: !!body.full }).catch(() => {});
-      return { started: true, full: !!body.full };
+      return zenMirrorWorker.startManual({ full: !!body.full });
     });
   }
 
@@ -2307,8 +2318,7 @@ const server = http.createServer(async (req, res) => {
       await requirePermission(req, "credentials.manage");
       const body = await readJsonBody(req);
       // A full sync can run for minutes; kick it off and let the UI poll status.
-      zenMirrorWorker.runOnce({ full: !!body.full }).catch(() => {});
-      return { started: true, full: !!body.full };
+      return zenMirrorWorker.startManual({ full: !!body.full });
     });
   }
 
@@ -3115,6 +3125,131 @@ async function runMonitorSyncSelfTest() {
     },
   ];
   return { ok: steps.every((step) => step.ok), steps, ran_at: new Date().toISOString() };
+}
+
+function startMonitorSyncProcess(body = {}) {
+  const credentials = monitorSyncCredentials();
+  const entities = Array.isArray(body.entities) && body.entities.length
+    ? body.entities.map((entity) => String(entity).trim()).filter(Boolean)
+    : [];
+  const args = [
+    path.join(__dirname, "scripts", "innovations-sync-cli.js"),
+    "--use-credential-vault",
+  ];
+  if (!body.commit) args.push("--dry-run");
+  if (entities.length) args.push("--entities", entities.join(","));
+  if (body.suppressStatementEmails) args.push("--backfill-statements");
+
+  const logDir = path.join(dataDir, "logs");
+  fs.mkdirSync(logDir, { recursive: true });
+  const logFile = path.join(logDir, "innovations-sync-cli.log");
+  const outFd = fs.openSync(logFile, "a");
+  const errFd = fs.openSync(logFile, "a");
+  let child;
+  try {
+    child = spawn(process.execPath, args, {
+      cwd: __dirname,
+      detached: true,
+      stdio: ["ignore", outFd, errFd],
+      windowsHide: true,
+      env: { ...process.env },
+    });
+    child.unref();
+  } finally {
+    try { fs.closeSync(outFd); } catch {}
+    try { fs.closeSync(errFd); } catch {}
+  }
+
+  return {
+    started: true,
+    pid: child.pid,
+    mode: body.commit ? "sync" : "dry-run",
+    entities: entities.length ? entities : "default",
+    credentialSource: credentials.entryName ? `vault:${credentials.entryName}` : "vault",
+    logFile,
+  };
+}
+
+function tailLog(filePath, maxBytes = 65536) {
+  const log = tailTextFile(filePath, maxBytes);
+  return {
+    ...log,
+    path: path.relative(__dirname, log.path).replaceAll("\\", "/"),
+  };
+}
+
+function safeResult(result, fallback) {
+  return result.status === "fulfilled" ? result.value : { error: result.reason?.message || String(result.reason || "Unknown error"), ...fallback };
+}
+
+function processDiagnostics() {
+  return {
+    pid: process.pid,
+    node: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    uptimeSeconds: Math.round(process.uptime()),
+    startedAt: applicationStartedAt,
+    memory: process.memoryUsage(),
+    cwd: __dirname,
+  };
+}
+
+async function buildMonitorDiagnostics(limit = 120) {
+  const maxEvents = Math.min(Math.max(Number(limit) || 120, 1), 200);
+  const credentials = credentialVault.cvApiFromVault();
+  const [health, source, mirror, git] = await Promise.allSettled([
+    getIntegrationHealthSnapshot({ force: true }),
+    sourceBackend.getStatus(),
+    zenMirrorWorker.status(),
+    Promise.resolve(gitUpdateChecker.getStatus()),
+  ]);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    service: "optilens-local",
+    process: processDiagnostics(),
+    health: safeResult(health, { service: "health" }),
+    sourceBackend: safeResult(source, { service: "source-backend" }),
+    zenMirror: safeResult(mirror, { service: "zen-mirror" }),
+    innovationsSync: {
+      status: safeResult(health, {}).innovationsSync || null,
+      credentialsConfigured: !!credentials,
+      credentialEntry: credentials?.entryName || null,
+      events: innovationsSyncLog.readRecent(maxEvents),
+      cliLog: tailLog(path.join(dataDir, "logs", "innovations-sync-cli.log"), 65536),
+    },
+    liveGateway: liveGatewayStatus(),
+    updates: {
+      status: safeResult(git, { service: "git-updates" }),
+      logs: readUpdateLogs().logs,
+    },
+    hostLogs: [
+      tailLog(path.join(dataDir, "watchdog.log"), 65536),
+      tailLog(path.join(dataDir, "local-update.log"), 65536),
+      tailLog(path.join(__dirname, "server.err.log"), 65536),
+    ],
+  };
+}
+
+async function buildAiDiagnosticsContext(limit = 120) {
+  const diagnostics = await buildMonitorDiagnostics(limit);
+  return {
+    generatedAt: diagnostics.generatedAt,
+    purpose: "Read-only operational diagnostics context for answering OptiLens Local error and uptime questions.",
+    safety: {
+      readOnly: true,
+      secretsIncluded: false,
+      databaseWriteAccess: false,
+      directSourceWriteAccess: false,
+    },
+    howToUse: [
+      "Use health states, recent sync events, mirror worker state, and log tails to explain current failures.",
+      "Do not infer missing credentials or private payload values; report missing or redacted fields as unavailable.",
+      "Recommend write actions only as operator steps; this endpoint does not perform changes.",
+    ],
+    diagnostics,
+  };
 }
 
 function getLiveGatewayCredentials(token) {

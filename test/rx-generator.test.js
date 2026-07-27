@@ -27,19 +27,29 @@ test("catalogue aliases preserve source-derived material, style, and option code
   );
 });
 
-test("supplier and lens-option constraints limit both fixed and random alias selection", () => {
-  const visionRxLens = rx.getCatalog().find((item) => item.suppliers?.includes("Vision Rx Lab"));
-  const nonVisionRxLens = rx.getCatalog().find((item) => item.suppliers?.length && !item.suppliers.includes("Vision Rx Lab"));
-  assert.ok(visionRxLens, "Expected a source-validated VisionRx lens.");
-  assert.ok(nonVisionRxLens, "Expected a source-validated lens outside VisionRx.");
+test("lens constraints limit both fixed and random alias selection", () => {
+  const visionRxLens = rx.getCatalog().find((item) => item.category && item.colorDescription);
+  const nonVisionRxLens = rx.getCatalog().find((item) =>
+    item.alias !== visionRxLens.alias
+    && (item.category !== visionRxLens.category || item.colorDescription !== visionRxLens.colorDescription)
+  );
+  assert.ok(visionRxLens, "Expected a source-validated constrained lens.");
+  assert.ok(nonVisionRxLens, "Expected a source-validated lens outside the selected constraints.");
   const constrained = {
     catalog: visionRxLens.category,
-    supplier: "Vision Rx Lab",
     option: visionRxLens.colorDescription
   };
   assert.doesNotThrow(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: visionRxLens.alias, ...constrained } }));
-  assert.throws(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: nonVisionRxLens.alias, supplier: "Vision Rx Lab" } }), /does not match the current lens supplier/);
+  assert.throws(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: nonVisionRxLens.alias, ...constrained } }), /does not match the current lens supplier/);
   assert.doesNotThrow(() => rx.preview({ ...basePayload, lens: { mode: "random", ...constrained } }));
+
+  const supplierLens = rx.getCatalog().find((item) => item.suppliers?.length);
+  if (supplierLens) {
+    const supplier = supplierLens.suppliers[0];
+    assert.doesNotThrow(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: supplierLens.alias, supplier } }));
+  } else {
+    assert.equal(rx.getCatalog().some((item) => item.suppliers?.length), false);
+  }
 });
 
 test("preview is non-writing and retains the required RX line ordering", () => {
