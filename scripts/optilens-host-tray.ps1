@@ -20,7 +20,7 @@ $form.Text = "OptiLens Local Host Monitor"
 $form.ClientSize = New-Object System.Drawing.Size(760, 500)
 $form.MinimumSize = New-Object System.Drawing.Size(620, 380)
 $form.StartPosition = "CenterScreen"
-$form.ShowInTaskbar = $false
+$form.ShowInTaskbar = $true
 
 $heading = New-Object System.Windows.Forms.Label
 $heading.Text = "OptiLens Local Host Monitor"
@@ -84,12 +84,15 @@ $sourceParity.AutoSize = $true
 $sourcePanel.Controls.Add($sourceParity)
 $sourceLiveButton = New-Object System.Windows.Forms.Button
 $sourceLiveButton.Text = "Use live MSSQL"
+$sourceLiveButton.Width = 120
 $sourcePanel.Controls.Add($sourceLiveButton)
 $sourceMirrorButton = New-Object System.Windows.Forms.Button
 $sourceMirrorButton.Text = "Use mirror"
+$sourceMirrorButton.Width = 100
 $sourcePanel.Controls.Add($sourceMirrorButton)
 $sourceSyncButton = New-Object System.Windows.Forms.Button
 $sourceSyncButton.Text = "Sync mirror now"
+$sourceSyncButton.Width = 120
 $sourcePanel.Controls.Add($sourceSyncButton)
 $sourceMessage = New-Object System.Windows.Forms.Label
 $sourceMessage.AutoSize = $true
@@ -174,12 +177,14 @@ $resultBox.Multiline = $true
 $resultBox.ReadOnly = $true
 $resultBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
 $resultBox.Dock = [System.Windows.Forms.DockStyle]::Fill
+$resultBox.Text = "Self-test and sync results will appear here."
 $outputSplit.Panel1.Controls.Add($resultBox)
 $logsBox = New-Object System.Windows.Forms.TextBox
 $logsBox.Multiline = $true
 $logsBox.ReadOnly = $true
 $logsBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
 $logsBox.Dock = [System.Windows.Forms.DockStyle]::Fill
+$logsBox.Text = "Loading sync logs…"
 $outputSplit.Panel2.Controls.Add($logsBox)
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -258,10 +263,11 @@ function Update-SourceBackend {
         $sourceParity.ForeColor = if ($status.parity -and $status.parity.Count) { [System.Drawing.Color]::DarkGoldenrod } else { [System.Drawing.Color]::ForestGreen }
         $sourceLiveButton.Enabled = $status.active -ne "live"
         $sourceMirrorButton.Enabled = $status.active -ne "mirror"
-        $sourceMessage.Text = @("live", "mirror") | ForEach-Object {
+        $profileDetails = @("live", "mirror") | ForEach-Object {
             $profile = $status.profiles.PSObject.Properties[$_].Value
             if ($profile) { "$($_): $($profile.detail)" }
-        } -join " | "
+        }
+        $sourceMessage.Text = ($profileDetails -join " | ")
     } catch { $sourceActive.Text = "Source backend unavailable: $($_.Exception.Message)"; $sourceActive.ForeColor = [System.Drawing.Color]::Firebrick }
 }
 

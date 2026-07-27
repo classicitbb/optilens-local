@@ -1,7 +1,5 @@
 param(
-    [string]$Url = "http://192.168.254.9:8080/",
-    [string]$Name = "OptiLens Local",
-    [int]$Port = 8080,
+    [string]$Name = "OptiLens Local Host Monitor",
     [string]$ProjectRoot = "",
     [switch]$PublicDesktop
 )
@@ -17,17 +15,18 @@ $desktopPath = if ($PublicDesktop) {
 }
 
 $shortcutPath = Join-Path $desktopPath "$Name.lnk"
-$powerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-$launcherScript = Join-Path $PSScriptRoot "launch-app.ps1"
+$monitorExe = Join-Path $ProjectRoot "OptiLensHostMonitor.exe"
+if (-not (Test-Path $monitorExe)) {
+    & (Join-Path $PSScriptRoot "build-monitor-exe.ps1") -ProjectRoot $ProjectRoot
+}
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = $powerShell
-$shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launcherScript`" -ProjectRoot `"$ProjectRoot`" -Port $Port -Url `"$Url`""
+$shortcut.TargetPath = $monitorExe
 $shortcut.WorkingDirectory = $ProjectRoot
-$shortcut.WindowStyle = 7
+$shortcut.WindowStyle = 1
 $shortcut.IconLocation = "$env:SystemRoot\System32\SHELL32.dll,220"
-$shortcut.Description = "Start OptiLens Local services and open the app."
+$shortcut.Description = "Start the OptiLens Local Host Monitor."
 $shortcut.Save()
 
 Write-Host "Created $shortcutPath"

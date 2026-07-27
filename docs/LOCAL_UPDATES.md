@@ -24,6 +24,6 @@ The app starts a lightweight host-side watchdog automatically. It checks `/api/h
 
 The Node service, watchdog, update runner, and sync workers remain hidden background processes. The tray monitor is the intentional interactive surface for a host operator: `npm run app:tray` starts in the tray, and the status window opens from the tray menu or double-click. The tray icon shows green, warning, or error state for each connection and can independently restart or stop OptiLens Local. Run `npm run app:tray:startup` once from the host operator's Windows session to launch that monitor silently at sign-in; it is separate from the background service and does not keep the app alive.
 
-Use `npm run app:launch` or a shortcut created by `scripts/create-desktop-shortcut.ps1` for the normal workstation launcher. It silently ensures the Node host and watchdog are running, starts the tray monitor, and opens the app URL.
+Use the desktop shortcut created by `scripts/create-desktop-shortcut.ps1` (or `npm run app:monitor:shortcut`) to launch the taskbar-visible `OptiLensHostMonitor.exe`. It starts without an open PowerShell window and can be closed from the taskbar. Use the local service/taskbar workflow to open the web UI separately.
 
 Updates do not run source-system imports, exports, or write-back jobs automatically. Those operations remain explicit because they can act on business data outside the application itself.
