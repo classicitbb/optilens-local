@@ -1,17 +1,50 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { summarizeEntities, trim } = require('../lib/innovations-sync-log');
-const { ENTITIES, normalizeEntitySelection } = require('../lib/innovations-sync');
+const { ENTITIES, normalizeEntitySelection, fetchWithRetry, acquireSyncLock } = require('../lib/innovations-sync');
 
 test('sync log summaries preserve counts but cap diagnostic text', () => {
   const result = summarizeEntities({
     customers: { ok: false, read: 3, received: 2, upserted: 1, failed: 1, batches: 1, error: 'x'.repeat(600) },
   });
-  assert.deepEqual({ ...result.customers, error: undefined }, {
-    ok: false, read: 3, received: 2, upserted: 1, failed: 1, batches: 1, error: undefined,
+  assert.deepEqual({ ...result.customers, error: undefined, warnings: undefined, durationMs: undefined }, {
+    ok: false, read: 3, received: 2, upserted: 1, failed: 1, batches: 1, error: undefined, warnings: undefined, durationMs: undefined,
   });
   assert.equal(result.customers.error.length, 500);
   assert.equal(trim('a\nb'), 'a b');
+});
+
+test('sync fetch retries transient receiver failures', async () => {
+  let attempts = 0;
+  const response = await fetchWithRetry('https://example.test/sync', {}, {
+    retries: 1,
+    timeoutMs: 1,
+    fetchImpl: async () => {
+      attempts += 1;
+      return { status: attempts === 1 ? 500 : 200, ok: attempts > 1 };
+    },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(attempts, 2);
+});
+
+test('sync lock prevents overlapping local sync processes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'optilens-sync-lock-'));
+  const lockFile = path.join(dir, 'sync.lock');
+  const first = acquireSyncLock({ lockFile, staleMs: 60000 });
+  const second = acquireSyncLock({ lockFile, staleMs: 60000 });
+  try {
+    assert.equal(first.acquired, true);
+    assert.equal(second.acquired, false);
+    assert.equal(fs.existsSync(lockFile), true);
+  } finally {
+    second.release();
+    first.release();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('statement sync selection automatically includes statement lines in dependency order', () => {

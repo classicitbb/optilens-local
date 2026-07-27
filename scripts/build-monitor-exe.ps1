@@ -10,6 +10,8 @@ if (-not (Test-Path $compiler)) { throw "Microsoft .NET Framework C# compiler wa
 
 $source = Join-Path $PSScriptRoot "OptiLensHostMonitorLauncher.cs"
 $output = Join-Path $ProjectRoot "OptiLensHostMonitor.exe"
-& $compiler /nologo /target:winexe /optimize+ /out:$output $source
+$icon = Join-Path $ProjectRoot "OptiLensHostMonitor.ico"
+& (Join-Path $PSScriptRoot "build-monitor-icon.ps1") -Output $icon
+& $compiler /nologo /target:winexe /optimize+ /win32icon:$icon /out:$output /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Net.Http.dll /reference:System.Web.Extensions.dll $source
 if ($LASTEXITCODE -ne 0) { throw "Monitor EXE compilation failed with exit code $LASTEXITCODE." }
 Write-Host "Built $output"
