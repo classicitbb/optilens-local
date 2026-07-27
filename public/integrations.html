@@ -9,17 +9,10 @@
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/integrations.css">
-
 </head>
 <body class="module-body">
-
   <div id="app-shell-header"></div>
-<script>
-  window.OptiLensPage = {
-    crumb: "Integrations"
-  };
-</script>
-
+  <script>window.OptiLensPage = { crumb: "Integrations" };</script>
 
   <main class="module-main">
     <section class="module-workspace">
@@ -28,7 +21,11 @@
           <p class="eyebrow">Data connectors</p>
           <h1>Integrations</h1>
         </div>
-        <span class="badge planned">Planned</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center" aria-label="Integration health">
+          <span id="headerSourceLive" class="badge planned">Live MSSQL …</span>
+          <span id="headerSourceMirror" class="badge planned">Zen mirror …</span>
+          <span id="headerSync" class="badge planned">CV sync …</span>
+        </div>
       </div>
 
       <nav class="workflow-tabs" aria-label="Integration tabs">
@@ -41,53 +38,37 @@
           <article>
             <span class="icon" style="background:#1A8A9C">SQL</span>
             <h3>MSSQL — Innovations</h3>
-            <p>Source shipment, customer, and product data via SQL Server. Credentials stored in the secure credentials vault.</p>
-            <span class="badge credentials-needed">Credentials needed</span>
+            <p>Read-only vendor source for customer, shipment, order, and product data. Health and source selection are controlled from the host monitor.</p>
+            <span class="badge open">Monitor controlled</span>
           </article>
-          <article class="source-backend-card">
+          <article>
             <span class="icon" style="background:#0f766e">SRC</span>
-            <h3>Innovations source backend</h3>
-            <p>Switch approved read-only consumers between vendor MSSQL and the Zen-fed mirror after health and row-count checks.</p>
-            <div class="source-backend-status">
-              <span id="sourceBackendActive" class="badge planned">Checking...</span>
-              <span id="sourceBackendParity" class="sync-help"></span>
-            </div>
-            <div id="sourceBackendProfiles" class="source-profile-grid"></div>
-            <div class="sync-row">
-              <button class="btn" id="sourceSwitchLiveBtn" type="button">Use live MSSQL</button>
-              <button class="btn btn-primary" id="sourceSwitchMirrorBtn" type="button">Use mirror</button>
-              <button class="btn" id="mirrorSyncBtn" type="button">Sync mirror now</button>
-            </div>
-            <p id="sourceBackendMessage" class="sync-help" role="status" aria-live="polite"></p>
+            <h3>Innovations source</h3>
+            <p>Live MSSQL and the Zen-fed mirror are the two approved read-only backends. Use the monitor for parity checks, switching, and mirror sync.</p>
+            <span class="badge open">Monitor controlled</span>
           </article>
           <article>
             <span class="icon" style="background:#389457">PG</span>
             <h3>PSQL — Innovations</h3>
-            <p>Shipments and ShipmentItems identified. Read-only connector for source shipped flag and export records.</p>
+            <p>Read-only shipment and ShipmentItems source used for shipped-state and export checks.</p>
             <span class="badge open">Discovered</span>
           </article>
           <article>
-            <span class="icon" style="background:#C89130">MDB</span>
-            <h3>Access — CV_Accounts_be</h3>
-            <p>Historic customer and delivery archive from the Access backend. Import dry-run available in Settings.</p>
-            <span class="badge ready-for-import">Ready for import</span>
-          </article>
-          <article>
             <span class="icon" style="background:#7c3aed">API</span>
-            <h3>Website API</h3>
-            <p>Price list and product catalog sync with the public website. Pushes approved price changes via REST.</p>
-            <span class="badge planned">Planned</span>
+            <h3>Classic Visions sync</h3>
+            <p>Credentials are read from the Credentials Vault. Dry runs, writes, self-test, and local logs are operated from the host monitor.</p>
+            <span class="badge open">Monitor controlled</span>
           </article>
           <article>
             <span class="icon" style="background:#4b5563">ODBC</span>
             <h3>ODBC DSNs</h3>
-            <p>Generic ODBC connector for any remaining legacy data sources. DSN configuration managed in Credentials.</p>
+            <p>Generic connector for remaining legacy sources. DSN configuration is managed in Credentials.</p>
             <span class="badge planned">Planned</span>
           </article>
           <article>
             <span class="icon" style="background:#b45309">CSV</span>
             <h3>File imports</h3>
-            <p>CSV, Excel, and text file ingestion from watched network folders. Configurable column mappings.</p>
+            <p>CSV, Excel, and text ingestion from watched network folders.</p>
             <span class="badge planned">Planned</span>
           </article>
         </div>
@@ -96,434 +77,48 @@
       <section class="workflow-panel" id="fileShares">
         <div class="placeholder-pane">File share monitoring and folder-based ingestion will be configured here once the integration layer is active.</div>
       </section>
-
     </section>
   </main>
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
   <script>
-    document.querySelectorAll(".workflow-tabs button").forEach(btn => {
+    document.querySelectorAll(".workflow-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
-        document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
+        document.querySelectorAll(".workflow-tabs button").forEach((b) => b.classList.toggle("active", b === btn));
+        document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === btn.dataset.tab));
       });
     });
 
-    // ── Innovations source backend switch ─────────────────────────────────
     (function () {
-      const activeEl = document.getElementById("sourceBackendActive");
-      const parityEl = document.getElementById("sourceBackendParity");
-      const profilesEl = document.getElementById("sourceBackendProfiles");
-      const messageEl = document.getElementById("sourceBackendMessage");
-      const liveBtn = document.getElementById("sourceSwitchLiveBtn");
-      const mirrorBtn = document.getElementById("sourceSwitchMirrorBtn");
-      const syncBtn = document.getElementById("mirrorSyncBtn");
-      if (!activeEl || !profilesEl) return;
-
-      let latest = null;
-      let forceTarget = "";
-      let forceTimer = null;
-
-      const profileLabel = { live: "Live MSSQL", mirror: "Zen mirror" };
-      const badgeClass = (state) => state === "online" ? "ready-for-import" : state === "credentials-needed" ? "credentials-needed" : "planned";
-
-      function renderProfile(profile, item) {
-        const counts = item?.counts
-          ? `${Number(item.counts.customers || 0).toLocaleString()} customers · ${Number(item.counts.shipments || 0).toLocaleString()} shipments · ${Number(item.counts.orders || 0).toLocaleString()} orders`
-          : "";
-        return `<div class="source-profile">
-          <div class="source-profile-head">
-            <strong>${profileLabel[profile] || profile}</strong>
-            <span class="badge ${badgeClass(item?.state)}">${item?.state || "unknown"}</span>
-          </div>
-          <p>${item?.detail || "Not checked yet."}</p>
-          ${counts ? `<p class="sync-help">${counts}</p>` : ""}
-        </div>`;
-      }
-
-      function renderStatus(data) {
-        latest = data;
-        activeEl.textContent = `Active: ${profileLabel[data.active] || data.active}`;
-        activeEl.className = "badge " + (data.active === "mirror" ? "ready-for-import" : "open");
-        const parity = data.parity || [];
-        parityEl.textContent = parity.length ? `Parity warning: ${parity.join("; ")}` : "Live and mirror row-count parity is within tolerance.";
-        profilesEl.innerHTML = ["live", "mirror"].map((profile) => renderProfile(profile, data.profiles?.[profile] || { profile })).join("");
-        liveBtn.disabled = data.active === "live";
-        mirrorBtn.disabled = data.active === "mirror";
-      }
-
-      async function loadSourceBackendStatus() {
-        try {
-          const response = await fetch("/api/connectors/source-backend");
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Source backend status unavailable");
-          renderStatus(body);
-        } catch (error) {
-          activeEl.textContent = "Status unavailable";
-          activeEl.className = "badge credentials-needed";
-          messageEl.textContent = error.message || String(error);
-        }
-      }
-
-      async function switchSource(target) {
-        const parity = latest?.parity || [];
-        const force = forceTarget === target;
-        if (parity.length && !force) {
-          forceTarget = target;
-          messageEl.textContent = `Parity warning detected. Click "${target === "mirror" ? "Use mirror" : "Use live MSSQL"}" again within 8 seconds to force the switch.`;
-          clearTimeout(forceTimer);
-          forceTimer = setTimeout(() => {
-            forceTarget = "";
-            messageEl.textContent = "";
-          }, 8000);
-          return;
-        }
-
-        liveBtn.disabled = mirrorBtn.disabled = true;
-        messageEl.textContent = `Switching source backend to ${profileLabel[target] || target}...`;
-        try {
-          const response = await fetch("/api/connectors/source-backend/switch", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ target, force })
-          });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Switch failed");
-          forceTarget = "";
-          messageEl.textContent = body.switched ? `Source backend switched from ${body.from} to ${body.active}.` : body.detail;
-          await loadSourceBackendStatus();
-        } catch (error) {
-          messageEl.textContent = error.message || String(error);
-          await loadSourceBackendStatus();
-        }
-      }
-
-      async function startMirrorSync() {
-        syncBtn.disabled = true;
-        messageEl.textContent = "Mirror sync queued. Polling status...";
-        try {
-          const response = await fetch("/api/connectors/zen-mirror/sync", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ full: false })
-          });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Could not start mirror sync");
-          setTimeout(loadSourceBackendStatus, 2000);
-        } catch (error) {
-          messageEl.textContent = error.message || String(error);
-        } finally {
-          setTimeout(() => { syncBtn.disabled = false; }, 5000);
-        }
-      }
-
-      liveBtn.addEventListener("click", () => switchSource("live"));
-      mirrorBtn.addEventListener("click", () => switchSource("mirror"));
-      syncBtn.addEventListener("click", startMirrorSync);
-      loadSourceBackendStatus();
-      setInterval(loadSourceBackendStatus, 30000);
-    })();
-
-    // ── Innovations → Classic Visions sync console ──────────────────────────
-    (function () {
-      const passEl = document.getElementById("syncPass");
-      const statusEl = document.getElementById("syncStatus");
-      const resultEl = document.getElementById("syncResult");
-      const summaryEl = document.getElementById("syncEntitySummary");
-      const dryBtn = document.getElementById("syncDryBtn");
-      const runBtn = document.getElementById("syncRunBtn");
-      const dependencyHelpEl = document.getElementById("syncDependencyHelp");
-      const gatewayStartBtn = document.getElementById("gatewayStartBtn");
-      const gatewayStopBtn = document.getElementById("gatewayStopBtn");
-      const gatewayStatusEl = document.getElementById("gatewayStatus");
-      const gatewayDetailEl = document.getElementById("gatewayDetail");
-      if (!dryBtn) return;
-
-      const setStatus = (text, kind) => { statusEl.textContent = text; statusEl.className = "badge " + (kind || ""); };
-      const entityLabel = {
-        customers: "Customers",
-        contacts: "Contacts",
-        balances: "Balances",
-        order_activity: "Order activity",
-        statements: "Statements",
-        statement_lines: "Statement lines"
+      const liveEl = document.getElementById("headerSourceLive");
+      const mirrorEl = document.getElementById("headerSourceMirror");
+      const syncEl = document.getElementById("headerSync");
+      const setBadge = (el, label, state) => {
+        if (!el) return;
+        el.textContent = `${label} ${state || "unknown"}`;
+        el.className = "badge " + (state === "online" ? "ready-for-import" : state === "warning" ? "credentials-needed" : "planned");
       };
-      const orderedEntities = ["customers", "contacts", "balances", "order_activity", "statements", "statement_lines"];
-      const entities = () => {
-        const selected = new Set([...document.querySelectorAll(".sync-entity:checked")].map(c => c.value));
-        if (selected.has("statements")) selected.add("statement_lines");
-        return orderedEntities.filter((entity) => selected.has(entity));
-      };
-      const syncEntityCheckboxes = [...document.querySelectorAll(".sync-entity")];
-      function enforceStatementLineDependency() {
-        const statementsBox = syncEntityCheckboxes.find((box) => box.value === "statements");
-        const linesBox = syncEntityCheckboxes.find((box) => box.value === "statement_lines");
-        if (statementsBox?.checked && linesBox) linesBox.checked = true;
-        if (dependencyHelpEl) dependencyHelpEl.hidden = !(statementsBox?.checked);
-      }
-      syncEntityCheckboxes.forEach((box) => box.addEventListener("change", enforceStatementLineDependency));
-      enforceStatementLineDependency();
-
-      function renderEntitySummary(result) {
-        if (!summaryEl) return;
-        const rows = orderedEntities
-          .filter((entity) => result?.entities?.[entity])
-          .map((entity) => {
-            const item = result.entities[entity];
-            return `<tr>
-              <td>${entityLabel[entity] || entity}</td>
-              <td>${item.ok ? "OK" : "Issue"}</td>
-              <td>${item.read ?? 0}</td>
-              <td>${item.received ?? 0}</td>
-              <td>${item.upserted ?? 0}</td>
-              <td>${item.failed ?? 0}</td>
-            </tr>`;
-          });
-        if (!rows.length) {
-          summaryEl.hidden = true;
-          summaryEl.innerHTML = "";
-          return;
-        }
-        summaryEl.hidden = false;
-        summaryEl.innerHTML = `<table class="sync-table">
-          <thead><tr><th>Entity</th><th>Status</th><th>Read</th><th>Received</th><th>Upserted</th><th>Failed</th></tr></thead>
-          <tbody>${rows.join("")}</tbody>
-        </table>`;
-      }
-
-      // Vault unlock with session-scoped token caching: the passphrase is used
-      // once and never stored; only the short-lived unlock token is kept, in
-      // sessionStorage, so it dies with the tab.
-      const TOKEN_KEY = "optilens.vaultToken";
-      const rememberEl = document.getElementById("syncRemember");
-      function forgetVaultToken() { sessionStorage.removeItem(TOKEN_KEY); }
-      async function unlockVault() {
-        const cached = sessionStorage.getItem(TOKEN_KEY);
-        if (cached) return cached;
-        const passphrase = passEl.value.trim();
-        if (!passphrase) { passEl.focus(); throw new Error("Enter the vault passphrase"); }
-        const response = await fetch("/api/connectors/unlock", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ passphrase })
-        });
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok || !body.token) throw new Error(body.error || "Unlock failed");
-        if (rememberEl?.checked) sessionStorage.setItem(TOKEN_KEY, body.token);
-        return body.token;
-      }
-
-      const gatewayBuildEl = document.getElementById("gatewayBuild");
-      function renderGatewayStatus(status) {
-        const online = !!status.running && !status.lastError;
-        const autostart = status.autostart?.enabled
-          ? ` · auto-start ${status.autostart.source === "environment" ? "via service environment" : "protected on this Windows account"}`
-          : "";
-        gatewayStatusEl.textContent = online ? "Live · connected" : status.running ? "Starting / retrying" : "Stopped";
-        gatewayStatusEl.className = "badge " + (online ? "ready-for-import" : status.running ? "credentials-needed" : "planned");
-        if (gatewayBuildEl) gatewayBuildEl.textContent = status.localBuild ? `build ${status.localBuild} · agent ${status.agentVersion || ""}` : "";
-        gatewayDetailEl.textContent = status.lastError
-          ? `Latest connection message: ${status.lastError}`
-          : status.lastSeenAt
-            ? `Last cloud heartbeat ${new Date(status.lastSeenAt).toLocaleString()} · ${status.processed || 0} requests delivered.${autostart}`
-            : `The gateway sends only control heartbeats until CV Web requests customer data.${autostart}`;
-        gatewayStartBtn.disabled = !!status.running;
-        gatewayStopBtn.disabled = !status.running;
-      }
-
-      async function loadGatewayStatus() {
+      async function refreshHeaderIndicators() {
         try {
-          const response = await fetch("/api/connectors/live-gateway/status");
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Status unavailable");
-          renderGatewayStatus(body);
-        } catch (error) {
-          gatewayStatusEl.textContent = "Status unavailable";
-          gatewayStatusEl.className = "badge credentials-needed";
-          gatewayDetailEl.textContent = error.message || String(error);
+          const [sourceResponse, healthResponse] = await Promise.all([
+            fetch("/api/connectors/source-backend"),
+            fetch("/api/health")
+          ]);
+          const source = await sourceResponse.json().catch(() => ({}));
+          const health = await healthResponse.json().catch(() => ({}));
+          setBadge(liveEl, "Live MSSQL", source.profiles?.live?.state || "unknown");
+          setBadge(mirrorEl, "Zen mirror", source.profiles?.mirror?.state || "unknown");
+          setBadge(syncEl, "CV sync", health.innovationsSync?.state || "unknown");
+        } catch {
+          setBadge(liveEl, "Live MSSQL", "offline");
+          setBadge(mirrorEl, "Zen mirror", "offline");
+          setBadge(syncEl, "CV sync", "offline");
         }
       }
-
-      gatewayStartBtn.addEventListener("click", async () => {
-        gatewayStartBtn.disabled = true;
-        try {
-          const token = await unlockVault();
-          const response = await fetch("/api/connectors/live-gateway/start", {
-            method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ token })
-          });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Could not start the gateway");
-          renderGatewayStatus(body);
-          setTimeout(loadGatewayStatus, 1200);
-        } catch (error) {
-          gatewayStatusEl.textContent = "Could not start";
-          gatewayStatusEl.className = "badge credentials-needed";
-          gatewayDetailEl.textContent = error.message || String(error);
-          gatewayStartBtn.disabled = false;
-        } finally {
-          passEl.value = "";
-        }
-      });
-
-      gatewayStopBtn.addEventListener("click", async () => {
-        gatewayStopBtn.disabled = true;
-        try {
-          const response = await fetch("/api/connectors/live-gateway/stop", { method: "POST" });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Could not stop the gateway");
-          renderGatewayStatus(body);
-        } catch (error) {
-          gatewayDetailEl.textContent = error.message || String(error);
-        }
-      });
-
-      loadGatewayStatus();
-      setInterval(loadGatewayStatus, 10000);
-
-      // ── Gateway self-test: one click walks the whole chain (build, worker,
-      //    both databases + freshness, cloud auth, and a per-account dry run
-      //    of the orders + deliveries operations). ─────────────────────────
-      const selftestBtn = document.getElementById("selftestBtn");
-      const selftestResultEl = document.getElementById("selftestResult");
-      selftestBtn?.addEventListener("click", async () => {
-        selftestBtn.disabled = true;
-        selftestResultEl.hidden = false;
-        selftestResultEl.textContent = "Running self-test…";
-        try {
-          let token = null;
-          try { token = await unlockVault(); } catch { /* cloud-auth step will report it */ }
-          const response = await fetch("/api/connectors/live-gateway/selftest", {
-            method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ token, account: document.getElementById("selftestAccount")?.value?.trim() || "" })
-          });
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
-          selftestResultEl.textContent = (body.steps || [])
-            .map((step) => `${step.ok ? "✔" : "✘"} ${step.name}: ${step.detail}`)
-            .join("\n") + `\n\n${body.ok ? "ALL CHECKS PASSED" : "FAILURES ABOVE — fix the first ✘ and re-run"} · ${body.ran_at || ""}`;
-        } catch (error) {
-          selftestResultEl.textContent = "Self-test failed to run: " + (error.message || error);
-        } finally {
-          selftestBtn.disabled = false;
-        }
-      });
-
-      const logsBtn = document.getElementById("syncLogsRefreshBtn");
-      const logsEl = document.getElementById("syncLogsResult");
-      async function loadSyncLogs() {
-        if (!logsEl) return;
-        logsEl.textContent = "Loading sync logs...";
-        try {
-          const response = await fetch("/api/connectors/innovations-sync/logs?limit=80");
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(body.error || "Logs unavailable");
-          logsEl.textContent = (body.events || []).map((event) => {
-            // Entries are written with an `at` ISO timestamp plus arbitrary
-            // run-metadata fields alongside `event` — show all of it.
-            const { at, ts, event: name, payload, ...rest } = event;
-            const stamp = at || ts;
-            const when = stamp ? new Date(stamp).toLocaleString() : "(no time)";
-            const detail = payload ?? (Object.keys(rest).length ? rest : "");
-            return `${when}  ${name || ""}  ${detail ? JSON.stringify(detail) : ""}`.trimEnd();
-          }).join("\n") || "No local sync events have been recorded yet.";
-        } catch (error) {
-          logsEl.textContent = error.message || String(error);
-        }
-      }
-      logsBtn?.addEventListener("click", loadSyncLogs);
-      loadSyncLogs();
-
-      async function run(commit) {
-        const ents = entities();
-        if (!ents.length) { setStatus("Pick at least one entity", "credentials-needed"); return; }
-
-        dryBtn.disabled = runBtn.disabled = true;
-        setStatus(commit ? "Syncing…" : "Dry running…", "open");
-        resultEl.hidden = true;
-        if (summaryEl) summaryEl.hidden = true;
-        try {
-          let token;
-          try {
-            token = await unlockVault();
-          } catch (unlockErr) {
-            setStatus(unlockErr.message || "Unlock failed", "credentials-needed");
-            return;
-          }
-
-          let r = await fetch("/api/connectors/innovations-sync/run", {
-            method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
-          });
-          // A cached token can expire between runs — forget it and retry once
-          // with a fresh unlock if the passphrase is still in the field.
-          if (r.status === 401 || r.status === 403) {
-            forgetVaultToken();
-            try {
-              token = await unlockVault();
-              r = await fetch("/api/connectors/innovations-sync/run", {
-                method: "POST", headers: { "content-type": "application/json" },
-                body: JSON.stringify({ token, commit, entities: ents, suppressStatementEmails: document.getElementById("syncSuppressEmails").checked })
-              });
-            } catch {
-              setStatus("Vault token expired — enter the passphrase again", "credentials-needed");
-              return;
-            }
-          }
-          const rj = await r.json().catch(() => ({}));
-          resultEl.hidden = false;
-          resultEl.textContent = JSON.stringify(rj, null, 2);
-          renderEntitySummary(rj);
-          if (!r.ok) { setStatus(rj.error || ("HTTP " + r.status), "credentials-needed"); return; }
-          setStatus((rj.dryRun ? "Dry run · " : "Synced · ") + (rj.ok ? "all ok" : "issues"),
-            rj.ok ? "ready-for-import" : "credentials-needed");
-          renderLastRun(rj, ents);
-          loadSyncLogs();
-        } catch (e) {
-          setStatus("Failed: " + (e.message || e), "credentials-needed");
-        } finally {
-          dryBtn.disabled = runBtn.disabled = false;
-          passEl.value = "";
-        }
-      }
-
-      const lastRunEl = document.getElementById("syncLastRun");
-      function renderLastRun(result, ents) {
-        if (!lastRunEl) return;
-        const totals = ents.reduce((acc, entity) => {
-          const item = result?.entities?.[entity];
-          if (!item) return acc;
-          acc.upserted += Number(item.upserted || 0);
-          acc.failed += Number(item.failed || 0);
-          return acc;
-        }, { upserted: 0, failed: 0 });
-        const mode = result?.dryRun ? "Dry run" : "Write sync";
-        lastRunEl.textContent = `${mode} finished ${new Date().toLocaleString()} · ${ents.map((e) => entityLabel[e] || e).join(", ")} · ${totals.upserted} upserted, ${totals.failed} failed. Detail is in the Sync logs tab.`;
-      }
-
-      dryBtn.addEventListener("click", () => run(false));
-      // Two-step inline confirmation (no native confirm() — it blocks the page
-      // for assistive tech and automation alike).
-      let armTimer = null;
-      runBtn.addEventListener("click", () => {
-        if (runBtn.dataset.armed === "1") {
-          clearTimeout(armTimer);
-          runBtn.dataset.armed = "";
-          runBtn.textContent = "Sync now (write)";
-          run(true);
-          return;
-        }
-        runBtn.dataset.armed = "1";
-        runBtn.textContent = "Click again to confirm write";
-        armTimer = setTimeout(() => {
-          runBtn.dataset.armed = "";
-          runBtn.textContent = "Sync now (write)";
-        }, 6000);
-      });
+      refreshHeaderIndicators();
+      setInterval(refreshHeaderIndicators, 30000);
     })();
   </script>
 </body>
 </html>
-
-
-

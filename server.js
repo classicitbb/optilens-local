@@ -2195,6 +2195,30 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/monitor/source-backend" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return sourceBackend.getStatus();
+    });
+  }
+
+  if (url.pathname === "/api/monitor/source-backend/switch" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      return sourceBackend.switchTo(body.target, { force: !!body.force, actorUserId: "local-monitor" });
+    });
+  }
+
+  if (url.pathname === "/api/monitor/zen-mirror/sync" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      zenMirrorWorker.runOnce({ full: !!body.full }).catch(() => {});
+      return { started: true, full: !!body.full };
+    });
+  }
+
   // ── On-demand CV Web live-data gateway ───────────────────────────────────
   // The worker makes outbound-only calls to CV Web and performs strictly
   // allow-listed reads against Innovations and the OptiLens app database.

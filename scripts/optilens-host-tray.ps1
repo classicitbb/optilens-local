@@ -45,6 +45,14 @@ $connectionsPage = New-Object System.Windows.Forms.TabPage
 $connectionsPage.Text = "Connections"
 $tabs.TabPages.Add($connectionsPage)
 
+$connectionsLayout = New-Object System.Windows.Forms.TableLayoutPanel
+$connectionsLayout.Dock = [System.Windows.Forms.DockStyle]::Fill
+$connectionsLayout.ColumnCount = 1
+$connectionsLayout.RowCount = 2
+$connectionsLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 65)))
+$connectionsLayout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 35)))
+$connectionsPage.Controls.Add($connectionsLayout)
+
 $list = New-Object System.Windows.Forms.ListView
 $list.View = [System.Windows.Forms.View]::Details
 $list.FullRowSelect = $true
@@ -53,7 +61,42 @@ $list.Dock = [System.Windows.Forms.DockStyle]::Fill
 [void]$list.Columns.Add("Connection", 230)
 [void]$list.Columns.Add("Status", 100)
 [void]$list.Columns.Add("Detail", 340)
-$connectionsPage.Controls.Add($list)
+$connectionsLayout.Controls.Add($list, 0, 0)
+
+$sourcePanel = New-Object System.Windows.Forms.FlowLayoutPanel
+$sourcePanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$sourcePanel.Padding = New-Object System.Windows.Forms.Padding(8)
+$sourcePanel.WrapContents = $true
+$sourcePanel.AutoScroll = $true
+$connectionsLayout.Controls.Add($sourcePanel, 0, 1)
+$sourceTitle = New-Object System.Windows.Forms.Label
+$sourceTitle.Text = "Innovations source backend"
+$sourceTitle.AutoSize = $true
+$sourceTitle.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$sourcePanel.Controls.Add($sourceTitle)
+$sourceActive = New-Object System.Windows.Forms.Label
+$sourceActive.Text = "Active: checking…"
+$sourceActive.AutoSize = $true
+$sourcePanel.Controls.Add($sourceActive)
+$sourceParity = New-Object System.Windows.Forms.Label
+$sourceParity.Text = ""
+$sourceParity.AutoSize = $true
+$sourcePanel.Controls.Add($sourceParity)
+$sourceLiveButton = New-Object System.Windows.Forms.Button
+$sourceLiveButton.Text = "Use live MSSQL"
+$sourcePanel.Controls.Add($sourceLiveButton)
+$sourceMirrorButton = New-Object System.Windows.Forms.Button
+$sourceMirrorButton.Text = "Use mirror"
+$sourcePanel.Controls.Add($sourceMirrorButton)
+$sourceSyncButton = New-Object System.Windows.Forms.Button
+$sourceSyncButton.Text = "Sync mirror now"
+$sourcePanel.Controls.Add($sourceSyncButton)
+$sourceMessage = New-Object System.Windows.Forms.Label
+$sourceMessage.AutoSize = $true
+$sourceMessage.Text = ""
+$sourcePanel.Controls.Add($sourceMessage)
+$script:sourceLatest = $null
+$script:sourceForceTarget = ""
 
 $syncPage = New-Object System.Windows.Forms.TabPage
 $syncPage.Text = "Innovations Sync"
@@ -193,6 +236,7 @@ function Update-HealthView {
         if ($null -ne $script:lastOverall -and $script:lastOverall -ne $overall) { $tray.ShowBalloonTip(4000, "OptiLens Local Host Monitor", $overall, [System.Windows.Forms.ToolTipIcon]::Info) }
         $script:lastOverall = $overall
         Update-SyncStatus
+        Update-SourceBackend
     } catch {
         $list.Items.Clear()
         $row = New-Object System.Windows.Forms.ListViewItem("OptiLens Local service")
@@ -203,6 +247,45 @@ function Update-HealthView {
         $summary.Text = "Service is not responding — watchdog will retry automatically."
         $summary.ForeColor = [System.Drawing.Color]::Firebrick
     }
+}
+
+function Update-SourceBackend {
+    try {
+        $status = Invoke-MonitorApi "/api/monitor/source-backend"
+        $script:sourceLatest = $status
+        $sourceActive.Text = "Active: $($status.active)"
+        $sourceParity.Text = if ($status.parity -and $status.parity.Count) { "Parity warning: $($status.parity -join '; ')" } else { "Live and mirror are within parity tolerance." }
+        $sourceParity.ForeColor = if ($status.parity -and $status.parity.Count) { [System.Drawing.Color]::DarkGoldenrod } else { [System.Drawing.Color]::ForestGreen }
+        $sourceLiveButton.Enabled = $status.active -ne "live"
+        $sourceMirrorButton.Enabled = $status.active -ne "mirror"
+        $sourceMessage.Text = @("live", "mirror") | ForEach-Object {
+            $profile = $status.profiles.PSObject.Properties[$_].Value
+            if ($profile) { "$($_): $($profile.detail)" }
+        } -join " | "
+    } catch { $sourceActive.Text = "Source backend unavailable: $($_.Exception.Message)"; $sourceActive.ForeColor = [System.Drawing.Color]::Firebrick }
+}
+
+function Switch-SourceBackend([string] $Target) {
+    $parity = @($script:sourceLatest.parity)
+    if ($parity.Count -and $script:sourceForceTarget -ne $Target) {
+        $script:sourceForceTarget = $Target
+        $sourceMessage.Text = "Parity warning detected. Click again to force switch to $Target."
+        return
+    }
+    try {
+        $sourceLiveButton.Enabled = $false; $sourceMirrorButton.Enabled = $false
+        $response = Invoke-MonitorApi "/api/monitor/source-backend/switch" "POST" @{ target = $Target; force = ($script:sourceForceTarget -eq $Target) }
+        $script:sourceForceTarget = ""
+        $sourceMessage.Text = if ($response.switched) { "Source switched to $($response.active)." } else { $response.detail }
+        Update-SourceBackend
+    } catch { $sourceMessage.Text = "Source switch failed: $($_.Exception.Message)"; Update-SourceBackend }
+}
+
+function Start-SourceMirrorSync {
+    $sourceSyncButton.Enabled = $false
+    try { [void](Invoke-MonitorApi "/api/monitor/zen-mirror/sync" "POST" @{ full = $false }); $sourceMessage.Text = "Mirror sync started; refreshing status…" }
+    catch { $sourceMessage.Text = "Mirror sync failed: $($_.Exception.Message)" }
+    finally { Start-Sleep -Milliseconds 500; $sourceSyncButton.Enabled = $true; Update-SourceBackend }
 }
 
 function Update-SyncStatus {
@@ -249,6 +332,9 @@ $selfTestButton.Add_Click({ Run-SelfTest })
 $dryRunButton.Add_Click({ Run-Sync $false })
 $syncButton.Add_Click({ Run-Sync $true })
 $refreshLogsButton.Add_Click({ Refresh-Logs })
+$sourceLiveButton.Add_Click({ Switch-SourceBackend "live" })
+$sourceMirrorButton.Add_Click({ Switch-SourceBackend "mirror" })
+$sourceSyncButton.Add_Click({ Start-SourceMirrorSync })
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = [Math]::Max(5, $RefreshSeconds) * 1000
 $timer.Add_Tick({ Update-HealthView })
