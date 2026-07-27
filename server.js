@@ -2185,7 +2185,7 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
       const body = await readJsonBody(req);
-      const credentials = body.token && plSecure.keyForToken(body.token) ? plSecure.getCvApi(body.token) : null;
+      const credentials = body.token && plSecure.keyForToken(body.token) ? getLiveGatewayCredentials(body.token) : null;
       return liveGatewayWorker.selfTest({ credentials, account: body.account });
     });
   }
@@ -2196,7 +2196,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const key = body.token && plSecure.keyForToken(body.token);
       if (!key) { const error = new Error("Locked — unlock the vault first."); error.statusCode = 401; throw error; }
-      const credentials = plSecure.getCvApi(body.token);
+      const credentials = getLiveGatewayCredentials(body.token);
       liveGatewayAutostart.save(credentials);
       liveGatewayWorker.start(credentials);
       return liveGatewayStatus();
@@ -2999,7 +2999,7 @@ function loadLiveGatewayStartupCredentials() {
     const token = plSecure.unlock(passphrase);
     if (!token) throw new Error("configured passphrase did not unlock the vault");
     try {
-      return { credentials: plSecure.getCvApi(token), source: "environment" };
+      return { credentials: getLiveGatewayCredentials(token), source: "environment" };
     } finally {
       plSecure.lock(token);
     }
@@ -3007,6 +3007,17 @@ function loadLiveGatewayStartupCredentials() {
 
   const credentials = liveGatewayAutostart.load();
   return credentials ? { credentials, source: "windows-protected-store" } : null;
+}
+
+function getLiveGatewayCredentials(token) {
+  const cv = plSecure.getCvApi(token);
+  const optilens = plSecure.getOptilens(token, { needService: false });
+  if (!optilens.anonKey) {
+    const error = new Error("Supabase project anon key is required for the live gateway. Configure the OptiLens connector first.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { ...cv, anonKey: optilens.anonKey };
 }
 
 function startLiveGatewayOnBoot() {

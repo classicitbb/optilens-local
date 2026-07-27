@@ -35,6 +35,10 @@ InnovaAPI is not used by this flow.
    - `customers:write`
    - `contacts:write`
    - `statements:write`
+4. In the OptiLens connector settings, configure the same Supabase project URL
+   and its project anon/publishable key. The on-prem live-gateway caller sends
+   that key as both `Authorization: Bearer ...` and `apikey`, alongside the
+   scoped CV `x-api-key`; the CV API key is not a substitute for platform auth.
    - `balances:write`
    - `catalog:read`
    - `catalog:write` if the pricelist publisher is used

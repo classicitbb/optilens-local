@@ -7,6 +7,18 @@ const path = require('node:path');
 const { createLiveGatewayAutostart } = require('../lib/live-gateway-autostart');
 const liveGatewayWorker = require('../lib/live-gateway-worker');
 
+test('live gateway sends Supabase platform auth alongside the scoped CV API key', () => {
+  assert.deepEqual(
+    liveGatewayWorker.gatewayRequestHeaders({ apiKey: 'cv-key', anonKey: 'project-anon-key' }),
+    {
+      'content-type': 'application/json',
+      authorization: 'Bearer project-anon-key',
+      apikey: 'project-anon-key',
+      'x-api-key': 'cv-key',
+    },
+  );
+});
+
 test('live gateway uses the functions base URL for its sibling edge function', () => {
   assert.equal(
     liveGatewayWorker.gatewayBase('https://xstmeirxhfbiyayrrsob.supabase.co/functions/v1/api-v1'),
@@ -34,12 +46,13 @@ test('live gateway autostart persists credentials through a protected local stor
   try {
     assert.deepEqual(store.status(), { enabled: false, updatedAt: null });
 
-    store.save({ baseUrl: 'https://example.test/functions/v1/api-v1', apiKey: 'secret-key' });
+    store.save({ baseUrl: 'https://example.test/functions/v1/api-v1', apiKey: 'secret-key', anonKey: 'project-anon-key' });
 
     assert.equal(store.status().enabled, true);
     assert.deepEqual(store.load(), {
       baseUrl: 'https://example.test/functions/v1/api-v1',
       apiKey: 'secret-key',
+      anonKey: 'project-anon-key',
     });
 
     const persisted = fs.readFileSync(stateFile, 'utf8');
