@@ -25,6 +25,31 @@ The migration is `database/022-supplier-email-operations.sql`. Migration 020
 was already occupied by the standards-catalog index, so this feature uses 022
 to preserve the existing migration history.
 
+## Database discovery checkpoint
+
+The configured live source profile was reachable read-only during discovery.
+The active-order candidate used by the existing platform is:
+
+- `dbo.Orders` joined to `dbo.GenStatus` with `GenStatus.Active = 1`.
+- `JobID` must be non-null and non-empty.
+- `OrderType` must be 1 or 3.
+
+The live source reported 166 active candidates. `CustomerOrdReference` was
+populated for all 166; `CustomerTrayID` was populated for none. A batch probe
+against two real active references returned two exact matches through the new
+parameterized matcher. The matcher therefore defaults to
+`customer_order_reference`, while `customer_tray_id` remains available only
+when explicitly configured.
+
+Status discovery found ID 190 as `Shipped from OS Lab` and ID 238 as the source
+description `Transmited TOG`. The spelling and mapping are preserved as source
+data; no status update is performed.
+
+The matcher supports `customer_order_reference`, `customer_tray_id`, and
+`order_id`. Set `OPTILENS_SUPPLIER_MATCH_MODE=source` and
+`OPTILENS_SUPPLIER_MATCH_FIELD=customer_order_reference` to select the
+read-only source matcher. The default remains the development mock matcher.
+
 ## Next discovery gates
 
 Before live IMAP or supplier status processing is added, confirm the mailbox
