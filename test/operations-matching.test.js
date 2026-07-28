@@ -20,3 +20,9 @@ test("batch matcher query is parameterized and uses the configured reference fie
   assert.doesNotMatch(query, /001|002/);
   assert.throws(() => buildBatchMatchQuery(["001"], "unknown"), /Unsupported supplier matching field/);
 });
+
+test("batch matcher supports TOG JobID references", () => {
+  const query = buildBatchMatchQuery(["836"], "job_id");
+  assert.match(query, /o\.JobID/);
+  assert.match(query, /@reference_0/);
+});
