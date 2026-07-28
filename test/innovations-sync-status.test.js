@@ -25,6 +25,21 @@ test('sync status surfaces the latest failed run when the task is registered', (
 
   assert.equal(status.state, 'error');
   assert.match(status.detail, /last sync failed/);
+  assert.match(status.detail, /Sync now/);
+});
+
+test('sync status does not warn about Sync now when the request poller is registered', () => {
+  const status = getInnovationsSyncStatus({
+    taskReader: (name) => name === 'OptiLens Innovations Sync'
+      ? { state: 'Ready' }
+      : { state: 'Ready' },
+    recentReader: () => [{ event: 'sync.finished', at: '2026-07-27T16:00:00.000Z', ok: true }],
+    now: new Date('2026-07-27T16:10:00.000Z'),
+  });
+
+  assert.equal(status.state, 'online');
+  assert.doesNotMatch(status.detail, /Sync now/);
+  assert.equal(status.requestTask.state, 'Ready');
 });
 
 test('sync status warns and errors when the latest successful run is stale', () => {
