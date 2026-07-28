@@ -86,6 +86,17 @@ live gateway.
 5. If the dry run is clean, run `Sync now`. For the first historical statement
 backfill, check `Suppress statement emails (backfill)`.
 
+For unattended operation, install both Windows tasks:
+
+```powershell
+powershell -File scripts/install-innovations-sync-task.ps1 -IntervalMinutes 60
+powershell -File scripts/install-innovations-sync-task.ps1 -ServeRequests -IntervalMinutes 3
+```
+
+The hourly task pushes the normal data window. The `-ServeRequests` task polls
+CV Web for admin-initiated "Sync now" requests; without it, the website card can
+remain `Pending` even though the hourly push is running.
+
 6. Use the `Sync logs` tab to watch local entity reads, upserts, failures, and
 cloud queue processing.
 

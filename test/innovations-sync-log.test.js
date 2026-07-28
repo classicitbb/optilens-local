@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { summarizeEntities, trim } = require('../lib/innovations-sync-log');
-const { ENTITIES, normalizeEntitySelection, fetchWithRetry, acquireSyncLock } = require('../lib/innovations-sync');
+const { ENTITIES, normalizeEntitySelection, fetchWithRetry, entityFetchOptions, acquireSyncLock } = require('../lib/innovations-sync');
 
 test('sync log summaries preserve counts but cap diagnostic text', () => {
   const result = summarizeEntities({
@@ -29,6 +29,17 @@ test('sync fetch retries transient receiver failures', async () => {
   });
   assert.equal(response.status, 200);
   assert.equal(attempts, 2);
+});
+
+test('statement sync uses a longer single-attempt receiver timeout', () => {
+  assert.deepEqual(entityFetchOptions('statements'), {
+    timeoutMs: 120000,
+    retries: 0,
+  });
+  assert.deepEqual(entityFetchOptions('customers'), {
+    timeoutMs: 30000,
+    retries: 2,
+  });
 });
 
 test('sync lock prevents overlapping local sync processes', () => {
