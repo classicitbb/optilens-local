@@ -50,6 +50,12 @@ The matcher supports `customer_order_reference`, `customer_tray_id`, and
 `OPTILENS_SUPPLIER_MATCH_FIELD=customer_order_reference` to select the
 read-only source matcher. The default remains the development mock matcher.
 
+Migration 023 adds disabled mailbox and supplier-rule records for TOG WIP,
+TOG Dispatch, and SkyLab shipped reports. They remain
+`PENDING_CONFIRMATION` until sanitized supplier samples confirm the reference
+field and subject/attachment behavior. No live mailbox credential is stored
+by this migration.
+
 ## Next discovery gates
 
 Before live IMAP or supplier status processing is added, confirm the mailbox
