@@ -942,7 +942,7 @@ function scheduleApplicationUpdate(status) {
 function scheduleHostStop() {
   setTimeout(() => {
     try {
-      runHostScript(__dirname, "stop-app.ps1", ["-Port", String(port)]);
+      runHostScript(__dirname, "stop-app.ps1", ["-ProjectRoot", __dirname, "-Port", String(port), "-Intentional"]);
     } catch (error) {
       console.error("Could not stop OptiLens Local:", error.message);
     }
@@ -1330,6 +1330,36 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "platform.admin");
       return readUpdateLogs();
+    });
+  }
+
+  if (url.pathname === "/api/monitor/updates" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      await gitUpdateChecker.refresh();
+      return buildUpdateStatus();
+    });
+  }
+
+  if (url.pathname === "/api/monitor/updates/apply" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      await gitUpdateChecker.refresh();
+      const status = buildUpdateStatus();
+      if (scheduledUpdate) {
+        const error = new Error("An update is already being applied.");
+        error.statusCode = 409;
+        throw error;
+      }
+      if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
+      if (status.plan.pullGit && status.git.localChanges) {
+        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        error.statusCode = 409;
+        throw error;
+      }
+      if (!status.plan.restartService) return { ...status, applying: false, message: "Browser files are ready; reload the monitor or browser." };
+      scheduleApplicationUpdate(status);
+      return { ...status, applying: true, message: "Applying update and restarting the service." };
     });
   }
 

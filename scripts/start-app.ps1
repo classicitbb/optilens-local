@@ -9,6 +9,9 @@ if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path -Parent $PSScriptRoot
 }
 
+$stopMarker = Join-Path $ProjectRoot "data\service-stop.requested"
+Remove-Item -LiteralPath $stopMarker -Force -ErrorAction SilentlyContinue
+
 function Get-ListeningPortOwners {
     param([int] $TargetPort)
 

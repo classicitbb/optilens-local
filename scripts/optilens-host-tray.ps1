@@ -351,7 +351,7 @@ $openStatus.Add_Click({ $form.Show(); $form.WindowState = "Normal"; $form.Activa
 $checkNow.Add_Click({ Update-HealthView })
 $openApp.Add_Click({ Start-Process "http://127.0.0.1:$Port/" })
 $restartApp.Add_Click({ Invoke-HiddenHostScript "restart-app.ps1" @("-ProjectRoot", $ProjectRoot, "-Port", [string]$Port); Start-Sleep -Milliseconds 500; Update-HealthView })
-$stopApp.Add_Click({ Invoke-HiddenHostScript "stop-app.ps1" @("-Port", [string]$Port); Start-Sleep -Milliseconds 500; Update-HealthView })
+$stopApp.Add_Click({ Invoke-HiddenHostScript "stop-app.ps1" @("-ProjectRoot", $ProjectRoot, "-Port", [string]$Port, "-Intentional"); Start-Sleep -Milliseconds 500; Update-HealthView })
 $exit.Add_Click({ $script:exitRequested = $true; $timer.Stop(); $tray.Visible = $false; $form.Close() })
 $tray.Add_DoubleClick({ $form.Show(); $form.WindowState = "Normal"; $form.Activate() })
 $form.Add_FormClosing({ param($sender, $event); if (-not $script:exitRequested -and $event.CloseReason -eq "UserClosing") { $event.Cancel = $true; $form.Hide() } })

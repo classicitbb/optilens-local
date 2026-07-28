@@ -1,8 +1,21 @@
 param(
-    [int] $Port = 8080
+    [int] $Port = 8080,
+    [switch] $Intentional,
+    [string] $ProjectRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if (-not $ProjectRoot) {
+    $ProjectRoot = Split-Path -Parent $PSScriptRoot
+}
+
+$stopMarker = Join-Path $ProjectRoot "data\service-stop.requested"
+if ($Intentional) {
+    $markerDirectory = Split-Path -Parent $stopMarker
+    if (-not (Test-Path $markerDirectory)) { New-Item -ItemType Directory -Path $markerDirectory -Force | Out-Null }
+    Set-Content -LiteralPath $stopMarker -Value "$(Get-Date -Format o) intentional operator shutdown"
+}
 
 function Get-ListeningPortOwners {
     param([int] $TargetPort)
