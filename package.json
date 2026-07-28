@@ -28,6 +28,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "mssql": "^12.5.5",
     "odbc": "^2.5.0"
   },

@@ -125,6 +125,7 @@ const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
 const { getSetting, setSetting } = require("./lib/app-settings");
+const { handleOperationsRoute } = require("./lib/operations/routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -997,6 +998,8 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/auth/bootstrap-state" && req.method === "GET") {
     return handleApi(res, async () => getBootstrapState());
   }
+
+  if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
@@ -2555,6 +2558,7 @@ function canAccessPage(requestPath, user) {
     "/integrations.html": ["integrations.read"],
     "/modules/automation": ["automation.read", "automation.manage"],
     "/automation.html": ["automation.read", "automation.manage"],
+    "/modules/automation/supplier-email": ["automation.read", "automation.manage"],
     "/modules/doc-studio": ["docstudio.read", "docstudio.write"],
     "/doc-studio.html": ["docstudio.read", "docstudio.write"],
     "/modules/business-metrics": ["platform.admin"],
@@ -2603,6 +2607,7 @@ function resolveStaticPath(requestPath) {
     "/tools/pricing-automation/index.html": "tools/pricing-automation/index.html",
     "/modules/integrations":        "integrations.html",
     "/modules/automation":          "automation.html",
+    "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/doc-studio":          "doc-studio.html",
     "/modules/business-metrics":    "business-metrics.html",
     "/admin/users":                 "admin-users.html"

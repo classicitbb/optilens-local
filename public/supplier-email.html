@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supplier Email Checker - OptiLens Local</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .ops-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:18px 0; }
+    .ops-card,.ops-panel { background:#fff; border:1px solid #dbe4ec; border-radius:12px; padding:16px; }
+    .ops-card strong { display:block; font-size:26px; margin-top:6px; }
+    .ops-panel { margin-top:16px; }
+    .ops-panel h2 { margin-top:0; }
+    .ops-panel pre { background:#f5f7fa; padding:12px; overflow:auto; max-height:260px; }
+    .ops-form { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    .ops-form label { display:flex; flex-direction:column; gap:5px; min-width:220px; }
+    .ops-form textarea { min-height:90px; min-width:420px; }
+    @media (max-width: 900px) { .ops-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  </style>
+</head>
+<body class="module-body">
+  <div id="app-shell-header"></div>
+  <main class="module-main"><section class="module-workspace">
+    <div class="module-title"><div><p class="eyebrow">Automation / supplier intake</p><h1>Supplier Email Checker</h1></div><span class="badge planned">Read-only foundation</span></div>
+    <p>Supplier mailbox access and source status updates are disabled. Use the development fixture to validate durable event, parser, matching, exception, and audit seams.</p>
+    <div class="ops-grid">
+      <div class="ops-card">Received events<strong id="received">—</strong></div>
+      <div class="ops-card">Waiting approval<strong id="waitingApproval">—</strong></div>
+      <div class="ops-card">Open exceptions<strong id="openExceptions">—</strong></div>
+      <div class="ops-card">Failed events<strong id="failed">—</strong></div>
+    </div>
+    <section class="ops-panel"><h2>Simulate supplier status file</h2><form id="fixtureForm" class="ops-form">
+      <label>Filename<input name="filename" value="supplier-status.csv" pattern="[-A-Za-z0-9._ ]+\.(csv|xlsx)" required></label>
+      <label>CSV content<textarea name="content">ORDER CODE,STATUS
+TEST-001,Received at lab
+TEST-002,Unknown supplier wording</textarea></label>
+      <button class="button primary" type="submit">Ingest fixture</button>
+    </form><p id="fixtureStatus" role="status"></p></section>
+    <section class="ops-panel"><h2>Recent events</h2><pre id="events">Loading…</pre></section>
+    <section class="ops-panel"><h2>Open exceptions</h2><pre id="exceptions">Loading…</pre></section>
+  </section></main>
+  <script src="/shared.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function getJson(url) { const response = await fetch(url, { credentials: "same-origin", cache: "no-store" }); const body = await response.json(); if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`); return body; }
+    async function load() { const [summary, events, exceptions] = await Promise.all([getJson("/api/operations/summary"), getJson("/api/operations/events?limit=50"), getJson("/api/operations/exceptions?limit=50")]); $("received").textContent = summary.received; $("waitingApproval").textContent = summary.waitingApproval; $("openExceptions").textContent = summary.openExceptions; $("failed").textContent = summary.failed; $("events").textContent = JSON.stringify(events.events, null, 2); $("exceptions").textContent = JSON.stringify(exceptions.exceptions, null, 2); }
+    $("fixtureForm").addEventListener("submit", async (event) => { event.preventDefault(); $("fixtureStatus").textContent = "Processing…"; const form = new FormData(event.currentTarget); try { const response = await fetch("/api/operations/events/simulate-supplier-file", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ filename: form.get("filename"), content: form.get("content"), contentType: "text/csv" }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "Fixture failed."); $("fixtureStatus").textContent = body.duplicate ? "Duplicate fixture: existing event returned." : "Fixture ingested and recorded."; await load(); } catch (error) { $("fixtureStatus").textContent = error.message; } });
+    load().catch((error) => { $("events").textContent = error.message; $("exceptions").textContent = error.message; });
+  </script>
+</body>
+</html>
