@@ -36,6 +36,7 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Timer timer = new Timer { Interval = 10000 };
     private string forcedSource = "";
     private bool serviceOnline;
+    private bool exitRequested;
 
     public OptiLensHostMonitor(string root, int requestedPort)
     {
@@ -62,16 +63,17 @@ internal sealed class OptiLensHostMonitor : Form
         tabs.TabPages.Add(BuildSyncPage());
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Open monitor", null, delegate { Show(); WindowState = FormWindowState.Normal; Activate(); });
+        menu.Items.Add("Open monitor", null, delegate { ShowMonitorWindow(); });
         menu.Items.Add("Open OptiLens Local", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:" + port + "/") { UseShellExecute = true }); });
         menu.Items.Add("Start OptiLens Local", null, delegate { RunHostScript("ensure-app-running.ps1"); });
         menu.Items.Add("Stop OptiLens Local", null, delegate { RunHostScript("stop-app.ps1"); });
-        menu.Items.Add("Exit monitor", null, delegate { Close(); });
+        menu.Items.Add("Exit monitor", null, delegate { exitRequested = true; Close(); });
         tray = new NotifyIcon { Icon = Icon, Text = "OptiLens Local Host Monitor", ContextMenuStrip = menu, Visible = true };
-        tray.DoubleClick += delegate { Show(); WindowState = FormWindowState.Normal; Activate(); };
+        tray.DoubleClick += delegate { ShowMonitorWindow(); };
 
         timer.Tick += async delegate { await RefreshAll(); };
         Shown += async delegate { await RefreshAll(); await RefreshLogs(); };
+        FormClosing += OnFormClosing;
         FormClosed += delegate { Log("closed"); timer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
         timer.Start();
         Log("started port " + port);
@@ -188,6 +190,25 @@ internal sealed class OptiLensHostMonitor : Form
             summary.Text = "OptiLens Local service is offline — use the tray menu to start it.";
             summary.ForeColor = Color.Firebrick;
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
+        }
+    }
+
+    private void ShowMonitorWindow()
+    {
+        ShowInTaskbar = true;
+        Show();
+        WindowState = FormWindowState.Normal;
+        Activate();
+    }
+
+    private void OnFormClosing(object sender, FormClosingEventArgs eventArgs)
+    {
+        if (!exitRequested && eventArgs.CloseReason == CloseReason.UserClosing)
+        {
+            eventArgs.Cancel = true;
+            Hide();
+            ShowInTaskbar = false;
+            Log("hidden to tray");
         }
     }
 

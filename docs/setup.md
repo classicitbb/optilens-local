@@ -40,10 +40,22 @@ To restart after code changes:
 O:\scripts\restart-app.ps1
 ```
 
-To install a Windows Scheduled Task that starts the app at boot and checks it every minute:
+To install a Windows Scheduled Task that starts the app at boot, runs as the current Windows account even before desktop sign-in, and checks it every minute:
 
 ```powershell
 O:\scripts\install-app-watchdog-task.ps1
+```
+
+The installer prompts for that Windows account password because Task Scheduler needs stored credentials for "run whether user is logged on or not". To use a specific operator account:
+
+```powershell
+O:\scripts\install-app-watchdog-task.ps1 -RunAsUser "DOMAIN\User"
+```
+
+To run as `SYSTEM` instead, use:
+
+```powershell
+O:\scripts\install-app-watchdog-task.ps1 -RunAsSystem
 ```
 
 The watchdog calls `O:\scripts\ensure-app-running.ps1`, which checks `http://127.0.0.1:8080/api/health` and restarts the Node process if it is not responding.

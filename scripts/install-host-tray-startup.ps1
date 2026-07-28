@@ -1,5 +1,7 @@
 param(
-    [string] $ProjectRoot = ""
+    [string] $ProjectRoot = "",
+    [int] $Port = 8080,
+    [string] $TaskName = "OptiLens Local Host Monitor"
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,4 +33,23 @@ shell.Run """" & "$powerShell" & """ -NoProfile -WindowStyle Hidden -ExecutionPo
 
 Remove-Item -LiteralPath $oldLauncherPath -Force -ErrorAction SilentlyContinue
 
-Write-Host "Host monitor will start at sign-in: $launcherPath"
+$action = New-ScheduledTaskAction -Execute $monitorExe -Argument "--port $Port" -WorkingDirectory $ProjectRoot
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -MultipleInstances IgnoreNew `
+    -RestartCount 3 `
+    -RestartInterval (New-TimeSpan -Minutes 1)
+
+Register-ScheduledTask `
+    -TaskName $TaskName `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Description "Starts the OptiLens Local interactive host monitor at operator sign-in." `
+    -Force | Out-Null
+
+Write-Host "Host monitor will start at sign-in via scheduled task: $TaskName"
+Write-Host "Fallback startup launcher is also present: $launcherPath"
+Write-Host "The tray monitor is interactive and cannot display before a Windows desktop sign-in."
