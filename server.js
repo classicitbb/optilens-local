@@ -2250,6 +2250,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const data = await dispatchLiveDataRequest({
         operation: body.operation,
+        source_backend: body.source_backend,
         target: body.target,
         arguments: body.arguments,
       });
