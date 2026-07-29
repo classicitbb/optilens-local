@@ -60,7 +60,8 @@ function Import-OptiLensEnvironment {
         "OPTILENS_SOURCE_PSQL_USER",
         "OPTILENS_SOURCE_PSQL_PASSWORD",
         "OPTILENS_SOURCE_PSQL_MODE",
-        "OPTILENS_WRITEBACK_ENABLED"
+        "OPTILENS_WRITEBACK_ENABLED",
+        "OPTILENS_SUPPLIER_MAILBOX_POLL_TIME"
     )
 
     foreach ($name in $names) {

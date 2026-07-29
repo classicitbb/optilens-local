@@ -1,8 +1,8 @@
 # Supplier Email Automation Foundation
 
 This branch begins the supplier-report subsystem inside OptiLens Local. The
-first milestone is deliberately observation-only and does not connect to the
-live mailbox or update Innovations/PSQL statuses.
+first milestone captures and parses the live mailbox into the private app
+database, but does not update Innovations/PSQL statuses.
 
 ## Current scope
 
@@ -11,7 +11,8 @@ live mailbox or update Innovations/PSQL statuses.
 - Deterministic CSV and XLSX parser contract with ExcelJS values-only loading.
 - Development-only simulated supplier-file ingestion.
 - SHA-256 attachment identity and event idempotency.
-- Read-only IMAP connector with confirmed-rule routing and attachment filtering.
+- IMAP connector with confirmed-rule routing, attachment filtering, and a
+  monitored daily poll at 08:10 local server time.
 - Read-only Operations UI at `/modules/automation/supplier-email`.
 - Parser and fixture validation tests using synthetic data.
 
@@ -22,13 +23,16 @@ The simulation route is available only when `NODE_ENV` is `development` or
 never under `public`. No mailbox password, supplier attachment, or real
 customer data belongs in the repository.
 
-The IMAP connector is intentionally not scheduled yet. It requires an enabled
-mailbox row with `server_hostname`, username, and a runtime-resolved password;
-the database stores only a credential reference. It opens the configured folder
-read-only, scans the configured date/message window, and never marks or moves
-messages. Only `CONFIRMED` and enabled supplier rules can route a message. The
-connector is exposed as `lib/operations/imap-mailbox.js` for the controlled
-dry-run runner; no live mailbox connection is attempted by the web server.
+The IMAP connector is scheduled daily at 08:10 in the server's local time by
+`lib/operations/mailbox-poller.js`. The time can be overridden with
+`OPTILENS_SUPPLIER_MAILBOX_POLL_TIME=HH:mm`. It requires a mailbox row with
+`server_hostname`, username, and a runtime-resolved password; the database
+stores only a credential reference. Each run scans the configured date/message
+window and uses the existing idempotent capture path. The loopback monitor
+endpoint `/api/monitor/supplier-mailbox-poller` and the full diagnostics show
+the poller's schedule, last run, last result counts, and last error. A manual
+`POST /api/operations/mailbox/sync` remains available. The poller does not
+write to Innovations/PSQL or update order statuses automatically.
 
 The first live read-only dry run connected successfully to the configured
 mailbox and scanned 20 recent Inbox messages. TOG WIP and Dispatch messages
@@ -77,8 +81,8 @@ migration.
 
 ## Next discovery gates
 
-Before live IMAP or supplier status processing is added, confirm the mailbox
+Before enabling confirmed supplier status processing, confirm the mailbox
 provider and protocol settings, secret storage at rest, exact supplier-to-order
 reference fields, active-order definition, and the approved status-update
-policy. Live mailbox access, OCR, printing, scheduling, and source writes are
-not part of this foundation milestone.
+policy. Scheduling captures and parses into the private app database, while
+source writes remain disabled until explicitly approved.

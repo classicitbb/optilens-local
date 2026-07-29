@@ -26,6 +26,7 @@ const updateManager = createUpdateManager(__dirname, applicationStartedAt);
 const gitUpdateChecker = createGitUpdateChecker(__dirname);
 const AUTO_APPLY_GIT_UPDATES = ["1", "true", "yes", "on"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "").toLowerCase());
 let scheduledUpdate = null;
+let supplierMailboxPoller = null;
 
 /** SHA-256 hash of pin+salt, returned as base64 */
 function hashPin(pin) {
@@ -188,6 +189,7 @@ const liveGatewayWorker = require("./lib/live-gateway-worker");
 const liveGatewayAutostart = require("./lib/live-gateway-autostart");
 const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
 const zenMirrorWorker = require("./lib/zen-mirror-worker");
+const { startSupplierMailboxPoller } = require("./lib/operations/mailbox-poller");
 const sourceBackend = require("./lib/source-backend");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
@@ -2255,6 +2257,13 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/monitor/supplier-mailbox-poller" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return supplierMailboxPoller?.status() || { enabled: false, detail: "Not started." };
+    });
+  }
+
   if (url.pathname === "/api/ai/diagnostics/context" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
@@ -3347,6 +3356,10 @@ async function buildMonitorDiagnostics(limit = 120) {
       cliLog: tailLog(path.join(dataDir, "logs", "innovations-sync-cli.log"), 65536),
     },
     liveGateway: liveGatewayStatus(),
+    supplierMailboxPoller: supplierMailboxPoller?.status() || {
+      enabled: false,
+      detail: "Not started."
+    },
     updates: {
       status: safeResult(git, { service: "git-updates" }),
       logs: readUpdateLogs().logs,
@@ -3418,5 +3431,7 @@ server.listen(port, host, () => {
   gitUpdateTimer.unref();
   const mirrorWorkerState = zenMirrorWorker.start();
   console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
+  supplierMailboxPoller = startSupplierMailboxPoller();
+  supplierMailboxPoller.start();
   startLiveGatewayOnBoot();
 });
