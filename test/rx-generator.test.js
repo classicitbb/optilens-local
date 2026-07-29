@@ -4,6 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const rx = require("../lib/rx-generator");
 const { normaliseOrderSettings } = require("../lib/rx-order-settings");
+const { canonicalMaterial } = require("../lib/rx-catalog-sync");
 
 const sourceLens = rx.getCatalog().find((item) => item.mfType === "Single Vision");
 assert.ok(sourceLens, "A source-validated single-vision alias is required for RX tests.");
@@ -25,6 +26,15 @@ test("catalogue aliases preserve source-derived material, style, and option code
     { material: sample.materialCode, style: sample.styleCode, option: sample.colorCode },
     { material: sample.alias.slice(0, 3), style: sample.alias.slice(3, 8), option: sample.alias.slice(8, 13) }
   );
+});
+
+test("reviewed material-name equivalences do not depend on fuzzy matching", () => {
+  assert.equal(canonicalMaterial("1.67 High Index"), canonicalMaterial("1.67 Index"));
+  assert.equal(canonicalMaterial("High Index 1.74"), canonicalMaterial("1.74 Index"));
+  assert.equal(canonicalMaterial("Polarized"), canonicalMaterial("Polarized 1.50"));
+  assert.equal(canonicalMaterial("Poly"), canonicalMaterial("Polycarb 1.59"));
+  assert.equal(canonicalMaterial("Photochromic 1.50"), canonicalMaterial("Transitions 1.50"));
+  assert.notEqual(canonicalMaterial("High Index 1.67"), canonicalMaterial("High Index 1.74"));
 });
 
 test("lens constraints limit both fixed and random alias selection", () => {

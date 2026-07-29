@@ -209,7 +209,7 @@
 
   function updateAutomationCrumb(button) {
     const crumb = document.querySelector("#app-shell-header .top-crumb");
-    if (crumb) crumb.textContent = button?.dataset.tab === "supplier-email" ? "Supplier Email" : "Automation";
+    if (crumb) crumb.textContent = button?.dataset.tab === "supplier-email" ? "OS Lab Status Update Inbox" : "Automation";
   }
 
   document.querySelectorAll(".workflow-tabs button").forEach((button) => button.addEventListener("click", () => {
