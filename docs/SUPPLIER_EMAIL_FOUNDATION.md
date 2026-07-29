@@ -11,6 +11,7 @@ live mailbox or update Innovations/PSQL statuses.
 - Deterministic CSV and XLSX parser contract with ExcelJS values-only loading.
 - Development-only simulated supplier-file ingestion.
 - SHA-256 attachment identity and event idempotency.
+- Read-only IMAP connector with confirmed-rule routing and attachment filtering.
 - Read-only Operations UI at `/modules/automation/supplier-email`.
 - Parser and fixture validation tests using synthetic data.
 
@@ -20,6 +21,21 @@ The simulation route is available only when `NODE_ENV` is `development` or
 `test`. It writes fixtures under the operating-system temporary directory,
 never under `public`. No mailbox password, supplier attachment, or real
 customer data belongs in the repository.
+
+The IMAP connector is intentionally not scheduled yet. It requires an enabled
+mailbox row with `server_hostname`, username, and a runtime-resolved password;
+the database stores only a credential reference. It opens the configured folder
+read-only, scans the configured date/message window, and never marks or moves
+messages. Only `CONFIRMED` and enabled supplier rules can route a message. The
+connector is exposed as `lib/operations/imap-mailbox.js` for the controlled
+dry-run runner; no live mailbox connection is attempted by the web server.
+
+The first live read-only dry run connected successfully to the configured
+mailbox and scanned 20 recent Inbox messages. TOG WIP and Dispatch messages
+with XLSX attachments routed and parsed without warnings; SkyLab shipping PDFs
+routed and parsed without warnings; `No Data` Dispatch messages became
+missing-attachment cases; and unrelated messages produced no confirmed rule.
+No message flags or folders were changed.
 
 The migration is `database/022-supplier-email-operations.sql`. Migration 020
 was already occupied by the standards-catalog index, so this feature uses 022

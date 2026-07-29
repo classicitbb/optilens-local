@@ -1,3 +1,36 @@
+.module-body:has(.workflow-tabs) { background:#f4f1e9; }
+.module-body:has(.workflow-tabs) .module-main { padding:0; }
+.module-body:has(.workflow-tabs) .module-workspace { min-height:calc(100vh - 56px); border:0; border-radius:0; box-shadow:none; background:#f7f5ef; }
+.module-body:has(.workflow-tabs) .module-title { padding:18px 24px 16px; background:#f7f5ef; border-bottom:1px solid #d9d5ca; }
+.module-body:has(.workflow-tabs) .module-title h1 { color:#0b1e35; font-size:28px; letter-spacing:-.02em; }
+.module-body:has(.workflow-tabs) .workflow-tabs { min-height:48px; box-sizing:border-box; padding:0 16px; gap:4px; border:0; background:#0b1e35; overflow-x:auto; }
+.module-body:has(.workflow-tabs) .workflow-tabs button,
+.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link { min-height:38px; display:inline-flex; align-items:center; border:0; border-radius:8px; padding:9px 14px; color:#b9cbe0; background:transparent; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+.module-body:has(.workflow-tabs) .workflow-tabs button.active { border:0; background:#dfeaf5; color:#0b1e35; }
+.module-body:has(.workflow-tabs) .workflow-tabs button:hover,
+.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link:hover { background:#163d67; color:#fff; }
+.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link { background:#c89130; color:#0b1e35; }
+.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link:hover { background:#e0a63b; color:#0b1e35; }
+.module-body:has(.workflow-tabs) .workflow-panel { padding:22px 24px 32px; }
+.module-body:has(.workflow-tabs) .supplier-email-tab-panel { padding:0; min-height:calc(100vh - 104px); }
+.module-body:has(.workflow-tabs) .supplier-email-tab-panel iframe { display:block; width:100%; height:calc(100vh - 104px); min-height:720px; border:0; background:#f7f5ef; }
+.module-body:has(.workflow-tabs) .capability-grid article { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
+.automation-email-page { background:#f4f1e9; }
+.automation-email-page .module-main { padding:0; }
+.automation-email-page .module-workspace { min-height:calc(100vh - 56px); border:0; border-radius:0; box-shadow:none; background:#f7f5ef; }
+.automation-email-page .module-title { padding:18px 24px 16px; background:#f7f5ef; border-bottom:1px solid #d9d5ca; }
+.automation-email-page .automation-subnav { min-height:48px; box-sizing:border-box; display:flex; align-items:center; gap:4px; padding:0 16px; background:#0b1e35; overflow-x:auto; }
+.automation-email-page .automation-subnav a { display:inline-flex; align-items:center; min-height:38px; padding:9px 14px; border-radius:8px; color:#b9cbe0; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+.automation-email-page .automation-subnav a:hover { background:#163d67; color:#fff; }
+.automation-email-page .automation-subnav a.active { background:#dfeaf5; color:#0b1e35; }
+.automation-email-page .module-workspace > p { margin:0; padding:16px 24px 0; color:#536b82; font-size:13px; }
+.automation-email-page .ops-panel { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.05); }
+.automation-email-page .ops-card { border-color:#ded9cc; background:#fffdf9; }
+.automation-email-page.automation-embedded #app-shell-header,
+.automation-email-page.automation-embedded .module-title { display:none; }
+.automation-email-page.automation-embedded .module-main { min-height:100%; }
+.automation-email-page.automation-embedded .module-workspace { min-height:100%; }
+
 .rx-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin:0 0 12px; }
 .rx-heading h2 { margin:1px 0 3px; color:#071d35; font-size:21px; }
 .rx-heading p:not(.eyebrow) { max-width:760px; margin:0; color:#45688d; font-size:13px; line-height:1.35; }
