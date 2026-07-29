@@ -22,20 +22,13 @@
 
   <main class="module-main">
     <section class="module-workspace">
-      <div class="module-title">
-        <div>
-          <p class="eyebrow">Rules &amp; AI</p>
-          <h1>Automation</h1>
-        </div>
-        <span class="badge active">File generation ready</span>
-      </div>
-
       <nav class="workflow-tabs" aria-label="Automation tabs">
         <button class="active" type="button" data-tab="rules">Rules engine</button>
         <button type="button" data-tab="file-generation">File Generation</button>
         <button type="button" data-tab="llm">Local LLM</button>
         <button type="button" data-tab="scheduled">Scheduled tasks</button>
         <button type="button" data-tab="audit">Audit log</button>
+        <button class="automation-tab-link" type="button" data-tab="supplier-email">Supplier Email</button>
       </nav>
 
       <section class="workflow-panel active" id="rules">
@@ -168,6 +161,10 @@
 
       <section class="workflow-panel" id="audit">
         <div class="placeholder-pane">Full audit trail of all automation actions, approvals, and rejections will stream here.</div>
+      </section>
+
+      <section class="workflow-panel supplier-email-tab-panel" id="supplier-email">
+        <iframe src="/modules/automation/supplier-email?embedded=1" title="Supplier Email" loading="lazy"></iframe>
       </section>
     </section>
   </main>
