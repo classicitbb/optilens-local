@@ -92,6 +92,7 @@ const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
+const { getDetailSection } = require("./lib/metrics/detail");
 const {
   addShipmentSessionItem,
   closeShipmentSessionsBatch,
@@ -1421,6 +1422,17 @@ const server = http.createServer(async (req, res) => {
       `summary:${url.searchParams.get("period") || "ytd"}`,
       () => requirePermission(req, "delivery.read"),
       () => getOverviewSummary({ period: url.searchParams.get("period") })
+    );
+  }
+
+  // Per-tab sections for tabs 2-6, so each tab loads only what it needs.
+  if (url.pathname.startsWith("/api/business-metrics/detail/") && req.method === "GET") {
+    const section = url.pathname.slice("/api/business-metrics/detail/".length);
+    return handleCachedApi(
+      req, res,
+      `detail:${section}`,
+      () => requirePermission(req, "delivery.read"),
+      () => getDetailSection(section)
     );
   }
 

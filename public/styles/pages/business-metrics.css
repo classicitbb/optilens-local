@@ -56,6 +56,8 @@
 .ov-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:10px; }
 .ov-tile { text-align:left; font:inherit; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--surface); cursor:pointer; display:flex; flex-direction:column; gap:2px; }
 .ov-tile:hover { border-color:var(--blue); }
+/* Same shape as .ov-tile but inert — for figures with nothing to drill into. */
+.ov-stat { border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--surface); display:flex; flex-direction:column; gap:2px; }
 .ov-tile-label { font-size:.74rem; color:var(--muted); }
 .ov-tile-value { font-size:1.5rem; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.2; }
 .ov-tile-delta { font-size:.76rem; font-variant-numeric:tabular-nums; }

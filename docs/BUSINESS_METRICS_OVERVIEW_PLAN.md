@@ -3,23 +3,37 @@
 **Scope:** tab 1 (`#overview`) of `public/business-metrics.html`. Drill-down and refresh
 are built as reusable primitives so tabs 2–6 can adopt them later.
 
-**Status:** built. Phases 0–4 complete; phase 5 (folder move, applying the drawer to
-tabs 2–6) remains.
+**Status:** built. All six tabs now lazy-load, refresh and drill. The optional folder
+move to `public/tools/business-metrics/` is the only item left.
 
 **What shipped:**
 
 | | |
 |---|---|
 | `lib/metrics/summary.js` | Overview summary — journal-basis sales + comparators, trend, aging, WIP, exceptions, data quality. Innovations MSSQL only. |
-| `lib/metrics/drill.js` | Eight drill handlers behind one generic envelope. |
-| `server.js` | `GET /api/business-metrics/summary`, `GET /api/business-metrics/drill/:kind`, plus `handleCachedApi` (20 s cache + ETag/304). |
-| `public/business-metrics-overview.js` | The whole tab: command bar, refresh manager, rail, tiles, trend, aging, customers, drill drawer, CSV. |
-| `public/styles/pages/business-metrics.css` | Overview + drawer styles. |
-| `public/business-metrics.html` | Overview panel replaced; monolith fetch made lazy; Actian pill dropped. |
+| `lib/metrics/detail.js` | Per-tab sections for tabs 2–6; each queries only what its tab needs. |
+| `lib/metrics/drill.js` | Ten drill handlers behind one generic envelope. |
+| `server.js` | `/summary`, `/detail/:section`, `/drill/:kind`, plus `handleCachedApi` (20 s cache + ETag/304). |
+| `public/business-metrics-shared.js` | Shared kit: drawer, formatters, CSV, command bar, auto-refresh. |
+| `public/business-metrics-overview.js` | Tab 1. |
+| `public/business-metrics-tabs.js` | Tabs 2–6 + tab switching. |
+| `test/business-metrics-overview.test.js` | 10 CI-safe tests: period maths, plus guards that the front-end's drill names, sections and sales basis still match the server. |
 
-Measured: summary payload **8.6 KB / ~140 ms warm** against the old **201 KB / 540 ms**;
-conditional poll returns **304 with 0 bytes**; drills 9–55 ms. The monolith is no longer
-fetched at all unless a user opens one of tabs 2–6. All 67 existing tests pass.
+**Payload per tab, against the old 201 KB monolith that every tab paid:**
+
+| | |
+|---|---|
+| Overview | 8.6 KB / ~140 ms warm |
+| Pricing | 0.4 KB |
+| Invoices | 0.6 KB |
+| Deliveries | 1.3 KB |
+| Sales | 6.6 KB |
+| Profitability | 16 KB |
+
+`/api/business-metrics` is now unused by the UI (kept for back-compat). Long row sets —
+invoice bands, lowest-margin lines, zero-cost lines — are fetched only when their drawer
+opens, so no tab ships rows it does not display. Conditional polls return 304 with zero
+bytes. 77 tests pass.
 
 **Scope decisions taken after review:**
 
@@ -408,8 +422,9 @@ Plus:
 | 1 | `summary` endpoint: comparators, trend, exception rules, WIP aging, ETag, cache | yes — old UI keeps working |
 | 2 | Command bar, refresh manager, freshness ticker, optimistic re-render, skeletons | yes |
 | 3 | Overview layout: rail, 4 tiles + sparklines, trend, aging bar, top customers | yes |
-| 4 | Drill drawer + the six drill routes; wire every number on the tab | yes |
-| 5 | Move to `public/tools/business-metrics/` with scoped CSS per `UI_AUDIT_AND_PLAN.md`; apply drawer + refresh to tabs 2–6 | follow-up |
+| 4 | Drill drawer + the six drill routes; wire every number on the tab | done |
+| 5a | Split the monolith into `/detail/:section`; shared kit; tabs 2–6 get lazy load, refresh and drill | done |
+| 5b | Move to `public/tools/business-metrics/` with scoped CSS per `UI_AUDIT_AND_PLAN.md` | outstanding |
 
 ---
 
