@@ -19,6 +19,12 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly JavaScriptSerializer json = new JavaScriptSerializer();
     private readonly NotifyIcon tray;
     private readonly Label summary = new Label();
+    private readonly Label updateStatus = new Label();
+    private readonly Button checkUpdatesButton = new Button { Text = "Check for updates", Width = 125 };
+    private readonly Button applyUpdatesButton = new Button { Text = "Apply pushed updates", Width = 145, Enabled = false };
+    private readonly Button startServiceButton = new Button { Text = "Start service", Width = 100 };
+    private readonly Button restartServiceButton = new Button { Text = "Restart service", Width = 110 };
+    private readonly Button stopServiceButton = new Button { Text = "Shut down service", Width = 120 };
     private readonly ListView connections = new ListView();
     private readonly Label sourceStatus = new Label();
     private readonly Label sourceParity = new Label();
@@ -34,14 +40,18 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Dictionary<string, CheckBox> entityChecks = new Dictionary<string, CheckBox>();
     private readonly CheckBox suppressEmails = new CheckBox { Text = "Suppress statement emails (backfill)", AutoSize = true };
     private readonly Timer timer = new Timer { Interval = 10000 };
+    private readonly Timer activationTimer = new Timer { Interval = 250 };
+    private readonly System.Threading.EventWaitHandle showSignal;
     private string forcedSource = "";
     private bool serviceOnline;
     private bool exitRequested;
+    private bool firstRefresh = true;
 
-    public OptiLensHostMonitor(string root, int requestedPort)
+    public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal)
     {
         projectRoot = root;
         port = requestedPort;
+        showSignal = signal;
         Text = "OptiLens Local Host Monitor";
         ClientSize = new Size(760, 500);
         MinimumSize = new Size(620, 380);
@@ -65,27 +75,38 @@ internal sealed class OptiLensHostMonitor : Form
         var menu = new ContextMenuStrip();
         menu.Items.Add("Open monitor", null, delegate { ShowMonitorWindow(); });
         menu.Items.Add("Open OptiLens Local", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:" + port + "/") { UseShellExecute = true }); });
-        menu.Items.Add("Start OptiLens Local", null, delegate { RunHostScript("ensure-app-running.ps1"); });
-        menu.Items.Add("Stop OptiLens Local", null, delegate { RunHostScript("stop-app.ps1"); });
+        menu.Items.Add("Start OptiLens Local", null, delegate { RunHostScript("start-app.ps1"); });
+        menu.Items.Add("Restart OptiLens Local", null, delegate { RunHostScript("restart-app.ps1"); });
+        menu.Items.Add("Shut down OptiLens Local", null, delegate { RunHostScript("stop-app.ps1", true); });
+        menu.Items.Add("Check for pushed updates", null, async delegate { await CheckUpdates(); });
         menu.Items.Add("Exit monitor", null, delegate { exitRequested = true; Close(); });
         tray = new NotifyIcon { Icon = Icon, Text = "OptiLens Local Host Monitor", ContextMenuStrip = menu, Visible = true };
         tray.DoubleClick += delegate { ShowMonitorWindow(); };
 
         timer.Tick += async delegate { await RefreshAll(); };
+        activationTimer.Tick += delegate { try { if (showSignal.WaitOne(0)) ShowMonitorWindow(); } catch { } };
         Shown += async delegate { await RefreshAll(); await RefreshLogs(); };
         FormClosing += OnFormClosing;
         FormClosed += delegate { Log("closed"); timer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
         timer.Start();
+        activationTimer.Start();
         Log("started port " + port);
     }
 
     private TabPage BuildConnectionsPage()
     {
         var page = new TabPage("Connections");
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 65));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 35));
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
         page.Controls.Add(layout);
+
+        var service = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), WrapContents = false };
+        updateStatus.Text = "Updates: not checked"; updateStatus.AutoSize = true; service.Controls.Add(updateStatus);
+        service.Controls.Add(checkUpdatesButton); service.Controls.Add(applyUpdatesButton);
+        service.Controls.Add(startServiceButton); service.Controls.Add(restartServiceButton); service.Controls.Add(stopServiceButton);
+        layout.Controls.Add(service, 0, 0);
         connections.View = View.Details;
         connections.FullRowSelect = true;
         connections.GridLines = true;
@@ -93,10 +114,10 @@ internal sealed class OptiLensHostMonitor : Form
         connections.Columns.Add("Connection", 230);
         connections.Columns.Add("Status", 100);
         connections.Columns.Add("Detail", 340);
-        layout.Controls.Add(connections, 0, 0);
+        layout.Controls.Add(connections, 0, 1);
 
         var source = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), AutoScroll = true, WrapContents = true };
-        layout.Controls.Add(source, 0, 1);
+        layout.Controls.Add(source, 0, 2);
         source.Controls.Add(new Label { Text = "Innovations source backend", AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
         sourceStatus.Text = "Active: checking…"; sourceStatus.AutoSize = true; source.Controls.Add(sourceStatus);
         sourceParity.AutoSize = true; source.Controls.Add(sourceParity);
@@ -105,6 +126,11 @@ internal sealed class OptiLensHostMonitor : Form
         liveButton.Click += async delegate { await SwitchSource("live"); };
         mirrorButton.Click += async delegate { await SwitchSource("mirror"); };
         mirrorSyncButton.Click += async delegate { await StartMirrorSync(); };
+        checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
+        applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
+        startServiceButton.Click += delegate { RunHostScript("start-app.ps1"); };
+        restartServiceButton.Click += delegate { RunHostScript("restart-app.ps1"); };
+        stopServiceButton.Click += delegate { RunHostScript("stop-app.ps1", true); };
         return page;
     }
 
@@ -164,6 +190,9 @@ internal sealed class OptiLensHostMonitor : Form
         {
             var health = Map(json.DeserializeObject(await Api("/api/health")));
             serviceOnline = health != null;
+            startServiceButton.Enabled = !serviceOnline;
+            restartServiceButton.Enabled = serviceOnline;
+            stopServiceButton.Enabled = serviceOnline;
             connections.Items.Clear();
             var hasFailure = false;
             var hasWarning = false;
@@ -183,6 +212,15 @@ internal sealed class OptiLensHostMonitor : Form
             tray.Text = "OptiLens Local: " + overall;
             await RefreshSource();
             await RefreshSyncStatus();
+            if (firstRefresh && !hasFailure && !hasWarning)
+            {
+                firstRefresh = false;
+                BeginInvoke(new Action(HideToTray));
+            }
+            else
+            {
+                firstRefresh = false;
+            }
         }
         catch
         {
@@ -190,7 +228,32 @@ internal sealed class OptiLensHostMonitor : Form
             summary.Text = "OptiLens Local service is offline — use the tray menu to start it.";
             summary.ForeColor = Color.Firebrick;
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
+            startServiceButton.Enabled = true; restartServiceButton.Enabled = false; stopServiceButton.Enabled = false;
+            RunHostScript("ensure-app-running.ps1");
         }
+    }
+
+    private async Task CheckUpdates()
+    {
+        try
+        {
+            var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
+            var available = Convert.ToBoolean(Value(status, "available"));
+            var areas = Value(status, "changedAreas") as object[];
+            updateStatus.Text = available ? "Updates ready: " + (areas == null ? "pushed changes" : areas.Length + " area(s)") : "Updates: up to date";
+            updateStatus.ForeColor = available ? Color.DarkGoldenrod : Color.ForestGreen;
+            applyUpdatesButton.Enabled = available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
+        }
+        catch (Exception error) { updateStatus.Text = "Update check failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; applyUpdatesButton.Enabled = false; }
+    }
+
+    private async Task ApplyUpdates()
+    {
+        if (MessageBox.Show("Apply the pushed OptiLens Local update and restart the service?", "Confirm update", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        applyUpdatesButton.Enabled = false;
+        try { var result = Map(json.DeserializeObject(await Api("/api/monitor/updates/apply", "POST"))); updateStatus.Text = S(Value(result, "message")); updateStatus.ForeColor = Color.DarkGoldenrod; }
+        catch (Exception error) { updateStatus.Text = "Update failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; }
+        await Task.Delay(1000); await RefreshAll();
     }
 
     private void ShowMonitorWindow()
@@ -199,6 +262,16 @@ internal sealed class OptiLensHostMonitor : Form
         Show();
         WindowState = FormWindowState.Normal;
         Activate();
+    }
+
+    private void HideToTray()
+    {
+        if (!exitRequested)
+        {
+            Hide();
+            ShowInTaskbar = false;
+            Log("healthy startup hidden to tray");
+        }
     }
 
     private void OnFormClosing(object sender, FormClosingEventArgs eventArgs)
@@ -275,12 +348,13 @@ internal sealed class OptiLensHostMonitor : Form
         catch (Exception error) { logsBox.Text = "Logs unavailable: " + error.Message; }
     }
 
-    private void RunHostScript(string name)
+    private void RunHostScript(string name, bool intentionalStop = false)
     {
         var script = Path.Combine(projectRoot, "scripts", name);
         if (!File.Exists(script)) return;
         var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-        Process.Start(new ProcessStartInfo(powershell, "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+        var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "");
+        Process.Start(new ProcessStartInfo(powershell, args) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
     }
 
     private static Color ColorFor(string state) { return state == "online" || state == "enabled" || state == "ready-for-import" ? Color.ForestGreen : state == "warning" || state == "credentials-needed" || state == "setup-needed" || state == "discovered" ? Color.DarkGoldenrod : Color.Firebrick; }
@@ -303,12 +377,18 @@ internal sealed class OptiLensHostMonitor : Form
             var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var port = 8080;
             for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
+            using (var showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Global\\OptiLensLocalHostMonitorShow"))
             using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
             {
-                if (!mutex.WaitOne(0, false)) { Log("another instance already running"); return; }
+                if (!mutex.WaitOne(0, false))
+                {
+                    try { showSignal.Set(); } catch { }
+                    Log("another instance is running; requested it open the monitor");
+                    return;
+                }
                 try
                 {
-                    Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port));
+                    Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port, showSignal));
                 }
                 finally
                 {

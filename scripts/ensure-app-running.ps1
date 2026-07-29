@@ -11,6 +11,11 @@ if (-not $ProjectRoot) {
 }
 
 $maintenanceLock = Join-Path $ProjectRoot "data\maintenance.lock"
+$stopMarker = Join-Path $ProjectRoot "data\service-stop.requested"
+if (Test-Path $stopMarker) {
+    Write-Host "OptiLens Local is intentionally stopped. Skipping watchdog restart."
+    return
+}
 if (Test-Path $maintenanceLock) {
     $age = (Get-Date) - (Get-Item $maintenanceLock).LastWriteTime
     if ($age.TotalMinutes -lt 15) {

@@ -27,3 +27,7 @@ The Node service, watchdog, update runner, and sync workers remain hidden backgr
 Use the desktop shortcut created by `scripts/create-desktop-shortcut.ps1` (or `npm run app:monitor:shortcut`) to launch the taskbar-visible `OptiLensHostMonitor.exe`. It starts without an open PowerShell window and can be closed from the taskbar. Use the local service/taskbar workflow to open the web UI separately.
 
 Updates do not run source-system imports, exports, or write-back jobs automatically. Those operations remain explicit because they can act on business data outside the application itself.
+
+The taskbar/notification monitor also provides **Check for updates**, **Apply pushed updates**, **Start service**, **Restart service**, and **Shut down service** controls. Applying a pushed Git update uses the same guarded update runner as the authenticated web control: it refuses dirty checkouts, runs checks before restart, and records progress in `data/local-update.log`.
+
+**Shut down service** is an intentional operator action. It writes `data/service-stop.requested`, so the watchdog will leave the service stopped until **Start service** or **Restart service** is selected. Unexpected process exits do not create that marker and are recovered automatically by the watchdog. The monitor checks the service when it launches and requests recovery when the service is offline.
