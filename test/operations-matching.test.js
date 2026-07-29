@@ -26,3 +26,20 @@ test("batch matcher supports TOG JobID references", () => {
   assert.match(query, /o\.JobID/);
   assert.match(query, /@reference_0/);
 });
+
+test("batch matcher supports SkyLab OrderID references", () => {
+  const query = buildBatchMatchQuery(["836"], "order_id");
+  assert.match(query, /o\.OrderID/);
+  assert.match(query, /CONVERT\(nvarchar\(120\), o\.OrderID\)/);
+  assert.match(query, /@reference_0/);
+});
+
+test("batch matcher returns order context for the reconciliation table", () => {
+  const query = buildBatchMatchQuery(["836"], "order_id");
+  assert.match(query, /o\.PatientID AS patient_id/);
+  assert.match(query, /o\.CustomerID AS customer_id/);
+  assert.match(query, /c\.CustomerName AS customer_name/);
+  assert.match(query, /LEFT JOIN dbo\.Customers c ON c\.CustomerID = o\.CustomerID/);
+  assert.match(query, /o\.CustomerAccount AS customer_account/);
+  assert.match(query, /COALESCE\(o\.CustomerTime, o\.ReceivedTime\) AS received_at/);
+});

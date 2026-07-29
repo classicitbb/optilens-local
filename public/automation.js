@@ -207,9 +207,15 @@
     } catch (error) { setStatus(error.message || "Unable to load RX generator data.", "error"); }
   }
 
+  function updateAutomationCrumb(button) {
+    const crumb = document.querySelector("#app-shell-header .top-crumb");
+    if (crumb) crumb.textContent = button?.dataset.tab === "supplier-email" ? "Supplier Email" : "Automation";
+  }
+
   document.querySelectorAll(".workflow-tabs button").forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(".workflow-tabs button").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+    updateAutomationCrumb(button);
   }));
   ["patientMode", "lensMode", "prescriptionMode", "coatingMode"].forEach((name) => form.elements[name].addEventListener("change", toggleConditionalFields));
   ["lensSupplier", "lensCatalog", "lensOption"].forEach((name) => form.elements[name].addEventListener("change", syncLensOptions));

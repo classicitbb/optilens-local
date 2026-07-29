@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { mailboxMessageKey, routeMailboxMessage } = require("../lib/operations/mailbox-routing");
+const { identifySupplier, mailboxMessageKey, routeMailboxMessage, supplierSenderMatches } = require("../lib/operations/mailbox-routing");
 const { assertReadableConfig } = require("../lib/operations/imap-mailbox");
 const { reconcileMailboxMessages } = require("../lib/operations/mailbox-reconciliation");
 
@@ -33,6 +33,14 @@ test("mailbox routing reports missing required attachments without guessing", ()
   const result = routeMailboxMessage({ from: "noreply-system@thaiopticalgroup.com", subject: "WIP Report Classic", attachments: [{ filename: "report.csv" }] }, [rule]);
   assert.equal(result.reason, "REQUIRED_ATTACHMENT_NOT_FOUND");
   assert.equal(result.acceptedAttachments.length, 0);
+});
+
+test("supplier capture identifies sender emails even when the rule is not enabled", () => {
+  const pendingRule = { ...rule, supplier_code: "TOG", supplier_name: "Thai Optical Group", is_enabled: false, mapping_state: "PENDING_CONFIRMATION" };
+  const message = { from: { address: "noreply-system@thaiopticalgroup.com" }, subject: "Report Dispatch Classic" };
+  assert.equal(supplierSenderMatches(message, pendingRule), true);
+  assert.deepEqual(identifySupplier(message, [pendingRule]), { supplierCode: "TOG", supplierName: "Thai Optical Group", rule: pendingRule });
+  assert.equal(identifySupplier({ from: { address: "unrelated@example.com" } }, [pendingRule]).supplierCode, null);
 });
 
 test("mailbox message idempotency is stable and changes when attachment identity changes", () => {
