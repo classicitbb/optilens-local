@@ -41,18 +41,10 @@
         <button type="button" data-tab="pricing">Pricing</button>
       </nav>
 
+      <!-- Overview is owned entirely by business-metrics-overview.js, which reads the
+           slim /api/business-metrics/summary endpoint rather than the monolith below. -->
       <section class="workflow-panel active" id="overview">
-        <h2 style="font-size:1rem; margin:4px 0 8px;">Live KPIs <span class="muted" style="font-weight:400;">— Innovations (MSSQL)</span></h2>
-        <div class="analytics-row" id="kpiBand" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:8px;">
-          <div class="analytics-metric"><div class="a-label">Loading…</div><strong class="a-value">—</strong></div>
-        </div>
-        <div class="placeholder-pane" id="kpiNote" style="display:none; margin-bottom:14px;"></div>
-
-        <h2 style="font-size:1rem; margin:18px 0 8px;">Export archive context</h2>
-        <div class="analytics-row" id="ovMetrics" style="border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:14px;">
-          <div class="analytics-metric"><div class="a-label">Loading…</div><strong class="a-value">—</strong></div>
-        </div>
-        <div class="placeholder-pane" id="ovArchiveNote">Loading business metrics…</div>
+        <div class="ov-root" id="ovRoot"></div>
       </section>
 
       <section class="workflow-panel" id="sales">
@@ -125,6 +117,9 @@
       btn.addEventListener("click", () => {
         document.querySelectorAll(".workflow-tabs button").forEach(b => b.classList.toggle("active", b === btn));
         document.querySelectorAll(".workflow-panel").forEach(p => p.classList.toggle("active", p.id === btn.dataset.tab));
+        // Overview has its own slim endpoint; the 200 KB monolith is only needed by the
+        // other five tabs, so it is not fetched until one of them is opened.
+        if (btn.dataset.tab !== "overview") loadMetrics();
       });
     });
 
@@ -169,28 +164,12 @@
       badge.className = "badge " + (d.appDbOnline ? "ready-for-import" : "credentials-needed");
       const live = d.liveSourceOnline;
       banner.style.display = "block";
+      // Actian/PSQL is deliberately not listed — no metric in this module reads from it.
       banner.innerHTML =
-        `Data sources: ${srcPill(s.appDb)} ${srcPill(s.sourceMssql)} ${srcPill(s.sourcePsql)}<br>` +
+        `Data sources: ${srcPill(s.appDb)} ${srcPill(s.sourceMssql)}<br>` +
         (live
           ? `Live Innovations (MSSQL) source is online — headline KPIs (sales YTD/MTD, WIP, receivables, aging, top customers) are live.`
           : `Live Innovations (MSSQL) source is offline, so headline KPIs are unavailable. Showing locally available data (imported Access archive + app-owned delivery &amp; pricing). Add credentials in <a href="/credentials">Credentials</a> to populate live KPIs.`);
-    }
-
-    function renderOverview(d) {
-      const o = d.overview;
-      const note = document.getElementById("ovArchiveNote");
-      if (!o) { document.getElementById("ovMetrics").innerHTML = metric("Unavailable", "—", "App database offline"); note.textContent = (d.notes || []).join(" "); return; }
-      const w = o.archiveWindow || {};
-      document.getElementById("ovMetrics").innerHTML =
-        metric("Archived deliveries", intf(o.deliveriesTotal), `${intf(o.deliveriesThisYear)} this year`) +
-        metric("Archived revenue", money(o.archivedRevenueTotal), `${intf(o.deliveryItemsTotal)} line items`) +
-        metric("Open export sessions", intf(o.openExportSessions), `${intf(o.shipmentSessionsTotal)} sessions total`) +
-        metric("Commercial invoices", intf(o.commercialInvoicesTotal), "in export archive") +
-        metric("Active pricing rules", intf(o.activePricingRules), "app-owned");
-      note.innerHTML = `Archive window: <strong>${dateLabel(w.min)} → ${dateLabel(w.max)}</strong>` +
-        (w.historyMonths ? ` · ${intf(w.historyMonths)}-month import` : "") +
-        (w.completedAt ? ` · last imported ${dateLabel(w.completedAt)}` : "") +
-        `. Source: Access archive (CV_Accounts_be) + app-owned delivery &amp; pricing tables in optilens_local.`;
     }
 
     function renderSales(d) {
@@ -392,9 +371,9 @@
         : "Pricing analytics reflect app-owned rules and calculations. Live price-list version history requires the MSSQL Innovations source.";
     }
 
+    // The headline KPI band moved to the Overview module; this now only feeds the
+    // aging and live-customer blocks on the Sales tab.
     function renderKpis(d) {
-      const band = document.getElementById("kpiBand");
-      const note = document.getElementById("kpiNote");
       const agingEl = document.getElementById("agingBlock");
       const liveCustEl = document.getElementById("liveTopCustomers");
       const k = d.sourceKpis;
@@ -403,22 +382,10 @@
         const why = d.sourceKpisError
           ? `Live KPI query failed: ${d.sourceKpisError}`
           : `Live Innovations (MSSQL) source is ${state}. Add credentials in Credentials to populate live KPIs.`;
-        band.innerHTML = metric("Live KPIs", "—", "MSSQL source unavailable");
-        note.style.display = "block";
-        note.textContent = why;
         if (agingEl) agingEl.innerHTML = `<div class="placeholder-pane" style="border:0;">${esc(why)}</div>`;
         if (liveCustEl) liveCustEl.innerHTML = `<div class="placeholder-pane" style="border:0;">${esc(why)}</div>`;
         return;
       }
-      band.innerHTML =
-        metric("Sales YTD", money(k.salesYTD), "year to date") +
-        metric("Sales MTD", money(k.salesMTD), "period to date") +
-        metric("WIP value", money(k.wipValue), "open work in progress") +
-        metric("Receivables", money(k.receivables), `${intf(k.customers)} customers`) +
-        metric("Stock turn", (k.stockTurn != null ? k.stockTurn + "×" : "—"), "YTD COGS ÷ stock value");
-      note.style.display = "block";
-      note.innerHTML = `As of ${esc(k.asOf ? dateLabel(k.asOf) : "now")} · COGS YTD ${money(k.cogsYTD)} · stock value ${money(k.inventoryValue)} (${intf(k.inventoryLots)} lots).` +
-        (k.stockTurnConfidence === "low" && k.caveats && k.caveats.length ? `<br><span class="muted">⚠ ${esc(k.caveats[0])}</span>` : "");
 
       const rows = k.aging || [];
       const agingTotal = k.agingTotal != null ? k.agingTotal : rows.reduce((s,a)=>s+Number(a.amountDue||0),0);
@@ -437,7 +404,10 @@
     }
 
     const REQUEST_TIMEOUT_MS = 25000;
-    async function loadMetrics() {
+    let metricsLoaded = false;
+    async function loadMetrics(force) {
+      if (metricsLoaded && !force) return;
+      metricsLoaded = true;
       const badge = document.getElementById("statusBadge");
       const banner = document.getElementById("sourceBanner");
       badge.textContent = "Loading…";
@@ -452,7 +422,6 @@
         if (!res.ok) throw new Error(d.error || ("Request failed (HTTP " + res.status + ")"));
         renderSources(d);
         renderKpis(d);
-        renderOverview(d);
         renderSales(d);
         renderInvoices(d);
         renderProfitability(d);
@@ -470,17 +439,19 @@
           : /Failed to fetch|NetworkError/i.test(err.message) ? "Could not reach the server. Is OptiLens Local running, and was it restarted after the update?"
           : "Could not load business metrics: " + err.message;
         banner.style.display = "block";
+        metricsLoaded = false;
         banner.innerHTML = `${esc(msg)} <button type="button" id="retryBtn" class="src-pill src-wait" style="cursor:pointer; border:0;">Retry</button>`;
         const rb = document.getElementById("retryBtn");
-        if (rb) rb.addEventListener("click", loadMetrics);
-        const note = document.getElementById("ovArchiveNote");
-        if (note) note.textContent = "";
+        if (rb) rb.addEventListener("click", () => loadMetrics(true));
       }
     }
 
-    loadMetrics();
+    // Overview loads itself from the slim endpoint. The monolith stays unfetched until
+    // a tab that needs it is opened — see the tab handler above.
+    if (!document.querySelector('.workflow-tabs button.active[data-tab="overview"]')) loadMetrics();
   })();
   </script>
+  <script src="/business-metrics-overview.js"></script>
 </body>
 </html>
 

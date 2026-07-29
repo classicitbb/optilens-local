@@ -90,6 +90,8 @@ const {
 } = require("./lib/dashboard");
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
+const { getOverviewSummary } = require("./lib/metrics/summary");
+const { getDrill } = require("./lib/metrics/drill");
 const {
   addShipmentSessionItem,
   closeShipmentSessionsBatch,
@@ -1410,6 +1412,29 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Overview tab (tab 1). Split out from the monolith above so it is cheap enough to
+  // poll: it reads only the Innovations MSSQL source, is cached briefly, and answers
+  // 304 when nothing has changed.
+  if (url.pathname === "/api/business-metrics/summary" && req.method === "GET") {
+    return handleCachedApi(
+      req, res,
+      `summary:${url.searchParams.get("period") || "ytd"}`,
+      () => requirePermission(req, "delivery.read"),
+      () => getOverviewSummary({ period: url.searchParams.get("period") })
+    );
+  }
+
+  if (url.pathname.startsWith("/api/business-metrics/drill/") && req.method === "GET") {
+    const kind = url.pathname.slice("/api/business-metrics/drill/".length);
+    const params = Object.fromEntries(url.searchParams.entries());
+    return handleCachedApi(
+      req, res,
+      `drill:${kind}:${url.searchParams.toString()}`,
+      () => requirePermission(req, "delivery.read"),
+      () => getDrill(kind, params)
+    );
+  }
+
   if (url.pathname === "/api/access-import/status" && req.method === "GET") {
     return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-last-run.json"), {
       error: "Access import has not run yet."
@@ -2687,6 +2712,60 @@ async function handleApi(res, action, status = 200) {
     return sendJson(res, {
       error: error.message || "Server error"
     }, error.statusCode || 500);
+  }
+}
+
+// Short-lived response cache + ETag, for endpoints the dashboard polls. The cache
+// collapses concurrent viewers onto one database round trip; the ETag turns an
+// unchanged auto-refresh into a 304 with no body.
+const METRICS_CACHE_TTL_MS = 20000;
+const metricsCache = new Map();
+
+function metricsCacheGet(key) {
+  const hit = metricsCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > METRICS_CACHE_TTL_MS) {
+    metricsCache.delete(key);
+    return null;
+  }
+  return hit;
+}
+
+// `authorize` runs on every request, including cache hits — never fold it into
+// `action`, or a cached response would be served without an permission check.
+async function handleCachedApi(req, res, cacheKey, authorize, action) {
+  try {
+    await authorize();
+
+    let entry = metricsCacheGet(cacheKey);
+
+    if (!entry) {
+      const payload = await action();
+      const body = JSON.stringify(payload, null, 2);
+      // generatedAt changes every call, so hash the body with it stripped — otherwise
+      // the ETag would never match and the 304 path would be dead code.
+      const etag = `"${nodeCrypto.createHash("sha1")
+        .update(body.replace(/"generatedAt": "[^"]*"/g, ""))
+        .digest("base64url")}"`;
+      entry = { at: Date.now(), body, etag };
+      metricsCache.set(cacheKey, entry);
+    }
+
+    writeSecurityHeaders(res);
+
+    if (req.headers["if-none-match"] === entry.etag) {
+      res.writeHead(304, { ETag: entry.etag, "Cache-Control": "no-cache" });
+      return res.end();
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-cache",
+      ETag: entry.etag
+    });
+    return res.end(entry.body);
+  } catch (error) {
+    return sendJson(res, { error: error.message || "Server error" }, error.statusCode || 500);
   }
 }
 
