@@ -3,33 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Supplier Email - OptiLens Local</title>
+  <title>OS Lab Status Update Inbox - OptiLens Local</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/automation.css">
 </head>
 <body class="module-body automation-email-page">
   <script>if (new URLSearchParams(location.search).get("embedded") === "1") document.body.classList.add("automation-embedded");</script>
   <div id="app-shell-header"></div>
-  <script>window.OptiLensPage = { crumb: "Supplier Email" };</script>
+  <script>window.OptiLensPage = { crumb: "OS Lab Status Update Inbox" };</script>
   <main class="module-main">
     <section class="module-workspace">
       <div class="module-title">
-        <div><p class="eyebrow">Automation / supplier intake</p><h1>Supplier Email Checker</h1></div>
+        <div><p class="eyebrow">Automation / supplier intake</p><h1>OS Lab Status Update Inbox</h1></div>
         <span class="badge planned" id="writeCapability">Write-back gated</span>
       </div>
-      <nav class="automation-subnav" aria-label="Supplier Email sections">
-        <a class="active" href="#mailbox" data-panel="mailbox">Inbox</a>
-        <a href="#simulation" data-panel="simulation">Simulation</a>
-        <a href="#events-panel" data-panel="events-panel">Events</a>
-        <a href="#rules-panel" data-panel="rules-panel">Rules</a>
-        <a href="#exceptions-panel" data-panel="exceptions-panel">Exceptions</a>
-      </nav>
       <section class="supplier-email-panel active" id="mailbox" data-content-panel>
-        <div class="supplier-toolbar">
-          <div><div class="supplier-heading-line"><p class="eyebrow">Live supplier intake</p><button class="info-tooltip" type="button" aria-label="About supplier intake" data-tooltip="Configured supplier emails are captured. Only confirmed rules with accepted attachments are parsed and matched to live orders.">i</button></div><h2>Inbox reconciliation</h2><p id="mailboxStatus">Loading the durable mailbox workspace…</p></div>
-          <div class="supplier-toolbar-actions"><button class="button primary" id="syncMailbox" type="button">Scan Inbox</button><button class="button secondary" id="refreshWorkspace" type="button">Refresh</button><button class="button secondary" id="archiveMessage" type="button" disabled>Archive selected</button></div>
+        <div class="mailbox-utility-bar">
+          <div class="supplier-kpis" id="mailboxKpis" aria-label="Mailbox summary"></div>
+          <div class="mailbox-settings">
+            <button class="settings-gear" id="settingsMenuButton" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="settingsMenu">⚙ <span>Settings</span></button>
+            <div class="settings-menu" id="settingsMenu" role="menu" hidden>
+              <button type="button" role="menuitem" data-panel="simulation">Simulation</button>
+              <button type="button" role="menuitem" data-panel="events-panel">Events</button>
+              <button type="button" role="menuitem" data-panel="rules-panel">Rules</button>
+              <button type="button" role="menuitem" data-panel="exceptions-panel">Exceptions</button>
+            </div>
+          </div>
         </div>
-        <div class="supplier-kpis" id="mailboxKpis"></div>
         <div class="mailbox-workspace" aria-label="Supplier email workspace">
           <aside class="mailbox-pane supplier-pane">
             <div class="mailbox-pane-header"><div><span class="eyebrow">Filter</span><h3>Suppliers</h3></div><span class="pane-count" id="supplierCount">0</span></div>
@@ -40,14 +40,30 @@
             <div id="messageList" class="mailbox-list"></div>
           </section>
           <section class="mailbox-pane records-pane">
-            <div class="mailbox-pane-header"><div><span class="eyebrow">Parsed and matched</span><h3 id="recordsHeading">Active records</h3><div class="aging-legend" aria-label="Order age bands"><span class="age-0-5">0–5d</span><span class="age-5-7">5–7d</span><span class="age-7-11">7–11d</span><span class="age-11-14">11–14d</span><span class="age-14-17">14–17d</span><span class="age-17-28">17–28d</span><span class="age-28-plus">28d+</span></div></div><span class="pane-count" id="recordCount">0</span></div>
-            <div class="records-table-wrap"><table class="records-table"><thead><tr><th>Reference</th><th>Patient ID</th><th>Customer ID</th><th>Customer name</th><th>Customer account</th><th>Received</th><th>Supplier update</th><th>Live order</th><th>Current status</th><th>Target</th><th>Result</th></tr></thead><tbody id="recordsBody"></tbody></table></div>
+            <div class="mailbox-pane-header records-pane-header">
+              <div><span class="eyebrow">Parsed and matched</span><h3 id="recordsHeading">Active records</h3><div class="aging-legend" aria-label="Order age bands"><span class="age-0-5">0–5d</span><span class="age-5-7">5–7d</span><span class="age-7-11">7–11d</span><span class="age-11-14">11–14d</span><span class="age-14-17">14–17d</span><span class="age-17-28">17–28d</span><span class="age-28-plus">28d+</span></div></div>
+              <span class="pane-count" id="recordCount">0</span>
+            </div>
+            <div class="records-command-bar">
+              <div class="records-actions"><button class="button primary" id="syncMailbox" type="button">Scan Inbox</button><button class="button secondary" id="refreshWorkspace" type="button">Refresh</button><button class="button secondary" id="archiveMessage" type="button" disabled>Archive selected</button></div>
+              <label class="records-search"><span class="sr-only">Search active records</span><input id="recordSearch" type="search" autocomplete="off" placeholder="Search names, accounts, or statuses"></label>
+              <p id="mailboxStatus" class="mailbox-status" role="status">Loading the durable mailbox workspace…</p>
+            </div>
+            <div class="records-table-wrap"><table class="records-table"><thead><tr>
+              <th>Reference</th><th>Source</th>
+              <th class="filterable-column"><button class="column-sort" type="button" data-sort="patient_id" aria-label="Sort by Patient ID">Patient ID <span aria-hidden="true"></span></button><button class="column-filter-toggle" type="button" data-filter-toggle="patient_id" aria-label="Filter Patient ID" aria-expanded="false" aria-controls="filterPatientId">⌄</button><div class="column-filter-menu" id="filterPatientId" data-filter-menu="patient_id" hidden><label>Patient ID<input id="filterPatientIdInput" type="search" autocomplete="off" placeholder="Contains…"></label><button type="button" data-clear-filter="patient_id">Clear</button></div></th>
+              <th class="filterable-column"><button class="column-sort" type="button" data-sort="customer_name" aria-label="Sort by Customer name">Customer name <span aria-hidden="true"></span></button><button class="column-filter-toggle" type="button" data-filter-toggle="customer_name" aria-label="Filter Customer name" aria-expanded="false" aria-controls="filterCustomerName">⌄</button><div class="column-filter-menu" id="filterCustomerName" data-filter-menu="customer_name" hidden><label>Customer name<input id="filterCustomerNameInput" type="search" autocomplete="off" placeholder="Contains…"></label><button type="button" data-clear-filter="customer_name">Clear</button></div></th>
+              <th class="filterable-column"><button class="column-sort" type="button" data-sort="customer_account" aria-label="Sort by Customer account">Customer account <span aria-hidden="true"></span></button><button class="column-filter-toggle" type="button" data-filter-toggle="customer_account" aria-label="Filter Customer account" aria-expanded="false" aria-controls="filterCustomerAccount">⌄</button><div class="column-filter-menu" id="filterCustomerAccount" data-filter-menu="customer_account" hidden><label>Customer account<input id="filterCustomerAccountInput" type="search" autocomplete="off" placeholder="Contains…"></label><button type="button" data-clear-filter="customer_account">Clear</button></div></th>
+              <th>Received</th>
+              <th class="filterable-column"><button class="column-sort" type="button" data-sort="supplier_status" aria-label="Sort by Supplier update">Supplier update <span aria-hidden="true"></span></button><button class="column-filter-toggle" type="button" data-filter-toggle="supplier_status" aria-label="Filter Supplier update" aria-expanded="false" aria-controls="filterSupplierStatus">⌄</button><div class="column-filter-menu" id="filterSupplierStatus" data-filter-menu="supplier_status" hidden><label>Supplier update<select id="filterSupplierStatusInput"><option value="">All updates</option></select></label><button type="button" data-clear-filter="supplier_status">Clear</button></div></th>
+              <th class="live-order-divider">Live order</th><th>Current status</th><th>Target</th><th>Result</th>
+            </tr></thead><tbody id="recordsBody"></tbody></table></div>
           </section>
         </div>
       </section>
 
       <section class="supplier-email-panel" id="simulation" data-content-panel>
-        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Development only</p><h2>Simulate supplier status file</h2></div></div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Development only</p><h2>Simulate supplier status file</h2></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div>
           <form id="fixtureForm" class="ops-form"><label>Filename<input name="filename" value="supplier-status.csv" pattern="[-A-Za-z0-9._ ]+\.(csv|xlsx)" required></label><label>CSV content<textarea name="content">ORDER CODE,STATUS
 TEST-001,Received at lab
 TEST-002,Unknown supplier wording</textarea></label><button class="button primary" type="submit">Ingest fixture</button></form><p id="fixtureStatus" role="status"></p>
@@ -55,17 +71,17 @@ TEST-002,Unknown supplier wording</textarea></label><button class="button primar
       </section>
 
       <section class="supplier-email-panel" id="events-panel" data-content-panel>
-        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Durable activity</p><h2>Recent events</h2></div></div><pre id="events">Loading…</pre></div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Durable activity</p><h2>Recent events</h2></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div><pre id="events">Loading…</pre></div>
         <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Approval queue</p><h2>Proposed updates</h2></div></div><div id="actions">Loading…</div></div>
       </section>
 
       <section class="supplier-email-panel" id="rules-panel" data-content-panel>
-        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Routing and mapping</p><h2>Supplier rules</h2></div></div><div id="rules"></div></div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Routing and mapping</p><h2>Supplier rules</h2></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div><div id="rules"></div></div>
         <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">CurrentStatusID targets</p><h2>Status mappings</h2><p>Confirm the live detailed status that each supplier status should apply. GenStatus is not changed.</p></div></div><div id="statusMappings"></div></div>
       </section>
 
       <section class="supplier-email-panel" id="exceptions-panel" data-content-panel>
-        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Needs review</p><h2>Open exceptions</h2></div></div><div id="exceptions">Loading…</div></div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Needs review</p><h2>Open exceptions</h2></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div><div id="exceptions">Loading…</div></div>
       </section>
     </section>
   </main>
