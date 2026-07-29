@@ -51,6 +51,7 @@
     value
       ? `${Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000))} days old`
       : "Received date unavailable";
+  const shippedRowClass = (row) => (row.is_shipped ? " shipped-row" : "");
   const textValue = (value) => String(value ?? "").trim();
   const sourceLabel = (row) =>
     textValue(row.record_kind) || textValue(row.rule_code) || "—";
@@ -280,10 +281,10 @@
       records
         .map(
           (row) =>
-            `<tr class="${ageBand(row.received_at)}" title="${esc(ageLabel(row.received_at))}"><td><strong>${esc(row.supplier_reference)}</strong></td><td>${esc(sourceLabel(row))}</td><td>${esc(row.patient_id || "—")}</td><td>${esc(row.customer_name || "—")}</td><td>${esc(row.customer_account || "—")}</td><td>${esc(dateLabel(row.received_at))}</td><td>${esc(row.supplier_status || "—")}</td><td class="live-order-divider">${esc(row.internal_order_id || "Not found")}</td><td>${esc(row.current_status_description || row.current_status_id || "—")}</td><td>${esc(row.target_status_description || row.target_status_item_id || "Mapping pending")}</td><td>${actionButtons(row)}</td></tr>`,
+            `<tr class="${ageBand(row.received_at)}${shippedRowClass(row)}" title="${esc(ageLabel(row.received_at))}"><td><strong>${esc(row.supplier_reference)}</strong>${row.tray_number ? `<small>Tray ${esc(row.tray_number)}</small>` : ""}</td><td>${esc(sourceLabel(row))}</td><td>${esc(row.patient_id || "—")}</td><td>${esc(row.customer_name || "—")}</td><td>${esc(row.customer_account || "—")}</td><td>${esc(dateLabel(row.received_at))}</td><td>${esc(row.supplier_status || "—")}</td><td class="live-order-divider">${esc(row.internal_order_id || "Not found")}</td><td>${esc(row.current_status_description || row.current_status_id || "—")}</td><td>${esc(row.target_status_description || row.target_status_item_id || "Mapping pending")}</td><td>${actionButtons(row)}</td></tr>`,
         )
         .join("") ||
-      `<tr><td colspan="11"><p class="empty-state">No parsed and matched records are available for this selection.</p></td></tr>`;
+      `<tr><td colspan="11"><p class="empty-state">No parsed records are available for this selection.</p></td></tr>`;
     document.querySelectorAll("[data-action]").forEach((button) =>
       button.addEventListener("click", async () => {
         button.disabled = true;

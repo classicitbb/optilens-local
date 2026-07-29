@@ -112,6 +112,8 @@
 .records-table tbody tr.age-17-28 td strong,.records-table tbody tr.age-17-28 td small { color:#fff; }
 .records-table tbody tr.age-28-plus td { background:#a92c1e; color:#fff; }
 .records-table tbody tr.age-28-plus td strong,.records-table tbody tr.age-28-plus td small { color:#fff; }
+.records-table tbody tr.shipped-row td { background:#e3e5e8 !important; color:#68727d; text-decoration:line-through; }
+.records-table tbody tr.shipped-row td strong,.records-table tbody tr.shipped-row td small { color:#68727d; }
 .records-table th.live-order-divider,.records-table td.live-order-divider { border-left:4px solid #496b89 !important; }
 .record-actions { display:flex; gap:4px; flex-wrap:wrap; }
 .mini-button { border:0; border-radius:5px; padding:5px 7px; cursor:pointer; font:inherit; font-size:10px; font-weight:800; }

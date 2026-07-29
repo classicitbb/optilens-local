@@ -61,10 +61,22 @@ function Import-OptiLensEnvironment {
         "OPTILENS_SOURCE_PSQL_PASSWORD",
         "OPTILENS_SOURCE_PSQL_MODE",
         "OPTILENS_WRITEBACK_ENABLED",
+        "OPTILENS_WRITEBACK_STATUS_IDS",
         "OPTILENS_SUPPLIER_MAILBOX_POLL_TIME"
     )
 
     foreach ($name in $names) {
+        if ($name -in @("OPTILENS_WRITEBACK_ENABLED", "OPTILENS_WRITEBACK_STATUS_IDS")) {
+            $writeBackValue = [Environment]::GetEnvironmentVariable($name, "User")
+            if (-not $writeBackValue) {
+                $writeBackValue = [Environment]::GetEnvironmentVariable($name, "Machine")
+            }
+            if ($writeBackValue) {
+                [Environment]::SetEnvironmentVariable($name, $writeBackValue, "Process")
+            }
+            continue
+        }
+
         if ([Environment]::GetEnvironmentVariable($name, "Process")) {
             continue
         }
