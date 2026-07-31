@@ -35,6 +35,14 @@
     applyAuto: null
   };
 
+  // Phase 2 analytics load on their own clock: the add-power channel join costs
+  // ~8s against ~3s for the headline figures, so it must not delay first paint.
+  var trends = { data: null, error: null, loading: false, loaded: false, mfType: "Progressive" };
+
+  // Phase 3: recommendations and the assistant, each on their own clock again.
+  var recs = { data: null, error: null, loading: false, loaded: false, showAll: false };
+  var ask = { status: null, answer: null, error: null, asking: false, question: "" };
+
   /* ─────────── data ─────────── */
 
   async function load(opts) {
@@ -69,6 +77,55 @@
       state.loading = false;
       render();
     }
+  }
+
+  async function loadTrends() {
+    if (trends.loading || trends.loaded) return;
+    trends.loading = true;
+    renderTrends();
+
+    try {
+      var res = await fetch("/api/business-metrics/detail/inventory-trends", { cache: "no-store" });
+      var body = await res.json();
+      if (!res.ok) throw new Error(body.error || ("Request failed (HTTP " + res.status + ")"));
+      trends.data = body.inventoryTrends || null;
+      trends.error = body.error || null;
+    } catch (err) {
+      trends.error = BM.describeError(err);
+    } finally {
+      trends.loading = false;
+      trends.loaded = true;
+      renderTrends();
+    }
+  }
+
+  async function loadRecs() {
+    if (recs.loading || recs.loaded) return;
+    recs.loading = true;
+    renderRecs();
+    try {
+      var res = await fetch("/api/business-metrics/recommendations", { cache: "no-store" });
+      var body = await res.json();
+      if (!res.ok) throw new Error(body.error || ("Request failed (HTTP " + res.status + ")"));
+      recs.data = body;
+    } catch (err) {
+      recs.error = BM.describeError(err);
+    } finally {
+      recs.loading = false;
+      recs.loaded = true;
+      renderRecs();
+    }
+  }
+
+  async function loadAskStatus() {
+    if (ask.status) return;
+    try {
+      var res = await fetch("/api/business-metrics/assistant/status", { cache: "no-store" });
+      ask.status = await res.json();
+    } catch (err) {
+      ask.status = { configured: false, detail: BM.describeError(err) };
+    }
+    renderAsk();
   }
 
   /* ─────────── render helpers ─────────── */
@@ -209,6 +266,11 @@
 
     out += '<div class="ov-fade" style="margin-bottom:12px">' + exceptionRail(inv) + "</div>";
 
+    // What to do about it, before the analysis of why.
+    out += '<h3 style="margin:16px 0 8px;font-size:14px">What needs attention</h3>' +
+      '<div id="invRecs"></div>' +
+      '<div id="invAsk" style="margin:12px 0"></div>';
+
     // Speed: ordered categories, ordinal ramp, value on the bar.
     var speedRows = SPEED_ORDER.map(function (cls) {
       var band = inv.speedBands.find(function (b) { return b.speedClass === cls; }) || { items: 0, stockValue: 0, units: 0, onHand: 0 };
@@ -289,7 +351,410 @@
       inv.caveats.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") +
       "</ul></div>";
 
+    // Phase 2 mounts here and fills in when its own (slower) fetch returns.
+    out += '<h3 style="margin:18px 0 8px;font-size:14px">Add power and channels</h3>' +
+      '<div id="invTrends"></div>';
+
     return out;
+  }
+
+  /* ─────────── Phase 2: add-power trends and channel splits ─────────── */
+
+  /**
+   * One sparkline. Points are share-of-mix per month, drawn on a scale shared
+   * across every add in the panel so the eleven panels are comparable — the
+   * whole reason for using small multiples instead of eleven coloured lines.
+   */
+  function sparkline(points, max, colorVar) {
+    if (!points.length) return "";
+    var w = 100, h = 30;
+    var step = points.length > 1 ? w / (points.length - 1) : w;
+    var y = function (v) { return h - (max > 0 ? (v / max) * h : 0); };
+    var d = points.map(function (v, i) {
+      return (i ? "L" : "M") + (i * step).toFixed(1) + "," + y(v).toFixed(1);
+    }).join(" ");
+
+    return '<svg viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path d="' + d + '" fill="none" stroke="var(' + colorVar + ')" stroke-width="2"' +
+      ' vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>' +
+      // Last point marked so the current value is locatable at a glance.
+      '<circle cx="' + ((points.length - 1) * step).toFixed(1) + '" cy="' + y(points[points.length - 1]).toFixed(1) +
+      '" r="2.5" fill="var(' + colorVar + ')"/></svg>';
+  }
+
+  function trendIcon(slope) {
+    if (slope == null) return { cls: "inv-trend-flat", icon: "remove", text: "—" };
+    if (slope > 0.05) return { cls: "inv-trend-up", icon: "trending_up", text: "+" + slope.toFixed(2) };
+    if (slope < -0.05) return { cls: "inv-trend-down", icon: "trending_down", text: slope.toFixed(2) };
+    return { cls: "inv-trend-flat", icon: "trending_flat", text: slope.toFixed(2) };
+  }
+
+  function smallMultiples(channel, mfType, colorVar) {
+    var t = channel.byType[mfType];
+    if (!t || !t.total) return '<div class="ov-empty">No ' + esc(mfType.toLowerCase()) + " volume in this window.</div>";
+
+    // Shared y-scale across all eleven panels.
+    var max = t.series.reduce(function (m, s) {
+      return Math.max(m, s.monthlyShare.reduce(function (a, b) { return Math.max(a, b); }, 0));
+    }, 0) || 1;
+
+    return '<div class="inv-sparks">' + t.series.map(function (s) {
+      var tr = trendIcon(s.slope);
+      return '<button type="button" class="inv-spark" data-drill="inventory-add?add=' + s.addX100 +
+          "&mf=" + encodeURIComponent(mfType) + '"' +
+        ' aria-label="' + esc("Add " + s.label + ", " + s.share + "% of " + mfType.toLowerCase() +
+          " volume, " + intf(s.units) + " units, trend " + tr.text + " points per month. Open details.") + '">' +
+        '<span class="inv-spark-head"><span class="inv-spark-add">' + esc(s.label) + "</span>" +
+        '<span class="inv-spark-share">' + s.share + "%</span></span>" +
+        sparkline(s.monthlyShare, max, colorVar) +
+        '<span class="inv-spark-foot ' + tr.cls + '">' +
+        '<span class="material-symbols-outlined" aria-hidden="true">' + tr.icon + "</span>" +
+        esc(tr.text) + "</span></button>";
+    }).join("") + "</div>";
+  }
+
+  /** Diverging bars: demand share minus held share, per add. */
+  function mismatchBars(rows) {
+    if (!rows || !rows.length) return '<div class="ov-empty">No add-power mismatch to show.</div>';
+    var max = rows.reduce(function (m, r) { return Math.max(m, Math.abs(r.gap)); }, 0) || 1;
+
+    return '<div class="inv-bars">' + rows.map(function (r) {
+      var under = r.gap > 0;
+      var width = (Math.abs(r.gap) / max) * 100;
+      return '<button type="button" class="inv-gap-row" data-drill="inventory-add?add=' + r.addX100 +
+          '&mf=Progressive"' +
+        ' aria-label="' + esc("Add " + r.label + ": demand " + r.demandShare + "%, held " + r.heldShare +
+          "%, " + (under ? "under" : "over") + "-stocked by " + Math.abs(r.gap) + " points. Open details.") + '">' +
+        '<span class="inv-gap-label">' + esc(r.label) + "</span>" +
+        '<span class="inv-gap-track">' +
+          '<span class="inv-gap-half left">' + (under ? "" :
+            '<span class="inv-gap-fill over" style="width:' + width.toFixed(1) + '%"></span>') + "</span>" +
+          '<span class="inv-gap-half right">' + (under ?
+            '<span class="inv-gap-fill under" style="width:' + width.toFixed(1) + '%"></span>' : "") + "</span>" +
+        "</span>" +
+        '<span class="inv-gap-detail">' + (under ? "under" : "over") + " " + Math.abs(r.gap) + " pts<br>" +
+          "demand " + r.demandShare + "% · held " + r.heldShare + "%</span>" +
+      "</button>";
+    }).join("") + "</div>";
+  }
+
+  function splitBars(rows, labelKey, colorFor) {
+    return bars(rows.map(function (r, i) {
+      return {
+        label: r.label || r[labelKey],
+        value: r.revenue,
+        sub: intf(r.jobs) + " jobs · " + intf(r.lensUnits) + " lenses",
+        colorVar: colorFor(r, i),
+        drill: r.drill
+      };
+    }));
+  }
+
+  function trendsBody() {
+    var d = trends.data;
+    if (!d) return "";
+    var mf = trends.mfType;
+    var ap = d.addPowers;
+    var ch = d.channels;
+
+    var out = "";
+
+    // Toggle between Progressive and Bifocal rather than showing both at once:
+    // twenty-two panels on screen is a wall, not a chart.
+    out += '<div class="ov-bar" style="margin-bottom:8px">' +
+      '<span class="inv-bar-sub">Add power</span>' +
+      ap.mfTypes.map(function (t) {
+        return '<button type="button" class="ov-btn" data-mf="' + esc(t) + '"' +
+          (t === mf ? ' aria-pressed="true" style="font-weight:650"' : "") + ">" + esc(t) + "</button>";
+      }).join("") + "</div>";
+
+    out += '<div class="inv-grid">' +
+      panel("Prescribed", "share of " + mf.toLowerCase() + " Rx volume, by month",
+        smallMultiples(ap.channels.prescribed, mf, "--inv-c1")) +
+      panel("Consumed from stock", "add of the blank actually pulled",
+        smallMultiples(ap.channels.consumed, mf, "--inv-c3")) +
+      "</div>";
+
+    out += '<div class="inv-grid" style="margin-top:12px">' +
+      panel("Sold as stock lenses", "invoiced on stock orders",
+        smallMultiples(ap.channels.stockSold, mf, "--inv-c2")) +
+      panel("Demand vs stock held", "biggest mismatches first · Progressive",
+        mismatchBars((ap.mismatch && ap.mismatch.Progressive || []).slice(0, 8)) +
+        '<div class="inv-legend">' +
+          '<span><span class="inv-swatch" style="background:var(--inv-under)"></span>Under-stocked — demand exceeds stock</span>' +
+          '<span><span class="inv-swatch" style="background:var(--inv-over)"></span>Over-stocked — stock exceeds demand</span>' +
+        "</div>") +
+      "</div>";
+
+    // Channels.
+    var ex = ch.export, fu = ch.fulfilment;
+    out += '<div class="inv-grid" style="margin-top:12px">' +
+      panel("Export vs local", "by shipping method · " + intf(ex.total.jobs) + " jobs",
+        splitBars(ex.rows.map(function (r) {
+          return Object.assign({}, r, { drill: "inventory-channel?channel=" + r.channel });
+        }), "label", function (r) {
+          return r.channel === "export" ? "--inv-c2" : r.channel === "local" ? "--inv-c1" : "--inv-c5";
+        }) +
+        '<div class="inv-legend"><span>' +
+          esc("Export carries " + ex.rows[0].unitShare + "% of lenses on " + ex.rows[0].jobShare + "% of jobs") +
+        "</span></div>") +
+
+      panel("Outsourced vs in-house", "Farmouts · " + intf(fu.total.jobs) + " jobs",
+        splitBars(fu.rows.map(function (r) {
+          return Object.assign({}, r, { drill: "inventory-fulfilment?kind=" + r.fulfilment });
+        }), "label", function (r) {
+          return r.fulfilment === "outsourced" ? "--inv-c4" : "--inv-c3";
+        }) +
+        (fu.customerSuppliedEdging
+          ? '<div class="inv-legend"><span>' +
+            esc("Includes " + intf(fu.customerSuppliedEdging.jobs) + " customer-supplied edging jobs — exclude them and outsourcing falls to " +
+              (Math.round(((fu.total.jobs ? (fu.rows[0].jobs - fu.customerSuppliedEdging.jobs) / fu.total.jobs : 0)) * 1000) / 10) + "%") +
+            "</span></div>"
+          : "")) +
+      "</div>";
+
+    out += '<div class="inv-caveats"><h4>How to read the channels</h4><ul>' +
+      d.caveats.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") +
+      "</ul></div>";
+
+    return out;
+  }
+
+  function renderTrends() {
+    var host = state.root && state.root.querySelector("#invTrends");
+    if (!host) return;
+
+    if (trends.loading) {
+      host.innerHTML = '<div class="ov-empty"><span class="ov-spin"></span> Loading add-power and channel analysis…</div>';
+      return;
+    }
+    if (trends.error) {
+      host.innerHTML = '<div class="ov-error">' + esc(trends.error) + "</div>";
+      return;
+    }
+    host.innerHTML = trendsBody();
+
+    host.querySelectorAll("[data-drill]").forEach(function (el) {
+      el.addEventListener("click", function () { BM.openDrill(el.dataset.drill); });
+    });
+    host.querySelectorAll("[data-mf]").forEach(function (el) {
+      el.addEventListener("click", function () {
+        trends.mfType = el.dataset.mf;
+        renderTrends();
+      });
+    });
+  }
+
+  /* ─────────── Phase 3: recommendations and assistant ─────────── */
+
+  var SEVERITY_ICON = {
+    critical: "error", warning: "warning", serious: "priority_high", good: "trending_up"
+  };
+
+  function recCard(rec, index) {
+    var icon = SEVERITY_ICON[rec.severity] || "info";
+    var decided = rec.decision;
+
+    return '<div class="inv-rec ' + esc(rec.severity) + '">' +
+      '<span class="material-symbols-outlined inv-rec-icon" aria-hidden="true">' + icon + "</span>" +
+      '<div class="inv-rec-body">' +
+        '<div class="inv-rec-title">' + esc(rec.label) + "</div>" +
+        '<div class="inv-rec-action">' + esc(rec.action) + "</div>" +
+        '<div class="inv-rec-why">' + esc((rec.evidence && rec.evidence.why) || "") + "</div>" +
+        (decided
+          ? '<div class="inv-rec-decided">' +
+            esc(decided.decision + " — " + (decided.reason || "no reason recorded") +
+              (decided.decidedBy ? " (" + decided.decidedBy + ")" : "")) + "</div>"
+          : "") +
+      "</div>" +
+      '<div class="inv-rec-side">' +
+        '<span class="inv-rec-value">' + money(rec.valueAtStake) + "</span>" +
+        '<span class="inv-rec-kind">' + esc(rec.actionLabel) + "</span>" +
+        (decided ? "" :
+          '<span class="inv-rec-btns">' +
+          '<button type="button" class="ov-btn" data-decide="dismiss" data-rec="' + index + '"' +
+            ' aria-label="' + esc("Dismiss: " + rec.label) + '">Dismiss</button>' +
+          '<button type="button" class="ov-btn" data-decide="snooze" data-rec="' + index + '"' +
+            ' aria-label="' + esc("Snooze 30 days: " + rec.label) + '">Snooze</button>' +
+          "</span>") +
+      "</div>" +
+    "</div>";
+  }
+
+  function recsBody() {
+    var d = recs.data;
+    if (!d) return "";
+    var s = d.summary;
+
+    var out = '<div class="ov-tiles">' +
+      stat("Item actions", intf(s.openItemActions), money(s.itemValueAtStake) + " at stake") +
+      stat("Add-power signals", intf(s.openAddSignals), money(s.addValueAtStake) + " held") +
+      stat("Decided", intf(s.decided), "dismissed or snoozed") +
+      "</div>";
+
+    // Add signals first: they are few, high-value and about buying strategy.
+    if (d.addSignals.length) {
+      out += panel("Buying signals by add power", "ranked by value held in that power",
+        d.addSignals.map(function (r, i) { return recCard(r, "add:" + i); }).join(""));
+    }
+
+    var shown = recs.showAll ? d.itemActions : d.itemActions.slice(0, 10);
+    out += panel("Item actions", "specific SKUs, biggest exposure first",
+      shown.map(function (r, i) { return recCard(r, "item:" + i); }).join("") +
+      (d.itemActions.length > shown.length
+        ? '<button type="button" class="ov-btn" data-showall="1" style="margin-top:6px">' +
+          "Show all " + intf(d.itemActions.length) + " item actions</button>"
+        : "") +
+      '<div class="inv-legend"><span>' + esc(d.belowThreshold.note) + "</span></div>");
+
+    out += '<div class="inv-caveats"><h4>About these suggestions</h4><ul>' +
+      d.notes.map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("") +
+      "</ul></div>";
+
+    return out;
+  }
+
+  function renderRecs() {
+    var host = state.root && state.root.querySelector("#invRecs");
+    if (!host) return;
+
+    if (recs.loading) {
+      host.innerHTML = '<div class="ov-empty"><span class="ov-spin"></span> Working out what needs attention…</div>';
+      return;
+    }
+    if (recs.error) { host.innerHTML = '<div class="ov-error">' + esc(recs.error) + "</div>"; return; }
+    if (!recs.data) return;
+
+    host.innerHTML = recsBody();
+
+    host.querySelectorAll("[data-showall]").forEach(function (el) {
+      el.addEventListener("click", function () { recs.showAll = true; renderRecs(); });
+    });
+    host.querySelectorAll("[data-decide]").forEach(function (el) {
+      el.addEventListener("click", function () { decide(el.dataset.rec, el.dataset.decide); });
+    });
+  }
+
+  /**
+   * A decision always requires a reason — that is the entire value of the audit
+   * trail, so the prompt is not skippable and an empty answer cancels.
+   */
+  async function decide(ref, kind) {
+    var bits = String(ref).split(":");
+    var list = bits[0] === "add" ? recs.data.addSignals : recs.data.itemActions;
+    var rec = list[Number(bits[1])];
+    if (!rec) return;
+
+    var verb = kind === "snooze" ? "Snooze for 30 days" : "Dismiss";
+    var reason = window.prompt(verb + ": " + rec.label + "\n\nWhy? (recorded against this decision)");
+    if (!reason || !reason.trim()) return;
+
+    try {
+      var res = await fetch("/api/business-metrics/recommendations/decision", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          recommendation: rec,
+          decision: kind === "snooze" ? "snoozed" : "dismissed",
+          reason: reason.trim(),
+          snoozeDays: 30
+        })
+      });
+      var body = await res.json();
+      if (!res.ok) throw new Error(body.error || ("Request failed (HTTP " + res.status + ")"));
+      recs.loaded = false;
+      recs.data = null;
+      loadRecs();
+    } catch (err) {
+      window.alert("Could not record that decision: " + BM.describeError(err));
+    }
+  }
+
+  var ASK_SUGGESTIONS = [
+    "What should I write off first?",
+    "Which add power should I buy more of?",
+    "Why is so much stock not moving?",
+    "How much is tied up in photochromic?",
+    "Is export growing faster than local?"
+  ];
+
+  function askBody() {
+    var st = ask.status || {};
+    var out = '<div class="inv-ask">' +
+      '<div class="inv-ask-row">' +
+        '<input type="text" class="inv-ask-input" id="invAskInput" placeholder="Ask about these figures…"' +
+          ' value="' + esc(ask.question) + '" aria-label="Ask a question about the inventory figures">' +
+        '<button type="button" class="ov-btn" id="invAskGo"' + (ask.asking ? " disabled" : "") + ">" +
+          (ask.asking ? "Thinking…" : "Ask") + "</button>" +
+      "</div>" +
+      '<div class="inv-ask-suggestions">' + ASK_SUGGESTIONS.map(function (q) {
+        return '<button type="button" class="inv-ask-chip" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+      }).join("") + "</div>";
+
+    if (ask.error) out += '<div class="ov-error" style="margin-top:8px">' + esc(ask.error) + "</div>";
+
+    if (ask.answer) {
+      if (ask.answer.answer) {
+        out += '<div class="inv-ask-answer">' + esc(ask.answer.answer) + "</div>" +
+          '<div class="inv-ask-meta">' +
+          esc("Answered from precomputed figures by " + (ask.answer.model || ask.answer.provider) +
+            ". No SQL was generated and nothing was written.") + "</div>";
+      } else {
+        // No local model: say so plainly, and point at what still works.
+        out += '<div class="inv-ask-answer">' + esc(ask.answer.note || "No answer available.") + "</div>" +
+          '<div class="inv-ask-meta">' +
+          esc("The context API still serves every figure on this tab to any external assistant: " +
+            "GET /api/business-metrics/context/inventory") + "</div>";
+      }
+    } else if (st.configured === false) {
+      out += '<div class="inv-ask-meta">' + esc(st.detail || "No assistant provider configured.") +
+        " Questions still return the full grounding context for an external AI to answer from.</div>";
+    }
+
+    return out + "</div>";
+  }
+
+  function renderAsk() {
+    var host = state.root && state.root.querySelector("#invAsk");
+    if (!host) return;
+    host.innerHTML = askBody();
+
+    var input = host.querySelector("#invAskInput");
+    var go = host.querySelector("#invAskGo");
+    if (input) {
+      input.addEventListener("input", function () { ask.question = input.value; });
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") submitAsk(); });
+    }
+    if (go) go.addEventListener("click", submitAsk);
+    host.querySelectorAll("[data-q]").forEach(function (el) {
+      el.addEventListener("click", function () { ask.question = el.dataset.q; submitAsk(); });
+    });
+  }
+
+  async function submitAsk() {
+    var q = (ask.question || "").trim();
+    if (!q || ask.asking) return;
+    ask.asking = true;
+    ask.error = null;
+    renderAsk();
+
+    try {
+      var res = await fetch("/api/business-metrics/ask", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: q, section: "inventory" })
+      });
+      var body = await res.json();
+      if (!res.ok) throw new Error(body.error || ("Request failed (HTTP " + res.status + ")"));
+      ask.answer = body;
+    } catch (err) {
+      ask.error = BM.describeError(err);
+    } finally {
+      ask.asking = false;
+      renderAsk();
+      var input = state.root && state.root.querySelector("#invAskInput");
+      if (input) input.focus();
+    }
   }
 
   /* ─────────── shell ─────────── */
@@ -324,6 +789,17 @@
 
     wire();
     updateBadge();
+
+    // Re-paint Phase 2 into the freshly rendered host, and kick off its fetch
+    // the first time the body exists.
+    if (state.data && !state.error) {
+      renderTrends();
+      loadTrends();
+      renderRecs();
+      loadRecs();
+      renderAsk();
+      loadAskStatus();
+    }
   }
 
   function wire() {

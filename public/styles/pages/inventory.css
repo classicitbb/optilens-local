@@ -38,6 +38,13 @@
   --inv-serious: #ec835a;
   --inv-critical: #d03b3b;
 
+  /* Diverging pair for the over/under-stocked mismatch, which is a polarity
+     around zero rather than a set of categories. Validated on both surfaces:
+     light CVD dE 21.6 / normal 32.3, dark 19.2 / 29.0, both >= 3:1 contrast. */
+  --inv-under: #2a78d6;   /* demand exceeds stock — buy more */
+  --inv-over: #e34948;    /* stock exceeds demand — stop buying */
+  --inv-mid: #cdd5df;     /* neutral midpoint, never a hue */
+
   --inv-track: rgba(11, 30, 53, .07);
 }
 
@@ -53,6 +60,10 @@
     --inv-s2: #9ec5f4;
     --inv-s3: #6da7ec;
     --inv-s4: #3987e5;
+
+    --inv-under: #3987e5;
+    --inv-over: #e66767;
+    --inv-mid: #1e3a5c;
 
     --inv-track: rgba(244, 242, 237, .10);
   }
@@ -70,8 +81,112 @@
   --inv-s3: #6da7ec;
   --inv-s4: #3987e5;
 
+  --inv-under: #3987e5;
+  --inv-over: #e66767;
+  --inv-mid: #1e3a5c;
+
   --inv-track: rgba(244, 242, 237, .10);
 }
+
+/* ── small multiples (add-power trends) ───────────────────────────────────── */
+
+/* Eleven adds cannot be eleven coloured lines — the categorical limit is eight,
+   and beyond that hue stops carrying identity. Each add gets its own small
+   chart on a SHARED y-scale instead, so they stay comparable, and identity
+   comes from the panel label rather than from colour. */
+.inv-sparks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+}
+
+.inv-spark {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--transition-standard);
+}
+
+.inv-spark:hover { background: var(--bg-elevated); }
+.inv-spark:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.inv-spark-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.inv-spark-add {
+  font-size: 12.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-spark-share { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.inv-spark svg { display: block; width: 100%; height: 30px; overflow: visible; }
+
+.inv-spark-foot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-spark-foot .material-symbols-outlined { font-size: 13px; }
+.inv-trend-up { color: var(--inv-under); }
+.inv-trend-down { color: var(--inv-over); }
+.inv-trend-flat { color: var(--muted); }
+
+/* ── diverging mismatch bars ──────────────────────────────────────────────── */
+
+.inv-gap-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 148px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.inv-gap-row:hover { background: var(--bg-elevated); }
+.inv-gap-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Two halves either side of a centre line, so direction is read from which way
+   the bar points and not from colour alone. */
+.inv-gap-track {
+  position: relative;
+  display: flex;
+  height: 15px;
+  background: linear-gradient(var(--inv-mid), var(--inv-mid)) no-repeat center / 1px 100%;
+}
+
+.inv-gap-half { flex: 1; display: flex; align-items: center; }
+.inv-gap-half.left { justify-content: flex-end; }
+.inv-gap-half.right { justify-content: flex-start; }
+
+.inv-gap-fill { display: block; height: 100%; border-radius: 3px; }
+.inv-gap-fill.over { background: var(--inv-over); }
+.inv-gap-fill.under { background: var(--inv-under); }
+
+.inv-gap-label { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.inv-gap-detail { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 
 /* ── headline ─────────────────────────────────────────────────────────────── */
 
@@ -240,6 +355,128 @@
   .inv-exc.worsened { animation: none; border-left-width: 6px; }
   .inv-bar-fill { transition: none; }
 }
+
+/* ── recommendations ──────────────────────────────────────────────────────── */
+
+.inv-rec {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+
+.inv-rec.critical { border-left-color: var(--inv-critical); }
+.inv-rec.warning { border-left-color: var(--inv-warning); }
+.inv-rec.serious { border-left-color: var(--inv-serious); }
+.inv-rec.good { border-left-color: var(--inv-good); }
+
+.inv-rec-icon { font-size: 18px; margin-top: 1px; }
+.inv-rec.critical .inv-rec-icon { color: var(--inv-critical); }
+.inv-rec.warning .inv-rec-icon { color: var(--inv-warning); }
+.inv-rec.serious .inv-rec-icon { color: var(--inv-serious); }
+.inv-rec.good .inv-rec-icon { color: var(--inv-good); }
+
+.inv-rec-body { min-width: 0; }
+
+.inv-rec-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  overflow-wrap: anywhere;
+}
+
+.inv-rec-action { font-size: 11.5px; color: var(--muted); }
+.inv-rec-why {
+  font-size: 11.5px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed var(--line);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-rec-side { text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+
+.inv-rec-value {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inv-rec-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+
+.inv-rec-btns { display: flex; gap: 4px; }
+
+.inv-rec-decided {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── assistant ────────────────────────────────────────────────────────────── */
+
+.inv-ask {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.inv-ask-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.inv-ask-input {
+  flex: 1;
+  min-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--input-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.inv-ask-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.inv-ask-suggestions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+
+.inv-ask-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.inv-ask-chip:hover { background: var(--bg-elevated); color: var(--ink); }
+
+.inv-ask-answer {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inv-ask-meta { margin-top: 6px; font-size: 11px; color: var(--muted); }
 
 /* ── layout ───────────────────────────────────────────────────────────────── */
 

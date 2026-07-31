@@ -96,6 +96,11 @@ const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
 const { getSectionContext } = require("./lib/metrics/context");
 const {
+  getRecommendations,
+  recordDecision: recordRecommendationDecision
+} = require("./lib/metrics/inventory-recommendations");
+const { ask: askAssistant, getAssistantStatus } = require("./lib/metrics/assistant");
+const {
   addShipmentSessionItem,
   closeShipmentSessionsBatch,
   createShipmentSession,
@@ -1448,6 +1453,53 @@ const server = http.createServer(async (req, res) => {
       () => requirePermission(req, "delivery.read"),
       () => getDrill(kind, params)
     );
+  }
+
+  // Ranked advisory list. Read permission only — producing a recommendation
+  // changes nothing, and nothing here is ever acted on automatically.
+  if (url.pathname === "/api/business-metrics/recommendations" && req.method === "GET") {
+    return handleCachedApi(
+      req, res,
+      `recommendations:${url.searchParams.get("includeDecided") || "0"}`,
+      () => requirePermission(req, "delivery.read"),
+      () => getRecommendations({ includeDecided: url.searchParams.get("includeDecided") === "1" })
+    );
+  }
+
+  // Recording a decision is the only write, and it lands in the app database —
+  // never in Innovations, which is configured read-only.
+  if (url.pathname === "/api/business-metrics/recommendations/decision" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      return recordRecommendationDecision({
+        recommendation: body.recommendation,
+        decision: body.decision,
+        reason: body.reason,
+        snoozeDays: body.snoozeDays,
+        actorUserId: actor.userId || null,
+        actorName: actor.username || actor.userId || "unknown"
+      });
+    });
+  }
+
+  // Whether in-app answering is available, so the UI can say so honestly
+  // instead of offering a chat box that cannot answer.
+  if (url.pathname === "/api/business-metrics/assistant/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return getAssistantStatus();
+    });
+  }
+
+  // Ask a question about a section. Answers come from precomputed figures only —
+  // the model is handed a JSON document, never a database handle.
+  if (url.pathname === "/api/business-metrics/ask" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const body = await readJsonBody(req);
+      return askAssistant({ question: body.question, section: body.section });
+    });
   }
 
   // Machine-readable view of a section: the same figures the tab renders, plus
