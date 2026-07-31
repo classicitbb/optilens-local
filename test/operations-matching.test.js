@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { buildBatchMatchQuery, classifyMatches } = require("../lib/operations/matching");
+const { buildBatchMatchQuery, buildZenBatchMatchQuery, classifyMatches, zenRowToMatchRow } = require("../lib/operations/matching");
 
 test("batch matcher classifies missing, inactive, matched, and duplicate active references", () => {
   const result = classifyMatches(["A", "B", "C", "D"], [
@@ -19,6 +19,27 @@ test("batch matcher query is parameterized and uses the configured reference fie
   assert.match(query, /@reference_1/);
   assert.doesNotMatch(query, /001|002/);
   assert.throws(() => buildBatchMatchQuery(["001"], "unknown"), /Unsupported supplier matching field/);
+});
+
+test("Zen fallback matcher uses bound ODBC parameters and preserves the match shape", () => {
+  const query = buildZenBatchMatchQuery(["001", "002"], "job_id");
+  assert.match(query, /o\.JobID/);
+  assert.match(query, /IN \(\?, \?\)/);
+  assert.doesNotMatch(query, /001|002/);
+  assert.deepEqual(zenRowToMatchRow({ SUPPLIER_REFERENCE: "001", INTERNAL_ORDER_ID: 42, IS_ACTIVE: 1 }), {
+    supplier_reference: "001",
+    internal_order_id: 42,
+    customer_id: undefined,
+    customer_name: undefined,
+    tray_number: undefined,
+    order_reference: undefined,
+    current_status_id: undefined,
+    current_status_description: undefined,
+    patient_id: undefined,
+    customer_account: undefined,
+    received_at: undefined,
+    is_active: true
+  });
 });
 
 test("batch matcher supports TOG JobID references", () => {
