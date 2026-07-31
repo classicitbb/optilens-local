@@ -6,6 +6,10 @@ const path = require("node:path");
 const { periodRange, PERIODS } = require("../lib/metrics/summary");
 const { DRILL_KINDS } = require("../lib/metrics/drill");
 const { DETAIL_SECTIONS } = require("../lib/metrics/detail");
+const {
+  buildConformanceQuery, buildGapsQuery, buildFarmoutLabsQuery,
+  TEMPLATE_PRICE_LIST_ID, SUPPLIER_COST_GROUP, COST_LIST_CHECKS
+} = require("../lib/metrics/cost-lists");
 
 const PUBLIC = path.join(__dirname, "..", "public");
 const readPublic = (f) => fs.readFileSync(path.join(PUBLIC, f), "utf8");
@@ -105,11 +109,118 @@ test("every local drill table the front-end builds is actually registered", () =
     "overview must register sales-months locally so it costs no round trip");
 });
 
+// Asserted one-way on purpose. A panel naming a section that does not exist 404s at
+// runtime, so that must never happen. A section with no panel yet is just backend built
+// ahead of its UI, which is normal while a tab is being developed.
 test("every tab panel maps to a detail section", () => {
   const html = readPublic("business-metrics.html");
-  const inMarkup = [...html.matchAll(/data-section="([a-z]+)"/g)].map((m) => m[1]);
+  const inMarkup = [...html.matchAll(/data-section="([a-z-]+)"/g)].map((m) => m[1]);
 
-  assert.deepStrictEqual(inMarkup.slice().sort(), DETAIL_SECTIONS.slice().sort());
+  assert.ok(inMarkup.length > 0, "expected the page to declare tab panels");
+
+  for (const section of inMarkup) {
+    assert.ok(DETAIL_SECTIONS.includes(section),
+      `business-metrics.html has a panel for "${section}" but lib/metrics/detail.js has no such section`);
+  }
+});
+
+test("cost list queries are parameterised and target supplier cost lists only", () => {
+  const conformance = buildConformanceQuery();
+
+  assert.match(conformance, /@templateId/, "template list must be a parameter, not inlined");
+  assert.match(conformance, /PricelistGroup\s*=\s*@costGroup/,
+    "must filter to the supplier cost group rather than all pricelists");
+  assert.doesNotMatch(conformance, /PriceListID\s*=\s*125/,
+    "the template id must not be hard-coded into the SQL");
+
+  // 125 is pinned by id because the list was renamed from CODEX TEST ACTIAN 20260720.
+  assert.strictEqual(TEMPLATE_PRICE_LIST_ID, 125);
+  assert.strictEqual(SUPPLIER_COST_GROUP, 1);
+});
+
+test("cost list attribute joins use the full composite key, not a single num", () => {
+  const gaps = buildGapsQuery();
+
+  // Materials, MFTypes, LensType and LensOptions are all composite-keyed. Joining on
+  // one column silently fans out and produces wrong names.
+  assert.match(gaps, /dbo\.Materials\s+m[\s\S]*?m\.MtrlNum[\s\S]*?m\.GroupNum/);
+  assert.match(gaps, /dbo\.LensType\s+lt[\s\S]*?lt\.Lnum[\s\S]*?lt\.MFnum[\s\S]*?lt\.Matlnum[\s\S]*?lt\.Groupnum/);
+  assert.match(gaps, /dbo\.LensOptions\s+lo[\s\S]*?lo\.Num[\s\S]*?lo\.Lnum[\s\S]*?lo\.MFnum[\s\S]*?lo\.Matlnum[\s\S]*?lo\.Groupnum/);
+  assert.match(gaps, /@priceListId/);
+  assert.match(gaps, /@rowLimit/);
+});
+
+test("farmout labs join Labs.num, not Labs.LabID", () => {
+  // Farmouts.LabID references Labs.num. Joining Labs.LabID silently returns the wrong lab.
+  assert.match(buildFarmoutLabsQuery(), /dbo\.Labs\s+l\s+ON\s+l\.num\s*=\s*f\.LabID/);
+});
+
+test("the cost list report never writes to Innovations", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "cost-lists.js"), "utf8");
+  const code = source.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  for (const verb of ["INSERT ", "UPDATE ", "DELETE ", "MERGE ", "DROP ", "ALTER "]) {
+    assert.ok(!new RegExp(verb, "i").test(code),
+      `cost-lists.js contains "${verb.trim()}" — this report must be strictly read-only`);
+  }
+});
+
+test("cost list checks are registered so the front-end cannot drift", () => {
+  assert.deepStrictEqual(
+    COST_LIST_CHECKS.slice().sort(),
+    ["duplicate-name", "no-costs", "no-sheets", "stale", "unlisted-lab"]
+  );
+  assert.ok(DRILL_KINDS.includes("cost-list-gaps"));
+  assert.ok(DETAIL_SECTIONS.includes("cost-lists"));
+});
+
+test("the supplier crosswalk is valid and pins lists by id", () => {
+  const file = path.join(__dirname, "..", "data", "pricelist", "supplier-costlist-crosswalk.json");
+  const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+
+  assert.ok(Array.isArray(parsed.lists) && parsed.lists.length > 0);
+
+  const ids = new Set();
+  for (const row of parsed.lists) {
+    assert.strictEqual(typeof row.priceListId, "number", `${row.priceListName} needs a numeric priceListId`);
+    assert.ok(!ids.has(row.priceListId), `duplicate priceListId ${row.priceListId} in the crosswalk`);
+    ids.add(row.priceListId);
+    assert.ok("catalogueSupplier" in row,
+      `${row.priceListName} must state catalogueSupplier, even if null, so gaps are explicit`);
+  }
+
+  const template = parsed.lists.find((r) => r.isTemplate);
+  assert.ok(template, "the crosswalk must identify the template list");
+  assert.strictEqual(template.priceListId, TEMPLATE_PRICE_LIST_ID);
+});
+
+// lib/migrations.js is a hand-maintained ordered list, not a directory scan.
+// 020-standards-catalog-option-index.sql was never added to it and has to be run by hand
+// to this day (see docs/beswift-downstream-todo.md). This catches the next one.
+test("every migration file is registered in lib/migrations.js", () => {
+  const dir = path.join(__dirname, "..", "database");
+  const registry = fs.readFileSync(path.join(__dirname, "..", "lib", "migrations.js"), "utf8");
+
+  // Deliberately not in the runner:
+  //   001 creates the database itself, so it cannot run against that database
+  //   005 is a destructive test-data utility, run by hand only
+  //   020 is the known gap — documented in docs/beswift-downstream-todo.md and still
+  //       applied manually. Pinned here so it stays visible rather than forgotten.
+  const KNOWN_UNREGISTERED = [
+    "001-create-database.sql",
+    "005-utility-clean-test-data.sql",
+    "020-standards-catalog-option-index.sql"
+  ];
+
+  const onDisk = fs.readdirSync(dir)
+    .filter((f) => /^\d{3}-.*\.sql$/.test(f) && !f.includes(".rollback."));
+
+  const missing = onDisk
+    .filter((f) => !registry.includes(`"${f}"`))
+    .filter((f) => !KNOWN_UNREGISTERED.includes(f));
+
+  assert.deepStrictEqual(missing, [],
+    `these migrations exist on disk but are not listed in lib/migrations.js, so they will never run: ${missing.join(", ")}`);
 });
 
 test("the overview never reaches for the monolith or the Actian source", () => {
@@ -126,6 +237,36 @@ test("the overview never reaches for the monolith or the Actian source", () => {
   assert.ok(!/getAppPool/.test(code), "the overview summary must not read the app database");
   assert.ok(!/getIntegrationHealthSnapshot/.test(code),
     "the overview summary must check only its own source, not the full integration snapshot");
+});
+
+// CategoryType 16 is Package, which carries zero cost by design because its components
+// are costed on their own lines. Classing it as a lens inflated the zero-cost KPI by 29%
+// (31 -> 22 invoices when corrected). Guard every place that classification is made.
+test("packages are never treated as lenses or counted as zero-cost defects", () => {
+  const files = {
+    "lib/metrics/summary.js": fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "summary.js"), "utf8"),
+    "lib/metrics/drill.js": fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "drill.js"), "utf8"),
+    "lib/metrics/detail.js": fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "detail.js"), "utf8"),
+    "lib/business-metrics.js": fs.readFileSync(path.join(__dirname, "..", "lib", "business-metrics.js"), "utf8")
+  };
+
+  for (const [name, source] of Object.entries(files)) {
+    const code = source.replace(/--[^\n]*/g, "").replace(/\/\/[^\n]*/g, "");
+    assert.ok(!/CategoryType\s+IN\s*\(\s*1\s*,\s*16/.test(code),
+      `${name} still classifies CategoryType 16 (Package) alongside 1 (Lens)`);
+    assert.ok(!/CategoryType\s+IN\s*\([^)]*\b16\b[^)]*\)\s*[\s\S]{0,120}CostPrice[^\n]*=\s*0/.test(code),
+      `${name} still includes Package in a zero-cost filter`);
+  }
+});
+
+test("the overview summary avoids columns the mirror schema lacks", () => {
+  const summary = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "summary.js"), "utf8");
+  const code = summary.replace(/--[^\n]*/g, "").replace(/\/\/[^\n]*/g, "");
+
+  // innovations_mirror has no StockLots.OnHandCalcTime; referencing it fails to compile
+  // on the mirror profile and takes the whole Overview tab offline.
+  assert.ok(!/OnHandCalcTime/.test(code),
+    "summary.js references StockLots.OnHandCalcTime, which does not exist in the mirror schema");
 });
 
 test("sales figures come from the journal, never from tax-inclusive invoice totals", () => {

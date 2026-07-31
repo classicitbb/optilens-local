@@ -94,6 +94,7 @@ const { getBusinessMetrics } = require("./lib/business-metrics");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
+const { getSectionContext } = require("./lib/metrics/context");
 const {
   addShipmentSessionItem,
   closeShipmentSessionsBatch,
@@ -1446,6 +1447,21 @@ const server = http.createServer(async (req, res) => {
       `drill:${kind}:${url.searchParams.toString()}`,
       () => requirePermission(req, "delivery.read"),
       () => getDrill(kind, params)
+    );
+  }
+
+  // Machine-readable view of a section: the same figures the tab renders, plus
+  // the definitions, thresholds, provenance and caveats needed to reason about
+  // them. This is what "chat with the data" reads — an assistant answers from
+  // precomputed numbers rather than generating SQL against a live 1.9M-row ERP,
+  // so a wrong answer is detectable and a bad query cannot stall the lab.
+  if (url.pathname.startsWith("/api/business-metrics/context/") && req.method === "GET") {
+    const section = url.pathname.slice("/api/business-metrics/context/".length);
+    return handleCachedApi(
+      req, res,
+      `context:${section}`,
+      () => requirePermission(req, "delivery.read"),
+      () => getSectionContext(section)
     );
   }
 

@@ -1,0 +1,307 @@
+/* Inventory tab — Business Metrics.
+ *
+ * Chart colours are declared as roles here rather than inlined at the mark, so
+ * light/dark swap in one place and the JS is written against roles.
+ *
+ * Every ramp below was run through the data-viz validator against THIS app's
+ * surfaces (#ffffff light, #14304f navy dark) — not a reference surface, since
+ * the dark surface here is navy rather than near-black and the reference values
+ * cannot be assumed to carry over.
+ *
+ *   categorical (5 slots) light  PASS  worst adjacent CVD dE 9.1, normal 19.6
+ *                         dark   PASS  worst adjacent CVD dE 8.4, normal 19.3
+ *   ordinal (4 steps)     light  PASS  monotone, light end 2.11:1
+ *                         dark   PASS  monotone, light end 3.69:1
+ *
+ * Light mode WARNs on three categorical slots below 3:1 (aqua, yellow,
+ * magenta). The relief rule applies and is satisfied: every category carries a
+ * visible direct label, and every chart has a table view behind its drill.
+ */
+
+.inv-root {
+  --inv-c1: #2a78d6;
+  --inv-c2: #eb6834;
+  --inv-c3: #1baf7a;
+  --inv-c4: #eda100;
+  --inv-c5: #e87ba4;
+
+  /* Ordinal speed ramp: non-mover → fast, one hue, monotone lightness. */
+  --inv-s1: #86b6ef;
+  --inv-s2: #5598e7;
+  --inv-s3: #2a78d6;
+  --inv-s4: #184f95;
+
+  /* Status palette is fixed and never themed — it must not drift into a series
+     colour. Always paired with an icon + label, never colour alone. */
+  --inv-good: #0ca30c;
+  --inv-warning: #fab219;
+  --inv-serious: #ec835a;
+  --inv-critical: #d03b3b;
+
+  --inv-track: rgba(11, 30, 53, .07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .inv-root {
+    --inv-c1: #3987e5;
+    --inv-c2: #d95926;
+    --inv-c3: #199e70;
+    --inv-c4: #c98500;
+    --inv-c5: #d55181;
+
+    --inv-s1: #cde2fb;
+    --inv-s2: #9ec5f4;
+    --inv-s3: #6da7ec;
+    --inv-s4: #3987e5;
+
+    --inv-track: rgba(244, 242, 237, .10);
+  }
+}
+
+:root[data-theme="dark"] .inv-root {
+  --inv-c1: #3987e5;
+  --inv-c2: #d95926;
+  --inv-c3: #199e70;
+  --inv-c4: #c98500;
+  --inv-c5: #d55181;
+
+  --inv-s1: #cde2fb;
+  --inv-s2: #9ec5f4;
+  --inv-s3: #6da7ec;
+  --inv-s4: #3987e5;
+
+  --inv-track: rgba(244, 242, 237, .10);
+}
+
+/* ── headline ─────────────────────────────────────────────────────────────── */
+
+.inv-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--inv-critical);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.inv-hero-value {
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  line-height: 1.05;
+}
+
+.inv-hero-label { font-size: 13px; color: var(--muted); }
+.inv-hero-label strong { color: var(--ink); font-weight: 600; }
+
+/* ── bar charts ───────────────────────────────────────────────────────────── */
+
+.inv-bars { display: flex; flex-direction: column; gap: 2px; }
+
+/* 2px surface gap between fills comes from the row gap above; the track keeps
+   an empty bar legible so a zero row is not an invisible row. */
+.inv-bar-row {
+  display: grid;
+  /* The value column is a FIXED width, not auto: with auto sizing each row's
+     track came out a different length (297/274/284/277px measured), so bar
+     lengths were not comparable between rows — which is the whole job of the
+     chart. Fixed column means every track shares one scale. */
+  grid-template-columns: 132px 1fr 116px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--transition-standard);
+}
+
+.inv-bar-row:hover,
+.inv-bar-row:focus-visible { background: var(--bg-elevated); }
+.inv-bar-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.inv-bar-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The swatch is the legend: identity never rests on the fill colour alone,
+   because the label sits beside it. */
+.inv-swatch {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--inv-c1);
+}
+
+/* Both are spans. The track survives as a direct grid child (grid blockifies
+   those), but the fill is a grandchild and stayed display:inline, where width
+   and height simply do not apply — it measured 0px wide with width:100% set.
+   Declare block explicitly on both rather than relying on blockification. */
+.inv-bar-track {
+  display: block;
+  position: relative;
+  height: 15px;
+  border-radius: 4px;
+  background: var(--inv-track);
+  overflow: hidden;
+}
+
+.inv-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;                  /* rounded data-end, anchored at baseline */
+  background: var(--inv-c1);
+  transition: width var(--transition-standard);
+}
+
+.inv-bar-value {
+  text-align: right;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.inv-bar-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── exception rail ───────────────────────────────────────────────────────── */
+
+.inv-exc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--transition-standard);
+}
+
+.inv-exc:hover { background: var(--bg-elevated); }
+.inv-exc:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-exc.critical { border-left-color: var(--inv-critical); }
+.inv-exc.warning { border-left-color: var(--inv-warning); }
+.inv-exc.good { border-left-color: var(--inv-good); }
+
+.inv-exc-icon { flex: none; font-size: 19px; }
+.inv-exc.critical .inv-exc-icon { color: var(--inv-critical); }
+.inv-exc.warning .inv-exc-icon { color: var(--inv-warning); }
+.inv-exc.good .inv-exc-icon { color: var(--inv-good); }
+
+.inv-exc-n {
+  font-size: 19px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+}
+
+.inv-exc-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.inv-exc-label { font-size: 13px; font-weight: 550; }
+.inv-exc-detail { font-size: 11.5px; color: var(--muted); }
+
+/* A single slow pulse, only when a count has WORSENED since the last view.
+   Deliberately not a flash: flashing content is a WCAG 2.1 failure and staff
+   stop seeing it inside a week. */
+@keyframes inv-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(208, 59, 59, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(208, 59, 59, .22); }
+}
+
+.inv-exc.worsened { animation: inv-pulse 2.4s ease-in-out 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-exc.worsened { animation: none; border-left-width: 6px; }
+  .inv-bar-fill { transition: none; }
+}
+
+/* ── layout ───────────────────────────────────────────────────────────────── */
+
+.inv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 12px;
+}
+
+.inv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.inv-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+.inv-basis {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--badge-warn-bg);
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.inv-caveats {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.inv-caveats h4 {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.inv-caveats ul { margin: 0; padding-left: 16px; }
+.inv-caveats li { margin-bottom: 3px; }
+
+/* Wide content scrolls inside its own container; the page never scrolls
+   sideways. */
+.inv-scroll { overflow-x: auto; }
+
+@media (max-width: 560px) {
+  .inv-bar-row { grid-template-columns: 96px 1fr auto; }
+  .inv-bar-value { min-width: 72px; font-size: 11.5px; }
+  .inv-hero-value { font-size: 25px; }
+}

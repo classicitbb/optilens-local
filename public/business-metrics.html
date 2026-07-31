@@ -9,6 +9,7 @@
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/business-metrics.css">
+  <link rel="stylesheet" href="/styles/pages/inventory.css">
 </head>
 <body class="module-body">
 
@@ -37,6 +38,8 @@
         <button type="button" data-tab="profitability">Profitability</button>
         <button type="button" data-tab="deliveries">Deliveries</button>
         <button type="button" data-tab="pricing">Pricing</button>
+        <button type="button" data-tab="cost-lists">Cost lists</button>
+        <button type="button" data-tab="inventory">Inventory</button>
       </nav>
 
       <!-- Every panel is rendered by a module and loads its own data on first open:
@@ -49,6 +52,8 @@
       <section class="workflow-panel" id="profitability"><div class="ov-root" data-section="profitability"></div></section>
       <section class="workflow-panel" id="deliveries"><div class="ov-root" data-section="deliveries"></div></section>
       <section class="workflow-panel" id="pricing"><div class="ov-root" data-section="pricing"></div></section>
+      <section class="workflow-panel" id="cost-lists"><div class="ov-root" data-section="cost-lists"></div></section>
+      <section class="workflow-panel" id="inventory"><div class="ov-root inv-root" data-section="inventory"></div></section>
     </section>
   </main>
 
@@ -57,5 +62,6 @@
   <script src="/business-metrics-shared.js"></script>
   <script src="/business-metrics-overview.js"></script>
   <script src="/business-metrics-tabs.js"></script>
+  <script src="/business-metrics-inventory.js"></script>
 </body>
 </html>

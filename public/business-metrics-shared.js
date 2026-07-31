@@ -251,13 +251,18 @@
     else if (top.error) body = '<div class="ov-error" style="margin-top:12px">' + esc(top.error) + "</div>";
     else body = renderTable(top.data);
 
+    // Without this the heading stays on "Loading…" after a failure, which reads as a
+    // hang rather than an error.
+    var heading = (top.data && top.data.title) ||
+      (top.error ? "Could not load this view" : "Loading…");
+
     el.innerHTML =
       '<div class="ov-scrim" id="ovScrim"></div>' +
       '<aside class="ov-drawer" role="dialog" aria-modal="true" aria-label="' +
         esc((top.data && top.data.title) || "Detail") + '">' +
         '<div class="ov-drawer-head">' + crumb +
           '<div class="ov-drawer-title"><div>' +
-            "<h2>" + esc((top.data && top.data.title) || "Loading…") + "</h2>" +
+            "<h2>" + esc(heading) + "</h2>" +
             '<div class="ov-drawer-sub">' + esc((top.data && top.data.subtitle) || "") + "</div>" +
           "</div>" +
           '<div class="ov-drawer-actions">' +

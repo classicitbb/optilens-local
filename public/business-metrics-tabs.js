@@ -16,7 +16,7 @@
   var esc = BM.esc, money = BM.money, intf = BM.intf, pct = BM.pct;
   var dateLabel = BM.dateLabel, monthLabel = BM.monthLabel;
 
-  var SECTIONS = ["sales", "invoices", "profitability", "deliveries", "pricing"];
+  var SECTIONS = ["sales", "invoices", "profitability", "deliveries", "pricing", "cost-lists"];
 
   // One state object per tab, so each refreshes on its own clock.
   var tabs = {};
@@ -263,6 +263,67 @@
         panel("Deliveries by month", "Access archive", barChart(dl.byMonth || [], "deliveries", intf, "No dated deliveries in the archive."));
     },
 
+    "cost-lists": function (d) {
+      var c = d.costLists;
+      if (!c) return '<div class="ov-empty">Live Innovations source unavailable.</div>';
+
+      var active = c.lists.filter(function (l) { return l.isActive; });
+      var atParity = active.filter(function (l) { return l.status === "parity"; }).length;
+      var empty = active.filter(function (l) { return l.cellsPriced === 0; }).length;
+      var tmpl = c.template || {};
+
+      var out = '<div class="ov-tiles ov-fade">' +
+        stat("Template cells", intf(tmpl.templateCells), "Costing Template · list " + c.templatePriceListId) +
+        stat("Lists at parity", intf(atParity) + " / " + intf(active.length), "90% or more of the template") +
+        stat("Lists with no costs", intf(empty), "active but unpopulated") +
+        stat("Cost basis", "Per eye", "USD · catalogue suggestions halved") +
+        "</div>";
+
+      if (c.exceptions.length) {
+        out += '<div class="ov-fade"><div class="ov-rail-label">Needs attention · ' +
+          c.exceptions.length + " open</div><div class=\"ov-rail\">" +
+          c.exceptions.map(function (x) {
+            return '<div class="ov-exc ' + esc(x.severity) + '">' +
+              '<span class="ov-exc-top"><span class="ov-exc-n">' + intf(x.count) + "</span>" +
+              '<span class="ov-exc-label">' + esc(x.label) + "</span></span>" +
+              '<span class="ov-exc-detail">' + esc(x.detail || "") + "</span></div>";
+          }).join("") + "</div></div>";
+      } else {
+        out += '<div class="ov-fade"><div class="ov-allclear">' +
+          "All supplier cost lists are populated and current.</div></div>";
+      }
+
+      out += panel("Supplier cost lists", "measured against the Costing Template",
+        '<div class="ov-rows">' + active.map(function (l) {
+          var pct = l.coveragePct == null ? 0 : l.coveragePct;
+          var colour = l.isTemplate ? "var(--blue)"
+            : pct >= 90 ? "var(--green)" : pct > 0 ? "var(--amber)" : "var(--red)";
+          return '<button type="button" class="ov-row" data-drill="cost-list-gaps?priceListId=' + l.priceListId + '"' +
+            ' aria-label="' + esc(l.priceListName + ", " + pct + "% of template, " +
+              intf(l.cellsMissing) + " cells missing. Open details.") + '">' +
+            '<span class="ov-swatch" style="background:' + colour + '"></span>' +
+            '<span class="grow">' + esc(l.priceListName) +
+              (l.isTemplate ? ' <span class="muted">· template</span>' : "") + "</span>" +
+            '<span class="muted optional optional-lg" style="width:96px">' + esc(l.catalogueSupplier || "—") + "</span>" +
+            '<span class="num muted optional optional-md" style="width:46px">' + intf(l.sheets) + " sh</span>" +
+            '<span class="ov-minibar optional optional-md"><i style="width:' + pct.toFixed(1) + '%;background:' + colour + '"></i></span>' +
+            '<span class="num" style="width:52px">' + pct.toFixed(1) + "%</span>" +
+            '<span class="num muted" style="width:74px">' + intf(l.cellsMissing) + " gaps</span>" +
+            '<span class="muted optional optional-lg" style="width:88px">' + (l.lastUpdated ? esc(dateLabel(l.lastUpdated)) : "never") + "</span>" +
+            '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:15px;color:var(--muted)">chevron_right</span>' +
+            "</button>";
+        }).join("") + "</div>");
+
+      out += '<div class="ov-note ov-fade">' +
+        '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:16px">info</span><span>' +
+        "Coverage counts template grid cells this list prices, not its total rows — a list can hold many " +
+        "rows that cover different combinations. Costs are per eye in USD; catalogue suggestions are per " +
+        "pair and are halved, with both figures shown. This report is read-only: fix costs in Innovations " +
+        "and refresh.</span></div>";
+
+      return out;
+    },
+
     pricing: function (d) {
       var p = d.pricing;
       if (!p) return '<div class="ov-empty">App database unavailable.</div>';
@@ -423,7 +484,14 @@
     // Sections without a natural table export their stat rows instead.
     var d = tab.data;
     var rows = [["Metric", "Value"]];
-    if (tab.name === "invoices" && d.invoiceThresholds) {
+    if (tab.name === "cost-lists" && d.costLists) {
+      rows = [["Price list id", "Name", "Catalogue supplier", "Active", "Sheets",
+        "Template cells", "Cells priced", "Cells missing", "Coverage %", "Status", "Last updated"]];
+      d.costLists.lists.forEach(function (l) {
+        rows.push([l.priceListId, l.priceListName, l.catalogueSupplier || "", l.isActive, l.sheets,
+          l.templateCells, l.cellsPriced, l.cellsMissing, l.coveragePct, l.status, l.lastUpdated || ""]);
+      });
+    } else if (tab.name === "invoices" && d.invoiceThresholds) {
       var t = d.invoiceThresholds;
       rows.push(["shippedInvoiceCount", t.shippedInvoiceCount]);
       rows.push(["under199.count", t.under199.count], ["under199.total", t.under199.total]);
