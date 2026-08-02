@@ -190,6 +190,7 @@ const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
+const rxOrderSubmitter = require("./lib/rx-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
 const liveGatewayAutostart = require("./lib/live-gateway-autostart");
@@ -2283,6 +2284,20 @@ const server = http.createServer(async (req, res) => {
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getCvApi(body.token);
       return innovationsSync.runRequested(creds, {});
+    });
+  }
+
+  // Claim + submit any staff-released Rx web orders (CV outbox → InnovaAPI or
+  // file-drop). Same auth/creds pattern as check-requests; safe to call on the
+  // same schedule — it no-ops when nothing is approved.
+  if (url.pathname === "/api/connectors/rx-submissions/process" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      return rxOrderSubmitter.runOnce(creds, { max: Number(body.max) || 3 });
     });
   }
 
