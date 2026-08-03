@@ -1,3 +1,0 @@
-body.module-body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-    .module-main { flex:1; min-height:0; padding:0 !important; display:flex; flex-direction:column; }
-    .ds-frame { flex:1; border:none; width:100%; min-height:0; display:block; }

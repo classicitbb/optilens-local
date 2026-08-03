@@ -166,24 +166,6 @@ const {
   updateRole,
   updateUser
 } = require("./lib/auth");
-const {
-  autosaveFile,
-  autosaveBillingDocument,
-  createFile,
-  createBillingDocument,
-  deleteFile,
-  deleteBillingDocument,
-  getFile,
-  getBillingDocument,
-  listAllAccessibleFiles,
-  listFiles,
-  listBillingDocuments,
-  updateFile,
-  updateBillingDocument,
-  updateBillingDocumentShares,
-  updateUnifiedShares
-} = require("./lib/docstudio");
-
 // ─── Pricelist Builder (folded in from pricelist-automation) ─────────────────
 const PE = require("./lib/pricing-engine");
 const plSecure = require("./lib/secure-config-pricelist");
@@ -2323,6 +2305,25 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/monitor/rx-alias-sync/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const health = await getIntegrationHealthSnapshot({ force: true });
+      return health.rxAliasSync;
+    });
+  }
+
+  if (url.pathname === "/api/monitor/rx-alias-sync/run" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const logDir = path.join(dataDir, "logs");
+      fs.mkdirSync(logDir, { recursive: true });
+      const child = spawn(process.execPath, [path.join(__dirname, "scripts", "sync-rx-catalog.js")], { cwd: __dirname, detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
+      child.unref();
+      return { started: true, pid: child.pid };
+    });
+  }
+
   if (url.pathname === "/api/monitor/innovations-sync/logs" && req.method === "GET") {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);
@@ -2485,147 +2486,11 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // ── Doc Studio API ────────────────────────────────────────────────────────
-
-  if (url.pathname === "/api/docstudio/users" && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      const data = await listUsers();
-      return {
-        users: data.users
-          .filter((item) => item.isActive && item.userId !== user.userId)
-          .map((item) => ({
-            userId: item.userId,
-            username: item.username,
-            displayName: item.displayName,
-            email: item.email || ""
-          }))
-      };
-    });
-  }
-
-  if (url.pathname === "/api/docstudio/my-files" && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      return listAllAccessibleFiles(user.userId, { scope: url.searchParams.get("scope") || "all-accessible" });
-    });
-  }
-
-  if (url.pathname === "/api/docstudio/files" && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      return listFiles(
-        user.userId,
-        url.searchParams.get("scope") || "all-accessible",
-        url.searchParams.get("type") || ""
-      );
-    });
-  }
-
-  if (url.pathname === "/api/docstudio/files" && req.method === "POST") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return createFile(await readJsonBody(req), user.userId);
-    }, 201);
-  }
-
-  const docStudioFileMatch = url.pathname.match(/^\/api\/docstudio\/files\/([^/]+)$/);
-  if (docStudioFileMatch && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      return getFile(docStudioFileMatch[1], user.userId);
-    });
-  }
-
-  if (docStudioFileMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return updateFile(docStudioFileMatch[1], await readJsonBody(req), user.userId);
-    });
-  }
-
-  if (docStudioFileMatch && req.method === "DELETE") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return deleteFile(docStudioFileMatch[1], user.userId);
-    });
-  }
-
-  const docStudioFileAutosaveMatch = url.pathname.match(/^\/api\/docstudio\/files\/([^/]+)\/autosave$/);
-  if (docStudioFileAutosaveMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return autosaveFile(docStudioFileAutosaveMatch[1], await readJsonBody(req), user.userId);
-    });
-  }
-
-  const docStudioUnifiedSharesMatch = url.pathname.match(/^\/api\/docstudio\/files\/(file|billing)\/([^/]+)\/shares$/);
-  if (docStudioUnifiedSharesMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      const body = await readJsonBody(req);
-      return updateUnifiedShares(docStudioUnifiedSharesMatch[1], docStudioUnifiedSharesMatch[2], body.shares || [], user.userId);
-    });
-  }
-
-  if (url.pathname === "/api/docstudio/billing-documents" && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      return listBillingDocuments(user.userId, url.searchParams.get("scope") || "all-accessible");
-    });
-  }
-
-  if (url.pathname === "/api/docstudio/billing-documents" && req.method === "POST") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return createBillingDocument(await readJsonBody(req), user.userId);
-    }, 201);
-  }
-
-  const docStudioBillingMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)$/);
-  if (docStudioBillingMatch && req.method === "GET") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.read");
-      return getBillingDocument(docStudioBillingMatch[1], user.userId);
-    });
-  }
-
-  if (docStudioBillingMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return updateBillingDocument(docStudioBillingMatch[1], await readJsonBody(req), user.userId);
-    });
-  }
-
-  if (docStudioBillingMatch && req.method === "DELETE") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return deleteBillingDocument(docStudioBillingMatch[1], user.userId);
-    });
-  }
-
-  const docStudioAutosaveMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)\/autosave$/);
-  if (docStudioAutosaveMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      return autosaveBillingDocument(docStudioAutosaveMatch[1], await readJsonBody(req), user.userId);
-    });
-  }
-
-  const docStudioSharesMatch = url.pathname.match(/^\/api\/docstudio\/billing-documents\/([^/]+)\/shares$/);
-  if (docStudioSharesMatch && req.method === "PUT") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "docstudio.write");
-      const body = await readJsonBody(req);
-      return updateBillingDocumentShares(docStudioSharesMatch[1], body.shares || [], user.userId);
-    });
-  }
-
   // ── Statement API ──────────────────────────────────────────────────────────
   const statementMatch = url.pathname.match(/^\/api\/statement\/([^/]+)$/);
   if (statementMatch && req.method === "GET") {
     return handleApi(res, async () => {
-      await requirePermission(req, "docstudio.read");
+      await requirePermission(req, "delivery.read");
       const data = await getStatement(statementMatch[1]);
       return data;
     });
@@ -2718,8 +2583,6 @@ function canAccessPage(requestPath, user) {
     "/modules/automation": ["automation.read", "automation.manage"],
     "/automation.html": ["automation.read", "automation.manage"],
     "/modules/automation/supplier-email": ["automation.read", "automation.manage"],
-    "/modules/doc-studio": ["docstudio.read", "docstudio.write"],
-    "/doc-studio.html": ["docstudio.read", "docstudio.write"],
     "/modules/business-metrics": ["platform.admin"],
     "/business-metrics.html": ["platform.admin"]
   };
@@ -2748,6 +2611,13 @@ function filterModulesForUser(modules, user) {
 
 function resolveStaticPath(requestPath) {
   const route = requestPath === "/" ? "/index.html" : requestPath;
+
+  // Doc Studio was retired. Do not let its former module URL fall through to
+  // the generic module landing page or expose a compatibility surface.
+  if (route === "/modules/doc-studio" || route === "/doc-studio.html") {
+    return null;
+  }
+
   const candidate = path.normalize(path.join(publicDir, route));
   const relative = path.relative(publicDir, candidate);
 
@@ -2767,7 +2637,6 @@ function resolveStaticPath(requestPath) {
     "/modules/integrations":        "integrations.html",
     "/modules/automation":          "automation.html",
     "/modules/automation/supplier-email": "supplier-email.html",
-    "/modules/doc-studio":          "doc-studio.html",
     "/modules/business-metrics":    "business-metrics.html",
     "/admin/users":                 "admin-users.html"
   };
@@ -3252,20 +3121,12 @@ function isSecureRequest(req) {
 }
 
 function writeSecurityHeaders(res, pathname = "") {
-  // CSP scoped per-path: /ds/ assets get 'unsafe-eval' for the Doc Studio runtime.
   res.setHeader("X-Content-Type-Options", "nosniff");
-  // SAMEORIGIN allows the doc-studio iframe (/ds/studio.html) to load within the same origin
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "no-referrer");
-  // The embedded Doc Studio runtime (/ds/support.js) compiles component logic classes
-  // with new Function(), which requires 'unsafe-eval'. Scope that relaxation to /ds/
-  // assets only so the rest of the platform keeps the stricter policy.
-  const scriptSrc = pathname.startsWith("/ds/")
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'";
   res.setHeader(
     "Content-Security-Policy",
-    `default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ${scriptSrc}; base-uri 'self'; frame-ancestors 'self'`
+    "default-src 'self'; connect-src 'self' https://xstmeirxhfbiyayrrsob.supabase.co; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'self'"
   );
 }
 

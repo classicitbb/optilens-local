@@ -32,6 +32,8 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Button liveButton = new Button { Text = "Use live MSSQL", Width = 120 };
     private readonly Button mirrorButton = new Button { Text = "Use mirror", Width = 100 };
     private readonly Button mirrorSyncButton = new Button { Text = "Sync mirror now", Width = 120 };
+    private readonly Button rxAliasSyncButton = new Button { Text = "Sync RX aliases now", Width = 135 };
+    private readonly Label rxAliasSyncMessage = new Label();
     private readonly Label syncStatus = new Label();
     private readonly Label syncCredentials = new Label();
     private readonly TextBox resultBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill };
@@ -121,11 +123,13 @@ internal sealed class OptiLensHostMonitor : Form
         source.Controls.Add(new Label { Text = "Innovations source backend", AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
         sourceStatus.Text = "Active: checking…"; sourceStatus.AutoSize = true; source.Controls.Add(sourceStatus);
         sourceParity.AutoSize = true; source.Controls.Add(sourceParity);
-        source.Controls.Add(liveButton); source.Controls.Add(mirrorButton); source.Controls.Add(mirrorSyncButton);
+        source.Controls.Add(liveButton); source.Controls.Add(mirrorButton); source.Controls.Add(mirrorSyncButton); source.Controls.Add(rxAliasSyncButton);
+        rxAliasSyncMessage.AutoSize = true; source.Controls.Add(rxAliasSyncMessage);
         sourceMessage.AutoSize = true; source.Controls.Add(sourceMessage);
         liveButton.Click += async delegate { await SwitchSource("live"); };
         mirrorButton.Click += async delegate { await SwitchSource("mirror"); };
         mirrorSyncButton.Click += async delegate { await StartMirrorSync(); };
+        rxAliasSyncButton.Click += async delegate { await StartRxAliasSync(); };
         checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
         applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
         startServiceButton.Click += delegate { RunHostScript("start-app.ps1"); };
@@ -196,7 +200,7 @@ internal sealed class OptiLensHostMonitor : Form
             connections.Items.Clear();
             var hasFailure = false;
             var hasWarning = false;
-            foreach (var key in new[] { "appDatabase", "sourceDatabase", "psqlDatabase", "mirrorDatabase", "innovationsSync" })
+            foreach (var key in new[] { "appDatabase", "sourceDatabase", "psqlDatabase", "mirrorDatabase", "innovationsSync", "rxAliasSync" })
             {
                 var item = Map(Value(health, key)); if (item == null) continue;
                 var state = S(Value(item, "state"));
@@ -212,6 +216,7 @@ internal sealed class OptiLensHostMonitor : Form
             tray.Text = "OptiLens Local: " + overall;
             await RefreshSource();
             await RefreshSyncStatus();
+            await RefreshRxAliasSyncStatus();
             if (firstRefresh && !hasFailure && !hasWarning)
             {
                 firstRefresh = false;
@@ -310,6 +315,25 @@ internal sealed class OptiLensHostMonitor : Form
             syncStatus.ForeColor = ColorFor(S(Value(status, "state")));
         }
         catch (Exception error) { syncStatus.Text = "Sync status unavailable: " + error.Message; syncStatus.ForeColor = Color.Firebrick; }
+    }
+
+    private async Task RefreshRxAliasSyncStatus()
+    {
+        try
+        {
+            var status = Map(json.DeserializeObject(await Api("/api/monitor/rx-alias-sync/status")));
+            rxAliasSyncMessage.Text = "RX aliases: " + S(Value(status, "state")) + " — " + S(Value(status, "detail"));
+            rxAliasSyncMessage.ForeColor = ColorFor(S(Value(status, "state")));
+            rxAliasSyncButton.Enabled = true;
+        }
+        catch (Exception error) { rxAliasSyncMessage.Text = "RX alias sync status unavailable: " + error.Message; rxAliasSyncMessage.ForeColor = Color.Firebrick; }
+    }
+
+    private async Task StartRxAliasSync()
+    {
+        try { rxAliasSyncButton.Enabled = false; await Api("/api/monitor/rx-alias-sync/run", "POST", new { }); rxAliasSyncMessage.Text = "RX alias sync started."; }
+        catch (Exception error) { rxAliasSyncMessage.Text = "RX alias sync failed to start: " + error.Message; rxAliasSyncMessage.ForeColor = Color.Firebrick; }
+        await RefreshRxAliasSyncStatus();
     }
 
     private async Task SwitchSource(string target)

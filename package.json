@@ -12,6 +12,7 @@
     "test": "node --test test/*.test.js",
     "rx:sync-catalog": "node scripts/sync-rx-catalog.js",
     "rx:verify-catalog": "node scripts/verify-rx-catalog.js",
+    "rx:sync-task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-rx-catalog-sync-task.ps1",
     "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-app.ps1",
     "app:launch": "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File scripts/launch-app.ps1",
     "app:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-app.ps1",

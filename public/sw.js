@@ -10,7 +10,6 @@ const APP_SHELL = [
   "/styles/pages/business-metrics.css",
   "/styles/pages/inventory.css",
   "/styles/pages/credentials.css",
-  "/styles/pages/doc-studio.css",
   "/styles/pages/integrations.css",
   "/styles/pages/login.css",
   "/styles/pages/release-notes.css",

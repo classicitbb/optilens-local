@@ -81,14 +81,6 @@ const tileDestinations = {
 // Icons are Google Material Symbols ligature names (rendered via .material-symbols-outlined).
 const platformApplications = [
   {
-    id: "doc-studio",
-    name: "Doc Studio",
-    href: "/modules/doc-studio",
-    summary: "Document and template workspace for operational output.",
-    status: "active",
-    permissions: ["docstudio.read", "docstudio.write"]
-  },
-  {
     id: "business-metrics",
     name: "Business Metrics",
     href: "/modules/business-metrics",
@@ -130,9 +122,8 @@ const moduleAccessRules = {
 };
 
 // NOTE: The launcher and search are owned entirely by shared.js (LAUNCHER_APPS /
-// SEARCH_INDEX / wireLauncher / wireSearch). The previous duplicate copies here were
-// stale (missing Doc Studio, Business Metrics, Users, Credentials) and raced with
-// shared.js to populate #launcherGrid, so they have been removed.
+// SEARCH_INDEX / wireLauncher / wireSearch). The previous duplicate copies here
+// raced with shared.js to populate #launcherGrid, so they have been removed.
 
 async function init() {
   tickClock();
