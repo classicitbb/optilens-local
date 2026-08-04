@@ -22,6 +22,7 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Label updateStatus = new Label();
     private readonly Button checkUpdatesButton = new Button { Text = "Check for updates", Width = 125 };
     private readonly Button applyUpdatesButton = new Button { Text = "Apply pushed updates", Width = 145, Enabled = false };
+    private readonly Button fixErrorsButton = new Button { Text = "Fix errors", Width = 90, Enabled = false };
     private readonly Button startServiceButton = new Button { Text = "Start service", Width = 100 };
     private readonly Button restartServiceButton = new Button { Text = "Restart service", Width = 110 };
     private readonly Button stopServiceButton = new Button { Text = "Shut down service", Width = 120 };
@@ -48,6 +49,8 @@ internal sealed class OptiLensHostMonitor : Form
     private bool serviceOnline;
     private bool exitRequested;
     private bool firstRefresh = true;
+    private string lastIncidentFingerprint = "";
+    private bool repairInProgress;
 
     public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal)
     {
@@ -106,7 +109,7 @@ internal sealed class OptiLensHostMonitor : Form
 
         var service = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), WrapContents = false };
         updateStatus.Text = "Updates: not checked"; updateStatus.AutoSize = true; service.Controls.Add(updateStatus);
-        service.Controls.Add(checkUpdatesButton); service.Controls.Add(applyUpdatesButton);
+        service.Controls.Add(checkUpdatesButton); service.Controls.Add(applyUpdatesButton); service.Controls.Add(fixErrorsButton);
         service.Controls.Add(startServiceButton); service.Controls.Add(restartServiceButton); service.Controls.Add(stopServiceButton);
         layout.Controls.Add(service, 0, 0);
         connections.View = View.Details;
@@ -132,6 +135,7 @@ internal sealed class OptiLensHostMonitor : Form
         rxAliasSyncButton.Click += async delegate { await StartRxAliasSync(); };
         checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
         applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
+        fixErrorsButton.Click += async delegate { await FixErrors(); };
         startServiceButton.Click += delegate { RunHostScript("start-app.ps1"); };
         restartServiceButton.Click += delegate { RunHostScript("restart-app.ps1"); };
         stopServiceButton.Click += delegate { RunHostScript("stop-app.ps1", true); };
@@ -200,11 +204,13 @@ internal sealed class OptiLensHostMonitor : Form
             connections.Items.Clear();
             var hasFailure = false;
             var hasWarning = false;
+            var failedConnections = new List<string>();
             foreach (var key in new[] { "appDatabase", "sourceDatabase", "psqlDatabase", "mirrorDatabase", "innovationsSync", "rxAliasSync" })
             {
                 var item = Map(Value(health, key)); if (item == null) continue;
                 var state = S(Value(item, "state"));
                 if (state == "error" || state == "offline" || state == "failed") hasFailure = true;
+                if (state == "error" || state == "offline" || state == "failed") failedConnections.Add(S(Value(item, "name")));
                 else if (state != "online" && state != "enabled" && state != "ready-for-import") hasWarning = true;
                 var row = new ListViewItem(S(Value(item, "name"))); row.SubItems.Add(state.ToUpperInvariant()); row.SubItems.Add(S(Value(item, "detail")));
                 row.ForeColor = ColorFor(state); connections.Items.Add(row);
@@ -214,9 +220,11 @@ internal sealed class OptiLensHostMonitor : Form
             summary.ForeColor = hasFailure ? Color.Firebrick : hasWarning ? Color.DarkGoldenrod : Color.ForestGreen;
             tray.Icon = hasFailure ? SystemIcons.Error : hasWarning ? SystemIcons.Warning : SystemIcons.Information;
             tray.Text = "OptiLens Local: " + overall;
+            fixErrorsButton.Enabled = hasFailure && !repairInProgress;
             await RefreshSource();
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
+            if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !hasFailure && !hasWarning)
             {
                 firstRefresh = false;
@@ -234,6 +242,8 @@ internal sealed class OptiLensHostMonitor : Form
             summary.ForeColor = Color.Firebrick;
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
             startServiceButton.Enabled = true; restartServiceButton.Enabled = false; stopServiceButton.Enabled = false;
+            fixErrorsButton.Enabled = true;
+            ReportIncident(new List<string> { "OptiLens Local service" });
             RunHostScript("ensure-app-running.ps1");
         }
     }
@@ -259,6 +269,28 @@ internal sealed class OptiLensHostMonitor : Form
         try { var result = Map(json.DeserializeObject(await Api("/api/monitor/updates/apply", "POST"))); updateStatus.Text = S(Value(result, "message")); updateStatus.ForeColor = Color.DarkGoldenrod; }
         catch (Exception error) { updateStatus.Text = "Update failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; }
         await Task.Delay(1000); await RefreshAll();
+    }
+
+    private async Task ReportIncident(List<string> failedConnections)
+    {
+        var fingerprint = string.Join(",", failedConnections.OrderBy(value => value));
+        if (fingerprint == lastIncidentFingerprint) return;
+        lastIncidentFingerprint = fingerprint;
+        try { await Api("/api/monitor/incidents", "POST", new { fingerprint = "health:" + fingerprint, title = "OptiLens Local connection error", message = "The host monitor detected one or more failed connections.", failedConnections = failedConnections }); } catch { }
+    }
+
+    private async Task FixErrors()
+    {
+        if (repairInProgress) return;
+        repairInProgress = true; fixErrorsButton.Enabled = false;
+        try
+        {
+            var failed = connections.Items.Cast<ListViewItem>().Where(item => item.ForeColor == Color.Firebrick).Select(item => item.Text).ToArray();
+            var result = Map(json.DeserializeObject(await Api("/api/monitor/repair", "POST", new { failedConnections = failed, message = "Host monitor Fix errors action" })));
+            summary.Text = S(Value(result, "message")); summary.ForeColor = Color.DarkGoldenrod;
+        }
+        catch (Exception error) { summary.Text = "Self-heal failed to start: " + error.Message; summary.ForeColor = Color.Firebrick; repairInProgress = false; fixErrorsButton.Enabled = true; }
+        await Task.Delay(1000); await RefreshAll(); repairInProgress = false;
     }
 
     private void ShowMonitorWindow()
