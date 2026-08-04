@@ -13,6 +13,7 @@ const { protectString, unprotectString } = require("./lib/windows-protected-stor
 const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
 const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
+const { createHostIncidentReporter } = require("./lib/host-incidents");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -24,6 +25,7 @@ const VAULT_SALT = "optilens-credentials-v1";
 const applicationStartedAt = new Date().toISOString();
 const updateManager = createUpdateManager(__dirname, applicationStartedAt);
 const gitUpdateChecker = createGitUpdateChecker(__dirname);
+const hostIncidentReporter = createHostIncidentReporter({ dataDir });
 const AUTO_APPLY_GIT_UPDATES = ["1", "true", "yes", "on"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "").toLowerCase());
 let scheduledUpdate = null;
 let supplierMailboxPoller = null;
@@ -1357,6 +1359,44 @@ const server = http.createServer(async (req, res) => {
       if (!status.plan.restartService) return { ...status, applying: false, message: "Browser files are ready; reload the monitor or browser." };
       scheduleApplicationUpdate(status);
       return { ...status, applying: true, message: "Applying update and restarting the service." };
+    });
+  }
+
+  if (url.pathname === "/api/monitor/incidents" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      return hostIncidentReporter.report({
+        fingerprint: body.fingerprint,
+        severity: body.severity || "error",
+        title: body.title,
+        message: body.message,
+        details: body.details || { failedConnections: body.failedConnections || [] },
+        source: body.source || "host-monitor",
+      });
+    });
+  }
+
+  if (url.pathname === "/api/monitor/repair" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      const failedConnections = Array.isArray(body.failedConnections) ? body.failedConnections.map(String).slice(0, 20) : [];
+      await hostIncidentReporter.report({
+        fingerprint: `repair:${failedConnections.sort().join(",") || "service"}`,
+        severity: "error",
+        title: "OptiLens Local host repair requested",
+        message: body.message || "The host monitor started a controlled self-heal attempt.",
+        details: { failedConnections },
+        source: "host-monitor",
+      });
+      runHostScript(__dirname, "repair-host.ps1", [
+        "-ProjectRoot", __dirname,
+        "-Port", String(port),
+        "-Reason", String(body.message || "Host monitor detected an error").slice(0, 500),
+        "-FailedConnections", failedConnections.join(","),
+      ]);
+      return { ok: true, applying: true, message: "Self-heal started. The service will be restarted and checked automatically." };
     });
   }
 

@@ -30,4 +30,6 @@ Updates do not run source-system imports, exports, or write-back jobs automatica
 
 The taskbar/notification monitor also provides **Check for updates**, **Apply pushed updates**, **Start service**, **Restart service**, and **Shut down service** controls. Applying a pushed Git update uses the same guarded update runner as the authenticated web control: it refuses dirty checkouts, runs checks before restart, and records progress in `data/local-update.log`.
 
+When a connection enters an error/offline state, the monitor reports one deduplicated incident to the configured CVWeb helpdesk and alerts endpoints and records it in `data/host-incidents.jsonl`. The **Fix errors** action runs a bounded controlled restart, waits for `/api/health/live`, and records the repair attempt in `data/host-repair.log`. It does not write to Innovations, PSQL, or Access. If the service or connection remains unavailable, the incident stays visible for manual escalation.
+
 **Shut down service** is an intentional operator action. It writes `data/service-stop.requested`, so the watchdog will leave the service stopped until **Start service** or **Restart service** is selected. Unexpected process exits do not create that marker and are recovered automatically by the watchdog. The monitor checks the service when it launches and requests recovery when the service is offline.
