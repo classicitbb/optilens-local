@@ -180,6 +180,7 @@
     );
   }
   function actionButtons(row) {
+    if (row.lifecycle_state === "ARCHIVED") return "Archived · locked";
     if (row.action_status !== "WAITING_APPROVAL")
       return esc(row.action_status || row.parse_state || "—");
     return `<span class="record-actions"><button class="mini-button approve" type="button" data-action="${esc(row.action_id)}" data-decision="approve">Approve</button><button class="mini-button reject" type="button" data-action="${esc(row.action_id)}" data-decision="reject">Reject</button></span>`;
@@ -274,8 +275,8 @@
     $("recordsHeading").textContent = state.message
       ? "Records for selected email"
       : state.supplier
-        ? "Active supplier records"
-        : "Active records";
+        ? "Current and archived supplier records"
+        : "Current and archived records";
     syncRecordControls(allRecords);
     $("recordsBody").innerHTML =
       records
