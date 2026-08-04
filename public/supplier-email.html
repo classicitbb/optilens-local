@@ -20,6 +20,10 @@
       <section class="supplier-email-panel active" id="mailbox" data-content-panel>
         <div class="mailbox-utility-bar">
           <div class="supplier-kpis" id="mailboxKpis" aria-label="Mailbox summary"></div>
+          <div class="records-command-bar">
+            <div class="records-actions"><button class="button primary" id="syncMailbox" type="button">Scan Inbox</button><button class="button secondary" id="refreshWorkspace" type="button">Refresh</button><button class="button secondary" id="archiveMessage" type="button" disabled>Archive selected</button></div>
+            <label class="records-search"><span class="sr-only">Search active records</span><input id="recordSearch" type="search" autocomplete="off" placeholder="Search names, accounts, or statuses"></label>
+          </div>
           <div class="mailbox-settings">
             <button class="settings-gear" id="settingsMenuButton" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="settingsMenu">⚙ <span>Settings</span></button>
             <div class="settings-menu" id="settingsMenu" role="menu" hidden>
@@ -30,6 +34,7 @@
             </div>
           </div>
         </div>
+        <p id="mailboxStatus" class="mailbox-status" role="status">Loading the durable mailbox workspace…</p>
         <div class="mailbox-workspace" aria-label="Supplier email workspace">
           <aside class="mailbox-pane supplier-pane">
             <div class="mailbox-pane-header"><div><span class="eyebrow">Filter</span><h3>Suppliers</h3></div><span class="pane-count" id="supplierCount">0</span></div>
@@ -43,11 +48,6 @@
             <div class="mailbox-pane-header records-pane-header">
               <div><span class="eyebrow">Parsed and matched</span><h3 id="recordsHeading">Active records</h3><div class="aging-legend" aria-label="Order age bands"><span class="age-0-5">0–5d</span><span class="age-5-7">5–7d</span><span class="age-7-11">7–11d</span><span class="age-11-14">11–14d</span><span class="age-14-17">14–17d</span><span class="age-17-28">17–28d</span><span class="age-28-plus">28d+</span></div></div>
               <span class="pane-count" id="recordCount">0</span>
-            </div>
-            <div class="records-command-bar">
-              <div class="records-actions"><button class="button primary" id="syncMailbox" type="button">Scan Inbox</button><button class="button secondary" id="refreshWorkspace" type="button">Refresh</button><button class="button secondary" id="archiveMessage" type="button" disabled>Archive selected</button></div>
-              <label class="records-search"><span class="sr-only">Search active records</span><input id="recordSearch" type="search" autocomplete="off" placeholder="Search names, accounts, or statuses"></label>
-              <p id="mailboxStatus" class="mailbox-status" role="status">Loading the durable mailbox workspace…</p>
             </div>
             <div class="records-table-wrap"><table class="records-table"><thead><tr>
               <th>Reference</th><th>Source</th>
