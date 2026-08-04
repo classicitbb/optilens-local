@@ -279,6 +279,24 @@
       "</aside>";
 
     wireDrawer();
+    sizeDrawerToTable(el);
+  }
+
+  // Detail drawers use the room their actual table needs, rather than a
+  // one-size cap that turns readable rows into horizontal-scroll exercises.
+  // The viewport remains the hard ceiling so a long label never pushes the
+  // panel off screen.
+  function sizeDrawerToTable(el) {
+    requestAnimationFrame(function () {
+      var drawer = el.querySelector(".ov-drawer");
+      var body = el.querySelector(".ov-drawer-body");
+      var table = body && body.querySelector(".bm-table");
+      if (!drawer || !body || !table) return;
+
+      var horizontalChrome = body.offsetWidth - body.clientWidth;
+      var desired = Math.max(760, table.scrollWidth + horizontalChrome);
+      drawer.style.width = Math.ceil(Math.min(window.innerWidth * 0.96, desired)) + "px";
+    });
   }
 
   function renderSummary(data) {
