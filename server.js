@@ -137,6 +137,7 @@ const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
 const { getSetting, setSetting } = require("./lib/app-settings");
+const { recordAuditEvent } = require("./lib/audit");
 const { handleOperationsRoute } = require("./lib/operations/routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
@@ -176,6 +177,7 @@ const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const rxOrderSubmitter = require("./lib/rx-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
+const { getLensStatusSyncStatus, runLensStatusSync } = require("./lib/actian-lens-status-sync");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
 const liveGatewayAutostart = require("./lib/live-gateway-autostart");
 const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
@@ -996,6 +998,30 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+
+  // ── Actian lens active/inactive status sync ──────────────────────────────
+  if (url.pathname === "/api/automation/actian-lens-status-sync" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "automation.read");
+      return getLensStatusSyncStatus();
+    });
+  }
+
+  if (url.pathname === "/api/automation/actian-lens-status-sync/run" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "automation.manage");
+      const result = await runLensStatusSync({ trigger: "manual" });
+      await recordAuditEvent({
+        moduleCode: "automation",
+        actorUserId: actor.userId,
+        eventType: "automation.actian_lens_status_sync.run",
+        entityType: "InnovationsLensStatus",
+        entityId: null,
+        eventData: { plannedUpdates: result.plannedUpdates, updated: result.updated }
+      }).catch(() => {});
+      return result;
+    });
+  }
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These

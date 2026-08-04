@@ -5,6 +5,8 @@
   const state = { catalog: [], stagedFiles: [] };
   const $ = (selector) => document.querySelector(selector);
   const status = $("#rxStatus");
+  const lensStatusSyncButton = $("#runLensStatusSync");
+  const lensStatusSyncNotice = $("#lensStatusSyncNotice");
   const setStatus = (message, kind = "") => {
     status.textContent = message;
     status.className = `rx-status show ${kind}`;
@@ -212,6 +214,55 @@
     if (crumb) crumb.textContent = button?.dataset.tab === "supplier-email" ? "OS Lab Status Update Inbox" : "Automation";
   }
 
+  function formatSyncTime(value) {
+    if (!value) return "Not recorded";
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+  }
+
+  function setLensStatusSyncNotice(message, kind = "") {
+    lensStatusSyncNotice.textContent = message;
+    lensStatusSyncNotice.className = `scheduled-notice show ${kind}`;
+  }
+
+  function renderLensStatusSyncStatus(sync) {
+    $("#lensStatusSyncDetail").textContent = sync.detail;
+    $("#lensStatusSyncSchedule").textContent = `Every ${sync.intervalMinutes} minutes`;
+    $("#lensStatusSyncTaskState").textContent = sync.running ? "Running" : (sync.task?.state || "Not installed");
+    $("#lensStatusSyncNextRun").textContent = formatSyncTime(sync.task?.nextRun);
+    $("#lensStatusSyncLastRun").textContent = formatSyncTime(sync.lastRun);
+    lensStatusSyncButton.disabled = Boolean(sync.running);
+    lensStatusSyncButton.textContent = sync.running ? "Running…" : "Run now";
+    setLensStatusSyncNotice(sync.detail, sync.state === "error" ? "error" : sync.state === "warning" ? "warning" : "success");
+  }
+
+  async function loadLensStatusSyncStatus() {
+    try {
+      const response = await request("/api/automation/actian-lens-status-sync");
+      renderLensStatusSyncStatus(await response.json());
+    } catch (error) {
+      lensStatusSyncButton.disabled = true;
+      setLensStatusSyncNotice(error.message || "Unable to load the scheduled-task status.", "error");
+    }
+  }
+
+  async function runLensStatusSync() {
+    lensStatusSyncButton.disabled = true;
+    lensStatusSyncButton.textContent = "Running…";
+    setLensStatusSyncNotice("Comparing Actian and Innovations SQL Server status flags…");
+    try {
+      const response = await postJson("/api/automation/actian-lens-status-sync/run", {});
+      const result = await response.json();
+      const updated = Object.values(result.updated || {}).reduce((total, value) => total + Number(value || 0), 0);
+      setLensStatusSyncNotice(`Completed: ${updated} status correction${updated === 1 ? "" : "s"}; ${result.plannedUpdates || 0} difference${result.plannedUpdates === 1 ? "" : "s"} found.`, "success");
+      await loadLensStatusSyncStatus();
+    } catch (error) {
+      setLensStatusSyncNotice(error.message || "The lens status sync could not complete.", "error");
+      lensStatusSyncButton.disabled = false;
+      lensStatusSyncButton.textContent = "Run now";
+    }
+  }
+
   document.querySelectorAll(".workflow-tabs button").forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(".workflow-tabs button").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
@@ -224,6 +275,8 @@
   $("#stageRx").addEventListener("click", () => run(stage));
   $("#downloadRx").addEventListener("click", () => run(download));
   $("#releaseRx").addEventListener("click", () => run(release));
+  lensStatusSyncButton.addEventListener("click", runLensStatusSync);
   toggleConditionalFields();
   load();
+  loadLensStatusSyncStatus();
 })();
