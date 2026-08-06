@@ -978,6 +978,165 @@ label {
 }
 
 /* ════════════════════════════════════════════════════════
+   UPDATE PROGRESS OVERLAY
+════════════════════════════════════════════════════════ */
+
+.update-progress-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(11, 30, 53, .72);
+  backdrop-filter: blur(12px) saturate(1.1);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.update-progress-overlay[hidden] { display: none; }
+
+.update-progress-overlay.closing {
+  opacity: 0;
+}
+
+.update-progress-panel {
+  width: min(400px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  overflow: hidden;
+  transform: scale(1);
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.update-progress-overlay.closing .update-progress-panel {
+  transform: scale(0.95);
+}
+
+.update-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 8px;
+}
+
+.update-progress-head .material-symbols-outlined {
+  font-size: 28px;
+  color: var(--blue);
+  animation: optilens-update-spin 1.2s linear infinite;
+}
+
+.update-progress-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.update-progress-body {
+  padding: 12px 20px 24px;
+}
+
+.update-stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.update-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease, opacity 0.2s ease;
+  opacity: 0.5;
+}
+
+.update-step.active {
+  color: var(--ink);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.update-step.done {
+  color: var(--green);
+  opacity: 0.85;
+}
+
+.update-step.error {
+  color: var(--red);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.update-step-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.update-step.active .update-step-icon {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--blue);
+  animation: update-step-pulse 1.5s ease-in-out infinite;
+}
+
+.update-step.done .update-step-icon {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.update-step.error .update-step-icon {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+
+.update-progress-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--red) 30%, var(--line));
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.update-progress-error[hidden] { display: none; }
+
+.update-progress-footer {
+  padding: 0 20px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.update-progress-footer[hidden] { display: none; }
+
+@keyframes update-step-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 30%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--blue) 0%, transparent); }
+}
+
+/* ════════════════════════════════════════════════════════
    RESPONSIVE OVERRIDES FOR NEW HEADER
 ════════════════════════════════════════════════════════ */
 

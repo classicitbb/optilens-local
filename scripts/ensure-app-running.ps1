@@ -38,11 +38,18 @@ try {
     $isHealthy = $false
 }
 
-if ($isHealthy) {
+if (-not $isHealthy) {
+    Write-Host "OptiLens Local is not responding. Restarting..."
+    & (Join-Path $PSScriptRoot "stop-app.ps1") -Port $Port
+    & (Join-Path $PSScriptRoot "start-app.ps1") -ProjectRoot $ProjectRoot -Port $Port
+} else {
     Write-Host "OptiLens Local is responding at $HealthUrl."
-    return
 }
 
-Write-Host "OptiLens Local is not responding. Restarting..."
-& (Join-Path $PSScriptRoot "stop-app.ps1") -Port $Port
-& (Join-Path $PSScriptRoot "start-app.ps1") -ProjectRoot $ProjectRoot -Port $Port
+# Infallibility supervisor check: ensure host monitor tray process is running
+$monitorProc = Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue
+if (-not $monitorProc) {
+    Write-Host "OptiLensHostMonitor process is offline. Restarting monitor..."
+    & (Join-Path $PSScriptRoot "start-monitor.ps1") -ProjectRoot $ProjectRoot -Port $Port
+}
+

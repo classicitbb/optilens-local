@@ -243,7 +243,7 @@ internal sealed class OptiLensHostMonitor : Form
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
             startServiceButton.Enabled = true; restartServiceButton.Enabled = false; stopServiceButton.Enabled = false;
             fixErrorsButton.Enabled = true;
-            ReportIncident(new List<string> { "OptiLens Local service" });
+            var _ = ReportIncident(new List<string> { "OptiLens Local service" });
             RunHostScript("ensure-app-running.ps1");
         }
     }
@@ -406,11 +406,18 @@ internal sealed class OptiLensHostMonitor : Form
 
     private void RunHostScript(string name, bool intentionalStop = false)
     {
-        var script = Path.Combine(projectRoot, "scripts", name);
-        if (!File.Exists(script)) return;
-        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-        var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "");
-        Process.Start(new ProcessStartInfo(powershell, args) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+        try
+        {
+            var script = Path.Combine(projectRoot, "scripts", name);
+            if (!File.Exists(script)) return;
+            var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+            var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "");
+            Process.Start(new ProcessStartInfo(powershell, args) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+        }
+        catch (Exception error)
+        {
+            Log("failed to launch script " + name + ": " + error.Message);
+        }
     }
 
     private static Color ColorFor(string state) { return state == "online" || state == "enabled" || state == "ready-for-import" ? Color.ForestGreen : state == "warning" || state == "credentials-needed" || state == "setup-needed" || state == "discovered" ? Color.DarkGoldenrod : Color.Firebrick; }
@@ -433,10 +440,22 @@ internal sealed class OptiLensHostMonitor : Form
             var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var port = 8080;
             for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
+            Log("Main starting port " + port + " root " + root);
             using (var showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Global\\OptiLensLocalHostMonitorShow"))
             using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
             {
-                if (!mutex.WaitOne(0, false))
+                bool hasHandle = false;
+                try
+                {
+                    hasHandle = mutex.WaitOne(0, false);
+                }
+                catch (System.Threading.AbandonedMutexException)
+                {
+                    hasHandle = true;
+                    Log("recovered abandoned mutex from previous monitor instance");
+                }
+
+                if (!hasHandle)
                 {
                     try { showSignal.Set(); } catch { }
                     Log("another instance is running; requested it open the monitor");
@@ -444,11 +463,19 @@ internal sealed class OptiLensHostMonitor : Form
                 }
                 try
                 {
-                    Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new OptiLensHostMonitor(root, port, showSignal));
+                    Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                    Application.ThreadException += (sender, e) => Log("UI thread exception: " + e.Exception);
+                    AppDomain.CurrentDomain.UnhandledException += (sender, e) => Log("AppDomain unhandled exception: " + e.ExceptionObject);
+
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                    Log("starting Application.Run");
+                    Application.Run(new OptiLensHostMonitor(root, port, showSignal));
+                    Log("Application.Run ended normally");
                 }
                 finally
                 {
-                    mutex.ReleaseMutex();
+                    try { mutex.ReleaseMutex(); } catch { }
                 }
             }
         }
