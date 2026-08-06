@@ -32,10 +32,22 @@
       return true;
     }
     if (message?.type === "fillBeswiftCo") {
-      runFill(message).then(() => sendResponse({ ok: true })).catch((error) => {
-        sendResponse({ ok: false, error: error.message });
+      // Fire-and-forget: respond immediately instead of holding the message
+      // channel open for the entire multi-minute fill. Holding it open meant
+      // any tab navigation/close during a review pause tore the channel down
+      // and background.js reported the job as "error" even though the fill had
+      // paused exactly as designed (seen live 2026-08-06: header filled, job
+      // paused for review, operator closed the tab, job flagged errored with
+      // "message channel closed"). Success is already reported server-side by
+      // runFill itself (filled_review); errors are now reported here too.
+      sendResponse({ ok: true, started: true });
+      runFill(message).catch(async (error) => {
+        try {
+          await report(message.baseUrl, message.job.automationJobId, "error", error.message || "BeSwift fill failed.");
+        } catch { /* reporting must not mask the original failure */ }
+        showBanner(`OptiLens BeSwift fill stopped: ${error.message || "unknown error"}`);
       });
-      return true;
+      return false;
     }
     return false;
   });
@@ -321,14 +333,27 @@
     await checkpoint(ctx, `Starting Items (${items.length} item(s) to add, ${startIndex} already present).`);
     for (let i = startIndex; i < items.length; i += 1) {
       const item = items[i];
-      const opened = await clickAddItem();
-      if (!opened) {
-        showBanner(`Header filled. Add Item button was not found; add item ${i + 1} manually from the OptiLens payload.`);
-        await checkpoint(ctx, `Item ${i + 1}/${items.length}: Add Item button not found — stopped for manual add.`);
-        return;
+      // Open the item dialog and WAIT until it is genuinely mounted (retrying
+      // the click) instead of a fixed 900ms + silent fallback to document.
+      // Root-caused live on production (2026-08-06, shipment 11274): the
+      // production portal mounts the dialog slower than training, the old
+      // fallback made every dialog-field lookup miss silently, and the first
+      // hard check ("Unit of Measure did not commit") killed the run ~2s
+      // after "Starting Items".
+      let root = await openItemDialog(ctx, i + 1, items.length);
+      if (!root) {
+        await pauseForInteraction(
+          ctx,
+          `Item ${i + 1}/${items.length}: the Add Item dialog did not open after repeated clicks. ` +
+          "Open it manually (click + Add Item), then Resume — the fill will continue inside the dialog."
+        );
+        root = document.querySelector(".v-dialog--active") || null;
+        if (!root) {
+          showBanner(`Item dialog still not open after resume; add item ${i + 1} manually from the OptiLens payload.`);
+          await checkpoint(ctx, `Item ${i + 1}/${items.length}: dialog still absent after resume — stopped for manual add.`);
+          return;
+        }
       }
-      await wait(900);
-      const root = document.querySelector(".v-dialog--active") || document;
       // Confirmed live: unlike every other field on this form, "Commodity" is a
       // plain text input, not a Vuetify autocomplete — no dropdown opens on
       // click or on typing. The only way seen live to get BeSwift's own
@@ -342,7 +367,7 @@
       // code without going through that modal was NOT confirmed live — this is
       // exactly the kind of thing to check during the pause below before Save
       // is clicked.
-      await setByLabel("Commodity", item.hsCode, root);
+      await setCommodityCode(ctx, root, item.hsCode, i + 1, items.length);
       await setByLabel("Commercial Description", item.commercialDescription, root);
       await clickByText(payload.origin?.commodityType || "Manufactured", root);
       await setByLabel("Manufacturer Name", payload.producer?.name, root, { acceptExistingDisabled: true });
@@ -359,7 +384,12 @@
       if (!fieldHasValue("Unit of Measure", root)) {
         await pickByLabel("Unit of Measure", "Number of Units", root);
       }
-      if (!fieldHasValue("Unit of Measure", root)) throw new Error("Unit of Measure did not commit.");
+      if (!fieldHasValue("Unit of Measure", root)) {
+        // Pause instead of hard-stop: the operator can pick the unit in the
+        // open dialog and Resume, keeping the rest of the run alive.
+        await pauseForFieldFix(ctx, findByAny(["unit of measure"], root), "Unit of Measure", "Number of Units",
+          "Unit of Measure did not commit after retries — pick it manually in the item dialog, then Resume.");
+      }
       await setByLabel("Unit Cost", item.unitCost, root);
       // Verify the required item dropdowns actually committed; retry any that
       // stayed blank (a different entry method each time via pickByLabel) before
@@ -372,11 +402,122 @@
         { label: "Unit of Measure", value: "Number of Units" }
       ]);
       await checkpoint(ctx, `Item ${i + 1}/${items.length}: fields filled, about to Save.`, { hsCode: item.hsCode, description: item.commercialDescription });
-      await clickDialogSave(root);
+      // A rejected Save used to abort the whole run (seen live 2026-08-06:
+      // item 2 of 8 failed BeSwift validation and items 3–8 never ran). Pause
+      // and retry instead — the dialog is still open with everything else
+      // filled, so the operator only has to fix the one flagged field.
+      try {
+        await clickDialogSave(root);
+      } catch (error) {
+        await pauseForInteraction(
+          ctx,
+          `Item ${i + 1}/${items.length}: BeSwift rejected Save — ${error.message} ` +
+          "Fix the flagged field(s) in the open dialog, then Resume (I'll click Save again).",
+          root,
+          { item: i + 1, saveError: error.message }
+        );
+        try {
+          await clickDialogSave(root);
+        } catch (retryError) {
+          await pauseForInteraction(
+            ctx,
+            `Item ${i + 1}/${items.length}: Save still rejected — ${retryError.message} ` +
+            "Save this item manually in the dialog, then Resume to continue with the next item.",
+            root,
+            { item: i + 1, saveError: retryError.message, secondAttempt: true }
+          );
+        }
+      }
       await wait(900);
       await checkpoint(ctx, `Item ${i + 1}/${items.length}: Save clicked.`);
     }
     await checkpoint(ctx, `All ${items.length} item(s) processed.`);
+  }
+
+  // Commodity is BeSwift's HS-code lookup field. Root-caused live on production
+  // (2026-08-06, shipment 11274): our catalog stores HS codes in two shapes —
+  // bare 8-digit ("90015000") and dotted ("9001.50.00.000"). Only the bare form
+  // resolves; the dotted form leaves the field showing "[object Object]" with a
+  // "No data found" hint, AND — because BeSwift derives the Unit of Measure
+  // option list from the resolved commodity — Unit of Measure then renders "No
+  // data available", so Save fails with "The Unit of Measure field is required".
+  // One unresolved code, two symptoms. So: try progressively normalized
+  // variants until the field stops reporting "No data found".
+  function hsCodeVariants(raw) {
+    const digits = String(raw || "").replace(/\D/g, "");
+    const variants = [String(raw || "").trim()];
+    if (digits) {
+      variants.push(digits);
+      for (const len of [10, 8, 6]) {
+        if (digits.length > len) variants.push(digits.slice(0, len));
+      }
+    }
+    return [...new Set(variants.filter(Boolean))];
+  }
+
+  // BeSwift renders "No data found" under the Commodity field when the typed
+  // code matched nothing. Scoped to the field's own v-input wrapper so an
+  // unrelated empty list elsewhere in the dialog can't trigger a false positive.
+  function commodityUnresolved(el) {
+    const wrapper = el?.closest(".v-input, .v-text-field") || el?.parentElement;
+    if (!wrapper) return false;
+    return /no data (found|available)/i.test(wrapper.textContent || "");
+  }
+
+  async function setCommodityCode(ctx, root, hsCode, itemNo, total) {
+    const el = findByAny(["commodity"], root);
+    if (!el) return false;
+    const variants = hsCodeVariants(hsCode);
+    for (const [index, candidate] of variants.entries()) {
+      if (index > 0) {
+        // Clear whatever the previous, unresolved attempt left behind.
+        el.focus();
+        el.select?.();
+        await cdpTypeText("");
+        setReadonlyFieldValue(el, "");
+        await wait(250);
+      }
+      await setByLabel("Commodity", candidate, root);
+      await wait(900);
+      if (!commodityUnresolved(el)) {
+        if (index > 0) {
+          await checkpoint(ctx, `Item ${itemNo}/${total}: HS code "${hsCode}" did not resolve; used normalized "${candidate}" instead.`,
+            { field: "Commodity", original: hsCode, used: candidate, normalized: true });
+          pushFeed(`HS code normalized: "${hsCode}" -> "${candidate}".`, "info");
+        }
+        return true;
+      }
+    }
+    await pauseForFieldFix(ctx, el, "Commodity", hsCode,
+      `BeSwift reported "No data found" for every form of this HS code (tried: ${variants.join(", ")}). ` +
+      "Pick the commodity manually via the search icon, then Resume. Note: Unit of Measure stays empty until the commodity resolves.");
+    return false;
+  }
+
+  // Click Add Item and wait for the item dialog to actually mount — a visible
+  // .v-dialog--active that contains the Commodity field. Retries the click up
+  // to 3 times with an 8s mount-wait each, checkpointing every miss so the
+  // live feed shows exactly where an open attempt stalled.
+  async function openItemDialog(ctx, itemNo, total) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const dialogAlready = document.querySelector(".v-dialog--active");
+      if (dialogAlready && isVisibleElement(dialogAlready) && findByAny(["commodity"], dialogAlready)) return dialogAlready;
+      const clicked = await clickAddItem();
+      if (!clicked) {
+        await checkpoint(ctx, `Item ${itemNo}/${total}: Add Item button not found on the page (attempt ${attempt}).`);
+        return null;
+      }
+      const dialog = await waitFor(() => {
+        const d = document.querySelector(".v-dialog--active");
+        return d && isVisibleElement(d) && findByAny(["commodity"], d) ? d : null;
+      }, 8000, 250);
+      if (dialog) {
+        if (attempt > 1) await checkpoint(ctx, `Item ${itemNo}/${total}: item dialog opened on attempt ${attempt}.`);
+        return dialog;
+      }
+      await checkpoint(ctx, `Item ${itemNo}/${total}: Add Item clicked (attempt ${attempt}) but the dialog did not mount within 8s — retrying.`);
+    }
+    return null;
   }
 
   async function clickAddItem() {
@@ -417,9 +558,35 @@
     const el = findByAny([label], root);
     if (!el) return false;
     if (!isEditable(el)) {
+      // isEditable's elementFromPoint check false-negatives when the field is
+      // scrolled out of view, under a sticky header, or beneath an open
+      // menu/date-picker scrim — close any overlay, scroll it into view, and
+      // re-check before concluding anything (root cause of the recurring
+      // "Shipping Date is not editable" errors, 2026-08-06).
+      await dismissOpenOverlays();
+      el.scrollIntoView({ block: "center", behavior: "instant" });
+      await wait(250);
+      // BeSwift enables some fields only after a sibling's async lookup
+      // settles, so give it a real window rather than one instant re-check.
+      await waitFor(() => isEditable(el), 5000, 250);
+    }
+    if (!isEditable(el)) {
       const existing = String(el.value || "").trim();
       if (options.acceptExistingDisabled && existing) return true;
-      throw new Error(`${label} is not editable.`);
+      // Readonly-but-enabled is Vuetify's date-picker pattern: the text input
+      // is readonly and the value normally arrives via the picker overlay.
+      // Vue still listens for the input event, so committing the model
+      // programmatically works without driving the calendar UI.
+      if (el.readOnly && !el.disabled) {
+        const committed = setReadonlyFieldValue(el, String(value));
+        const msg = `${label} is readonly (date-picker style); ${committed ? "set programmatically via input event" : "programmatic set did NOT commit"}.`;
+        pushFeed(msg, committed ? "info" : "warn");
+        if (fillCtx) {
+          try { await checkpoint(fillCtx, msg, { field: label, value: String(value), method: "readonly_program_set", committed }); } catch { /* logging never breaks the fill */ }
+        }
+        if (committed) return true;
+      }
+      throw new Error(`${label} is not editable. ${describeUneditable(el)}`);
     }
     // Double-entry guard (#1): don't re-type into a field that's already filled.
     // Matches payload -> skip silently; differs -> leave it and flag the mismatch.
@@ -431,6 +598,26 @@
     }
     await humanTypeElement(el, String(value));
     return true;
+  }
+
+  // Set a readonly (but enabled) input's value through the native setter and
+  // fire input/change so Vue's v-model picks it up — the standard workaround
+  // for Vuetify date-picker text fields, whose readonly attribute only blocks
+  // typed keystrokes, not programmatic events. Returns whether the value stuck.
+  function setReadonlyFieldValue(el, value) {
+    try {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      el.focus();
+      if (setter) setter.call(el, value); else el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      el.blur();
+      el.dispatchEvent(new Event("blur", { bubbles: true }));
+      return String(el.value || "").trim() !== "";
+    } catch {
+      return false;
+    }
   }
 
   // BeSwift option-list positions for fields where CDP-typed text does NOT filter
@@ -539,7 +726,14 @@
     if (!value) return false;
     const el = findByAny([label], root);
     if (!el) return false;
-    if (!isEditable(el)) throw new Error(`${label} is not editable.`);
+    if (!isEditable(el)) {
+      // Same transient-overlay false negative as setByLabel — a previously
+      // opened menu's scrim must not make the next dropdown look disabled.
+      await dismissOpenOverlays();
+      el.scrollIntoView({ block: "center", behavior: "instant" });
+      await wait(250);
+    }
+    if (!isEditable(el)) throw new Error(`${label} is not editable. ${describeUneditable(el)}`);
     // Double-entry guard (#1): if the dropdown already committed a selection,
     // don't re-pick. Skip silently when it matches the payload; flag when it
     // doesn't and leave the existing value.
@@ -727,8 +921,32 @@
     const rect = el.getBoundingClientRect();
     const x = rect.left + rect.width * xRatio;
     const y = rect.top + rect.height * yRatio;
-    await cdpClickPoint(x, y);
+    // CDP clicks are dispatched at raw viewport coordinates, so ANY element
+    // sitting on top of the target swallows them — including our own progress
+    // toast. Root-caused live on production (2026-08-06, shipment 11274): the
+    // toast is docked over the form's right-hand column, so Country of Origin,
+    // Gross Weight and Package Type were being "clicked" through the feed panel
+    // and never committed, burning the whole audit/retry budget on every item.
+    // Hide the toast for the duration of any click it would intercept.
+    const restoreToast = hideToastIfCovering(x, y);
+    try {
+      await cdpClickPoint(x, y);
+    } finally {
+      restoreToast();
+    }
     await humanDelay(HUMAN_DELAY.clickMin, HUMAN_DELAY.clickMax);
+  }
+
+  // Returns a restore function; a no-op when the toast isn't in the way.
+  function hideToastIfCovering(x, y) {
+    const toast = document.getElementById(TOAST_ID);
+    if (!toast) return () => {};
+    const box = toast.getBoundingClientRect();
+    const covers = x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+    if (!covers) return () => {};
+    const previous = toast.style.visibility;
+    toast.style.visibility = "hidden";
+    return () => { toast.style.visibility = previous; };
   }
 
   function cdpClickPoint(x, y) {
@@ -1137,7 +1355,55 @@
     const style = getComputedStyle(el);
     const box = el.getBoundingClientRect();
     const top = document.elementFromPoint(box.left + Math.min(8, box.width / 2), box.top + Math.min(8, box.height / 2));
-    return !el.disabled && !el.readOnly && style.pointerEvents !== "none" && (!top || top === el || el.contains(top) || top.contains(el));
+    return !el.disabled && !el.readOnly && style.pointerEvents !== "none"
+      && (!top || top === el || el.contains(top) || top.contains(el) || isTransientOverlay(top));
+  }
+
+  // Vuetify renders a full-viewport scrim/overlay while a menu or date picker is
+  // open. It sits above every field, so the elementFromPoint hit-test in
+  // isEditable() reports the scrim instead of the input and the field looks
+  // "not editable" purely because some *other* control happens to be open.
+  // Root-caused live on production (2026-08-06): the Shipping Date picker
+  // auto-opened, its scrim covered the form, and the run died on "Shipping Date
+  // is not editable" even though the field was perfectly fine. A scrim is
+  // transient and click-through for our purposes, so don't treat it as blocking.
+  function isTransientOverlay(el) {
+    if (!el) return false;
+    // Our own progress toast counts as transient too — cdpClickElementAt hides
+    // it for the duration of any click it would intercept, so a field sitting
+    // under it is genuinely clickable and must not be judged "not editable".
+    if (el.id === TOAST_ID || el.closest?.(`#${TOAST_ID}`)) return true;
+    return Boolean(el.closest?.(".v-overlay__scrim, .v-overlay--active, .v-menu__content, .v-picker, .v-date-picker, .v-dialog__content"));
+  }
+
+  // Why exactly a field failed the isEditable() gate — appended to the thrown
+  // error so a failed run self-diagnoses instead of needing a live repro.
+  function describeUneditable(el) {
+    try {
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      const top = document.elementFromPoint(box.left + Math.min(8, box.width / 2), box.top + Math.min(8, box.height / 2));
+      const desc = (node) => node
+        ? `${node.tagName.toLowerCase()}${node.id ? "#" + node.id : ""}.${String(node.className || "").split(/\s+/).filter(Boolean).slice(0, 3).join(".")}`
+        : "none";
+      return `[disabled=${!!el.disabled} readOnly=${!!el.readOnly} pointerEvents=${style.pointerEvents} `
+        + `rect=${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}x${Math.round(box.height)} `
+        + `topEl=${desc(top)} tag=${desc(el)} type=${el.type || ""}]`;
+    } catch (error) {
+      return "[diagnostics unavailable]";
+    }
+  }
+
+  // Dismiss any open Vuetify menu/date picker so it stops covering the form.
+  async function dismissOpenOverlays() {
+    const scrim = document.querySelector(".v-overlay__scrim, .v-menu__content--active");
+    if (!scrim) return false;
+    document.activeElement?.blur?.();
+    for (const target of [document.activeElement || document.body, document.body]) {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
+    }
+    await wait(350);
+    return true;
   }
 
   // Granular progress marker — always reports job_status "filling" (so it

@@ -20,6 +20,58 @@ chrome.contextMenus.removeAll(() => {
 // handler (which only gets a tabId, not the job) knows what to resume.
 const tabJobs = new Map();
 
+// ---------------------------------------------------------------------------
+// Auto-drive harness (beta only, opt-in via the popup's "Auto-drive" toggle or
+// chrome.storage.local.autoDrive). Polls the OptiLens server for a queued job
+// and starts it without a popup click, closing the previous run's BeSwift tab
+// first. This is what turns "fix code → create job → click popup → watch" into
+// an unattended fix/retry loop: create a job server-side and it runs itself.
+// Deliberately conservative — one job at a time, only while enabled, and it
+// never claims a job that is already claimed/running.
+// ---------------------------------------------------------------------------
+const AUTO_DRIVE_ALARM = "optilens-beswift-autodrive";
+let autoDriveBusy = false;
+let autoDriveTabId = null;
+
+chrome.alarms.create(AUTO_DRIVE_ALARM, { periodInMinutes: 0.25 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_DRIVE_ALARM) pollForQueuedJob().catch(() => {});
+});
+
+async function pollForQueuedJob() {
+  if (autoDriveBusy) return;
+  const { autoDrive, baseUrl } = await chrome.storage.local.get(["autoDrive", "baseUrl"]);
+  if (!autoDrive || !baseUrl) return;
+  const base = String(baseUrl).replace(/\/$/, "");
+
+  let job = null;
+  try {
+    const response = await fetch(`${base}/api/beswift-extension/next-job`, { cache: "no-store" });
+    if (!response.ok) return;
+    job = (await response.json())?.job || null;
+  } catch {
+    return; // server unreachable — try again on the next alarm
+  }
+  if (!job?.claimCode) return;
+
+  autoDriveBusy = true;
+  try {
+    // Close the previous run's tab so each attempt starts from a clean
+    // certificate form rather than stacking half-filled tabs.
+    if (autoDriveTabId !== null) {
+      await new Promise((resolve) => chrome.tabs.remove(autoDriveTabId, () => { void chrome.runtime.lastError; resolve(); }));
+      autoDriveTabId = null;
+    }
+    const result = await startJob(base, job.claimCode);
+    autoDriveTabId = result?.tabId ?? null;
+  } catch {
+    // startJob already reported the failure server-side; the next alarm will
+    // pick up whatever job is queued after the operator/agent fixes the cause.
+  } finally {
+    autoDriveBusy = false;
+  }
+}
+
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== "optilens-beswift-resume" || !tab?.id) return;
   const job = tabJobs.get(tab.id);
@@ -242,7 +294,7 @@ async function startJob(baseUrl, claimCode) {
 
     // Step 4: fill the certificate form (now authenticated either way).
     await sendToTab(tab.id, { type: "fillBeswiftCo", baseUrl, job: data.job, portal: data.portal, payload: data.payload });
-    return { automationJobId };
+    return { automationJobId, tabId: tab.id };
   } catch (error) {
     // If anything in the sign-in/fill flow fails, report it so the job doesn't
     // sit stuck in "claimed" forever with no explanation and no way to retry.
