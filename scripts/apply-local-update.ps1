@@ -119,6 +119,30 @@ try {
     & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
     if ($LASTEXITCODE -ne 0) { throw "Application restart failed with exit code $LASTEXITCODE." }
 
+    $healthy = $false
+    for ($attempt = 1; $attempt -le 20; $attempt++) {
+        Start-Sleep -Milliseconds 500
+        try {
+            $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health/live" -TimeoutSec 3
+            if ($health.service -eq "optilens-local") { $healthy = $true; break }
+        } catch { }
+    }
+    if (-not $healthy) {
+        Write-UpdateLog "Service did not report healthy after restart; running self-repair."
+        & (Join-Path $PSScriptRoot "repair-host.ps1") -ProjectRoot $ProjectRoot -Port $Port -Reason "Update did not come up healthy" *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "Self-repair after update failed with exit code $LASTEXITCODE. See data\host-repair.log." }
+        Write-UpdateLog "Self-repair after update succeeded."
+    }
+
+    Write-UpdateLog "Relaunching host monitor and watchdog task."
+    Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
+        Start-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue
+    }
+    if (Get-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue) {
+        Start-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue
+    }
+
     Write-UpdateLog "Update completed."
 } catch {
     Write-UpdateLog "Update failed: $($_.Exception.Message)"
