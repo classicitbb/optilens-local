@@ -391,12 +391,47 @@ function injectOverlays() {
   </section>
 </div>`;
 
+  const updateProgressHtml = `
+<div class="update-progress-overlay" id="updateProgressOverlay" hidden role="alertdialog" aria-label="Applying update">
+  <div class="update-progress-panel">
+    <div class="update-progress-head">
+      <span class="material-symbols-outlined" id="updateProgressSpinner">sync</span>
+      <h3 id="updateProgressTitle">Applying Update</h3>
+    </div>
+    <div class="update-progress-body">
+      <ul class="update-stepper" id="updateStepper">
+        <li class="update-step" data-step="applying">
+          <span class="update-step-icon material-symbols-outlined">more_horiz</span>
+          <span>Applying changes</span>
+        </li>
+        <li class="update-step" data-step="restarting">
+          <span class="update-step-icon material-symbols-outlined">more_horiz</span>
+          <span>Restarting service</span>
+        </li>
+        <li class="update-step" data-step="verifying">
+          <span class="update-step-icon material-symbols-outlined">more_horiz</span>
+          <span>Verifying session</span>
+        </li>
+        <li class="update-step" data-step="ready">
+          <span class="update-step-icon material-symbols-outlined">more_horiz</span>
+          <span>Ready</span>
+        </li>
+      </ul>
+      <div class="update-progress-error" id="updateProgressError" hidden></div>
+    </div>
+    <div class="update-progress-footer" id="updateProgressFooter" hidden>
+      <button class="button" id="updateProgressDismiss" type="button">Dismiss</button>
+    </div>
+  </div>
+</div>`;
+
   let html = "";
   if (!document.getElementById("launcherOverlay")) html += launcherHtml;
   if (!document.getElementById("searchOverlay")) html += searchHtml;
   if (!document.getElementById("authOverlay")) html += authHtml;
   if (!document.getElementById("accountOverlay")) html += accountHtml;
   if (!document.getElementById("updateLogOverlay")) html += updateLogHtml;
+  if (!document.getElementById("updateProgressOverlay")) html += updateProgressHtml;
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
@@ -593,36 +628,238 @@ async function applyAvailableUpdate() {
   UPDATE_STATE.applying = true;
   renderUpdateControl();
   const previousStartedAt = UPDATE_STATE.status?.running?.startedAt || "";
+  const needsRestart = UPDATE_STATE.status?.plan?.restartService;
 
   try {
     const result = await authFetch("/api/system/updates/apply", { method: "POST" });
-    showUpdateNotice(result.message || "Applying update.");
+
     if (!result.applying) {
-      window.setTimeout(() => window.location.reload(), 350);
+      // Browser-only update — no service restart needed.
+      showUpdateProgress("applying");
+      setUpdateStep("applying", "done");
+      setUpdateStep("restarting", "done", "No restart needed");
+      setUpdateStep("verifying", "active");
+      // Brief pause to let any file-serving caches expire, then verify.
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      try {
+        await refreshAuthState();
+        setUpdateStep("verifying", "done");
+        setUpdateStep("ready", "done", "Update applied");
+        setUpdateProgressTitle("Update Complete");
+        stopUpdateProgressSpinner();
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        dismissUpdateProgress();
+        window.dispatchEvent(new CustomEvent("optilens:connection-restored"));
+      } catch {
+        // Auth recovery failed on browser-only update — fall back to reload.
+        dismissUpdateProgress();
+        window.location.reload();
+      }
       return;
     }
+
+    // Full service restart path.
+    showUpdateProgress("applying");
     await waitForUpdatedService(previousStartedAt);
-    window.location.reload();
   } catch (error) {
     UPDATE_STATE.applying = false;
-    showUpdateNotice(`Update was not applied: ${error.message}`);
+    showUpdateProgressError(error.message || "Update was not applied.");
     renderUpdateControl();
   }
 }
 
 async function waitForUpdatedService(previousStartedAt) {
-  const deadline = Date.now() + 120000;
+  const DEADLINE_MS = 180000; // 3 minutes
+  const deadline = Date.now() + DEADLINE_MS;
+  let pollInterval = 1000;
+  const BACKOFF_AFTER_MS = 30000;
+  const backoffAt = Date.now() + BACKOFF_AFTER_MS;
+  let serviceRestarted = false;
+
+  // Phase 1: Wait for the old service to go down and a new one to come up.
+  setUpdateStep("applying", "done");
+  setUpdateStep("restarting", "active");
+
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    if (Date.now() > backoffAt) pollInterval = 3000;
+
     try {
       const response = await fetch("/api/health", { cache: "no-store" });
+      if (!response.ok) continue;
       const health = await response.json();
-      if (response.ok && health.application?.startedAt && health.application.startedAt !== previousStartedAt) return;
+      if (health.application?.startedAt && health.application.startedAt !== previousStartedAt) {
+        serviceRestarted = true;
+        break;
+      }
     } catch {
       // Expected while the old service stops and the replacement starts.
     }
   }
-  throw new Error("The updated service did not become healthy within two minutes. Check data/local-update.log.");
+
+  if (!serviceRestarted) {
+    setUpdateStep("restarting", "error", "Timed out");
+    throw new Error("The updated service did not become healthy within three minutes. Check data/local-update.log.");
+  }
+
+  // Phase 2: Verify the authenticated session survived the restart.
+  setUpdateStep("restarting", "done");
+  setUpdateStep("verifying", "active");
+
+  try {
+    await refreshAuthState();
+    setUpdateStep("verifying", "done");
+  } catch {
+    // Session did not survive — the user will need to re-authenticate
+    // after we reload, but we still complete the update.
+    setUpdateStep("verifying", "done", "Session refreshed");
+  }
+
+  // Phase 3: All done — show success and dismiss.
+  setUpdateStep("ready", "done", "Update applied");
+  setUpdateProgressTitle("Update Complete");
+  stopUpdateProgressSpinner();
+
+  UPDATE_STATE.applying = false;
+  UPDATE_STATE.status = null;
+  renderUpdateControl();
+
+  // Brief pause so the user sees the success state.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  // If auth is still valid, do an in-place soft recovery. Otherwise reload.
+  if (AUTH_STATE.user) {
+    dismissUpdateProgress();
+    window.dispatchEvent(new CustomEvent("optilens:connection-restored"));
+    // Re-check for any further updates that arrived with the pull.
+    checkForUpdates();
+  } else {
+    dismissUpdateProgress();
+    window.location.reload();
+  }
+}
+
+// ─── Update progress overlay helpers ─────────────────────────────────────────
+
+function showUpdateProgress(initialStep) {
+  const overlay = document.querySelector("#updateProgressOverlay");
+  if (!overlay) return;
+
+  // Reset all steps to pending.
+  overlay.querySelectorAll(".update-step").forEach((step) => {
+    step.className = "update-step";
+    const icon = step.querySelector(".update-step-icon");
+    if (icon) icon.textContent = "more_horiz";
+    // Reset label to default.
+    const label = step.querySelector("span:not(.update-step-icon)");
+    if (label) label.textContent = step.dataset.step === "applying" ? "Applying changes"
+      : step.dataset.step === "restarting" ? "Restarting service"
+      : step.dataset.step === "verifying" ? "Verifying session"
+      : "Ready";
+  });
+
+  // Reset error and footer.
+  const errorEl = overlay.querySelector("#updateProgressError");
+  if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+  const footer = overlay.querySelector("#updateProgressFooter");
+  if (footer) footer.hidden = true;
+
+  // Reset title and spinner.
+  setUpdateProgressTitle("Applying Update");
+  const spinner = overlay.querySelector("#updateProgressSpinner");
+  if (spinner) {
+    spinner.textContent = "sync";
+    spinner.style.animation = "";
+  }
+
+  overlay.classList.remove("closing");
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+
+  if (initialStep) setUpdateStep(initialStep, "active");
+
+  // Wire dismiss button.
+  const dismiss = overlay.querySelector("#updateProgressDismiss");
+  if (dismiss) {
+    dismiss.onclick = () => {
+      dismissUpdateProgress();
+      if (UPDATE_STATE.applying) {
+        // Update is still running in the background; just hide the overlay.
+        showUpdateNotice("Update is running in the background. This page will refresh when ready.");
+      }
+    };
+  }
+}
+
+function setUpdateStep(stepName, state, labelOverride) {
+  const overlay = document.querySelector("#updateProgressOverlay");
+  if (!overlay) return;
+  const step = overlay.querySelector(`.update-step[data-step="${stepName}"]`);
+  if (!step) return;
+
+  step.className = `update-step ${state}`;
+  const icon = step.querySelector(".update-step-icon");
+  if (icon) {
+    if (state === "done") icon.textContent = "check";
+    else if (state === "error") icon.textContent = "close";
+    else if (state === "active") icon.textContent = "more_horiz";
+    else icon.textContent = "more_horiz";
+  }
+
+  if (labelOverride) {
+    const label = step.querySelector("span:not(.update-step-icon)");
+    if (label) label.textContent = labelOverride;
+  }
+}
+
+function setUpdateProgressTitle(title) {
+  const el = document.querySelector("#updateProgressTitle");
+  if (el) el.textContent = title;
+}
+
+function stopUpdateProgressSpinner() {
+  const spinner = document.querySelector("#updateProgressSpinner");
+  if (spinner) {
+    spinner.textContent = "check_circle";
+    spinner.style.animation = "none";
+  }
+}
+
+function showUpdateProgressError(message) {
+  const overlay = document.querySelector("#updateProgressOverlay");
+  if (!overlay || overlay.hidden) {
+    // Overlay wasn't shown yet — use the toast notice.
+    showUpdateNotice(`Update was not applied: ${message}`);
+    return;
+  }
+
+  const errorEl = overlay.querySelector("#updateProgressError");
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
+
+  // Show dismiss button so the user can close the overlay.
+  const footer = overlay.querySelector("#updateProgressFooter");
+  if (footer) footer.hidden = false;
+
+  setUpdateProgressTitle("Update Failed");
+  const spinner = document.querySelector("#updateProgressSpinner");
+  if (spinner) {
+    spinner.textContent = "error";
+    spinner.style.animation = "none";
+  }
+}
+
+function dismissUpdateProgress() {
+  const overlay = document.querySelector("#updateProgressOverlay");
+  if (!overlay || overlay.hidden) return;
+  overlay.classList.add("closing");
+  setTimeout(() => {
+    overlay.hidden = true;
+    overlay.classList.remove("closing");
+    document.body.style.overflow = "";
+  }, 300);
 }
 
 function showUpdateNotice(message) {

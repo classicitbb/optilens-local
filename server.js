@@ -55,15 +55,43 @@ function writeVault(obj) {
   fs.writeFileSync(vaultFile, JSON.stringify({ ...obj, data: normalized.data }, null, 2));
 }
 
-// ─── Session tokens (in-memory, cleared on server restart) ───────────────────
+// ─── Session tokens (persisted across restart with DPAPI) ────────────────────
 // 64-char hex token stored in client sessionStorage; valid for 8 hours.
 
 const SESSION_TTL = 8 * 60 * 60 * 1000;
-const vaultSessions = new Map(); // token -> expiresAt
+const vaultSessionFile = path.join(dataDir, "vault-sessions.protected");
+const vaultSessions = loadVaultSessions(); // token -> expiresAt
+
+function loadVaultSessions() {
+  try {
+    const serialized = unprotectString(fs.readFileSync(vaultSessionFile, "utf8"));
+    const entries = JSON.parse(serialized);
+    const now = Date.now();
+    const valid = (Array.isArray(entries) ? entries : []).filter(
+      ([token, expiresAt]) => typeof token === "string" && /^[a-f0-9]{64}$/i.test(token) && Number(expiresAt) > now
+    );
+    return new Map(valid.map(([token, expiresAt]) => [token, Number(expiresAt)]));
+  } catch {
+    return new Map();
+  }
+}
+
+function persistVaultSessions() {
+  try {
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    const temporaryFile = `${vaultSessionFile}.tmp`;
+    const protectedSessions = protectString(JSON.stringify([...vaultSessions]));
+    fs.writeFileSync(temporaryFile, protectedSessions, { mode: 0o600 });
+    fs.renameSync(temporaryFile, vaultSessionFile);
+  } catch (error) {
+    console.error("Could not persist vault sessions:", error.message);
+  }
+}
 
 function createSession() {
   const token = nodeCrypto.randomBytes(32).toString("hex");
   vaultSessions.set(token, Date.now() + SESSION_TTL);
+  persistVaultSessions();
   return token;
 }
 
@@ -71,12 +99,12 @@ function validateSession(token) {
   if (!token) return false;
   const exp = vaultSessions.get(token);
   if (!exp) return false;
-  if (Date.now() > exp) { vaultSessions.delete(token); return false; }
+  if (Date.now() > exp) { vaultSessions.delete(token); persistVaultSessions(); return false; }
   return true;
 }
 
 function destroySession(token) {
-  vaultSessions.delete(token);
+  if (vaultSessions.delete(token)) persistVaultSessions();
 }
 
 function bearerToken(req) {
@@ -1280,6 +1308,7 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "credentials.manage");
       vaultSessions.clear();
+      persistVaultSessions();
       writeVault({ pinHash: null, data: null });
       return { ok: true };
     });
