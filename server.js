@@ -1802,6 +1802,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Self-reload support. Edge/Chrome internal pages (edge://extensions) cannot
+  // be reached by any automation we have, so an agent that changes
+  // background.js or manifest.json otherwise needs a human to click Reload.
+  // This returns a stamp derived from the beta extension's own files; the
+  // service worker compares it against the last stamp it saw and calls
+  // chrome.runtime.reload() when it changes, but only while idle.
+  if (url.pathname === "/api/beswift-extension/build" && req.method === "GET") {
+    return handleApi(res, async () => ({ stamp: beswiftBetaBuildStamp() }));
+  }
+
   // Auto-drive harness: the beta extension polls this for a queued job and
   // starts it itself, so a create-job → run → fix → re-run loop needs no popup
   // click. Same GET/no-auth posture as the sibling job endpoints; it returns
@@ -3474,6 +3484,22 @@ function startLiveGatewayOnBoot() {
     console.log(`OptiLens live-data gateway worker started from ${startup.source}.`);
   } catch (error) {
     console.error("OptiLens live-data gateway did not start:", error.message);
+  }
+}
+
+// Fingerprint of the beta extension's source files (size + mtime). Changes on
+// any deploy, so the service worker can detect that it is running stale code
+// and reload itself — see the /api/beswift-extension/build route.
+function beswiftBetaBuildStamp() {
+  const dir = path.join(__dirname, "extensions", "beswift-co-beta");
+  try {
+    const parts = fs.readdirSync(dir).sort().map((name) => {
+      const stat = fs.statSync(path.join(dir, name));
+      return `${name}:${stat.size}:${Math.floor(stat.mtimeMs)}`;
+    });
+    return nodeCrypto.createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 16);
+  } catch {
+    return null;
   }
 }
 

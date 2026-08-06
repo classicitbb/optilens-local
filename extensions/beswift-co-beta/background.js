@@ -38,11 +38,48 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_DRIVE_ALARM) pollForQueuedJob().catch(() => {});
 });
 
+// Self-reload. Neither the Chrome MCP nor any other automation we have can
+// reach edge://extensions (Edge is the browser this runs in), so a code change
+// to THIS file or the manifest would otherwise strand the extension on stale
+// code until a human clicks Reload. Instead the worker asks the server for a
+// fingerprint of the extension's own files and reloads itself when it changes.
+// Guarded to idle only — reloading mid-fill would kill a running certificate.
+// The new stamp is stored BEFORE reload() so a failed reload can't loop.
+async function reloadIfStale(base) {
+  if (autoDriveBusy) return false;
+  let stamp = null;
+  try {
+    const response = await fetch(`${base}/api/beswift-extension/build`, { cache: "no-store" });
+    if (!response.ok) return false;
+    stamp = (await response.json())?.stamp || null;
+  } catch {
+    return false;
+  }
+  if (!stamp) return false;
+
+  const { buildStamp } = await chrome.storage.local.get(["buildStamp"]);
+  if (!buildStamp) {
+    // First sighting — record it without reloading, so enabling auto-drive
+    // doesn't immediately bounce the worker.
+    await chrome.storage.local.set({ buildStamp: stamp });
+    return false;
+  }
+  if (buildStamp === stamp) return false;
+
+  await chrome.storage.local.set({ buildStamp: stamp });
+  chrome.runtime.reload();
+  return true;
+}
+
 async function pollForQueuedJob() {
   if (autoDriveBusy) return;
   const { autoDrive, baseUrl } = await chrome.storage.local.get(["autoDrive", "baseUrl"]);
   if (!autoDrive || !baseUrl) return;
   const base = String(baseUrl).replace(/\/$/, "");
+
+  // Pick up new code before claiming anything, so a job always runs against
+  // the freshest build rather than one deploy behind.
+  if (await reloadIfStale(base)) return;
 
   let job = null;
   try {
