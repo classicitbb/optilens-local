@@ -1211,6 +1211,63 @@ th {
   font-weight: 800;
 }
 
+.ci-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.ci-field-head small {
+  margin-bottom: 0;
+}
+
+.ci-edit-btn {
+  flex: none;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #7f96ae;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ci-edit-btn:hover {
+  color: #0082a8;
+}
+
+.ci-field-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #0082a8;
+  border-radius: 2px;
+  padding: 2px 4px;
+  background: #eef8fc;
+  color: #09233f;
+  font: inherit;
+  font-size: 10px;
+}
+
+textarea.ci-field-input {
+  min-height: 40px;
+  resize: vertical;
+}
+
+.ci-inline-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ci-inline-edit .ci-field-input {
+  width: auto;
+  min-width: 90px;
+  padding: 0 3px;
+  font-size: inherit;
+}
+
 .ci-items {
   min-width: 0;
   margin-top: 10px;
@@ -1229,26 +1286,30 @@ th {
 }
 
 .ci-items th:nth-child(1),
-.ci-items td:nth-child(1) { width: 4.5%; }
+.ci-items td:nth-child(1) { width: 4%; }
 .ci-items th:nth-child(2),
-.ci-items td:nth-child(2) { width: 9.5%; }
+.ci-items td:nth-child(2) { width: 8%; }
 .ci-items th:nth-child(3),
-.ci-items td:nth-child(3) { width: 29%; }
+.ci-items td:nth-child(3) { width: 8%; }
 .ci-items th:nth-child(4),
-.ci-items td:nth-child(4) { width: 12%; }
+.ci-items td:nth-child(4) { width: 26%; }
 .ci-items th:nth-child(5),
-.ci-items td:nth-child(5) { width: 9%; }
+.ci-items td:nth-child(5) { width: 10%; }
 .ci-items th:nth-child(6),
-.ci-items td:nth-child(6) { width: 5.5%; }
+.ci-items td:nth-child(6) { width: 8%; }
 .ci-items th:nth-child(7),
-.ci-items td:nth-child(7) { width: 15%; }
+.ci-items td:nth-child(7) { width: 5%; }
 .ci-items th:nth-child(8),
-.ci-items td:nth-child(8) { width: 15.5%; }
+.ci-items td:nth-child(8) { width: 12%; }
+.ci-items th:nth-child(9),
+.ci-items td:nth-child(9) { width: 12%; }
+.ci-items th:nth-child(10),
+.ci-items td:nth-child(10) { width: 7%; }
 
 .ci-items td {
-  padding: 3px 4px;
+  padding: 2px 4px;
   border-bottom: 1px solid #d7e0ea;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .ci-items td:not(.ci-spec) {
@@ -1257,9 +1318,7 @@ th {
 }
 
 .ci-spec {
-  width: 28%;
-  overflow-wrap: anywhere;
-  line-height: 1.16;
+  overflow: hidden;
 }
 
 .ci-line-input {
@@ -1274,6 +1333,9 @@ th {
   font-size: 9px;
   line-height: 1.08;
   text-align: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ci-line-input:focus {

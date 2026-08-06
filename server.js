@@ -150,6 +150,7 @@ const {
   getCommercialInvoicePreview,
   prepareCoDraft,
   saveCommercialInvoiceLineOverrides,
+  saveCommercialInvoiceHeaderOverrides,
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
   getAutomationJobStatus: getBeSwiftAutomationJobStatus,
@@ -1735,6 +1736,15 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  const commercialInvoiceHeaderMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/header$/);
+  if (commercialInvoiceHeaderMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      return saveCommercialInvoiceHeaderOverrides(commercialInvoiceHeaderMatch[1], body.fields || {}, actor.userId);
+    });
+  }
+
   const commercialInvoicePrintMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\.pdf$/);
   if (commercialInvoicePrintMatch && req.method === "GET") {
     return handleHtml(res, async () => {
@@ -2872,19 +2882,23 @@ async function readJsonBody(req) {
 
 function renderCommercialInvoiceHtml(preview) {
   const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const tariffRows = preview.tariffHeadings?.length
-    ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
-    : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
+  const tariffRows = preview.declarationOverride
+    ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
+    : preview.tariffHeadings?.length
+      ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
+      : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
   const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
       <td>${escapeHtmlServer(item.ref)}</td>
+      <td>${escapeHtmlServer(item.invoiceNumber)}</td>
       <td>${escapeHtmlServer(item.specification)}</td>
       <td>${escapeHtmlServer(item.hsCode)}</td>
       <td>${escapeHtmlServer(item.origin)}</td>
       <td>${escapeHtmlServer(item.quantity)}</td>
       <td><span>$</span>${money(item.unitPrice)}</td>
       <td><span>$</span>${money(item.amount)}</td>
+      <td>${escapeHtmlServer(item.weightKg)}</td>
     </tr>
   `).join("");
 
@@ -2908,8 +2922,8 @@ function renderCommercialInvoiceHtml(preview) {
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
     td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
-    td:nth-child(1), td:nth-child(2), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) { text-align: center; white-space: nowrap; }
-    td:nth-child(3) { width: 30%; overflow-wrap: anywhere; }
+    td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { text-align: center; white-space: nowrap; }
+    td:nth-child(4) { width: 26%; overflow-wrap: anywhere; }
     .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; }
     .cert { display: flex; min-height: 126px; flex-direction: column; padding: 8px 4px; color: #315b83; line-height: 1.4; }
     .sig { margin-top: auto; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
@@ -2935,8 +2949,8 @@ function renderCommercialInvoiceHtml(preview) {
       <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
     </div>
     <table>
-      <thead><tr><th>Line #</th><th>Ref #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="8">No invoice lines.</td></tr>`}</tbody>
+      <thead><tr><th>Line #</th><th>Ref #</th><th>Invoice #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th><th>Weight kg</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
     </table>
     <div class="bottom">
       <div class="cert">
