@@ -102,6 +102,7 @@ const {
   recordDecision: recordRecommendationDecision
 } = require("./lib/metrics/inventory-recommendations");
 const { ask: askAssistant, getAssistantStatus } = require("./lib/metrics/assistant");
+const { getLensSummary, getLensDetails, streamLensCsv } = require("./lib/lens-grid-service");
 const {
   addShipmentSessionItem,
   closeShipmentSessionsBatch,
