@@ -15,8 +15,23 @@ const resNote = document.querySelector("#resNote");
 
 let pollTimer = null;
 
-chrome.storage.local.get(["baseUrl", "lastAutomationJobId"], (data) => {
+const autoDriveInput = document.querySelector("#autoDrive");
+
+// Auto-drive: background.js polls /api/beswift-extension/next-job on an alarm
+// and starts whatever job is queued, so an agent can create a job server-side
+// and have it run (and re-run after a code fix) with no popup click. Persisting
+// baseUrl here matters — the worker reads it from storage, not from this form.
+autoDriveInput.addEventListener("change", () => {
+  const baseUrl = baseInput.value.trim().replace(/\/$/, "");
+  chrome.storage.local.set({ autoDrive: autoDriveInput.checked, baseUrl });
+  statusEl.textContent = autoDriveInput.checked
+    ? "Auto-drive on — queued jobs will start themselves."
+    : "Auto-drive off.";
+});
+
+chrome.storage.local.get(["baseUrl", "lastAutomationJobId", "autoDrive"], (data) => {
   if (data.baseUrl) baseInput.value = data.baseUrl;
+  autoDriveInput.checked = Boolean(data.autoDrive);
   // The extension popup unloads whenever it loses focus (normal Chrome
   // behavior) — the fill/pause loop lives on in content.js/the server
   // regardless, so reopening the popup just needs to pick the live status

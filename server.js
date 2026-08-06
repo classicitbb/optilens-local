@@ -156,7 +156,8 @@ const {
   getAutomationJobStatus: getBeSwiftAutomationJobStatus,
   resumeAutomationJob: resumeBeSwiftAutomationJob,
   recordFillResolution: recordBeSwiftFillResolution,
-  listFillResolutions: listBeSwiftFillResolutions
+  listFillResolutions: listBeSwiftFillResolutions,
+  getNextQueuedAutomationJob: getNextQueuedBeSwiftAutomationJob
 } = require("./lib/beswift-co");
 const {
   getCustomerParameters,
@@ -1799,6 +1800,14 @@ const server = http.createServer(async (req, res) => {
       const entry = await saveCatalogEntry(decodeURIComponent(catalogEntryMatch[1]), await readJsonBody(req), actor.userId);
       return { entry };
     });
+  }
+
+  // Auto-drive harness: the beta extension polls this for a queued job and
+  // starts it itself, so a create-job → run → fix → re-run loop needs no popup
+  // click. Same GET/no-auth posture as the sibling job endpoints; it returns
+  // only a claim code that is itself the bearer secret.
+  if (url.pathname === "/api/beswift-extension/next-job" && req.method === "GET") {
+    return handleApi(res, async () => ({ job: await getNextQueuedBeSwiftAutomationJob() }));
   }
 
   const extensionClaimMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)$/);

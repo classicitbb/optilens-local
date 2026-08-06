@@ -10,7 +10,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "tabs", "scripting", "debugger", "contextMenus"],
+  "permissions": ["storage", "tabs", "scripting", "debugger", "contextMenus", "alarms"],
   "host_permissions": [
     "http://localhost:8080/*",
     "http://127.0.0.1:8080/*",
