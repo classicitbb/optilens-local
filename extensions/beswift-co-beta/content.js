@@ -32,10 +32,22 @@
       return true;
     }
     if (message?.type === "fillBeswiftCo") {
-      runFill(message).then(() => sendResponse({ ok: true })).catch((error) => {
-        sendResponse({ ok: false, error: error.message });
+      // Fire-and-forget: respond immediately instead of holding the message
+      // channel open for the entire multi-minute fill. Holding it open meant
+      // any tab navigation/close during a review pause tore the channel down
+      // and background.js reported the job as "error" even though the fill had
+      // paused exactly as designed (seen live 2026-08-06: header filled, job
+      // paused for review, operator closed the tab, job flagged errored with
+      // "message channel closed"). Success is already reported server-side by
+      // runFill itself (filled_review); errors are now reported here too.
+      sendResponse({ ok: true, started: true });
+      runFill(message).catch(async (error) => {
+        try {
+          await report(message.baseUrl, message.job.automationJobId, "error", error.message || "BeSwift fill failed.");
+        } catch { /* reporting must not mask the original failure */ }
+        showBanner(`OptiLens BeSwift fill stopped: ${error.message || "unknown error"}`);
       });
-      return true;
+      return false;
     }
     return false;
   });
@@ -417,8 +429,29 @@
     const el = findByAny([label], root);
     if (!el) return false;
     if (!isEditable(el)) {
+      // isEditable's elementFromPoint check false-negatives when the field is
+      // scrolled out of view or under a sticky header — scroll it into view
+      // and re-check before concluding anything (suspected cause of the
+      // training-run "Shipping Date is not editable" errors, 2026-08-06).
+      el.scrollIntoView({ block: "center", behavior: "instant" });
+      await wait(250);
+    }
+    if (!isEditable(el)) {
       const existing = String(el.value || "").trim();
       if (options.acceptExistingDisabled && existing) return true;
+      // Readonly-but-enabled is Vuetify's date-picker pattern: the text input
+      // is readonly and the value normally arrives via the picker overlay.
+      // Vue still listens for the input event, so committing the model
+      // programmatically works without driving the calendar UI.
+      if (el.readOnly && !el.disabled) {
+        const committed = setReadonlyFieldValue(el, String(value));
+        const msg = `${label} is readonly (date-picker style); ${committed ? "set programmatically via input event" : "programmatic set did NOT commit"}.`;
+        pushFeed(msg, committed ? "info" : "warn");
+        if (fillCtx) {
+          try { await checkpoint(fillCtx, msg, { field: label, value: String(value), method: "readonly_program_set", committed }); } catch { /* logging never breaks the fill */ }
+        }
+        if (committed) return true;
+      }
       throw new Error(`${label} is not editable.`);
     }
     // Double-entry guard (#1): don't re-type into a field that's already filled.
@@ -431,6 +464,26 @@
     }
     await humanTypeElement(el, String(value));
     return true;
+  }
+
+  // Set a readonly (but enabled) input's value through the native setter and
+  // fire input/change so Vue's v-model picks it up — the standard workaround
+  // for Vuetify date-picker text fields, whose readonly attribute only blocks
+  // typed keystrokes, not programmatic events. Returns whether the value stuck.
+  function setReadonlyFieldValue(el, value) {
+    try {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      el.focus();
+      if (setter) setter.call(el, value); else el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      el.blur();
+      el.dispatchEvent(new Event("blur", { bubbles: true }));
+      return String(el.value || "").trim() !== "";
+    } catch {
+      return false;
+    }
   }
 
   // BeSwift option-list positions for fields where CDP-typed text does NOT filter
