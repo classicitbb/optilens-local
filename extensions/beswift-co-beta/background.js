@@ -38,7 +38,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_DRIVE_ALARM) pollForQueuedJob().catch(() => {});
 });
 
-// Self-reload. Neither the Chrome MCP nor any other automation we have can
+// Self-reload. Neither the Chrome MCP nor any other automation we have
 // reach edge://extensions (Edge is the browser this runs in), so a code change
 // to THIS file or the manifest would otherwise strand the extension on stale
 // code until a human clicks Reload. Instead the worker asks the server for a
