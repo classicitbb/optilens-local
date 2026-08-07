@@ -2440,3 +2440,107 @@ textarea.ci-line-input {
   overflow-wrap: anywhere;
 }
 
+
+/* BeSwift extension checker (tab-row button + panel).
+   The button sits immediately before the settings cog and shares its class, so
+   without this rule both would claim margin-left:auto and split apart. */
+.workflow-tab-settings + .workflow-tab-settings {
+  margin-left: 4px;
+}
+
+#beswiftExtBtn[data-ext-state="ok"] {
+  color: var(--ok, #2e9e6b) !important;
+}
+
+#beswiftExtBtn[data-ext-state="outdated"] {
+  color: var(--warn, #d08a1e) !important;
+  border-color: var(--warn, #d08a1e) !important;
+}
+
+#beswiftExtBtn[data-ext-state="missing"] {
+  color: var(--danger, #d0453e) !important;
+  border-color: var(--danger, #d0453e) !important;
+}
+
+#beswiftExtBtn[data-ext-state="checking"] {
+  opacity: 0.55;
+}
+
+.beswift-ext-panel {
+  position: fixed;
+  z-index: 1200;
+  top: 84px;
+  right: 24px;
+  width: min(420px, calc(100vw - 48px));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+}
+
+.beswift-ext-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.beswift-ext-panel-body {
+  padding: 12px;
+  line-height: 1.5;
+}
+
+.beswift-ext-panel-body p {
+  margin: 0 0 10px;
+}
+
+.beswift-ext-panel-body p:last-child {
+  margin-bottom: 0;
+}
+
+.beswift-ext-panel-body .ext-muted {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.beswift-ext-panel-body .ext-cmd {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg, rgba(0, 0, 0, 0.25));
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.beswift-ext-panel-foot {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  text-align: right;
+}
+
+.beswift-ext-close,
+.beswift-ext-recheck {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.beswift-ext-close {
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.beswift-ext-recheck {
+  padding: 6px 12px;
+  font-size: 12px;
+}

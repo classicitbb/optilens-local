@@ -1,5 +1,9 @@
 {
   "manifest_version": 3,
+  "_comment_key": "Pins the extension ID (jdnkiokjepfphfjhedkdilniagobhkoe) so an unpacked dev load and the policy-installed .crx are the same extension. Private half lives in data/ext/beswift-co-beta.pem, which is gitignored — losing it means a new ID and a re-push of the Edge policy.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwe0pb0xhL9Q2qfWOuI73eq6rDP7sX8w5FMNITuucb9lVid9rL+6H/UF+vKTLyOaURiCFPc2gkTIWegEuArUSyq9B/M46N5wLVdIx2wNL7DOfeITOv20O18urCrPGguti9lMYjuPBgeefWMYo3oxhQJsHT1KlooTANn53uZNy0kbYoyqtj0Ik4VoQmXgNNVc2Etq0znrU/9zNDRbaoKtlKjf/HbFYC1x/knj37NjnBFCXOJF9IAxxx0ZLPZ5ZdZuQacitW2M9zjG+iC8oFWPojFflV5w3/wi9qsVAlM3hpSS75wK92GbMDc8FaAzYKOYexJQMZ/+Y9yeRna+FRlmqMwIDAQAB",
+  "_comment_update_url": "Self-hosted Omaha update manifest. Edge polls this for force-installed extensions; bump \"version\" below to ship an update.",
+  "update_url": "http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml",
   "name": "OptiLens BeSwift CO (Beta)",
   "version": "0.2.0",
   "description": "BETA: Claims OptiLens BeSwift CO jobs and fills the BeSwift certificate form for operator review. Adds a rolling on-page progress feed and operator error/resolution capture for AI refinement. Load side-by-side with the stable extension.",
@@ -15,6 +19,9 @@
     "http://localhost:8080/*",
     "http://127.0.0.1:8080/*",
     "http://192.168.254.7:8080/*",
+    "http://192.168.254.7/*",
+    "http://ino-3frc3q3/*",
+    "http://ino-3frc3q3:8080/*",
     "https://sso.training.beswift.gov.bb/*",
     "https://training.beswift.gov.bb/*",
     "https://*.training.beswift.gov.bb/*",
@@ -38,6 +45,19 @@
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "_comment": "Site bridge: announces this extension's presence and version to the OptiLens app so the Delivery & Export tab row can show install/update status. Read-only — it never touches BeSwift.",
+      "matches": [
+        "http://ino-3frc3q3/*",
+        "http://ino-3frc3q3:8080/*",
+        "http://192.168.254.7/*",
+        "http://192.168.254.7:8080/*",
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*"
+      ],
+      "js": ["site-bridge.js"],
+      "run_at": "document_start"
     }
   ]
 }

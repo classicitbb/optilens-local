@@ -27,6 +27,7 @@
         <button type="button" data-tab="deliveryChecklist" id="deliveryChecklistTab">Delivery checklist</button>
         <button type="button" data-tab="archive">Archive</button>
         <button type="button" data-tab="sourceHealth">Source health</button>
+        <button class="workflow-tab-settings material-symbols-outlined" id="beswiftExtBtn" type="button" aria-label="BeSwift extension status" title="Checking BeSwift extension..." data-ext-state="checking">extension</button>
         <button class="workflow-tab-settings material-symbols-outlined" id="deliverySettingsBtn" type="button" aria-label="Delivery export settings" title="Delivery export settings">settings</button>
         <button class="workflow-tab-refresh material-symbols-outlined" id="refreshShipmentsBtn" type="button" aria-label="Refresh shipments" title="Refresh shipments">refresh</button>
       </nav>
@@ -317,6 +318,7 @@
   </div>
 
   <script src="/shared.js"></script>
+  <script src="/beswift-extension-check.js" defer></script>
   <script src="/delivery-export.js"></script>
   <script src="/pwa.js"></script>
 </body>

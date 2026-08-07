@@ -13,3 +13,9 @@ data/rx/*
 .aider*
 _snapshots/
 *.bak-*
+
+# Packed extension build artifacts - regenerate with scripts/pack-beswift-extension.ps1.
+# The signing key lives in data/ext/ (already ignored via data/*) and must be
+# backed up: losing it changes the extension ID and breaks the Edge policy.
+public/extensions/*.crx
+public/extensions/*-updates.xml

@@ -594,7 +594,12 @@ const mimeTypes = {
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml; charset=utf-8",
-  ".ico": "image/x-icon"
+  ".ico": "image/x-icon",
+  // Edge's extension updater requires a real XML content type on the update
+  // manifest and the CRX type on the package; served as octet-stream it
+  // silently refuses the update.
+  ".xml": "text/xml; charset=utf-8",
+  ".crx": "application/x-chrome-extension"
 };
 
 const VAULT_CATEGORIES = ["SQL Server", "PSQL", "ODBC", "Access DB", "API Keys", "Web Portals", "Other"];
@@ -1810,6 +1815,14 @@ const server = http.createServer(async (req, res) => {
   // chrome.runtime.reload() when it changes, but only while idle.
   if (url.pathname === "/api/beswift-extension/build" && req.method === "GET") {
     return handleApi(res, async () => ({ stamp: beswiftBetaBuildStamp() }));
+  }
+
+  // What the Delivery & Export plugin checker compares the browser against:
+  // the version we currently ship, the extension id, and whether a packaged
+  // build is actually available to install. No auth - it is public metadata
+  // about a client-side add-on, and the page needs it before sign-in matters.
+  if (url.pathname === "/api/beswift-extension/release" && req.method === "GET") {
+    return handleApi(res, async () => beswiftBetaRelease());
   }
 
   // Auto-drive harness: the beta extension polls this for a queued job and
@@ -3501,6 +3514,36 @@ function beswiftBetaBuildStamp() {
   } catch {
     return null;
   }
+}
+
+// Current shipped release of the beta extension, read from the packaged
+// artifacts rather than hardcoded, so bumping manifest.json + repacking is the
+// only step needed to advertise a new version.
+function beswiftBetaRelease() {
+  const extensionId = "jdnkiokjepfphfjhedkdilniagobhkoe";
+  const crxPath = path.join(__dirname, "public", "extensions", "beswift-co-beta.crx");
+  let version = null;
+  try {
+    const manifestPath = path.join(__dirname, "extensions", "beswift-co-beta", "manifest.json");
+    version = JSON.parse(fs.readFileSync(manifestPath, "utf8")).version || null;
+  } catch {
+    version = null;
+  }
+  let packaged = null;
+  try {
+    const stat = fs.statSync(crxPath);
+    packaged = { sizeBytes: stat.size, builtAt: new Date(stat.mtimeMs).toISOString() };
+  } catch {
+    packaged = null; // never packed, or the artifact was cleaned
+  }
+  return {
+    extensionId,
+    version,
+    packaged,
+    crxUrl: "/extensions/beswift-co-beta.crx",
+    updateUrl: "/extensions/beswift-co-beta-updates.xml",
+    policyValue: `${extensionId};http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml`
+  };
 }
 
 function readJsonFile(filePath, fallback) {
