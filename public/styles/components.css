@@ -2544,3 +2544,14 @@ textarea.ci-line-input {
   padding: 6px 12px;
   font-size: 12px;
 }
+
+.beswift-ext-copy {
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}

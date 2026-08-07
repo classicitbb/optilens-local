@@ -3536,13 +3536,21 @@ function beswiftBetaRelease() {
   } catch {
     packaged = null; // never packed, or the artifact was cleaned
   }
+  // The install command is handed out as a UNC path, not a repo-relative one:
+  // workstations that need the extension do not have a checkout of this repo,
+  // but they can all reach the GitHub share on the host. Note the CRX itself
+  // must stay on HTTP - Windows Edge/Chrome refuse external installs from
+  // file:// or UNC update URLs, so only the script travels over the share.
+  const scriptShare = "\\\\INO-3FRC3Q3\\GitHub\\optilens-local\\scripts\\install-beswift-extension-policy.ps1";
   return {
     extensionId,
     version,
     packaged,
     crxUrl: "/extensions/beswift-co-beta.crx",
     updateUrl: "/extensions/beswift-co-beta-updates.xml",
-    policyValue: `${extensionId};http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml`
+    policyValue: `${extensionId};http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml`,
+    installScriptUnc: scriptShare,
+    installCommand: `powershell -ExecutionPolicy Bypass -File "${scriptShare}"`
   };
 }
 

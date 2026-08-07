@@ -95,11 +95,18 @@
     const shipped = release?.version || "unknown";
     const policy = release?.policyValue || "";
     if (!detected) {
+      // The command runs from the GitHub share rather than a repo path: a
+      // workstation that needs the extension will not have a checkout, but it
+      // can reach the share. (The CRX itself still comes over HTTP - Windows
+      // Edge refuses external installs from file:// or UNC update URLs.)
+      const cmd = release?.installCommand || "";
       return `
         <p><strong>Not installed on this browser.</strong></p>
         <p>The extension is deployed by Edge policy, so a web page cannot install
-           it. On this workstation, run once as Administrator:</p>
-        <pre class="ext-cmd">powershell -ExecutionPolicy Bypass -File scripts\\install-beswift-extension-policy.ps1</pre>
+           it. On this workstation, open an <strong>Administrator</strong> command
+           prompt and run:</p>
+        <pre class="ext-cmd">${cmd}</pre>
+        <button type="button" class="beswift-ext-copy">Copy command</button>
         <p>Then restart Edge. It installs automatically and stays updated.</p>
         <p class="ext-muted">Policy value: <code>${policy}</code></p>`;
     }
@@ -137,6 +144,33 @@
     panel.querySelector(".beswift-ext-recheck").addEventListener("click", async () => {
       await check();
       panel.querySelector(".beswift-ext-panel-body").innerHTML = panelMarkup();
+      wireCopy(panel);
+    });
+    wireCopy(panel);
+  }
+
+  // Clipboard write can reject on an insecure origin; fall back to selecting
+  // the text so the command is still easy to copy by hand.
+  function wireCopy(panel) {
+    const copyBtn = panel.querySelector(".beswift-ext-copy");
+    if (!copyBtn) return;
+    copyBtn.addEventListener("click", async () => {
+      const cmd = release?.installCommand || "";
+      try {
+        await navigator.clipboard.writeText(cmd);
+        copyBtn.textContent = "Copied";
+      } catch {
+        const pre = panel.querySelector(".ext-cmd");
+        if (pre) {
+          const range = document.createRange();
+          range.selectNodeContents(pre);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        copyBtn.textContent = "Selected - press Ctrl+C";
+      }
+      setTimeout(() => { copyBtn.textContent = "Copy command"; }, 2500);
     });
   }
 
