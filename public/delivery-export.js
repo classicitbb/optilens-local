@@ -73,6 +73,13 @@ function wireActions() {
     event.preventDefault();
     loadFilteredShipments();
   });
+  document.querySelector("#customerAccountInput")?.addEventListener("input", (event) => {
+    // A datalist selection raises `input` immediately. Only react to an exact
+    // account match so normal typing does not repeatedly reload the list.
+    if (moduleState.customerByAccount.has(String(event.target.value || "").trim().toUpperCase())) {
+      loadFilteredShipments();
+    }
+  });
   document.querySelector("#shipmentIdInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
