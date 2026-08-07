@@ -101,3 +101,29 @@ Operations-agent non-negotiables:
 - WhatsApp integration must use the official WhatsApp Business Platform, not browser scraping or unofficial personal-account automation.
 - Durable queues, retries, dead-letter handling, reconciliation, feature flags, health monitoring, and emergency disable controls are part of the architecture.
 - Work on a feature branch, keep changes small and reversible, preserve existing behavior, and report tests honestly.
+
+## Agent working rule: the host repo is the only source of truth
+
+Automated agents (Claude/Codex) must edit **only** the host checkout at
+`C:\Users\Administrator\Documents\GitHub\optilens-local` (reachable over
+`ssh Administrator@ino-3frc3q3`, or `\\INO-3FRC3Q3\GitHub\optilens-local`).
+
+`C:\DEV\optilens-local` is a human working copy. Agents do not read, edit,
+commit or revert anything there. Editing both checkouts is what caused the
+divergence on 2026-08-06 — the same change existed uncommitted in one tree and
+committed in the other, and the mount reports stale git state for the local
+copy, so it cannot be trusted to reconcile itself.
+
+Practical notes for agents:
+
+- Edit via the remote harness, not scp-by-hand: pull a file to a sandbox
+  cache, do exact-match string surgery there, push it back. The push verifies
+  a SHA match on both sides, runs `node --check` on the host for `.js`, and
+  **refuses to write if the host file changed since it was pulled** — so a
+  human editing on the host is never silently clobbered.
+- Commit and restart on the host (`npm run app:restart`), per the standing
+  authorization in CLAUDE.md.
+- Browser-internal pages (`chrome://extensions`, `edge://extensions`) are
+  unreachable from the Chrome MCP — it force-prefixes `https://`. This host
+  runs **Edge**, not Chrome. The beta extension therefore self-reloads from
+  `GET /api/beswift-extension/build`; see `extensions/beswift-co-beta/background.js`.
