@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Force-installs the OptiLens BeSwift CO (Beta) extension in Microsoft Edge via
-  machine policy. Run once per workstation, elevated.
+  machine policy. Run it from anywhere - it elevates itself.
 
 .DESCRIPTION
   Writes HKLM policy so Edge installs the extension from our self-hosted update
@@ -12,25 +12,47 @@
   Also allows our own host as an off-store installation source, which Edge
   requires before it will accept a non-Store CRX.
 
-  Undo with -Remove.
+  Intended to be run straight off the share, on a workstation with no checkout:
+    powershell -ExecutionPolicy Bypass -File "\\INO-3FRC3Q3\GitHub\optilens-local\scripts\install-beswift-extension-policy.ps1"
 
-.EXAMPLE
-  powershell -ExecutionPolicy Bypass -File scripts\install-beswift-extension-policy.ps1
-.EXAMPLE
-  powershell -ExecutionPolicy Bypass -File scripts\install-beswift-extension-policy.ps1 -Remove
+  Undo with -Remove.
 #>
 param(
     [string] $BaseUrl = "http://ino-3frc3q3",
     [string] $ExtensionId = "jdnkiokjepfphfjhedkdilniagobhkoe",
-    [switch] $Remove
+    [switch] $Remove,
+    [switch] $Elevated
 )
 
 $ErrorActionPreference = "Stop"
 
-$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = New-Object Security.Principal.WindowsPrincipal($identity)
-if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    throw "This script writes HKLM policy and must be run as Administrator."
+function Test-Elevated {
+    $identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Self-elevate rather than making the operator hunt for an admin prompt. The
+# -Elevated guard stops an infinite relaunch loop if UAC hands back a token
+# that still is not administrative.
+if (-not (Test-Elevated)) {
+    if ($Elevated) { throw "Elevation was requested but this process is still not running as Administrator." }
+    Write-Host "Not elevated - relaunching with an administrator prompt..."
+    $argList = @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", "`"$PSCommandPath`"",
+        "-BaseUrl", "`"$BaseUrl`"",
+        "-ExtensionId", "`"$ExtensionId`"",
+        "-Elevated"
+    )
+    if ($Remove) { $argList += "-Remove" }
+    try {
+        $proc = Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $argList -Wait -PassThru
+        if ($proc.ExitCode -ne 0) { throw "The elevated run exited with code $($proc.ExitCode)." }
+    } catch {
+        throw "Could not elevate: $($_.Exception.Message). Right-click PowerShell, choose 'Run as administrator', and run this script again."
+    }
+    return
 }
 
 $edgePolicy = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
@@ -39,11 +61,35 @@ $sources    = Join-Path $edgePolicy "ExtensionInstallSources"
 $updateXml  = "$BaseUrl/extensions/beswift-co-beta-updates.xml"
 $entry      = "$ExtensionId;$updateXml"
 
+# Read values with Get-ItemProperty, NOT Get-Item: the PowerShell registry
+# provider opens a key for read/write when you Get-Item it, which throws
+# "Requested registry access is not allowed" on protected policy keys even when
+# you only intend to read. Get-ItemProperty asks for read access only.
 function Get-MatchingValueNames {
     param([string] $KeyPath, [string] $Match)
     if (-not (Test-Path $KeyPath)) { return @() }
-    $key = Get-Item $KeyPath
-    return @($key.GetValueNames() | Where-Object { $key.GetValue($_) -like $Match })
+    $props = Get-ItemProperty -Path $KeyPath -ErrorAction SilentlyContinue
+    if (-not $props) { return @() }
+    return @(
+        $props.PSObject.Properties |
+            Where-Object { $_.Name -notlike "PS*" -and $_.Value -like $Match } |
+            ForEach-Object { $_.Name }
+    )
+}
+
+function Get-NextSlot {
+    param([string] $KeyPath)
+    $props = Get-ItemProperty -Path $KeyPath -ErrorAction SilentlyContinue
+    $used = @()
+    if ($props) {
+        $used = @(
+            $props.PSObject.Properties |
+                Where-Object { $_.Name -notlike "PS*" -and $_.Name -match '^\d+$' } |
+                ForEach-Object { [int]$_.Name } | Sort-Object
+        )
+    }
+    if ($used.Count) { return "$($used[-1] + 1)" }
+    return "1"
 }
 
 if ($Remove) {
@@ -63,28 +109,23 @@ foreach ($path in @($forcelist, $sources)) {
     if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
 }
 
-# Forcelist and sources are numbered string values ("1", "2", ...). Reuse the
-# slot already holding our entry so re-running is idempotent rather than
-# stacking duplicates.
+# Reuse the slot already holding our entry so re-running is idempotent rather
+# than stacking duplicates.
 $existing = Get-MatchingValueNames -KeyPath $forcelist -Match "$ExtensionId*"
-if ($existing.Count -gt 0) {
-    $slot = $existing[0]
-} else {
-    $used = @((Get-Item $forcelist).GetValueNames() | ForEach-Object { [int]$_ } | Sort-Object)
-    $slot = "$(if ($used.Count) { $used[-1] + 1 } else { 1 })"
-}
+$slot = if ($existing.Count -gt 0) { $existing[0] } else { Get-NextSlot -KeyPath $forcelist }
 Set-ItemProperty -Path $forcelist -Name $slot -Value $entry -Type String
 Write-Host "Forcelist[$slot] = $entry"
 
 $sourcePattern = "$BaseUrl/*"
-$existingSource = Get-MatchingValueNames -KeyPath $sources -Match $sourcePattern
-if ($existingSource.Count -eq 0) {
-    $used = @((Get-Item $sources).GetValueNames() | ForEach-Object { [int]$_ } | Sort-Object)
-    $slot = "$(if ($used.Count) { $used[-1] + 1 } else { 1 })"
-    Set-ItemProperty -Path $sources -Name $slot -Value $sourcePattern -Type String
-    Write-Host "InstallSources[$slot] = $sourcePattern"
+if ((Get-MatchingValueNames -KeyPath $sources -Match $sourcePattern).Count -eq 0) {
+    $sourceSlot = Get-NextSlot -KeyPath $sources
+    Set-ItemProperty -Path $sources -Name $sourceSlot -Value $sourcePattern -Type String
+    Write-Host "InstallSources[$sourceSlot] = $sourcePattern"
 }
 
 Write-Host ""
-Write-Host "Policy written. Restart Edge (or browse to edge://policy and Reload policies)."
+Write-Host "Policy written. Restart Edge (or open edge://policy and choose Reload policies)."
 Write-Host "Edge will install $ExtensionId from $updateXml and keep it updated."
+Write-Host ""
+Write-Host "If the extension is ALSO loaded unpacked in this browser, remove it first -"
+Write-Host "it shares the same extension id and will block the policy install."
