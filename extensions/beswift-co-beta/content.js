@@ -62,12 +62,27 @@
     await ensureOnCertificateForm();
     await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
     await fillHeader(ctx, payload);
-    await pauseForInteraction(
-      ctx,
+    // Blank-field sweep (refinement 2026-08-08): re-read the header's typed
+    // text fields against the payload before the mandatory review pause, so a
+    // silently-skipped field (see setByLabel's loud-miss path) is named in the
+    // pause banner and prefilled into the resolution form instead of relying
+    // on the operator to spot it (they logged "stuck on this field" for a
+    // blank Freight Cost on 2026-08-06).
+    const headerBlanks = sweepHeaderBlanks(payload);
+    let headerPauseReason =
       "Header filled (Applicant/Exporter/Importer/Producer/Consignee/Transport/Invoice). " +
       "Verify these sections before Items are added — Importer scoping and the Applicant TIN pick are the parts most " +
-      "likely to need a manual fix. Resume when ready to continue."
-    );
+      "likely to need a manual fix. Resume when ready to continue.";
+    let headerPauseMeta = {};
+    if (headerBlanks.length) {
+      const list = headerBlanks.map((b) => `${b.label} (expected "${b.expected}")`).join(", ");
+      headerPauseReason = `STILL BLANK after header fill: ${list}. Fill these manually before resuming. ` + headerPauseReason;
+      headerPauseMeta = { field: headerBlanks[0].label, expected: headerBlanks[0].expected };
+      await checkpoint(ctx, `Header blank-field sweep: ${headerBlanks.length} field(s) still blank — ${list}.`, { blanks: headerBlanks });
+    } else {
+      await checkpoint(ctx, "Header blank-field sweep: all expected text fields carry a value.");
+    }
+    await pauseForInteraction(ctx, headerPauseReason, headerBlanks.length ? findByAny([headerBlanks[0].label]) : undefined, headerPauseMeta);
     await fillItems(ctx, payload);
     await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
     // Detach chrome.debugger now that pickByLabel is done using it — leaves
@@ -313,6 +328,32 @@
     await checkpoint(ctx, "Invoice Details filled.", { invoiceDetails: inv });
   }
 
+  // Which header TEXT fields (typed via setByLabel) should carry a payload
+  // value once fillHeader is done. Dropdown picks are excluded on purpose:
+  // pickByLabel has its own commit checks. Consumed by runFill's post-header
+  // blank-field sweep; `resolved:false` on an entry means even the sweep's
+  // findByAny could not locate the input -- i.e. a label-resolution gap, not
+  // a value that failed to commit.
+  function sweepHeaderBlanks(payload) {
+    const t = payload.transport || {};
+    const inv = payload.invoiceDetails || {};
+    const expectations = [
+      ["Shipping Marks", (t.shippingMarks || "").slice(0, 35)],
+      ["Shipping Date", t.shippingDate],
+      ["Customer Order No.", inv.customerOrderNo],
+      ["Cube Quantity", inv.cubeQuantity],
+      ["Freight Cost", inv.freightCost]
+    ];
+    const blanks = [];
+    for (const [label, expected] of expectations) {
+      if (expected === undefined || expected === null || expected === "") continue;
+      const el = findByAny([label]);
+      const current = el ? String(el.value || "").trim() : "";
+      if (!current) blanks.push({ label, expected: String(expected), resolved: Boolean(el) });
+    }
+    return blanks;
+  }
+
   async function fillItems(ctx, payload) {
     const items = payload.items || [];
     // Double-entry guard for items (#1): if the certificate already lists saved
@@ -554,9 +595,29 @@
   }
 
   async function setByLabel(label, value, root = document, options = {}) {
-    if (value === undefined || value === null || value === "") return false;
+    if (value === undefined || value === null || value === "") {
+      // Loud-skip (refinement 2026-08-08): an empty payload value is a valid
+      // reason to leave a field alone, but say so in the feed instead of
+      // vanishing -- a blank left by a missing value looked identical to a
+      // resolver miss from the operator's side.
+      pushFeed(`${label}: no value in payload -- leaving blank.`, "info");
+      return false;
+    }
     const el = findByAny([label], root);
-    if (!el) return false;
+    if (!el) {
+      // Loud-miss (refinement 2026-08-08, from co_fill_resolutions id 2):
+      // findByAny failing used to `return false` silently, leaving the field
+      // blank with no trace (root cause of the 2026-08-06 "Freight Cost stuck
+      // on this field" manual fix). Surface the miss and snapshot the labels
+      // actually on the page so the next failed run self-diagnoses which
+      // label text BeSwift really renders.
+      const msg = `${label}: could not resolve an input for this label -- field left blank (expected "${value}").`;
+      pushFeed(msg, "warn");
+      if (fillCtx) {
+        try { await checkpoint(fillCtx, msg, { field: label, expected: String(value), miss: "findByAny", labelsOnPage: visibleFieldLabels(root) }); } catch { /* logging never breaks the fill */ }
+      }
+      return false;
+    }
     if (!isEditable(el)) {
       // isEditable's elementFromPoint check false-negatives when the field is
       // scrolled out of view, under a sticky header, or beneath an open
@@ -1264,6 +1325,17 @@
     const pool = exactMatches.length ? exactMatches : candidates;
     const editableMatch = pool.find((c) => isEditable(c.el));
     return (editableMatch || pool[0]).el;
+  }
+
+  // Snapshot of the field labels currently visible under `root` -- attached to
+  // loud-miss checkpoints so a resolver failure records what the form actually
+  // calls its fields (e.g. whether BeSwift renders "Freight Cost" or some
+  // variant), instead of needing a live repro session to find out.
+  function visibleFieldLabels(root = document) {
+    const texts = [...root.querySelectorAll("label, .v-label")]
+      .map((el) => String(el.textContent || "").trim())
+      .filter(Boolean);
+    return [...new Set(texts)].slice(0, 60);
   }
 
   function findByAny(labels, root = document) {
