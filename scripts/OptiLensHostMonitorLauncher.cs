@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -35,6 +36,8 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Button mirrorSyncButton = new Button { Text = "Sync mirror now", Width = 120 };
     private readonly Button rxAliasSyncButton = new Button { Text = "Sync RX aliases now", Width = 135 };
     private readonly Label rxAliasSyncMessage = new Label();
+    private readonly Label httpsStatus = new Label();
+    private readonly Label localCaStatus = new Label();
     private readonly Label syncStatus = new Label();
     private readonly Label syncCredentials = new Label();
     private readonly TextBox resultBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill };
@@ -76,10 +79,13 @@ internal sealed class OptiLensHostMonitor : Form
         Controls.Add(tabs);
         tabs.TabPages.Add(BuildConnectionsPage());
         tabs.TabPages.Add(BuildSyncPage());
+        tabs.TabPages.Add(BuildHttpsPage());
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Open monitor", null, delegate { ShowMonitorWindow(); });
         menu.Items.Add("Open OptiLens Local", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:" + port + "/") { UseShellExecute = true }); });
+        menu.Items.Add("Open OptiLens HTTPS", null, delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); });
+        menu.Items.Add("Open local DNS console", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); });
         menu.Items.Add("Start OptiLens Local", null, delegate { RunHostScript("start-app.ps1"); });
         menu.Items.Add("Restart OptiLens Local", null, delegate { RunHostScript("restart-app.ps1"); });
         menu.Items.Add("Shut down OptiLens Local", null, delegate { RunHostScript("stop-app.ps1", true); });
@@ -178,6 +184,27 @@ internal sealed class OptiLensHostMonitor : Form
         return page;
     }
 
+    private TabPage BuildHttpsPage()
+    {
+        var page = new TabPage("HTTPS & DNS");
+        var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), AutoScroll = true, WrapContents = true };
+        page.Controls.Add(layout);
+        layout.Controls.Add(new Label { Text = "OptiLens LAN HTTPS", AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) });
+        httpsStatus.AutoSize = true; localCaStatus.AutoSize = true;
+        layout.Controls.Add(httpsStatus); layout.Controls.Add(localCaStatus);
+        var openHttps = new Button { Text = "Open HTTPS site", Width = 120 };
+        var openDns = new Button { Text = "Open DNS console", Width = 120 };
+        var exportRoot = new Button { Text = "Open root certificate", Width = 145 };
+        var renewLeaf = new Button { Text = "Renew server certificate", Width = 165 };
+        layout.Controls.Add(openHttps); layout.Controls.Add(openDns); layout.Controls.Add(exportRoot); layout.Controls.Add(renewLeaf);
+        layout.Controls.Add(new Label { Text = "The CA private key stays on this host. Install the exported public root certificate and use this host as DNS on each LAN device before browsing optilens.cv.net.", AutoSize = true, MaximumSize = new Size(650, 0) });
+        openHttps.Click += delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); };
+        openDns.Click += delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); };
+        exportRoot.Click += delegate { Process.Start(new ProcessStartInfo(Path.Combine(projectRoot, "data", "certificates")) { UseShellExecute = true }); };
+        renewLeaf.Click += delegate { if (MessageBox.Show("Issue and bind a fresh OptiLens server certificate now?", "Confirm certificate renewal", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) RunHostScript("manage-local-https.ps1", false, "-Action RenewServerCertificate"); };
+        return page;
+    }
+
     private async Task<string> Api(string path, string method = "GET", object body = null)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), "http://127.0.0.1:" + port + path);
@@ -224,6 +251,7 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshSource();
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
+            RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !hasFailure && !hasWarning)
             {
@@ -361,6 +389,24 @@ internal sealed class OptiLensHostMonitor : Form
         catch (Exception error) { rxAliasSyncMessage.Text = "RX alias sync status unavailable: " + error.Message; rxAliasSyncMessage.ForeColor = Color.Firebrick; }
     }
 
+    private void RefreshTlsStatus()
+    {
+        try
+        {
+            using (var store = new X509Store(StoreName.My, StoreLocation.LocalMachine))
+            {
+                store.Open(OpenFlags.ReadOnly);
+                var root = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(c => c.FriendlyName == "OptiLens Local Root CA");
+                var leaf = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(c => c.FriendlyName == "OptiLens HTTPS - optilens.cv.net");
+                httpsStatus.Text = leaf == null ? "HTTPS certificate: missing" : "HTTPS certificate: optilens.cv.net, expires " + leaf.NotAfter.ToShortDateString();
+                httpsStatus.ForeColor = leaf == null || leaf.NotAfter < DateTime.Now.AddDays(30) ? Color.Firebrick : Color.ForestGreen;
+                localCaStatus.Text = root == null ? "Local CA: missing" : "Local CA: present, expires " + root.NotAfter.ToShortDateString();
+                localCaStatus.ForeColor = root == null ? Color.Firebrick : Color.ForestGreen;
+            }
+        }
+        catch (Exception error) { httpsStatus.Text = "HTTPS status unavailable: " + error.Message; httpsStatus.ForeColor = Color.Firebrick; }
+    }
+
     private async Task StartRxAliasSync()
     {
         try { rxAliasSyncButton.Enabled = false; await Api("/api/monitor/rx-alias-sync/run", "POST", new { }); rxAliasSyncMessage.Text = "RX alias sync started."; }
@@ -404,14 +450,14 @@ internal sealed class OptiLensHostMonitor : Form
         catch (Exception error) { logsBox.Text = "Logs unavailable: " + error.Message; }
     }
 
-    private void RunHostScript(string name, bool intentionalStop = false)
+    private void RunHostScript(string name, bool intentionalStop = false, string extraArguments = "")
     {
         try
         {
             var script = Path.Combine(projectRoot, "scripts", name);
             if (!File.Exists(script)) return;
             var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-            var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "");
+            var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "") + " " + extraArguments;
             Process.Start(new ProcessStartInfo(powershell, args) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
         }
         catch (Exception error)

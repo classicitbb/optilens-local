@@ -4,7 +4,7 @@
 
 The project has been reset from the old static page into a platform starter.
 
-- LAN URL target: `http://192.168.254.9:8080/`
+- LAN URL target: `https://optilens.cv.net/` (IIS host: `192.168.254.7`)
 - Platform database recommendation: `optilens_local`
 - Display name: OptiLens Local
 - First module: Delivery and Export
@@ -25,7 +25,7 @@ npm start
 Then open:
 
 ```text
-http://192.168.254.9:8080/
+https://optilens.cv.net/
 ```
 
 For a background run that survives the current PowerShell window:
@@ -87,17 +87,17 @@ The app listens on `0.0.0.0:8080`, so the machine name should work on the LAN wh
 http://MSSQL-SVR:8080/
 ```
 
-For a friendlier alias such as `http://optilens:8080/`, add a DNS `A` record for `optilens` pointing to `192.168.254.9`. For a quick single-machine test, add this line to that client PC's `C:\Windows\System32\drivers\etc\hosts` file:
+For a friendlier alias such as `http://optilens:8080/`, add a DNS `A` record for `optilens` pointing to `192.168.254.7`. For a quick single-machine test, add this line to that client PC's `C:\Windows\System32\drivers\etc\hosts` file:
 
 ```text
-192.168.254.9 optilens
+192.168.254.7 optilens
 ```
 
-Current verification note:
+Current deployment note:
 
-- The Node app is running successfully from this session at `http://127.0.0.1:8080/` and `http://192.168.254.1:8080/`.
-- The requested `http://192.168.254.9:8080/` currently serves the static page from IIS/static hosting.
-- To make API routes work at `192.168.254.9`, run the Node app on that server or configure IIS on that server to reverse-proxy `/api/*` and module routes to the Node app.
+- The Node application is host-local at `http://127.0.0.1:8080/`.
+- IIS terminates TLS for `https://optilens.cv.net/` on `192.168.254.7` and reverse-proxies the application routes to Node.
+- Technitium is authoritative for `optilens.cv.net`; see [Local HTTPS and DNS](LOCAL_HTTPS_AND_DNS.md) for the current DNS record, recovery procedure, and LAN client configuration.
 
 Useful API checks:
 
@@ -156,7 +156,7 @@ This creates:
 Open the LAN URL in Microsoft Edge or Chrome:
 
 ```text
-http://192.168.254.9:8080/
+https://optilens.cv.net/
 ```
 
 Use the browser install option to install OptiLens Local as an app. The installed app uses the PWA manifest and can be launched from a Start menu or desktop shortcut. API write actions still go through the Node service and private app database.
@@ -226,7 +226,7 @@ O:\scripts\run-db-setup-with-windows-auth.ps1 -Server "MSSQL-SVR"
 
 ## First Build Sequence
 
-1. Confirm the web app loads at `http://192.168.254.9:8080/`.
+1. Confirm the web app loads at `https://optilens.cv.net/`.
 2. Create `optilens_local`.
 3. Create the app SQL login.
 4. Add environment variables for app DB connection.
