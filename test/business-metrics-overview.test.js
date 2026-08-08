@@ -174,8 +174,13 @@ test("cost list checks are registered so the front-end cannot drift", () => {
   assert.ok(DETAIL_SECTIONS.includes("cost-lists"));
 });
 
-test("the supplier crosswalk is valid and pins lists by id", () => {
+test("the optional supplier crosswalk is valid and pins lists by id when configured", () => {
   const file = path.join(__dirname, "..", "data", "pricelist", "supplier-costlist-crosswalk.json");
+  // The crosswalk is site-owned operational data and is deliberately ignored by
+  // Git. Cost-list reporting degrades safely without it, so a clean checkout
+  // must not fail its update gate merely because the local mapping has not yet
+  // been supplied.
+  if (!fs.existsSync(file)) return;
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
 
   assert.ok(Array.isArray(parsed.lists) && parsed.lists.length > 0);
