@@ -80,14 +80,19 @@ test("every drill the front-end references exists on the server", () => {
     readPublic("business-metrics-tabs.js")
   ].join("\n");
 
+  // Keys may be "kind", "kind:arg" or "kind?query". Capture the kind only.
   const referenced = new Set();
   for (const m of sources.matchAll(/data-drill="([a-z-]+)/g)) referenced.add(m[1]);
   for (const m of sources.matchAll(/openRow\("([a-z-]+)/g)) referenced.add(m[1]);
   for (const m of sources.matchAll(/data-open="([a-z-]+)/g)) referenced.add(m[1]);
 
-  // Tables built from data already in the page rather than fetched.
-  const localOnly = new Set(["sales-months", "profit-customers", "profit-groups",
-    "archive-customers", "archive-months"]);
+  // Tables built from data already in the page rather than fetched. Derived from the
+  // source rather than hand-listed, so adding a local table cannot break this guard.
+  const localOnly = new Set();
+  for (const m of readPublic("business-metrics-tabs.js").matchAll(/^\s*"([a-z-]+(?::[a-z-]+)?)":\s*function/gm)) {
+    localOnly.add(m[1].split(":")[0]);
+  }
+  for (const m of sources.matchAll(/registerLocalDrill\("([a-z-]+)"/g)) localOnly.add(m[1]);
 
   assert.ok(referenced.size > 0, "expected to find drill references in the front-end");
 
@@ -174,6 +179,7 @@ test("cost list checks are registered so the front-end cannot drift", () => {
   assert.ok(DETAIL_SECTIONS.includes("cost-lists"));
 });
 
+<<<<<<< Updated upstream
 test("the optional supplier crosswalk is valid and pins lists by id when configured", () => {
   const file = path.join(__dirname, "..", "data", "pricelist", "supplier-costlist-crosswalk.json");
   // The crosswalk is site-owned operational data and is deliberately ignored by
@@ -181,7 +187,15 @@ test("the optional supplier crosswalk is valid and pins lists by id when configu
   // must not fail its update gate merely because the local mapping has not yet
   // been supplied.
   if (!fs.existsSync(file)) return;
+=======
+test("the supplier crosswalk is valid and pins lists by id", () => {
+  const file = path.join(__dirname, "..", "lib", "metrics", "supplier-costlist-crosswalk.json");
+>>>>>>> Stashed changes
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+
+  // Must not live under data/ — .gitignore excludes data/*, so it would never deploy.
+  assert.ok(!fs.existsSync(path.join(__dirname, "..", "data", "pricelist", "supplier-costlist-crosswalk.json")),
+    "the crosswalk must not live under data/, which is gitignored and never reaches the host");
 
   assert.ok(Array.isArray(parsed.lists) && parsed.lists.length > 0);
 
