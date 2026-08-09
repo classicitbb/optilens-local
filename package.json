@@ -28,6 +28,8 @@
     "app:tray:startup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-host-tray-startup.ps1",
     "app:monitor:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-monitor-exe.ps1",
     "app:monitor:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-desktop-shortcut.ps1",
+    "codex:launch": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-codex.ps1",
+    "codex:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-codex-desktop-shortcut.ps1",
     "app:monitor:harness": "node scripts/monitor-harness.js"
   },
   "engines": {

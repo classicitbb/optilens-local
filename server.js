@@ -1471,6 +1471,14 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/system/host/codex" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      const result = runHostScript(__dirname, "launch-codex.ps1", ["-ProjectRoot", __dirname]);
+      return { ok: true, message: "Codex is opening in the OptiLens Local repository.", pid: result.pid };
+    });
+  }
+
   if (url.pathname === "/api/system/host/restart" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "platform.admin");

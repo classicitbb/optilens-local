@@ -19,3 +19,4 @@ _snapshots/
 # backed up: losing it changes the extension ID and breaks the Edge policy.
 public/extensions/*.crx
 public/extensions/*-updates.xml
+docs/setup.md

@@ -14,7 +14,10 @@ const moduleState = {
   pollingId: null,
   customerParams: null,
   customerParamsAccount: "",
-  invoicePreview: null
+  invoicePreview: null,
+  coAutosaveTimer: null,
+  coAutosaveInFlight: false,
+  coAutosaveQueued: false
 };
 
 initModule();
@@ -70,6 +73,13 @@ function wireActions() {
     event.preventDefault();
     loadFilteredShipments();
   });
+  document.querySelector("#customerAccountInput")?.addEventListener("input", (event) => {
+    // A datalist selection raises `input` immediately. Only react to an exact
+    // account match so normal typing does not repeatedly reload the list.
+    if (moduleState.customerByAccount.has(String(event.target.value || "").trim().toUpperCase())) {
+      loadFilteredShipments();
+    }
+  });
   document.querySelector("#shipmentIdInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -90,6 +100,7 @@ function wireActions() {
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
   wireCommercialInvoiceHeaderEditing();
+  wireCoDraftAutosave();
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
     const checkbox = event.target.closest("[data-select-domestic]");
@@ -507,7 +518,7 @@ function renderCommercialInvoicePreview() {
           <p>${escapeHtml(preview.certificationText || "")}</p>
           <div class="ci-signature"><strong>Classic Visions</strong><span>Authorised signature for Classic Visions</span></div>
         </section>
-        <aside class="ci-totals">
+        <aside class="ci-totals" data-ci-totals>
           ${renderTotalRow("Sub Total", preview.totals?.subTotal)}
           ${renderTotalRow("Packaging", preview.totals?.packaging)}
           ${renderTotalRow("Freight", preview.totals?.freight)}
@@ -523,6 +534,76 @@ function renderCommercialInvoicePreview() {
 
 function renderTotalRow(label, value, strong = false) {
   return `<div class="${strong ? "strong" : ""}"><span>${escapeHtml(label)}</span><b>${formatMoneyBbd(value || 0)}</b></div>`;
+}
+
+function renderCommercialInvoiceTotals() {
+  const target = document.querySelector("[data-ci-totals]");
+  const totals = moduleState.invoicePreview?.totals;
+  if (!target || !totals) return;
+  target.innerHTML = [
+    renderTotalRow("Sub Total", totals.subTotal),
+    renderTotalRow("Packaging", totals.packaging),
+    renderTotalRow("Freight", totals.freight),
+    renderTotalRow("Other Costs", totals.other),
+    renderTotalRow("Insurance", totals.insurance),
+    renderTotalRow("Invoice Total", totals.invoiceTotal, true)
+  ].join("");
+}
+
+function updateCommercialInvoiceCostTotals() {
+  const totals = moduleState.invoicePreview?.totals;
+  if (!totals) return;
+  const numberValue = (selector) => {
+    const value = Number(valueOf(selector));
+    return Number.isFinite(value) ? value : 0;
+  };
+  totals.freight = numberValue("#coFreightCost");
+  totals.packaging = numberValue("#coPackingCost");
+  totals.insurance = numberValue("#coInsuranceCost");
+  totals.other = numberValue("#coOtherCost");
+  totals.invoiceTotal = Number((Number(totals.subTotal || 0) + totals.freight + totals.packaging + totals.insurance + totals.other).toFixed(2));
+  renderCommercialInvoiceTotals();
+}
+
+function wireCoDraftAutosave() {
+  const form = document.querySelector("#coDraftForm");
+  if (!form) return;
+  const costField = "#coFreightCost, #coPackingCost, #coInsuranceCost, #coOtherCost";
+  const commit = () => requestCoDraftAutosave(0);
+  form.addEventListener("input", (event) => {
+    if (event.target.matches(costField)) updateCommercialInvoiceCostTotals();
+    requestCoDraftAutosave(500);
+  });
+  form.addEventListener("change", commit);
+  form.addEventListener("focusout", commit);
+  form.addEventListener("pointerleave", commit);
+}
+
+function requestCoDraftAutosave(delay) {
+  if (!moduleState.coApplication) return;
+  if (moduleState.coAutosaveTimer) clearTimeout(moduleState.coAutosaveTimer);
+  moduleState.coAutosaveTimer = setTimeout(() => {
+    moduleState.coAutosaveTimer = null;
+    autosaveCoDraft();
+  }, delay);
+}
+
+async function autosaveCoDraft() {
+  if (!moduleState.coApplication) return;
+  if (moduleState.coAutosaveInFlight) {
+    moduleState.coAutosaveQueued = true;
+    return;
+  }
+  moduleState.coAutosaveInFlight = true;
+  try {
+    await saveCoDraft({ silent: true });
+  } finally {
+    moduleState.coAutosaveInFlight = false;
+    if (moduleState.coAutosaveQueued) {
+      moduleState.coAutosaveQueued = false;
+      requestCoDraftAutosave(0);
+    }
+  }
 }
 
 // Click-to-edit commercial-invoice header fields: shows the computed/DB value
@@ -941,26 +1022,28 @@ async function prepareCoDraft() {
   setCoMessage("BeSwift draft prepared from Innovations.");
 }
 
-async function saveCoDraft() {
+async function saveCoDraft(options = {}) {
   const app = moduleState.coApplication;
   try {
-    await saveCommercialInvoiceLines();
+    await saveCommercialInvoiceLines({ reloadPreview: false });
   } catch (error) {
     setCoMessage(error.message, true);
-    return;
+    return false;
   }
   if (!app) {
     setCoMessage("");
-    return;
+    return false;
   }
   const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, readCoDraftForm()).catch((error) => {
     setCoMessage(error.message, true);
     return null;
   });
-  if (!data) return;
+  if (!data) return false;
   moduleState.coApplication = data.application;
+  await loadCommercialInvoicePreview();
   renderCoDraft();
-  setCoMessage("Draft saved.");
+  if (!options.silent) setCoMessage("Draft saved.");
+  return true;
 }
 
 async function queueCoJob() {
@@ -1008,12 +1091,13 @@ function readCommercialInvoiceLines() {
   }).filter((line) => line.lineKey);
 }
 
-async function saveCommercialInvoiceLines() {
+async function saveCommercialInvoiceLines(options = {}) {
   const session = getSelectedSession();
   const lines = readCommercialInvoiceLines();
-  if (!session || !lines.length) return;
+  if (!session || !lines.length) return true;
   await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/lines`, { lines });
-  await loadCommercialInvoicePreview();
+  if (options.reloadPreview !== false) await loadCommercialInvoicePreview();
+  return true;
 }
 
 function readCoItems() {
