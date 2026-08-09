@@ -150,12 +150,14 @@ const {
   getCommercialInvoicePreview,
   prepareCoDraft,
   saveCommercialInvoiceLineOverrides,
+  saveCommercialInvoiceHeaderOverrides,
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
   getAutomationJobStatus: getBeSwiftAutomationJobStatus,
   resumeAutomationJob: resumeBeSwiftAutomationJob,
   recordFillResolution: recordBeSwiftFillResolution,
-  listFillResolutions: listBeSwiftFillResolutions
+  listFillResolutions: listBeSwiftFillResolutions,
+  getNextQueuedAutomationJob: getNextQueuedBeSwiftAutomationJob
 } = require("./lib/beswift-co");
 const {
   getCustomerParameters,
@@ -592,7 +594,12 @@ const mimeTypes = {
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml; charset=utf-8",
-  ".ico": "image/x-icon"
+  ".ico": "image/x-icon",
+  // Edge's extension updater requires a real XML content type on the update
+  // manifest and the CRX type on the package; served as octet-stream it
+  // silently refuses the update.
+  ".xml": "text/xml; charset=utf-8",
+  ".crx": "application/x-chrome-extension"
 };
 
 const VAULT_CATEGORIES = ["SQL Server", "PSQL", "ODBC", "Access DB", "API Keys", "Web Portals", "Other"];
@@ -1464,6 +1471,14 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/system/host/codex" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      const result = runHostScript(__dirname, "launch-codex.ps1", ["-ProjectRoot", __dirname]);
+      return { ok: true, message: "Codex is opening in the OptiLens Local repository.", pid: result.pid };
+    });
+  }
+
   if (url.pathname === "/api/system/host/restart" && req.method === "POST") {
     return handleApi(res, async () => {
       await requirePermission(req, "platform.admin");
@@ -1735,6 +1750,15 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  const commercialInvoiceHeaderMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/header$/);
+  if (commercialInvoiceHeaderMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      return saveCommercialInvoiceHeaderOverrides(commercialInvoiceHeaderMatch[1], body.fields || {}, actor.userId);
+    });
+  }
+
   const commercialInvoicePrintMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\.pdf$/);
   if (commercialInvoicePrintMatch && req.method === "GET") {
     return handleHtml(res, async () => {
@@ -1789,6 +1813,32 @@ const server = http.createServer(async (req, res) => {
       const entry = await saveCatalogEntry(decodeURIComponent(catalogEntryMatch[1]), await readJsonBody(req), actor.userId);
       return { entry };
     });
+  }
+
+  // Self-reload support. Edge/Chrome internal pages (edge://extensions) cannot
+  // be reached by any automation we have, so an agent that changes
+  // background.js or manifest.json otherwise needs a human to click Reload.
+  // This returns a stamp derived from the beta extension's own files; the
+  // service worker compares it against the last stamp it saw and calls
+  // chrome.runtime.reload() when it changes, but only while idle.
+  if (url.pathname === "/api/beswift-extension/build" && req.method === "GET") {
+    return handleApi(res, async () => ({ stamp: beswiftBetaBuildStamp() }));
+  }
+
+  // What the Delivery & Export plugin checker compares the browser against:
+  // the version we currently ship, the extension id, and whether a packaged
+  // build is actually available to install. No auth - it is public metadata
+  // about a client-side add-on, and the page needs it before sign-in matters.
+  if (url.pathname === "/api/beswift-extension/release" && req.method === "GET") {
+    return handleApi(res, async () => beswiftBetaRelease());
+  }
+
+  // Auto-drive harness: the beta extension polls this for a queued job and
+  // starts it itself, so a create-job → run → fix → re-run loop needs no popup
+  // click. Same GET/no-auth posture as the sibling job endpoints; it returns
+  // only a claim code that is itself the bearer secret.
+  if (url.pathname === "/api/beswift-extension/next-job" && req.method === "GET") {
+    return handleApi(res, async () => ({ job: await getNextQueuedBeSwiftAutomationJob() }));
   }
 
   const extensionClaimMatch = url.pathname.match(/^\/api\/beswift-extension\/jobs\/([^/]+)$/);
@@ -2872,19 +2922,23 @@ async function readJsonBody(req) {
 
 function renderCommercialInvoiceHtml(preview) {
   const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const tariffRows = preview.tariffHeadings?.length
-    ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
-    : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
+  const tariffRows = preview.declarationOverride
+    ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
+    : preview.tariffHeadings?.length
+      ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
+      : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
   const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
       <td>${escapeHtmlServer(item.ref)}</td>
+      <td>${escapeHtmlServer(item.invoiceNumber)}</td>
       <td>${escapeHtmlServer(item.specification)}</td>
       <td>${escapeHtmlServer(item.hsCode)}</td>
       <td>${escapeHtmlServer(item.origin)}</td>
       <td>${escapeHtmlServer(item.quantity)}</td>
       <td><span>$</span>${money(item.unitPrice)}</td>
       <td><span>$</span>${money(item.amount)}</td>
+      <td>${escapeHtmlServer(item.weightKg)}</td>
     </tr>
   `).join("");
 
@@ -2908,8 +2962,8 @@ function renderCommercialInvoiceHtml(preview) {
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
     td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
-    td:nth-child(1), td:nth-child(2), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) { text-align: center; white-space: nowrap; }
-    td:nth-child(3) { width: 30%; overflow-wrap: anywhere; }
+    td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { text-align: center; white-space: nowrap; }
+    td:nth-child(4) { width: 26%; overflow-wrap: anywhere; }
     .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; }
     .cert { display: flex; min-height: 126px; flex-direction: column; padding: 8px 4px; color: #315b83; line-height: 1.4; }
     .sig { margin-top: auto; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
@@ -2935,8 +2989,8 @@ function renderCommercialInvoiceHtml(preview) {
       <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
     </div>
     <table>
-      <thead><tr><th>Line #</th><th>Ref #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="8">No invoice lines.</td></tr>`}</tbody>
+      <thead><tr><th>Line #</th><th>Ref #</th><th>Invoice #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th><th>Weight kg</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
     </table>
     <div class="bottom">
       <div class="cert">
@@ -3452,6 +3506,60 @@ function startLiveGatewayOnBoot() {
   } catch (error) {
     console.error("OptiLens live-data gateway did not start:", error.message);
   }
+}
+
+// Fingerprint of the beta extension's source files (size + mtime). Changes on
+// any deploy, so the service worker can detect that it is running stale code
+// and reload itself — see the /api/beswift-extension/build route.
+function beswiftBetaBuildStamp() {
+  const dir = path.join(__dirname, "extensions", "beswift-co-beta");
+  try {
+    const parts = fs.readdirSync(dir).sort().map((name) => {
+      const stat = fs.statSync(path.join(dir, name));
+      return `${name}:${stat.size}:${Math.floor(stat.mtimeMs)}`;
+    });
+    return nodeCrypto.createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 16);
+  } catch {
+    return null;
+  }
+}
+
+// Current shipped release of the beta extension, read from the packaged
+// artifacts rather than hardcoded, so bumping manifest.json + repacking is the
+// only step needed to advertise a new version.
+function beswiftBetaRelease() {
+  const extensionId = "jdnkiokjepfphfjhedkdilniagobhkoe";
+  const crxPath = path.join(__dirname, "public", "extensions", "beswift-co-beta.crx");
+  let version = null;
+  try {
+    const manifestPath = path.join(__dirname, "extensions", "beswift-co-beta", "manifest.json");
+    version = JSON.parse(fs.readFileSync(manifestPath, "utf8")).version || null;
+  } catch {
+    version = null;
+  }
+  let packaged = null;
+  try {
+    const stat = fs.statSync(crxPath);
+    packaged = { sizeBytes: stat.size, builtAt: new Date(stat.mtimeMs).toISOString() };
+  } catch {
+    packaged = null; // never packed, or the artifact was cleaned
+  }
+  // The install command is handed out as a UNC path, not a repo-relative one:
+  // workstations that need the extension do not have a checkout of this repo,
+  // but they can all reach the GitHub share on the host. Note the CRX itself
+  // must stay on HTTP - Windows Edge/Chrome refuse external installs from
+  // file:// or UNC update URLs, so only the script travels over the share.
+  const scriptShare = "\\\\INO-3FRC3Q3\\GitHub\\optilens-local\\scripts\\install-beswift-extension-policy.ps1";
+  return {
+    extensionId,
+    version,
+    packaged,
+    crxUrl: "/extensions/beswift-co-beta.crx",
+    updateUrl: "/extensions/beswift-co-beta-updates.xml",
+    policyValue: `${extensionId};http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml`,
+    installScriptUnc: scriptShare,
+    installCommand: `powershell -ExecutionPolicy Bypass -File "${scriptShare}"`
+  };
 }
 
 function readJsonFile(filePath, fallback) {

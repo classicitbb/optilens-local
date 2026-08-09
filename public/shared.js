@@ -1089,6 +1089,11 @@ function renderUserDropdown(chip, dropdown) {
       <span class="material-symbols-outlined" style="font-size:14px">lock_reset</span>
       Reset password
     </button>
+    ${canManageUpdates() ? `
+    <button class="user-dropdown-item" id="ddOpenCodex" type="button" role="menuitem">
+      <span class="material-symbols-outlined" style="font-size:14px">terminal</span>
+      Edit with Codex
+    </button>` : ""}
     <button class="user-dropdown-item" id="ddInstallApp" type="button" role="menuitem" hidden>
       <span class="material-symbols-outlined" style="font-size:14px">install_desktop</span>
       Install app
@@ -1135,6 +1140,16 @@ function renderUserDropdown(chip, dropdown) {
   dropdown.querySelector("#ddUpdateLogs")?.addEventListener("click", () => {
     closeAllDropdowns();
     openUpdateLogs();
+  });
+
+  dropdown.querySelector("#ddOpenCodex")?.addEventListener("click", async () => {
+    closeAllDropdowns();
+    try {
+      const result = await authFetch("/api/system/host/codex", { method: "POST" });
+      showUpdateNotice(result.message || "Codex is opening in the OptiLens Local repository.");
+    } catch (error) {
+      showUpdateNotice(`Could not open Codex: ${error.message || error}`);
+    }
   });
 
   dropdown.querySelector("#ddStopApp")?.addEventListener("click", async () => {

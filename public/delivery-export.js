@@ -14,7 +14,10 @@ const moduleState = {
   pollingId: null,
   customerParams: null,
   customerParamsAccount: "",
-  invoicePreview: null
+  invoicePreview: null,
+  coAutosaveTimer: null,
+  coAutosaveInFlight: false,
+  coAutosaveQueued: false
 };
 
 initModule();
@@ -70,6 +73,13 @@ function wireActions() {
     event.preventDefault();
     loadFilteredShipments();
   });
+  document.querySelector("#customerAccountInput")?.addEventListener("input", (event) => {
+    // A datalist selection raises `input` immediately. Only react to an exact
+    // account match so normal typing does not repeatedly reload the list.
+    if (moduleState.customerByAccount.has(String(event.target.value || "").trim().toUpperCase())) {
+      loadFilteredShipments();
+    }
+  });
   document.querySelector("#shipmentIdInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -89,6 +99,8 @@ function wireActions() {
   document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
+  wireCommercialInvoiceHeaderEditing();
+  wireCoDraftAutosave();
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
     const checkbox = event.target.closest("[data-select-domestic]");
@@ -389,6 +401,12 @@ function renderCommercialInvoicePreview() {
   const target = document.querySelector("#commercialInvoicePreview");
   const summary = document.querySelector("#commercialPreviewSummary");
   if (!target) return;
+  // A background refresh (polling, tab visibility) can land while an operator
+  // is mid-edit on a pencil field. Replacing the DOM under a focused input
+  // fires a synthetic focusout, which would autosave whatever the fresh
+  // render's default value is and silently clobber the edit in progress.
+  // Skip the rebuild until they commit (blur/Enter) or leave the field.
+  if (target.contains(document.activeElement) && document.activeElement?.matches("[data-ci-header-field]")) return;
   const preview = moduleState.invoicePreview;
   if (!preview) {
     if (summary) summary.textContent = "Select an export shipment to preview the commercial invoice.";
@@ -404,28 +422,32 @@ function renderCommercialInvoicePreview() {
     <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
       <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
-      <td class="ci-spec"><textarea class="ci-line-input" data-ci-field="specification" rows="1" aria-label="Specification">${escapeHtml(item.specification || "")}</textarea></td>
+      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.invoiceNumber || "")}" aria-label="Invoice number" readonly tabindex="-1"></td>
+      <td class="ci-spec"><input class="ci-line-input" data-ci-field="specification" value="${escapeHtml(item.specification || "")}" title="${escapeHtml(item.specification || "")}" aria-label="Specification"></td>
       <td><input class="ci-line-input" data-ci-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="HS code"></td>
       <td><input class="ci-line-input" data-ci-field="origin" value="${escapeHtml(item.origin || "")}" aria-label="Origin"></td>
       <td><input class="ci-line-input ci-line-small" data-ci-field="quantity" value="${escapeHtml(item.quantity ?? "")}" aria-label="Quantity"></td>
       <td><input class="ci-line-input ci-line-money" data-ci-field="unitPrice" value="${escapeHtml(formatPlainMoney(item.unitPrice))}" aria-label="Unit price"></td>
       <td><input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount"></td>
+      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1"></td>
     </tr>
   `).join("");
 
-  const tariffRows = preview.tariffHeadings?.length
-    ? preview.tariffHeadings.map((heading) => `
-      <div class="ci-declaration-line">
-        <strong>${escapeHtml(heading.heading || "")}</strong>
-        <b>${escapeHtml(heading.hsCode || "")}</b>
-      </div>
-    `).join("")
-    : `
-      <div class="ci-declaration-line">
-        <strong>${escapeHtml(preview.declarationText || "")}</strong>
-        <b>${escapeHtml(preview.declarationHsCode || "")}</b>
-      </div>
-    `;
+  const declarationView = preview.declarationOverride
+    ? `<div class="ci-declaration-line"><strong>${escapeHtml(preview.declarationOverride)}</strong></div>`
+    : preview.tariffHeadings?.length
+      ? preview.tariffHeadings.map((heading) => `
+        <div class="ci-declaration-line">
+          <strong>${escapeHtml(heading.heading || "")}</strong>
+          <b>${escapeHtml(heading.hsCode || "")}</b>
+        </div>
+      `).join("")
+      : `
+        <div class="ci-declaration-line">
+          <strong>${escapeHtml(preview.declarationText || "")}</strong>
+          <b>${escapeHtml(preview.declarationHsCode || "")}</b>
+        </div>
+      `;
 
   target.innerHTML = `
     <article class="commercial-invoice-preview">
@@ -441,27 +463,36 @@ function renderCommercialInvoicePreview() {
         </div>
         <div class="ci-field"><small>Date</small><strong>${escapeHtml(preview.invoiceDate || "")}</strong></div>
         <div class="ci-field"><small>Inv No</small><strong>${escapeHtml(preview.invoiceNo || "")}</strong></div>
-        <div class="ci-field"><small>Customer order no</small><strong>${escapeHtml(preview.customerOrderNo || "")}</strong></div>
+        ${ciEditableField("Customer order no", "customerOrderNo", preview.customerOrderNo, { placeholder: "(blank)" })}
         <div class="ci-field ci-consignee">
           <small>Consignee</small>
           <strong>${escapeHtml(preview.consignee?.name || "")}</strong>
           <p>${escapeHtml(preview.consignee?.address || "")}<br>${escapeHtml(preview.consignee?.country || "")} ${escapeHtml(preview.consignee?.phone || "")}</p>
         </div>
-        <div class="ci-field ci-wide"><small>PO numbers</small><strong>${escapeHtml(preview.poNumbers || "")}</strong></div>
+        ${ciEditableField("PO numbers", "poNumbers", preview.poNumbers, { wide: true })}
         <div class="ci-field"><small>Buyer (if other than consignee)</small><em>Buyer (if not consignee)</em></div>
         <div class="ci-field"><small>Presenting bank</small><strong>${escapeHtml(preview.presentingBank || "")}</strong></div>
         <div class="ci-field"><small>Country of origin of goods</small><strong>${escapeHtml(preview.countryOfOriginOfGoods || "")}</strong></div>
         <div class="ci-field"><small>Terms & conditions of delivery and payment</small><em>${escapeHtml(preview.deliveryTerms || "")}</em></div>
-        <div class="ci-field"><small>Port of loading</small><strong>${escapeHtml(preview.transport?.portOfLoading || "")}</strong></div>
+        ${ciEditableField("Port of loading", "portOfLoading", preview.transport?.portOfLoading)}
         <div class="ci-field"><small>Country of final destination</small><strong>${escapeHtml(preview.transport?.countryOfDestination || "")}</strong></div>
-        <div class="ci-field"><small>Mode of transportation & other transport information</small><strong>${escapeHtml(preview.transport?.carrier || "")}</strong><br>${escapeHtml(preview.transport?.trackingNumber || "")}</div>
-        <div class="ci-field"><small>Marks & numbers</small><strong>${escapeHtml(preview.transport?.marksAndNumbers || "")}</strong></div>
-        <div class="ci-field"><small>No. & kind of packages</small><strong>${escapeHtml(preview.packaging?.numberOfPackages || "")} ${escapeHtml(preview.packaging?.packageType || "")}</strong></div>
-        <div class="ci-field"><small>Gross weight</small><strong>${escapeHtml(preview.packaging?.grossWeight || "")}</strong></div>
+        <div class="ci-field">
+          <small>Mode of transportation & other transport information</small>
+          ${ciEditableField("Carrier", "carrier", preview.transport?.carrier, { bare: true })}
+          <br>${escapeHtml(preview.transport?.trackingNumber || "")}
+        </div>
+        ${ciEditableField("Marks & numbers", "marksAndNumbers", preview.transport?.marksAndNumbers)}
+        <div class="ci-field">
+          <small>No. & kind of packages</small>
+          ${escapeHtml(preview.packaging?.numberOfPackages || "")}
+          ${ciEditableField("Package type", "packageType", preview.packaging?.packageType, { bare: true })}
+        </div>
+        ${ciEditableField("Gross weight (lbs)", "grossWeightLbs", preview.packaging?.grossWeightLbs, { display: preview.packaging?.grossWeight, placeholder: "(enter lbs)" })}
         <div class="ci-field"><small>Cube</small><em>${escapeHtml(preview.packaging?.cube || "Cube")}</em></div>
         <div class="ci-field ci-declaration">
-          <small>Declaration</small>
-          ${tariffRows}
+          <div class="ci-field-head"><small>Declaration</small><button type="button" class="ci-edit-btn" data-ci-edit="declaration" aria-label="Edit declaration" title="Edit declaration">&#9998;</button></div>
+          <div class="ci-field-view" data-ci-view="declaration">${declarationView}</div>
+          <textarea class="ci-field-input" data-ci-header-field="declaration" hidden>${escapeHtml(preview.declarationOverride || "")}</textarea>
         </div>
       </section>
       <table class="ci-items">
@@ -469,15 +500,17 @@ function renderCommercialInvoicePreview() {
           <tr>
             <th>Line #</th>
             <th>Ref #</th>
+            <th>Inv #</th>
             <th>Specification of Commodities</th>
             <th>HS Code</th>
             <th>Origin</th>
             <th>Quant.</th>
             <th>Unit Price</th>
             <th>Amount</th>
+            <th>Weight kg</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="8">No invoice lines.</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
       </table>
       <footer class="ci-bottom">
         <section>
@@ -485,7 +518,7 @@ function renderCommercialInvoicePreview() {
           <p>${escapeHtml(preview.certificationText || "")}</p>
           <div class="ci-signature"><strong>Classic Visions</strong><span>Authorised signature for Classic Visions</span></div>
         </section>
-        <aside class="ci-totals">
+        <aside class="ci-totals" data-ci-totals>
           ${renderTotalRow("Sub Total", preview.totals?.subTotal)}
           ${renderTotalRow("Packaging", preview.totals?.packaging)}
           ${renderTotalRow("Freight", preview.totals?.freight)}
@@ -501,6 +534,164 @@ function renderCommercialInvoicePreview() {
 
 function renderTotalRow(label, value, strong = false) {
   return `<div class="${strong ? "strong" : ""}"><span>${escapeHtml(label)}</span><b>${formatMoneyBbd(value || 0)}</b></div>`;
+}
+
+function renderCommercialInvoiceTotals() {
+  const target = document.querySelector("[data-ci-totals]");
+  const totals = moduleState.invoicePreview?.totals;
+  if (!target || !totals) return;
+  target.innerHTML = [
+    renderTotalRow("Sub Total", totals.subTotal),
+    renderTotalRow("Packaging", totals.packaging),
+    renderTotalRow("Freight", totals.freight),
+    renderTotalRow("Other Costs", totals.other),
+    renderTotalRow("Insurance", totals.insurance),
+    renderTotalRow("Invoice Total", totals.invoiceTotal, true)
+  ].join("");
+}
+
+function updateCommercialInvoiceCostTotals() {
+  const totals = moduleState.invoicePreview?.totals;
+  if (!totals) return;
+  const numberValue = (selector) => {
+    const value = Number(valueOf(selector));
+    return Number.isFinite(value) ? value : 0;
+  };
+  totals.freight = numberValue("#coFreightCost");
+  totals.packaging = numberValue("#coPackingCost");
+  totals.insurance = numberValue("#coInsuranceCost");
+  totals.other = numberValue("#coOtherCost");
+  totals.invoiceTotal = Number((Number(totals.subTotal || 0) + totals.freight + totals.packaging + totals.insurance + totals.other).toFixed(2));
+  renderCommercialInvoiceTotals();
+}
+
+function wireCoDraftAutosave() {
+  const form = document.querySelector("#coDraftForm");
+  if (!form) return;
+  const costField = "#coFreightCost, #coPackingCost, #coInsuranceCost, #coOtherCost";
+  const commit = () => requestCoDraftAutosave(0);
+  form.addEventListener("input", (event) => {
+    if (event.target.matches(costField)) updateCommercialInvoiceCostTotals();
+    requestCoDraftAutosave(500);
+  });
+  form.addEventListener("change", commit);
+  form.addEventListener("focusout", commit);
+  form.addEventListener("pointerleave", commit);
+}
+
+function requestCoDraftAutosave(delay) {
+  if (!moduleState.coApplication) return;
+  if (moduleState.coAutosaveTimer) clearTimeout(moduleState.coAutosaveTimer);
+  moduleState.coAutosaveTimer = setTimeout(() => {
+    moduleState.coAutosaveTimer = null;
+    autosaveCoDraft();
+  }, delay);
+}
+
+async function autosaveCoDraft() {
+  if (!moduleState.coApplication) return;
+  if (moduleState.coAutosaveInFlight) {
+    moduleState.coAutosaveQueued = true;
+    return;
+  }
+  moduleState.coAutosaveInFlight = true;
+  try {
+    await saveCoDraft({ silent: true });
+  } finally {
+    moduleState.coAutosaveInFlight = false;
+    if (moduleState.coAutosaveQueued) {
+      moduleState.coAutosaveQueued = false;
+      requestCoDraftAutosave(0);
+    }
+  }
+}
+
+// Click-to-edit commercial-invoice header fields: shows the computed/DB value
+// as plain text with a pencil button; clicking it reveals an input in place.
+// Saving (blur/Enter) PUTs every header field to commercial-invoice/header
+// and reloads the preview, which re-renders back to view mode with the
+// server-computed display value (matters for grossWeightLbs, whose view text
+// is the converted kg, not the lbs the operator typed).
+function ciEditableField(label, key, rawValue, opts = {}) {
+  const value = rawValue ?? "";
+  const displayText = opts.display !== undefined ? opts.display : value;
+  const hasValue = Boolean(String(displayText || "").trim());
+  const viewHtml = hasValue
+    ? `<strong>${escapeHtml(displayText)}</strong>`
+    : `<em>${escapeHtml(opts.placeholder || "—")}</em>`;
+  const editBtn = `<button type="button" class="ci-edit-btn" data-ci-edit="${escapeHtml(key)}" aria-label="Edit ${escapeHtml(label)}" title="Edit ${escapeHtml(label)}">&#9998;</button>`;
+  const input = `<input type="text" class="ci-field-input" data-ci-header-field="${escapeHtml(key)}" value="${escapeHtml(value)}" hidden>`;
+
+  if (opts.bare) {
+    return `
+      <span class="ci-inline-edit" data-ci-header-box="${escapeHtml(key)}">
+        <span class="ci-field-view" data-ci-view="${escapeHtml(key)}">${viewHtml}</span>
+        ${editBtn}
+        ${input}
+      </span>
+    `;
+  }
+
+  return `
+    <div class="ci-field ${opts.wide ? "ci-wide" : ""}" data-ci-header-box="${escapeHtml(key)}">
+      <div class="ci-field-head"><small>${escapeHtml(label)}</small>${editBtn}</div>
+      <div class="ci-field-view" data-ci-view="${escapeHtml(key)}">${viewHtml}</div>
+      ${input}
+    </div>
+  `;
+}
+
+function wireCommercialInvoiceHeaderEditing() {
+  const target = document.querySelector("#commercialInvoicePreview");
+  if (!target) return;
+
+  target.addEventListener("click", (event) => {
+    const editBtn = event.target.closest("[data-ci-edit]");
+    if (!editBtn) return;
+    const key = editBtn.dataset.ciEdit;
+    const view = target.querySelector(`[data-ci-view="${key}"]`);
+    const input = target.querySelector(`[data-ci-header-field="${key}"]`);
+    if (!view || !input) return;
+    view.hidden = true;
+    editBtn.hidden = true;
+    input.hidden = false;
+    input.focus();
+    input.select?.();
+  });
+
+  target.addEventListener("focusout", (event) => {
+    const input = event.target.closest("[data-ci-header-field]");
+    if (input) saveCommercialInvoiceHeader();
+  });
+
+  target.addEventListener("keydown", (event) => {
+    const input = event.target.closest("[data-ci-header-field]");
+    if (!input) return;
+    if (event.key === "Enter" && input.tagName !== "TEXTAREA") {
+      event.preventDefault();
+      input.blur();
+    } else if (event.key === "Escape") {
+      input.blur();
+    }
+  });
+}
+
+function readCommercialInvoiceHeader() {
+  const fields = {};
+  document.querySelectorAll("#commercialInvoicePreview [data-ci-header-field]").forEach((input) => {
+    fields[input.dataset.ciHeaderField] = input.value;
+  });
+  return fields;
+}
+
+async function saveCommercialInvoiceHeader() {
+  const session = getSelectedSession();
+  if (!session) return;
+  const fields = readCommercialInvoiceHeader();
+  await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/header`, { fields }).catch((error) => {
+    setCoMessage(error.message, true);
+  });
+  await loadCommercialInvoicePreview();
 }
 
 // Standardisation/validation panel: shows whether the invoice has every required
@@ -683,7 +874,14 @@ async function loadSelectedShipmentItems(options = {}) {
   }
 
   setText("#selectedShipmentTitle", `${session.customer_account || "Shipment"} ${session.source_shipment_id || ""}`.trim());
-  setText("#selectedShipmentMeta", `${isExportSession(session) ? "Export" : "Domestic"} · ${session.app_status || "prep"} · ${Number(session.item_count || 0)} counted items`);
+  const metaParts = [
+    isExportSession(session) ? "Export" : "Domestic",
+    session.app_status || "prep",
+    `${Number(session.item_count || 0)} counted items`
+  ];
+  if (session.tracking_number) metaParts.push(`Closed with tracking ${session.tracking_number}`);
+  if (session.dispatcher_id) metaParts.push(`Operator ${session.dispatcher_id}`);
+  setText("#selectedShipmentMeta", metaParts.join(" · "));
   if (addRowsBtn) addRowsBtn.hidden = !(isExportSession(session) && session.app_status !== "closed");
 
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, { items: [] });
@@ -824,26 +1022,28 @@ async function prepareCoDraft() {
   setCoMessage("BeSwift draft prepared from Innovations.");
 }
 
-async function saveCoDraft() {
+async function saveCoDraft(options = {}) {
   const app = moduleState.coApplication;
   try {
-    await saveCommercialInvoiceLines();
+    await saveCommercialInvoiceLines({ reloadPreview: false });
   } catch (error) {
     setCoMessage(error.message, true);
-    return;
+    return false;
   }
   if (!app) {
     setCoMessage("");
-    return;
+    return false;
   }
   const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, readCoDraftForm()).catch((error) => {
     setCoMessage(error.message, true);
     return null;
   });
-  if (!data) return;
+  if (!data) return false;
   moduleState.coApplication = data.application;
+  await loadCommercialInvoicePreview();
   renderCoDraft();
-  setCoMessage("Draft saved.");
+  if (!options.silent) setCoMessage("Draft saved.");
+  return true;
 }
 
 async function queueCoJob() {
@@ -891,12 +1091,13 @@ function readCommercialInvoiceLines() {
   }).filter((line) => line.lineKey);
 }
 
-async function saveCommercialInvoiceLines() {
+async function saveCommercialInvoiceLines(options = {}) {
   const session = getSelectedSession();
   const lines = readCommercialInvoiceLines();
-  if (!session || !lines.length) return;
+  if (!session || !lines.length) return true;
   await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/lines`, { lines });
-  await loadCommercialInvoicePreview();
+  if (options.reloadPreview !== false) await loadCommercialInvoicePreview();
+  return true;
 }
 
 function readCoItems() {

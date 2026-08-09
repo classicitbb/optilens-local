@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { applyCurrentStatusUpdate } = require("../lib/operations/source-status-writeback");
 
 test("CurrentStatusID write-back fails closed while the global source-write switch is disabled", async () => {
-  const originalEnv = process.env.OPTILENS_WRITEBACK_ENABLED;
+  const prior = process.env.OPTILENS_WRITEBACK_ENABLED;
   process.env.OPTILENS_WRITEBACK_ENABLED = "false";
   try {
     await assert.rejects(
@@ -11,10 +11,7 @@ test("CurrentStatusID write-back fails closed while the global source-write swit
       /Source status write-back is disabled/
     );
   } finally {
-    if (originalEnv !== undefined) {
-      process.env.OPTILENS_WRITEBACK_ENABLED = originalEnv;
-    } else {
-      delete process.env.OPTILENS_WRITEBACK_ENABLED;
-    }
+    if (prior === undefined) delete process.env.OPTILENS_WRITEBACK_ENABLED;
+    else process.env.OPTILENS_WRITEBACK_ENABLED = prior;
   }
 });
