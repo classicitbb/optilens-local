@@ -181,14 +181,7 @@ test("cost list checks are registered so the front-end cannot drift", () => {
 
 test("the optional supplier crosswalk is valid and pins lists by id when configured", () => {
   const file = path.join(__dirname, "..", "data", "pricelist", "supplier-costlist-crosswalk.json");
-  // The crosswalk is site-owned operational data and is deliberately ignored by
-  // Git. Cost-list reporting degrades safely without it, so a clean checkout
-  // must not fail its update gate merely because the local mapping has not yet
-  // been supplied.
   if (!fs.existsSync(file)) return;
-test("the supplier crosswalk is valid and pins lists by id", () => {
-  const file = path.join(__dirname, "..", "lib", "metrics", "supplier-costlist-crosswalk.json");
-
   const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
 
   // Must not live under data/ — .gitignore excludes data/*, so it would never deploy.
