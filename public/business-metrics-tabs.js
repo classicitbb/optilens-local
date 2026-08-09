@@ -16,7 +16,8 @@
   var esc = BM.esc, money = BM.money, intf = BM.intf, pct = BM.pct;
   var dateLabel = BM.dateLabel, monthLabel = BM.monthLabel;
 
-  var SECTIONS = ["sales", "invoices", "profitability", "deliveries", "pricing", "cost-lists"];
+  var SECTIONS = ["sales", "invoices", "profitability", "deliveries", "pricing",
+    "cost-lists", "data-quality"];
 
   // One state object per tab, so each refreshes on its own clock.
   var tabs = {};
@@ -263,6 +264,57 @@
         panel("Deliveries by month", "Access archive", barChart(dl.byMonth || [], "deliveries", intf, "No dated deliveries in the archive."));
     },
 
+    "data-quality": function (d) {
+      var q = d.dataQuality;
+      if (!q) return '<div class="ov-empty">Live Innovations source unavailable.</div>';
+
+      var out = '<div class="ov-tiles ov-fade">' +
+        q.checks.map(function (c) {
+          return stat(c.label, intf(c.count) + " items",
+            (c.truncated ? "showing top " + intf(c.shown) + " · " : "") +
+            (c.code === "zero-price" ? money(c.value) + " of cost given away"
+              : money(c.value) + " revenue affected"));
+        }).join("") +
+        stat("Window", intf(q.lookbackDays) + " days", "an item drops off once fixed in Innovations") +
+        "</div>";
+
+      var open = q.checks.filter(function (c) { return c.count > 0; });
+      if (open.length) {
+        out += '<div class="ov-fade"><div class="ov-rail-label">Needs attention · ' +
+          open.length + " open</div><div class=\"ov-rail\">" +
+          open.map(function (c) {
+            return '<button type="button" class="ov-exc ' + esc(c.severity) + '" data-open="dq:' + esc(c.code) + '"' +
+              ' aria-label="' + esc(intf(c.count) + " " + c.label + ". Open details.") + '">' +
+              '<span class="ov-exc-top"><span class="ov-exc-n">' + intf(c.count) + "</span>" +
+              '<span class="ov-exc-label">' + esc(c.label) + "</span>" +
+              '<span class="ov-exc-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span></span>' +
+              '<span class="ov-exc-detail">' + esc(c.detail) + "</span></button>";
+          }).join("") + "</div></div>";
+      } else {
+        out += '<div class="ov-fade"><div class="ov-allclear">' +
+          "No item cost defects in the last " + intf(q.lookbackDays) + " days.</div></div>";
+      }
+
+      out += panel("Defect lists", "open in a drawer",
+        '<div class="ov-rows">' + q.checks.map(function (c) {
+          return openRow("dq:" + c.code, c.label, c.detail, c.count);
+        }).join("") + "</div>");
+
+      var cov = q.coverage;
+      out += '<div class="ov-note ov-fade">' +
+        '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:16px">info</span><span>' +
+        "What this cannot see: " + intf(cov.blankSkuLines) + " of " + intf(cov.lines) + " lines (" +
+        cov.blankSkuPct + "%) carry no SKU and have no item identity; " + intf(cov.packageLines) +
+        " package lines are excluded because packages are zero-cost by design; frames have no cost " +
+        "field in the source at all and are shown as “no cost source” rather than zero. " +
+        (q.exemptions.available
+          ? intf(q.exemptions.activeCount) + " item(s) are exempted."
+          : "Exemptions could not be read, so nothing is being suppressed.") +
+        "</span></div>";
+
+      return out;
+    },
+
     "cost-lists": function (d) {
       var c = d.costLists;
       if (!c) return '<div class="ov-empty">Live Innovations source unavailable.</div>';
@@ -342,7 +394,71 @@
 
   /* ─────────── drawer tables built from data already loaded ─────────── */
 
+  /** Columns per defect check. The register ships every row, so these render locally. */
+  var DQ_COLUMNS = {
+    "zero-cost": [
+      { key: "itemKey", label: "SKU", format: "text" },
+      { key: "description", label: "Description", format: "text" },
+      { key: "category", label: "Category", format: "text" },
+      { key: "status", label: "Status", format: "text" },
+      { key: "lines", label: "Lines", format: "int", align: "right" },
+      { key: "revenue", label: "Revenue", format: "money", align: "right" },
+      { key: "lastSold", label: "Last sold", format: "date" }
+    ],
+    "cost-exceeds-price": [
+      { key: "itemKey", label: "SKU", format: "text" },
+      { key: "description", label: "Description", format: "text" },
+      { key: "category", label: "Category", format: "text" },
+      { key: "masterCost", label: "Cost", format: "money", align: "right" },
+      { key: "comparedPrice", label: "Price", format: "money", align: "right" },
+      { key: "basis", label: "Compared against", format: "text" },
+      { key: "revenue", label: "Revenue", format: "money", align: "right" }
+    ],
+    "zero-price": [
+      { key: "itemKey", label: "SKU", format: "text" },
+      { key: "description", label: "Description", format: "text" },
+      { key: "category", label: "Category", format: "text" },
+      { key: "lines", label: "Zero-price lines", format: "int", align: "right" },
+      { key: "invoices", label: "Invoices", format: "int", align: "right" },
+      { key: "masterCost", label: "Unit cost", format: "money", align: "right" },
+      { key: "costGivenAway", label: "Cost given away", format: "money", align: "right" }
+    ]
+  };
+
+  function dqTable(code) {
+    var q = tabs["data-quality"].data.dataQuality;
+    var check = q.checks.find(function (c) { return c.code === code; });
+    return {
+      kind: "dq:" + code,
+      title: check.label,
+      subtitle: check.detail + " · last " + q.lookbackDays + " days" +
+        (check.truncated ? " · showing the top " + check.shown + " of " + check.count : ""),
+      emptyText: "Nothing failing this check.",
+      summary: [
+        { label: "Items", value: check.count, format: "int" },
+        { label: check.code === "zero-price" ? "Cost given away" : "Revenue affected",
+          value: check.value, format: "money" }
+      ],
+      columns: DQ_COLUMNS[code],
+      rows: q.rows[code],
+      // The drawer's only mutating action. Exempting writes to the app database and
+      // suppresses the item here and in the inventory register.
+      rowAction: {
+        label: "Exempt",
+        confirm: "Exempt this item from the check? It will stop being reported until the exemption is revoked.",
+        prompt: "Why is this item exempt?",
+        endpoint: "/api/business-metrics/exemptions",
+        payload: { checkCode: code },
+        keys: { itemKey: "itemKey", description: "description" }
+      }
+    };
+  }
+
   var LOCAL_TABLES = {
+    "dq:zero-cost": function () { return dqTable("zero-cost"); },
+    "dq:cost-exceeds-price": function () { return dqTable("cost-exceeds-price"); },
+    "dq:zero-price": function () { return dqTable("zero-price"); },
+
     "profit-customers": function () {
       var p = tabs.profitability.data.profitability;
       return {

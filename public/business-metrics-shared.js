@@ -314,17 +314,24 @@
     }
     var cols = data.columns || [];
     var clickable = Boolean(data.next);
+    var action = data.rowAction || null;
 
     return '<table class="bm-table"><thead><tr>' +
       cols.map(function (c) {
         return '<th class="' + (c.align === "right" ? "num" : "") + '">' + esc(c.label) + "</th>";
       }).join("") +
+      (action ? "<th></th>" : "") +
       "</tr></thead><tbody>" +
       data.rows.map(function (row, i) {
         return '<tr class="' + (clickable ? "clickable" : "") + '" data-row="' + i + '">' +
           cols.map(function (c) {
             return '<td class="' + (c.align === "right" ? "num" : "") + '">' + esc(formatCell(row[c.key], c.format)) + "</td>";
-          }).join("") + "</tr>";
+          }).join("") +
+          (action
+            ? '<td class="num"><button type="button" class="ov-btn ov-row-action" data-action-row="' + i + '">' +
+              esc(action.label) + "</button></td>"
+            : "") +
+          "</tr>";
       }).join("") +
       "</tbody></table>";
   }
@@ -351,6 +358,55 @@
     el.querySelectorAll("[data-crumb]").forEach(function (b) {
       b.addEventListener("click", function () { popTo(Number(b.dataset.crumb)); });
     });
+
+    // Row action — the one place the drawer writes. Declared by the payload
+    // (rowAction), so this stays generic rather than knowing about any one report.
+    var action = top.data && top.data.rowAction;
+    if (action) {
+      el.querySelectorAll("[data-action-row]").forEach(function (button) {
+        button.addEventListener("click", async function (event) {
+          event.stopPropagation();
+          var row = top.data.rows[Number(button.dataset.actionRow)];
+
+          var reason = action.prompt ? window.prompt(action.prompt) : "confirmed";
+          if (reason === null) return;
+          if (action.confirm && !window.confirm(action.confirm)) return;
+
+          var body = Object.assign({}, action.payload || {}, { reason: reason });
+          Object.keys(action.keys || {}).forEach(function (field) {
+            body[field] = row[action.keys[field]];
+          });
+
+          button.disabled = true;
+          button.textContent = "…";
+          try {
+            var res = await fetch(action.endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            var payload = await res.json().catch(function () { return {}; });
+            if (!res.ok) throw new Error(payload.error || ("Request failed (HTTP " + res.status + ")"));
+
+            // Drop the row locally so the effect is immediate; the underlying report
+            // re-queries on its own next refresh.
+            top.data.rows.splice(Number(button.dataset.actionRow), 1);
+            renderDrawer();
+          } catch (err) {
+            button.disabled = false;
+            button.textContent = action.label;
+            var note = el.querySelector(".ov-drawer-body");
+            if (note) {
+              var msg = document.createElement("div");
+              msg.className = "ov-error";
+              msg.style.marginTop = "12px";
+              msg.textContent = describeError(err);
+              note.prepend(msg);
+            }
+          }
+        });
+      });
+    }
 
     if (top.data && top.data.next) {
       el.querySelectorAll("tr[data-row]").forEach(function (tr) {

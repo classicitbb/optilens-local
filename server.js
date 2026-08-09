@@ -124,6 +124,10 @@ const { getBusinessMetrics } = require("./lib/business-metrics");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
+const {
+  listExemptions: listItemExemptions,
+  setExemption: setItemExemption
+} = require("./lib/metrics/item-exemptions");
 const { getSectionContext } = require("./lib/metrics/context");
 const {
   getRecommendations,
@@ -1547,6 +1551,24 @@ const server = http.createServer(async (req, res) => {
       () => requirePermission(req, "delivery.read"),
       () => getDrill(kind, params)
     );
+  }
+
+  // Item cost defect exemptions. The register itself is read-only; this is the one
+  // place the module writes, and it writes to the app database, never to Innovations.
+  // pricing.write is the existing authority for cost/price stewardship.
+  if (url.pathname === "/api/business-metrics/exemptions" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      return { exemptions: await listItemExemptions() };
+    });
+  }
+
+  if (url.pathname === "/api/business-metrics/exemptions" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "pricing.write");
+      const body = await readJsonBody(req);
+      return { exemption: await setItemExemption(body, actor.userId) };
+    });
   }
 
   // Ranked advisory list. Read permission only — producing a recommendation

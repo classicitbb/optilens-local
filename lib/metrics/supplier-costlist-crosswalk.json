@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "Maps Innovations supplier cost lists (dbo.PriceLists rows with PricelistGroup = 1) to the",
+    "supplier names used in catalog-rows.generated.json, so the cost-list conformance report can",
+    "suggest a cost for a missing grid cell.",
+    "",
+    "This has to be hand-maintained: three vocabularies exist with no link between them —",
+    "PriceLists.PriceListName, dbo.Vendors.VendorName and dbo.Labs.Name — and Labs.POSupplierID is 0",
+    "on every row. Keyed by priceListId because names get edited (125 was 'CODEX TEST ACTIAN 20260720'",
+    "before it was renamed 'Costing Template').",
+    "",
+    "catalogueSupplier null means: no confident mapping. The report then shows the gap with no",
+    "suggested cost rather than guessing. Fill it in when someone confirms the pairing.",
+    "",
+    "IMPORTANT: catalog-rows.generated.json costs are PER PAIR (see the 'per pair' comment in",
+    "lib/pricing-engine.js landedCostFor). Cost lists are PER EYE. The report halves catalogue costs",
+    "before suggesting them and shows both figures."
+  ],
+  "lists": [
+    { "priceListId": 125, "priceListName": "Costing Template", "catalogueSupplier": "Vision Rx Lab", "isTemplate": true },
+    { "priceListId": 65,  "priceListName": "Skylab - Labtech Prices", "catalogueSupplier": "SkyLab" },
+    { "priceListId": 98,  "priceListName": "Skylab - Labtech Prices", "catalogueSupplier": "SkyLab", "note": "Duplicate of 65 — both active. Needs a business decision on which governs." },
+    { "priceListId": 95,  "priceListName": "Thai Optical Lab", "catalogueSupplier": "TOG Rx Lab" },
+    { "priceListId": 43,  "priceListName": "Essilor Lab - Finished Uncuts", "catalogueSupplier": "Essilor Lab" },
+    { "priceListId": 40,  "priceListName": "Quest Lab - Finished Uncuts", "catalogueSupplier": "Quest Optical" },
+    { "priceListId": 90,  "priceListName": "Essilor Costa Rica Optisa USD", "catalogueSupplier": "Essilor" },
+    { "priceListId": 57,  "priceListName": "Essilor Stock", "catalogueSupplier": "Essilor" },
+    { "priceListId": 60,  "priceListName": "Shore Lens Stock", "catalogueSupplier": "Shore Lens" },
+    { "priceListId": 61,  "priceListName": "Vision Ease - Hoya Stock", "catalogueSupplier": "Hoya" },
+    { "priceListId": 56,  "priceListName": "Younger - Stock", "catalogueSupplier": "Younger" },
+    { "priceListId": 107, "priceListName": "WILAB", "catalogueSupplier": null, "note": "Possibly 'Wilsdorf Lab' in the catalogue — unconfirmed, so left unmapped rather than guessed." },
+    { "priceListId": 99,  "priceListName": "DAC Visions", "catalogueSupplier": null, "note": "No matching catalogue supplier." },
+    { "priceListId": 62,  "priceListName": "Customer Lens Cost", "catalogueSupplier": null, "note": "Not a supplier list — customer-supplied lens costs." },
+    { "priceListId": 55,  "priceListName": "REGULAR", "catalogueSupplier": null, "note": "Name gives no supplier; likely stale." },
+    { "priceListId": 102, "priceListName": "Remote Edging Cost", "catalogueSupplier": null, "note": "Edging service, not lens supply." },
+    { "priceListId": 100, "priceListName": "YOULI", "catalogueSupplier": "Youli Optics" },
+    { "priceListId": 91,  "priceListName": "Mr. Focus RX", "catalogueSupplier": null },
+    { "priceListId": 92,  "priceListName": "Essilor Caribbean", "catalogueSupplier": "Essilor" },
+    { "priceListId": 89,  "priceListName": "Omega Optix", "catalogueSupplier": null },
+    { "priceListId": 44,  "priceListName": "Centennial - Finished Uncuts", "catalogueSupplier": null },
+    { "priceListId": 41,  "priceListName": "Venue Lab - Finished Uncuts", "catalogueSupplier": null }
+  ]
+}
