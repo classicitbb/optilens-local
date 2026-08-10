@@ -1,0 +1,55 @@
+file_version:1.0
+hashrouting_key:xUuOlCUdabranF5F3rRcIwPYZVVxWSKnoG929GoihSPdP4uMzUNsmnx49jKpPsuBty0ChhOVUMaRRmPAddpRm4WJDCxuHpYNcbkXvxrpHoGu6GdXLNubv5XHb5VvURwk35z6f8_Hp-Gg2xfPt4B_42_cJSDTGjiz
+start_order
+agent_name:LL
+agent_version:3
+lab_num:1177
+cust_num:5007245
+cust_seq_num:1
+date_ordered:2025-07-07 18:03:53
+instructions:
+x_standard_shape_trace:false
+order_id:50810919
+x_gk_order:34087572
+x_gk_guid:507ea899121e912691c99b2b3378855a8607bcf1
+customer_po_num:05
+patient_name:Harvey Stock Order
+ship_name:Spice Eyele
+rx_eye:5
+frame_tracing:NO TRACE
+frame_rad_angle:45.0
+item_start
+sku:0011751138
+item_source:FLENS
+item_description:1.50 Trans / Photochromic Single Vision Trans 8 Gray HC 70.0 -1.0/-0.5/Either
+item_quantity:2
+item_comment:
+item_part_rx:Y
+item_end
+item_start
+sku:0011751039
+item_source:FLENS
+item_description:1.50 Trans / Photochromic Single Vision Trans 8 Gray HC 70.0 -0.75/-0.25/Either
+item_quantity:2
+item_comment:
+item_part_rx:Y
+item_end
+item_start
+sku:0038138194
+item_source:SLENS
+item_description:1.50 Trans / Photochromic SHOREVIEW ES Trans 8 Gray HC 77.0 5.25/2.75/Right
+item_quantity:1
+item_comment:
+item_part_rx:Y
+item_end
+item_start
+sku:0038138319
+item_source:SLENS
+item_description:1.50 Trans / Photochromic SHOREVIEW ES Trans 8 Gray HC 77.0 5.25/2.75/Left
+item_quantity:1
+item_comment:
+item_part_rx:Y
+item_end
+x_rx_balance:true
+x_rx_seg_height_qual:1
+end_order
