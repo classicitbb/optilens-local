@@ -41,7 +41,7 @@ CVWeb `rx-order` payload field, a `data/rx/config.json` default, or a self-gener
 | `frame_color` | *(absent on uncut sample)* | `Black/Silver` | `payload.frame.model_colour` |
 | `frame_a` / `_b` / `_dbl` | `59.0`/`48.0`/`20.0` | `56.0`/`37.0`/`19.0` | `payload.frame.a_mm` / `b_mm` / `dbl_mm`, default 55/38/15 |
 | `frame_rad_angle` | `45.0` | `45.0` | fixed `45.0` on every sample — never varied, left as a constant |
-| `frame_mounting` | `1` | `2` | **fixed to `1`** currently — real samples show `1` (rimless-ish?) and `2` (different mount type); mounting type isn't captured anywhere in the RxOrderForm today. Flag: if frame mount type matters to Innova's edging, this needs a form field. |
+| `frame_mounting` | `1` | `2` | **Correction:** the form DOES capture this (`payload.frame.mount`: `full`/`supra`/`rimless`, a "Mount type" dropdown) — my earlier note that it wasn't captured was wrong. Still **fixed to `1`** in the generator, because there's no confirmed mapping from those three values to Innova's numeric codes (real samples show `1` and `2` with no evident correlation to rim type). Wiring the real value through needs that mapping confirmed first — guessing wrong here risks routing a job to the wrong edging process. |
 | `frame_dress` | `DRESS` | `DRESS` | fixed |
 | `frame_edge` | `UNCUT` | `EDGED` | `EDGED` when enclosed+full-glaze, else `UNCUT` |
 
@@ -57,13 +57,41 @@ rejects or mishandles an edged web order, this is the first thing to check.
 
 ## Shape trace block (`trace_start` … `trace_end`)
 
-Present only when `x_standard_shape_trace:true`. Contains a physical frame tracer's raw digitized
-boundary: `REQ`, `JOB`, `DBL`, `CIRC`, `HBOX`/`VBOX` (frame box dimensions), `.ED`/`.AX`,
-`TRCFMT` + up to hundreds of `R=` lines (polar radius samples around the boundary, right eye then
-left eye), `ZFMT` + `Z=` lines (bevel depth samples). This is tracer-hardware output — a website
-order form has no way to originate it. **Not implemented and not planned** unless CV integrates
-an in-store frame tracer that exports to this format later. Current behavior (always
-`x_standard_shape_trace:false`, no block emitted) is correct for a form-only order.
+**Correction (2026-08-09, same day as the rest of this doc):** the RxOrderForm's "Standard shape"
+picker (Rectangle/Round/Aviator/Cat eye) is *not* just a UI preview — it's backed by real embedded
+OMA trace libraries in `rx-order-engine.js` (`STD_OMA_RECT` etc., literal canned Innova-format
+trace files), and staff can also drag-and-drop a genuine physical tracer export (`.oma`/`.tr`/
+`.vca`). Both paths populate `payload.shape.radii.{R,L}` (polar boundary points in mm) that
+`rx-order-engine.js`'s own code comments say exist "for surfacing API transmission." This is now
+wired up: `lib/rx-generator.js`'s `renderTraceBlock(shape)` serializes it into a real
+`trace_start…trace_end` block, verified byte-for-byte against
+`templates/rx-samples/sample-progressive-enclosed-traced.rx`'s radii (see
+`test/rx-trace-block.test.js`).
+
+Fields: `REQ=FIL` (constant), `JOB="…"` (from `shape.job`), `DBL`/`CIRC`/`HBOX`/`VBOX`/`.ED` come
+from `shape.nativeBox` — the outline's own **native, unscaled** geometry, not whatever A/B the
+order header carries (rx-order-engine.js only rescales for the on-screen SVG preview, it never
+re-exports the scaled points). `.AX` axis: right-eye value from `shape.computed.edAxis`
+(rescaled-basis — no native-basis equivalent exists in the payload, a known approximation); left
+mirrored as `180 - axis` when the second eye was synthesized (`shape.mirroredFrom`), confirmed
+correct against the real sample's `.AX=26.72;153.28`. `TRCFMT`/`R=` lines: radius × 100, rounded,
+15 values per line — when the second eye is a mirror of the first, its block is **omitted
+entirely** (matches the real sample); a genuinely distinct second eye gets its own block. `ZFMT`
+is always `ZFMT=0` — bevel data is never available anywhere in this payload (the browser-side OMA
+parser doesn't extract `Z=` either), so that part is unavoidably absent, confirmed harmless by
+both real traced samples.
+
+**Gating:** `rx-order-submitter.js`'s `buildOrder()` only trusts `payload.shape` when
+`shape.confirmed === true` (the dispenser's "Verified" checkbox in the form) — an unconfirmed
+shape is dropped and the order goes out as `NO TRACE`, with a note added to `instructions` so
+staff see it was silently downgraded rather than the detail just vanishing.
+
+**Still unconfirmed:** none of the 4 real samples show a "standard shape, no physical frame
+enclosed" order — the exact combination this form's most common case now produces
+(`frame_source:"TRACE - UNCUT"`, `frame_status:"UNCUT"`, `frame_tracing:"TRACED"` + trace block).
+The two combinations *are* individually confirmed (no-trace+UNCUT from sample 1, trace+ENCLOSED
+from samples 2-4) — this is their logical intersection, not a guess pulled from nowhere, but watch
+the first real orders that hit it.
 
 ## Lens block
 
@@ -100,7 +128,9 @@ an in-store frame tracer that exports to this format later. Current behavior (al
 ## Open items (flag to Russell, don't guess further)
 
 - `hashrouting_key` — always blank on send; unconfirmed whether Innova requires/accepts one from us.
-- `frame_mounting` — not captured anywhere in the RxOrderForm; always sent as `1`.
+- `frame_mounting` — captured on the form (`full`/`supra`/`rimless`) but not wired through; needs a confirmed mapping to Innova's numeric codes before it's safe to send.
 - `item_value` (tint color/density) — no RxOrderForm field yet; tint add-ons lose this detail.
 - Enclosed-but-not-traced enum combination — best-guess, unverified against a real sample.
+- **New:** standard-shape-trace-on-an-uncut-job enum combination (`TRACE - UNCUT`/`UNCUT`/`TRACED`) — best-guess extension of two individually-confirmed combinations, unverified as a real submitted order.
+- **New:** trace block `.AX` axis uses rescaled-basis `shape.computed.edAxis` (no native-basis equivalent exists in the payload) — a documented approximation, not exact.
 - Prism / wrap-fit / engraving fields — no RxOrderForm inputs; fine to omit unless a real order needs them.

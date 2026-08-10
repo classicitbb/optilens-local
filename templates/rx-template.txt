@@ -9,8 +9,8 @@ cust_seq_num:{cust_seq_num}
 date_ordered:{date_ordered}
 x_remote_operator:{remote_operator}
 instructions:{instructions}
-x_standard_shape_trace:false
-order_id:{order_id}
+x_standard_shape_trace:{standard_shape_trace}
+{trace_block}order_id:{order_id}
 x_gk_order:{gk_order}
 x_gk_guid:{gk_guid}
 patient_name:{patient_name}

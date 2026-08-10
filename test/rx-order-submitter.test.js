@@ -84,6 +84,40 @@ test("rendered order text uses colon-delimited fields and CRLF, like real Innova
   assert.match(order.content, /end_order\r\n?$/);
 });
 
+test("a confirmed standard-shape selection produces a real trace block and TRACED enum values", () => {
+  const payload = basePayload();
+  payload.frame = { is_uncut: true, a_mm: 52, b_mm: 38, dbl_mm: 17 };
+  payload.shape = {
+    source: "standard", standardId: "rect", job: "1506", confirmed: true, mirroredFrom: null,
+    nativeBox: { a: 55, b: 40, dbl: 18, ed: 61 },
+    computed: { ed: 60.5, edAxis: 15, circ: 160 },
+    radii: { R: [25, 25.5, 26, 26.5, 27], L: [24, 24.5, 25, 25.5, 26] },
+  };
+  const order = buildOrder(payload, config);
+  assert.equal(order.frame.tracing, "TRACED");
+  assert.equal(order.frame.source, "TRACE - UNCUT");
+  assert.match(order.content, /x_standard_shape_trace:true/);
+  assert.match(order.content, /trace_start\r\n[\s\S]*trace_end\r\n/);
+  assert.match(order.content, /TRCFMT=1;5;E;R;F/);
+});
+
+test("an unconfirmed shape selection is dropped -- sent as NO TRACE, not fabricated", () => {
+  const payload = basePayload();
+  payload.frame = { is_uncut: true };
+  payload.shape = {
+    source: "standard", standardId: "rect", job: "1506", confirmed: false, mirroredFrom: null,
+    nativeBox: { a: 55, b: 40, dbl: 18, ed: 61 },
+    computed: { ed: 60.5, edAxis: 15, circ: 160 },
+    radii: { R: [25, 26, 27], L: [24, 25, 26] },
+  };
+  const order = buildOrder(payload, config);
+  assert.equal(order.frame.tracing, "NO TRACE");
+  assert.equal(order.frame.source, "NO TRACE - UNCUT");
+  assert.match(order.content, /x_standard_shape_trace:false/);
+  assert.doesNotMatch(order.content, /trace_start/);
+  assert.match(order.instructions, /not confirmed by the dispenser/);
+});
+
 test("a submission with no resolved Innovations alias is rejected before it can reach the lab", () => {
   const payload = basePayload();
   delete payload.lenses[0].codes.material_code;
