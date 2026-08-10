@@ -1,0 +1,161 @@
+file_version:1.0
+hashrouting_key:a4CwHkkOQ_zhY1T9OOcT3Zrh069ShcCmaq7BUWzcZNSSJWyJ_qDpzLzWrVUmHhvbZdC3vgx3uEiEPhbD4EVArSHXd9Vd89W8iqrqjuaCyU4WGINmzO9xAGoVJSHmX-EpmOgUah5uvqD-CEUVFqmUXMAqFofjntA3
+start_order
+agent_name:LL
+agent_version:3
+lab_num:1177
+cust_num:5000162
+cust_seq_num:1
+date_ordered:2026-08-09 23:07:20
+x_remote_operator:lisa.j
+instructions:test instructions  Special BC OD=5.0
+x_standard_shape_trace:true
+trace_size:10138
+trace_start
+REQ=FIL
+LIB="SURVIVAIR"
+CIRC= 155.60; 155.77
+DBL=14.23
+HBOX=  52.55;  52.44
+VBOX=  43.12;  43.38
+ZTILT=4.56;5.63
+.ED=58.88;59.08
+.AX=32.40;146.25
+BEVC=?;?
+BEVP=?;?
+BEVM=?;?
+BSIZ=?;?
+CSIZ=?;?
+FCRV=?;?
+FPINB=?;?
+GWIDTH=?;?
+GDEPTH=?;?
+PINB=?;?
+.IFT=?
+FED=58.88;59.08
+FEDAX=32.40;146.25
+DRILLE=0
+TRCFMT=1;800;E;R;F
+[... full R= boundary + ZFMT/Z= bevel arrays for OD, then TRCFMT/R=/ZFMT/Z= repeated for OS —
+see the original upload if the raw geometry itself is ever needed; omitted here to keep this
+fixture file a manageable size, since it's only used to check header/frame/item/rx field
+rendering, not trace geometry parsing ...]
+trace_end
+order_id:51324380
+x_gk_order:38106800
+x_gk_guid:0f1a3e323edaf71dda300280d6493bbfd788ee86
+patient_name:order, a test
+ship_name:Classic Visions Retail
+dr_name:Classic Visions Retail
+x_dr_name:Classic Visions Retail
+rx_eye:3
+frame_source:TRACE - UNCUT
+frame_status:ENCLOSED
+frame_tracing:TRACED
+frame_model:the frame name
+frame_color:the frame color
+frame_a:52.0
+frame_b:40.0
+frame_dbl:18.0
+frame_rad_angle:45.0
+frame_mounting:1
+frame_dress:DRESS
+frame_edge:EDGED
+lens_od_color_code:1374
+lens_od_color_desc:TGNS GRAY HC
+lens_od_material_code:21
+lens_od_material_desc:1.50 Photochromic
+lens_od_style_code:2262
+lens_od_style_desc:ENDLESS STEADY - Ultimate M
+lens_os_color_code:1374
+lens_os_color_desc:TGNS GRAY HC
+lens_os_material_code:21
+lens_os_material_desc:1.50 Photochromic
+lens_os_style_code:2262
+lens_os_style_desc:ENDLESS STEADY - Ultimate M
+item_start
+sku:SOLIDTINT
+item_source:TINT
+item_description:Solid Tint
+item_value:BROWN,70%
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+item_start
+sku:SUPERAR
+item_source:COAT
+item_description:Super - AR+ (2Yr Wty)
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+item_start
+sku:1
+item_source:MISC
+item_description:
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+item_start
+sku:7401
+item_source:MISC
+item_description:EDGED
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+rxi_start
+MTX 52.0 52.0
+MTY 40.0 40.0
+DBL 18.0 18.0
+rxi_end
+lens_sv_mf:m
+x_rx_type:P
+x_rx_dispense:P
+x_rx_balance:true
+rx_od_sphere:+2.00
+rx_od_cylinder:+2.00
+rx_od_axis:90
+rx_od_add:+2.00
+rx_od_near:32.0
+rx_od_far:32.0
+rx_od_prism:1.00
+rx_od_prism_dir:UP
+rx_od_prism2:1.00
+rx_od_prism2_dir:OUT
+rx_od_seg_height:18.0
+rx_od_sbc:5.0
+rx_os_sphere:+1.00
+rx_os_cylinder:-2.00
+rx_os_axis:85
+rx_os_add:+2.00
+rx_os_near:32.0
+rx_os_far:32.0
+rx_os_prism:1.00
+rx_os_prism_dir:UP
+rx_os_prism2:1.00
+rx_os_prism2_dir:IN
+rx_os_seg_height:18.0
+x_rx_seg_height_qual:1
+x_wrap_faf_r:5.0
+x_wrap_faf_l:5.0
+x_wrap_pnt_r:5.0
+x_wrap_pnt_l:5.0
+x_wrap_vxn_r:13.0
+x_wrap_vxn_l:13.0
+x_wrap_vxo_r:15.0
+x_wrap_vxo_l:15.0
+x_engraver_str:rjh
+x_spcfit_viewp_a2_r:120
+x_spcfit_viewp_a2_l:120
+x_spcfit_viewp_a3x_r:O
+x_spcfit_viewp_a3x_l:O
+x_spcfit_viewp_a4_r:1.0
+x_spcfit_viewp_a4_l:1.0
+x_spcfit_cllife_type:A
+x_spcfit_cape:10.0
+x_spcfit_ercd_r:1.0
+x_spcfit_ercd_l:1.0
+end_order

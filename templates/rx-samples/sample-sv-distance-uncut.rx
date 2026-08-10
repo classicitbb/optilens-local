@@ -1,0 +1,69 @@
+file_version:1.0
+hashrouting_key:tK71WSLZT32A4B8RBnZnhWHzYMxmJVLM-WaoI8NYHI8QNV6RVGG5gVjbZZDZpXd78bjUG-wHx64nAm7Pt7015RjgEp3VFTi3L8ECr7f3BOtUdTq93Nl4tnm18G_JuPJyxvwN-_l_eHLfJAAbZEJ776MGn184SHk6
+start_order
+agent_name:LL
+agent_version:3
+lab_num:1177
+cust_num:5000177
+cust_seq_num:1
+date_ordered:2026-07-24 20:11:53
+x_remote_operator:eyeq
+instructions:PLEASE MAKE SV DISTANCE ONLY - DARK GREY GRADIENT
+x_standard_shape_trace:false
+order_id:51303859
+x_gk_order:37957913
+x_gk_guid:21a6e038abf72a5d47f8e3aec0f51eb1abba2e99
+patient_name:HAREWOOD, TERRY
+ship_name:EyeQ Stylist Opticians
+rx_eye:3
+frame_source:NO TRACE - UNCUT
+frame_status:UNCUT
+frame_tracing:NO TRACE
+frame_model:DITA MACH ONE
+frame_a:59.0
+frame_b:48.0
+frame_dbl:20.0
+frame_rad_angle:45.0
+frame_mounting:1
+frame_dress:DRESS
+frame_edge:UNCUT
+lens_od_color_code:0
+lens_od_color_desc:Clear
+lens_od_material_code:0
+lens_od_material_desc:1.50 Plastic
+lens_od_style_code:1
+lens_od_style_desc:Single Vision
+lens_os_color_code:0
+lens_os_color_desc:Clear
+lens_os_material_code:0
+lens_os_material_desc:1.50 Plastic
+lens_os_style_code:1
+lens_os_style_desc:Single Vision
+item_start
+sku:GRADIENTTI
+item_source:TINT
+item_description:GRADIENT TINT
+item_value:GRAY,80%
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+item_start
+sku:1
+item_source:MISC
+item_description:
+item_quantity:1
+item_side:NONE
+item_part_rx:Y
+item_end
+lens_sv_mf:s
+x_rx_type:S
+x_rx_reading:false
+x_rx_dispense:P
+x_rx_balance:true
+rx_od_sphere:+0.00
+rx_od_far:32.5
+rx_os_sphere:+0.00
+rx_os_far:32.5
+x_rx_seg_height_qual:1
+end_order

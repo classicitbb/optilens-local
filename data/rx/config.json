@@ -14,7 +14,17 @@
   "folders": {
     "staging": "./output/rx/staging",
     "archive": "./output/rx/archive",
-    "incoming": ""
+    "incoming": "\\\\INNOVA-SVR\\Innovations\\Incoming",
+    "stockStaging": "./output/stock/staging",
+    "stockArchive": "./output/stock/archive"
+  },
+  "stockOrder": {
+    "fileVersion": "1.0",
+    "rxEye": "5",
+    "frameTracing": "NO TRACE",
+    "frameRadAngle": "45.0",
+    "segHeightQual": "1",
+    "extension": ".stockhashref"
   },
   "prescription": {
     "sphereMin": -6,
