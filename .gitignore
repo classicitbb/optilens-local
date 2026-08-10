@@ -13,6 +13,8 @@ data/rx/*
 .aider*
 _snapshots/
 *.bak-*
+output/
+.claude/settings.local.json
 
 # Packed extension build artifacts - regenerate with scripts/pack-beswift-extension.ps1.
 # The signing key lives in data/ext/ (already ignored via data/*) and must be
