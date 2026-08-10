@@ -1,0 +1,47 @@
+Wire the RxOrderForm shape/trace data into real trace_start/trace_end blocks (.rx pipeline)
+
+Scope: .rx/RXI patient-order pipeline only, same as the previous commit.
+
+Discovery: the RxOrderForm (rx-order-engine.js) is not just showing a shape
+preview when staff pick a Standard shape (Rectangle/Round/Aviator/Cat eye)
+or upload a real tracer file (.oma/.tr/.vca) - it already computes real
+polar boundary geometry (payload.shape.radii) and its own code comment
+says this exists "for surfacing API transmission". rx-order-submitter.js
+never read it; every order went out with x_standard_shape_trace:false and
+no trace block, silently dropping this data. This is what Russell meant by
+"one includes the standard shape data - figure out how it would all be
+attached to the rx order form."
+
+- lib/rx-generator.js: new renderTraceBlock(shape) serializes
+  payload.shape into a real trace_start/trace_end block. Verified
+  byte-for-byte against templates/rx-samples/sample-progressive-enclosed-
+  traced.rx's actual radii (test/rx-trace-block.test.js) - not a guess.
+  Deliberately uses shape.nativeBox (the outline native/unscaled geometry)
+  for HBOX/VBOX/.ED/DBL rather than the order-level typed A/B, because the
+  radii array is in that native coordinate space; sending them paired with
+  a different declared box would be internally inconsistent. Confirmed
+  this is also what real Innova orders do (the real sample itself has a
+  trace HBOX/VBOX that differs from that same order's frame_a/frame_b).
+  Mirrored second eyes are omitted entirely (matches the real sample);
+  distinct second-eye geometry gets its own TRCFMT block. No bevel (Z=)
+  data is ever available from this payload, so ZFMT=0 always - confirmed
+  harmless by both real traced samples.
+- templates/rx-template.txt: x_standard_shape_trace and the trace block
+  are now template variables instead of a hardcoded "false".
+- lib/rx-order-submitter.js: buildOrder() only trusts payload.shape when
+  shape.confirmed is true (the dispenser's Verified checkbox) - an
+  unconfirmed shape is dropped to NO TRACE with a note added to
+  instructions, rather than either fabricating unverified geometry or
+  silently losing the detail. frame_source/tracing now flip to
+  "TRACE - UNCUT"/"TRACED" whenever real geometry is included.
+- docs/rx-format-field-map.md: corrected two things this session got
+  wrong earlier today - the trace block is not "not implemented and not
+  planned", and frame_mounting IS captured on the form (payload.frame.mount)
+  even though the numeric code mapping still is not confirmed.
+
+Open/unconfirmed (documented in the field-map doc, not silently assumed):
+the "standard shape trace on an uncut, no-frame-enclosed job" enum
+combination (TRACE - UNCUT / UNCUT / TRACED) has no real sample to check
+against - it is the logical intersection of two individually-confirmed
+combinations. Russell confirmed (2026-08-09) the environment this ships to
+is a test server and to proceed rather than block on that confirmation.
