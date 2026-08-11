@@ -2,7 +2,7 @@ import {
   $,
   ADDONS,
   app,
-  BBD_RATE,
+  currencyRate,
   escapeAttr,
   escapeHtml,
   getCombo,
@@ -233,7 +233,7 @@ export function buildMatrix() {
     legend.innerHTML = "<span>⚓ worst-case margin · ▶ preferred margin</span>"
       + '<span><span class="mtag m-ok">≥45%</span><span class="mtag m-thin">30–44%</span><span class="mtag m-floor">15–29%</span><span class="mtag m-low">&lt;15%</span></span>'
       + '<span><span class="mtag m-below">below floor</span></span>'
-      + `<span style="margin-left:auto">Prices in USD · display ${escapeHtml(state.currency)} @ ${BBD_RATE} · ${escapeHtml(state.priceMode)}</span>`;
+      + `<span style="margin-left:auto">Prices in USD · display ${escapeHtml(state.currency)} @ ${currencyRate()} · ${escapeHtml(state.priceMode)}</span>`;
     card.appendChild(legend);
     container.appendChild(card);
   });
