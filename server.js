@@ -211,6 +211,7 @@ const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const rxOrderSubmitter = require("./lib/rx-order-submitter");
+const stockOrderSubmitter = require("./lib/stock-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
 const { getLensStatusSyncStatus, runLensStatusSync } = require("./lib/actian-lens-status-sync");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
@@ -2448,6 +2449,20 @@ const server = http.createServer(async (req, res) => {
       if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
       const creds = plSecure.getCvApi(body.token);
       return rxOrderSubmitter.runOnce(creds, { max: Number(body.max) || 3 });
+    });
+  }
+
+  // Claim + release any staff-released stock orders (CV outbox → the real
+  // Innova Incoming file-drop, no InnovaAPI endpoint exists for these).
+  // Same auth/creds pattern as rx-submissions; safe on the same schedule.
+  if (url.pathname === "/api/connectors/stock-submissions/process" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "credentials.manage");
+      const body = await readJsonBody(req);
+      const key = body.token && plSecure.keyForToken(body.token);
+      if (!key) { const e = new Error("Locked — unlock first."); e.statusCode = 401; throw e; }
+      const creds = plSecure.getCvApi(body.token);
+      return stockOrderSubmitter.runOnce(creds, { max: Number(body.max) || 3 });
     });
   }
 
