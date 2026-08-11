@@ -2144,7 +2144,9 @@ const server = http.createServer(async (req, res) => {
       const overrideCombos = plCombosForClassOverrides(body.classOverrides);
       const combo = Object.fromEntries(overrideCombos.map(c => [c.key, c]))[body.key];
       if (!combo) { const e = new Error("combo not found"); e.statusCode = 404; throw e; }
-      return PE.evaluateOverride(combo, Number(body.enteredPriceUSD), body);
+      const activeCombo = plApplyDisabled(combo, body.disabled);
+      if (!activeCombo) return { available: false, message: "This line is disabled." };
+      return PE.evaluateOverride(activeCombo, Number(body.enteredPriceUSD), body);
     });
   }
 

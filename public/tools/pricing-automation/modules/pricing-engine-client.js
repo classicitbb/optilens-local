@@ -54,6 +54,7 @@ export function setCurrency(currency) {
   state.currency = currency;
   $("curr-usd").classList.toggle("active", currency === "USD");
   $("curr-bbd").classList.toggle("active", currency === "BBD");
+  $("curr-eur")?.classList.toggle("active", currency === "EUR");
   app.buildMatrix();
 }
 
@@ -154,8 +155,10 @@ export async function onCellEdit(key, rawValue) {
 }
 
 export function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
+  const disabledSuppliers = state.overrides.suppliers[combo?.key] || [];
   const suppliers = Object.entries(combo ? (combo.suppliers || {}) : {})
     .filter(([supplier]) => !state.settings.excluded.includes(supplier))
+    .filter(([supplier]) => !disabledSuppliers.includes(supplier))
     .map(([supplier, fob]) => ({ supplier, fob: Number(fob), landed: landedCalc(Number(fob), supplier).landed }))
     .filter((entry) => entry.landed > 0 && Number.isFinite(entry.landed));
   if (!suppliers.length || !(enteredUSD > 0)) return { ok: false, message: "No available supplier remains for that price." };
@@ -193,8 +196,10 @@ export function manualPriceDecision(combo, enteredUSD, existingConstraint = null
 
 export function storeManual(key, enteredUSD, combo, constraintSupplier, options = {}) {
   const allowUnsafe = !!options.allowUnsafe;
+  const disabledSuppliers = state.overrides.suppliers[key] || [];
   const suppliers = Object.entries(combo ? (combo.suppliers || {}) : {})
     .filter(([supplier]) => !state.settings.excluded.includes(supplier))
+    .filter(([supplier]) => !disabledSuppliers.includes(supplier))
     .map(([supplier, fob]) => ({ supplier, fob: Number(fob), landed: landedCalc(Number(fob), supplier).landed }))
     .filter((entry) => entry.landed > 0 && Number.isFinite(entry.landed));
 
@@ -206,7 +211,7 @@ export function storeManual(key, enteredUSD, combo, constraintSupplier, options 
 
   let preferredSupplier = null;
   for (const supplier of state.settings.priority) {
-    if (combo && combo.suppliers[supplier] != null && !state.settings.excluded.includes(supplier)) {
+    if (combo && combo.suppliers[supplier] != null && !state.settings.excluded.includes(supplier) && !disabledSuppliers.includes(supplier)) {
       preferredSupplier = supplier;
       break;
     }

@@ -41,6 +41,7 @@ export function requestOverride(key, enteredPriceUSD, settings) {
       key,
       enteredPriceUSD,
       ...normalizeSettings(settings),
+      disabled: normalizeOverrides(state.overrides),
       classOverrides: normalizeClassOverrides(state.classOverrides),
     }),
   }).then((response) => response.json());

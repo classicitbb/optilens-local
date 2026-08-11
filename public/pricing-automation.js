@@ -5,6 +5,7 @@
 'use strict';
 
 const BBD_RATE = 2.0;
+const EUR_RATE = 0.87;
 
 // Material columns ordered cheapest → priciest (matches smoothLadder enforcement).
 // POLY (polycarbonate, commodity) precedes TRIVEX (premium MR-7) — standard optical pricing convention.
@@ -105,9 +106,18 @@ let settings = createDefaultSettings();
 
 // ── Helpers ────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
-const sym = () => (currency === 'BBD' ? 'B$' : '$');
-const toDisplay = (usd) => (currency === 'BBD' ? usd * BBD_RATE : usd);
-const toUSD = (val) => (currency === 'BBD' ? val / BBD_RATE : val);
+const currencyRate = () => {
+  if (currency === 'BBD') return BBD_RATE;
+  if (currency === 'EUR') return EUR_RATE;
+  return 1;
+};
+const sym = () => {
+  if (currency === 'BBD') return 'B$';
+  if (currency === 'EUR') return '€';
+  return '$';
+};
+const toDisplay = (usd) => usd * currencyRate();
+const toUSD = (val) => val / currencyRate();
 const getKey = (t, ti, m) => `${t}||${ti}||${m}`;
 const getCombo = (t, ti, m) => comboByKey[getKey(t, ti, m)];
 const jsArg = (s) => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -423,6 +433,7 @@ function setCurrency(c) {
   currency = c;
   $('curr-usd').classList.toggle('active', c === 'USD');
   $('curr-bbd').classList.toggle('active', c === 'BBD');
+  $('curr-eur')?.classList.toggle('active', c === 'EUR');
   buildMatrix();
 }
 function setMode(m) {
@@ -484,7 +495,7 @@ async function onCellEdit(key, rawVal) {
   await refreshClassifiedCatalog({ render: false, reprice: false, build: false });
   const ev = await fetch('/api/v2/override', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings, classOverrides }),
+    body: JSON.stringify({ key, enteredPriceUSD: enteredUSD, ...settings, disabled: normalizeOverrides(overrides), classOverrides }),
   }).then(r => r.json());
   const combo = comboByKey[key];
   if (ev.ok) { storeManual(key, enteredUSD, combo, null); buildMatrix(); return; }
@@ -518,8 +529,10 @@ async function onCellEdit(key, rawVal) {
 }
 
 function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
+  const disabledSuppliers = overrides.suppliers[combo?.key] || [];
   const supEntries = Object.entries(combo ? (combo.suppliers || {}) : {})
     .filter(([s]) => !settings.excluded.includes(s))
+    .filter(([s]) => !disabledSuppliers.includes(s))
     .map(([s, fob]) => ({ s, fob: Number(fob), landed: landedCalc(Number(fob), s).landed }))
     .filter(r => r.landed > 0 && Number.isFinite(r.landed));
   if (!supEntries.length || !(enteredUSD > 0)) return { ok: false, message: 'No available supplier remains for that price.' };
@@ -557,10 +570,12 @@ function manualPriceDecision(combo, enteredUSD, existingConstraint = null) {
 
 function storeManual(key, enteredUSD, combo, constraintSupplier, options = {}) {
   const allowUnsafe = !!options.allowUnsafe;
+  const disabledSuppliers = overrides.suppliers[key] || [];
   // Compute landed costs for all available (non-excluded) suppliers,
   // matching the pricing engine so manual-entry margins align with auto-priced margins.
   const supEntries = Object.entries(combo ? (combo.suppliers || {}) : {})
     .filter(([s]) => !settings.excluded.includes(s))
+    .filter(([s]) => !disabledSuppliers.includes(s))
     .map(([s, fob]) => ({ s, fob: Number(fob), landed: landedCalc(Number(fob), s).landed }))
     .filter(r => r.landed > 0 && Number.isFinite(r.landed));
 
@@ -575,7 +590,7 @@ function storeManual(key, enteredUSD, combo, constraintSupplier, options = {}) {
   // Preferred = first in priority order that is available
   let preferredSup = null;
   for (const s of settings.priority) {
-    if (combo && combo.suppliers[s] != null && !settings.excluded.includes(s)) { preferredSup = s; break; }
+    if (combo && combo.suppliers[s] != null && !settings.excluded.includes(s) && !disabledSuppliers.includes(s)) { preferredSup = s; break; }
   }
   const preferredEntry = preferredSup
     ? (supEntries.find(r => r.s === preferredSup) || anchorEntry)
@@ -722,7 +737,7 @@ function buildMatrix() {
     leg.innerHTML = '<span>⚓ worst-case margin · ▶ preferred margin</span>' +
       '<span><span class="mtag m-ok">≥45%</span><span class="mtag m-thin">30–44%</span><span class="mtag m-floor">15–29%</span><span class="mtag m-low">&lt;15%</span></span>' +
       '<span><span class="mtag m-below">below floor</span></span>' +
-      `<span style="margin-left:auto">Prices in USD · display ${currency} @ ${BBD_RATE} · ${priceMode}</span>`;
+      `<span style="margin-left:auto">Prices in USD · display ${currency} @ ${currencyRate()} · ${priceMode}</span>`;
     card.appendChild(leg);
     container.appendChild(card);
   });

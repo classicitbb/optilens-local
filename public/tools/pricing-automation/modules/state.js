@@ -1,6 +1,7 @@
 export const app = {};
 
 export const BBD_RATE = 2.0;
+export const EUR_RATE = 0.87;
 
 export const MATERIALS = ["1.50", "1.56", "POLY", "TRIVEX", "1.60", "1.67", "1.74"];
 
@@ -160,9 +161,18 @@ export const state = {
 };
 
 export const $ = (id) => document.getElementById(id);
-export const sym = () => (state.currency === "BBD" ? "B$" : "$");
-export const toDisplay = (usd) => (state.currency === "BBD" ? usd * BBD_RATE : usd);
-export const toUSD = (value) => (state.currency === "BBD" ? value / BBD_RATE : value);
+export const currencyRate = () => {
+  if (state.currency === "BBD") return BBD_RATE;
+  if (state.currency === "EUR") return EUR_RATE;
+  return 1;
+};
+export const sym = () => {
+  if (state.currency === "BBD") return "B$";
+  if (state.currency === "EUR") return "€";
+  return "$";
+};
+export const toDisplay = (usd) => usd * currencyRate();
+export const toUSD = (value) => value / currencyRate();
 export const getKey = (treatment, tier, material) => `${treatment}||${tier}||${material}`;
 export const getCombo = (treatment, tier, material) => state.comboByKey[getKey(treatment, tier, material)];
 export const jsArg = (value) => String(value == null ? "" : value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
