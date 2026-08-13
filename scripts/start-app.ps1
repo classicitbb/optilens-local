@@ -12,6 +12,28 @@ if (-not $ProjectRoot) {
 $stopMarker = Join-Path $ProjectRoot "data\service-stop.requested"
 Remove-Item -LiteralPath $stopMarker -Force -ErrorAction SilentlyContinue
 
+$service = Get-Service -Name "OptiLensLocal" -ErrorAction SilentlyContinue
+if ($service) {
+    if ($service.Status -ne "Running") {
+        Start-Service -Name "OptiLensLocal"
+    }
+
+    for ($attempt = 1; $attempt -le 30; $attempt++) {
+        Start-Sleep -Milliseconds 500
+        try {
+            $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health/live" -TimeoutSec 2
+        } catch {
+            $health = $null
+        }
+        if ($health.service -eq "optilens-local") {
+            Write-Host "OptiLens Local Windows service is running and healthy on port $Port."
+            return
+        }
+    }
+
+    throw "OptiLensLocal service started, but health did not return on port $Port."
+}
+
 function Get-ListeningPortOwners {
     param([int] $TargetPort)
 

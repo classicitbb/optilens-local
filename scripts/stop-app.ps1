@@ -17,6 +17,16 @@ if ($Intentional) {
     Set-Content -LiteralPath $stopMarker -Value "$(Get-Date -Format o) intentional operator shutdown"
 }
 
+$service = Get-Service -Name "OptiLensLocal" -ErrorAction SilentlyContinue
+if ($service) {
+    if ($service.Status -ne "Stopped") {
+        Stop-Service -Name "OptiLensLocal" -Force
+        Write-Host "Stopped OptiLensLocal Windows service."
+    } else {
+        Write-Host "OptiLensLocal Windows service is already stopped."
+    }
+}
+
 function Get-ListeningPortOwners {
     param([int] $TargetPort)
 

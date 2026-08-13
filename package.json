@@ -24,6 +24,7 @@
     "app:ensure": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-app-running.ps1",
     "app:watchdog:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-app-watchdog-task.ps1",
     "app:watchdog:install:system": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-app-watchdog-task.ps1 -RunAsSystem",
+    "app:recovery:harden": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/harden-host-recovery.ps1",
     "app:tray": "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File scripts/start-monitor.ps1",
     "app:tray:startup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-host-tray-startup.ps1",
     "app:monitor:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-monitor-exe.ps1",
