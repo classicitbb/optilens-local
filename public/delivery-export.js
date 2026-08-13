@@ -100,6 +100,7 @@ function wireActions() {
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
   wireCommercialInvoiceHeaderEditing();
+  wireCommercialInvoiceLineEditing();
   wireCoDraftAutosave();
 
   document.querySelector("#shipmentGroups")?.addEventListener("click", (event) => {
@@ -272,7 +273,7 @@ function renderCoDraft() {
     originNotes: payload.origin?.notes || ""
   });
   renderCoHeaderPreview(payload);
-  renderCoItems(payload.items || []);
+  renderCoItems(payload.items || [], payload);
   renderCoWarnings(app.warnings || []);
   renderCoJobs();
 }
@@ -331,14 +332,14 @@ function renderCoHeaderPreview(payload) {
   `).join("");
 }
 
-function renderCoItems(items) {
+function renderCoItems(items, payload = {}) {
   const target = document.querySelector("#coItemsRows");
   if (!target) return;
-  target.innerHTML = items.map((item, index) => `
+  const rows = items.map((item, index) => `
     <tr data-co-item="${index}">
       <td class="co-item-name" title="${escapeHtml(item.name || "")}">${escapeHtml(item.name || "")}</td>
       <td>${escapeHtml(item.hsCode || "")}</td>
-      <td>${escapeHtml(item.name || "")}</td>
+      <td title="${escapeHtml(item.commercialDescription || item.name || "")}">${escapeHtml(item.commercialDescription || item.name || "")}</td>
       <td>${escapeHtml(item.quantity ?? "")}</td>
       <td>${escapeHtml(item.uom || "")}</td>
       <td>${escapeHtml(item.weightKg ?? "")}</td>
@@ -346,7 +347,23 @@ function renderCoItems(items) {
       <td>${formatMoneyBbd(item.unitCost)}</td>
       <td>${formatMoneyBbd(item.value)}</td>
     </tr>
-  `).join("") || `<tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>`;
+  `).join("");
+  // Balance check: the certificate total should always equal the sum of these
+  // rows by construction (both now derive from the same override-applied
+  // commercial invoice lines — see buildPayloadFromShipment). A gap between
+  // the certificate total and the full commercial invoice subtotal is
+  // expected whenever the shipment also has non-certificate items (frames,
+  // accessories); this footer just makes both numbers visible for a sanity check.
+  const certificateTotal = round2(items.reduce((sum, item) => sum + Number(item.value || 0), 0));
+  const invoiceSubtotal = Number(payload.commercialInvoiceSubtotal || 0);
+  const nonCertificateAmount = round2(invoiceSubtotal - certificateTotal);
+  const totalsRow = items.length ? `
+    <tr class="co-items-total-row">
+      <td colspan="8">Certificate items total${nonCertificateAmount > 0 ? ` (commercial invoice subtotal ${formatMoneyBbd(invoiceSubtotal)}; ${formatMoneyBbd(nonCertificateAmount)} not certificate-eligible)` : ""}</td>
+      <td><strong>${formatMoneyBbd(certificateTotal)}</strong></td>
+    </tr>
+  ` : "";
+  target.innerHTML = (rows || `<tr><td colspan="9">Prepare a draft to load certificate items.</td></tr>`) + totalsRow;
 }
 
 function wireShipmentDivider() {
@@ -401,12 +418,14 @@ function renderCommercialInvoicePreview() {
   const target = document.querySelector("#commercialInvoicePreview");
   const summary = document.querySelector("#commercialPreviewSummary");
   if (!target) return;
-  // A background refresh (polling, tab visibility) can land while an operator
-  // is mid-edit on a pencil field. Replacing the DOM under a focused input
-  // fires a synthetic focusout, which would autosave whatever the fresh
-  // render's default value is and silently clobber the edit in progress.
-  // Skip the rebuild until they commit (blur/Enter) or leave the field.
-  if (target.contains(document.activeElement) && document.activeElement?.matches("[data-ci-header-field]")) return;
+  // A background refresh (polling, tab visibility, or this module's own debounced
+  // line-edit autosave) can land while an operator is mid-edit on a pencil field
+  // or a line-item cell. Replacing the DOM under a focused input fires a synthetic
+  // focusout, which would autosave whatever the fresh render's default value is
+  // and silently clobber the edit in progress. Skip the rebuild until they commit
+  // (blur/Enter) or leave the field.
+  if (target.contains(document.activeElement)
+    && document.activeElement?.matches("[data-ci-header-field], [data-ci-field]")) return;
   const preview = moduleState.invoicePreview;
   if (!preview) {
     if (summary) summary.textContent = "Select an export shipment to preview the commercial invoice.";
@@ -674,6 +693,69 @@ function wireCommercialInvoiceHeaderEditing() {
       input.blur();
     }
   });
+}
+
+// Line edits (qty/unit price/amount) previously only recalculated after an
+// explicit Save round-tripped through the server — an operator editing a
+// commercial-invoice line saw a stale Amount/Sub Total/Invoice Total until
+// they clicked Save elsewhere. This recomputes in the DOM immediately, then
+// debounces a real save so the correction persists (2026-08-13, shipment 11357).
+let ciLinesSaveTimer = null;
+
+function wireCommercialInvoiceLineEditing() {
+  const target = document.querySelector("#commercialInvoicePreview");
+  if (!target) return;
+
+  target.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-ci-field]");
+    if (!input) return;
+    const row = input.closest("[data-ci-line]");
+    if (!row) return;
+    if (input.dataset.ciField === "quantity" || input.dataset.ciField === "unitPrice") {
+      recalcCommercialInvoiceLineAmount(row);
+    }
+    recalcCommercialInvoiceTotalsFromDom();
+    if (ciLinesSaveTimer) clearTimeout(ciLinesSaveTimer);
+    ciLinesSaveTimer = setTimeout(commitCommercialInvoiceLines, 600);
+  });
+
+  target.addEventListener("focusout", (event) => {
+    if (event.target.closest("[data-ci-field]")) commitCommercialInvoiceLines();
+  });
+}
+
+function parseMoneyInput(value) {
+  const parsed = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function recalcCommercialInvoiceLineAmount(row) {
+  const qtyInput = row.querySelector('[data-ci-field="quantity"]');
+  const priceInput = row.querySelector('[data-ci-field="unitPrice"]');
+  const amountInput = row.querySelector('[data-ci-field="amount"]');
+  if (!qtyInput || !priceInput || !amountInput) return;
+  const amount = round2(parseMoneyInput(qtyInput.value) * parseMoneyInput(priceInput.value));
+  amountInput.value = formatPlainMoney(amount);
+}
+
+function recalcCommercialInvoiceTotalsFromDom() {
+  const totals = moduleState.invoicePreview?.totals;
+  if (!totals) return;
+  const subTotal = [...document.querySelectorAll('[data-ci-line] [data-ci-field="amount"]')]
+    .reduce((sum, input) => sum + parseMoneyInput(input.value), 0);
+  totals.subTotal = round2(subTotal);
+  totals.invoiceTotal = round2(totals.subTotal + Number(totals.packaging || 0) + Number(totals.freight || 0)
+    + Number(totals.other || 0) + Number(totals.insurance || 0));
+  renderCommercialInvoiceTotals();
+}
+
+async function commitCommercialInvoiceLines() {
+  ciLinesSaveTimer = null;
+  try {
+    await saveCommercialInvoiceLines();
+  } catch (error) {
+    setCoMessage(error.message, true);
+  }
 }
 
 function readCommercialInvoiceHeader() {
@@ -1343,6 +1425,10 @@ function formatMoney(value) {
     style: "currency",
     currency: "USD"
   }).format(Number(value));
+}
+
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function formatMoneyBbd(value) {
