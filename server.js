@@ -2503,7 +2503,8 @@ const server = http.createServer(async (req, res) => {
       requireLoopbackMonitor(req);
       const logDir = path.join(dataDir, "logs");
       fs.mkdirSync(logDir, { recursive: true });
-      const child = spawn(process.execPath, [path.join(__dirname, "scripts", "sync-rx-catalog.js")], { cwd: __dirname, detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
+      const runner = path.join(__dirname, "scripts", "run-rx-catalog-sync-hidden.ps1");
+      const child = spawn("powershell.exe", ["-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", runner, "-ProjectRoot", __dirname], { cwd: __dirname, detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
       child.unref();
       return { started: true, pid: child.pid };
     });
