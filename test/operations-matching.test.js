@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { buildBatchMatchQuery, buildZenBatchMatchQuery, classifyMatches, zenRowToMatchRow } = require("../lib/operations/matching");
+const { buildBatchMatchQuery, buildZenBatchMatchQuery, classifyMatches, stripReissueSuffix, zenRowToMatchRow } = require("../lib/operations/matching");
 
 test("batch matcher classifies missing, inactive, matched, and duplicate active references", () => {
   const result = classifyMatches(["A", "B", "C", "D"], [
@@ -40,6 +40,23 @@ test("Zen fallback matcher uses bound ODBC parameters and preserves the match sh
     received_at: undefined,
     is_active: true
   });
+});
+
+test("batch matcher falls back to the reissue-trimmed reference when the raw value isn't found", () => {
+  const result = classifyMatches(["1154-RE", "836-re", "999"], [
+    { supplier_reference: "1154", internal_order_id: 1, is_active: true },
+    { supplier_reference: "836", internal_order_id: 2, is_active: true }
+  ]);
+  assert.deepEqual(result.map((item) => item.matchResult), ["Matched", "Matched", "Not Found"]);
+  assert.equal(result[0].supplierReference, "1154-RE");
+  assert.equal(result[0].matches[0].internal_order_id, 1);
+});
+
+test("stripReissueSuffix trims a trailing -RE marker case-insensitively", () => {
+  assert.equal(stripReissueSuffix("1154-RE"), "1154");
+  assert.equal(stripReissueSuffix("836-re"), "836");
+  assert.equal(stripReissueSuffix("1154"), "1154");
+  assert.equal(stripReissueSuffix("1154-REISSUE"), "1154-REISSUE");
 });
 
 test("batch matcher supports TOG JobID references", () => {
