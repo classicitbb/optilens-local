@@ -31,8 +31,14 @@ stores only a credential reference. Each run scans the configured date/message
 window and uses the existing idempotent capture path. The loopback monitor
 endpoint `/api/monitor/supplier-mailbox-poller` and the full diagnostics show
 the poller's schedule, last run, last result counts, and last error. A manual
-`POST /api/operations/mailbox/sync` remains available. The poller does not
-write to Innovations/PSQL or update order statuses automatically.
+`POST /api/operations/mailbox/sync` remains available. The poller does not write to Innovations/PSQL unless both
+`OPTILENS_WRITEBACK_ENABLED` and `OPTILENS_SUPPLIER_STATUS_AUTO_APPLY` are true.
+Auto-apply is off by default. When enabled, a one-time Status mapping Confirm in
+Settings is enough: later high-confidence matches (exactly one active order,
+enabled supplier rule, confirmed mapping, allowlisted CurrentStatusID) are
+written through `applyCurrentStatusUpdate` after ingest. Exceptions and any row
+that fails those checks still wait for a person. Manual Scan Inbox uses the
+same ingest path.
 
 The first live read-only dry run connected successfully to the configured
 mailbox and scanned 20 recent Inbox messages. TOG WIP and Dispatch messages

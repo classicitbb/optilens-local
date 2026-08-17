@@ -1,0 +1,22 @@
+{
+  "name": "optilens-qbo-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuickBooks Online sandbox OAuth 2.0 scaffold using Intuit's official intuit-oauth client",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "company": "node src/calls/companyInfo.js",
+    "userinfo": "node src/calls/userInfo.js",
+    "charge": "node src/calls/createCharge.js",
+    "refresh": "node src/calls/refresh.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "intuit-oauth": "^4.2.5"
+  }
+}
