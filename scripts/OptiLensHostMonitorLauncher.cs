@@ -54,12 +54,14 @@ internal sealed class OptiLensHostMonitor : Form
     private bool firstRefresh = true;
     private string lastIncidentFingerprint = "";
     private bool repairInProgress;
+    private readonly bool startVisible;
 
-    public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal)
+    public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal, bool visibleOnStartup)
     {
         projectRoot = root;
         port = requestedPort;
         showSignal = signal;
+        startVisible = visibleOnStartup;
         Text = "OptiLens Local Host Monitor";
         ClientSize = new Size(760, 500);
         MinimumSize = new Size(620, 380);
@@ -253,7 +255,7 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshRxAliasSyncStatus();
             RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
-            if (firstRefresh && !hasFailure && !hasWarning)
+            if (firstRefresh && !startVisible && !hasFailure && !hasWarning)
             {
                 firstRefresh = false;
                 BeginInvoke(new Action(HideToTray));
@@ -485,9 +487,11 @@ internal sealed class OptiLensHostMonitor : Form
         {
             var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var port = 8080;
+            var trayMode = false;
             for (var i = 0; i < args.Length - 1; i++) if (args[i] == "--port") int.TryParse(args[i + 1], out port);
+            trayMode = args.Any(arg => arg == "--tray" || arg == "--background");
             Log("Main starting port " + port + " root " + root);
-            using (var showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Global\\OptiLensLocalHostMonitorShow"))
+            using (var showSignal = CreateShowSignal())
             using (var mutex = new System.Threading.Mutex(false, "Global\\OptiLensLocalHostTray"))
             {
                 bool hasHandle = false;
@@ -516,7 +520,7 @@ internal sealed class OptiLensHostMonitor : Form
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
                     Log("starting Application.Run");
-                    Application.Run(new OptiLensHostMonitor(root, port, showSignal));
+                    Application.Run(new OptiLensHostMonitor(root, port, showSignal, !trayMode));
                     Log("Application.Run ended normally");
                 }
                 finally
@@ -529,6 +533,16 @@ internal sealed class OptiLensHostMonitor : Form
         {
             Log("fatal " + error);
             throw;
+        }
+    }
+
+    private static System.Threading.EventWaitHandle CreateShowSignal()
+    {
+        try { return new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Global\\OptiLensLocalHostMonitorShow"); }
+        catch (UnauthorizedAccessException)
+        {
+            Log("Global show signal unavailable; using session-local signal");
+            return new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "OptiLensLocalHostMonitorShow");
         }
     }
 }

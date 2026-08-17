@@ -33,7 +33,7 @@ shell.Run """" & "$powerShell" & """ -NoProfile -WindowStyle Hidden -ExecutionPo
 
 Remove-Item -LiteralPath $oldLauncherPath -Force -ErrorAction SilentlyContinue
 
-$action = New-ScheduledTaskAction -Execute $monitorExe -Argument "--port $Port" -WorkingDirectory $ProjectRoot
+$action = New-ScheduledTaskAction -Execute $monitorExe -Argument "--port $Port --tray" -WorkingDirectory $ProjectRoot
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
