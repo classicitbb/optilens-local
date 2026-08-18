@@ -6,6 +6,10 @@ const { ensureAccessToken } = require('../ensureAccessToken');
 const { logIntuitError } = require('../errors');
 
 const CSV_PATH = path.join(__dirname, '..', '..', 'QBO CSV Import Format..csv');
+// Required by the current Innovations FinARSalesJournal preview but absent from
+// the historic CSV import sample. Keep these sandbox-only fixtures explicit.
+const EXTRA_CUSTOMER_NAMES = ['Everything Glasses and Shades - EGAS', 'VYVE Eye Care - VYVE'];
+const EXTRA_ITEM_NAMES = ['Stock Credit Orders - Local'];
 
 function csvRows(raw) {
   const lines = raw.split(/\r?\n/).filter(Boolean);
@@ -64,8 +68,8 @@ async function main() {
   if (!realmId) throw new Error('Missing QBO realmId. Re-authorize via /connect.');
 
   const rows = csvRows(fs.readFileSync(CSV_PATH, 'utf8'));
-  const customerNames = [...new Set(rows.map((row) => row.Customer.trim()).filter(Boolean))].sort();
-  const itemNames = [...new Set(rows.map((row) => row['Item (Product/Service)'].trim()).filter(Boolean))].sort();
+  const customerNames = [...new Set([...rows.map((row) => row.Customer.trim()).filter(Boolean), ...EXTRA_CUSTOMER_NAMES])].sort();
+  const itemNames = [...new Set([...rows.map((row) => row['Item (Product/Service)'].trim()).filter(Boolean), ...EXTRA_ITEM_NAMES])].sort();
 
   const customers = await query(oauthClient, realmId, 'SELECT * FROM Customer MAXRESULTS 1000');
   const items = await query(oauthClient, realmId, 'SELECT * FROM Item MAXRESULTS 1000');
