@@ -174,6 +174,7 @@ const { syncRxCoatings } = require("./lib/rx-catalog-sync");
 const { getSetting, setSetting } = require("./lib/app-settings");
 const { recordAuditEvent } = require("./lib/audit");
 const { handleOperationsRoute } = require("./lib/operations/routes");
+const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1039,6 +1040,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
 
   // ── Actian lens active/inactive status sync ──────────────────────────────
   if (url.pathname === "/api/automation/actian-lens-status-sync" && req.method === "GET") {

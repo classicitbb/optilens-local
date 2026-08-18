@@ -25,6 +25,7 @@
 .scheduled-task-card { display:grid; gap:16px; border:1px solid #cbd7e4; border-radius:10px; background:#fffdf9; padding:16px; box-shadow:0 8px 24px rgba(11,30,53,.05); }
 .scheduled-task-main { display:flex; align-items:flex-start; gap:10px; }.scheduled-task-icon { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:9px; background:#176d8d; color:#fff; font-size:21px; font-weight:800; }
 .scheduled-task-main h3 { margin:1px 0 3px; color:#071d35; font-size:15px; }.scheduled-task-main p { margin:0; color:#56728d; font-size:12px; line-height:1.35; }
+.qbo-ledger-preview { border-top:1px solid #d9e3ec; padding-top:10px; color:#56728d; font-size:11px; line-height:1.55; }
 .scheduled-task-meta { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0; }.scheduled-task-meta div { min-width:0; border:1px solid #d9e3ec; border-radius:7px; background:#f8fbfd; padding:8px 9px; }.scheduled-task-meta dt { color:#688199; font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }.scheduled-task-meta dd { overflow:hidden; margin:3px 0 0; color:#112d48; font-size:12px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
 @media (max-width:700px) { .scheduled-heading { display:block; }.scheduled-heading .button { margin-top:10px; }.scheduled-task-meta { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 .automation-email-page { background:#f4f1e9; }

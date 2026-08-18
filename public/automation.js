@@ -4,6 +4,7 @@
 
   const state = { catalog: [], stagedFiles: [] };
   const $ = (selector) => document.querySelector(selector);
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const status = $("#rxStatus");
   const lensStatusSyncButton = $("#runLensStatusSync");
   const lensStatusSyncNotice = $("#lensStatusSyncNotice");
@@ -263,6 +264,42 @@
     }
   }
 
+  const qboSyncButton = $("#runQboInvoiceSync");
+  const qboDryRunButton = $("#runQboInvoiceSyncDryRun");
+  function renderQboInvoiceSyncStatus(sync) {
+    $("#qboInvoiceSyncDetail").textContent = sync.detail;
+    $("#qboInvoiceSyncMode").textContent = sync.environment ? `${sync.environment}${sync.realmId ? ` · realm ${sync.realmId}` : ""}` : "Not configured";
+    $("#qboInvoiceSyncSchedule").textContent = `Every ${sync.intervalMinutes} minutes`;
+    $("#qboInvoiceSyncTaskState").textContent = sync.running ? "Running" : (sync.task?.state || "Not installed");
+    $("#qboInvoiceSyncLastRun").textContent = formatSyncTime(sync.lastRun);
+    qboSyncButton.disabled = Boolean(sync.running);
+    qboDryRunButton.disabled = Boolean(sync.running);
+  }
+  async function loadQboInvoiceLedger() {
+    try {
+      const data = await (await request("/api/automation/qbo-invoices/ledger?limit=8")).json();
+      const rows = data.rows || [];
+      $("#qboInvoiceSyncLedger").innerHTML = rows.length
+        ? `<strong>Recent processed invoices</strong><br>${rows.map((row) => `${escapeHtml(row.source_invoice_id)} · ${escapeHtml(row.source_customer_name || row.source_customer_account || "unmatched")} · <b>${escapeHtml(row.status)}</b>`).join("<br>")}`
+        : "No transaction history loaded.";
+    } catch (error) { $("#qboInvoiceSyncLedger").textContent = error.message || "Unable to load transaction history."; }
+  }
+  async function loadQboInvoiceSyncStatus() {
+    try { renderQboInvoiceSyncStatus(await (await request("/api/automation/qbo-invoices")).json()); }
+    catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "Unable to load QuickBooks sync status."; qboSyncButton.disabled = true; qboDryRunButton.disabled = true; }
+  }
+  async function runQboInvoiceSync(dryRun) {
+    qboSyncButton.disabled = true; qboDryRunButton.disabled = true;
+    $("#qboInvoiceSyncDetail").textContent = dryRun ? "Previewing eligible Innovations invoices…" : "Synchronizing invoices to QuickBooks…";
+    try {
+      const result = await (await postJson("/api/automation/qbo-invoices/run", { dryRun })).json();
+      const c = result.counts || {};
+      $("#qboInvoiceSyncDetail").textContent = `${dryRun ? "Preview" : "Sync"} complete: ${c.created || 0} created, ${c.updated || 0} updated, ${c.skipped || 0} skipped, ${c.exception || 0} exceptions.`;
+      await loadQboInvoiceSyncStatus();
+      await loadQboInvoiceLedger();
+    } catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "QuickBooks invoice sync failed."; qboSyncButton.disabled = false; qboDryRunButton.disabled = false; }
+  }
+
   document.querySelectorAll(".workflow-tabs button").forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(".workflow-tabs button").forEach((item) => item.classList.toggle("active", item === button));
     document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
@@ -276,7 +313,11 @@
   $("#downloadRx").addEventListener("click", () => run(download));
   $("#releaseRx").addEventListener("click", () => run(release));
   lensStatusSyncButton.addEventListener("click", runLensStatusSync);
+  qboSyncButton.addEventListener("click", () => runQboInvoiceSync(false));
+  qboDryRunButton.addEventListener("click", () => runQboInvoiceSync(true));
   toggleConditionalFields();
   load();
   loadLensStatusSyncStatus();
+  loadQboInvoiceSyncStatus();
+  loadQboInvoiceLedger();
 })();

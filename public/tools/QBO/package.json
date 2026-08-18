@@ -10,6 +10,9 @@
   "scripts": {
     "start": "node src/server.js",
     "company": "node src/calls/companyInfo.js",
+    "seed:sandbox": "node src/calls/seedSandboxFixtures.js",
+    "inspect:sandbox": "node src/calls/inspectSandboxCatalog.js",
+    "test:sandbox-transactions": "node src/calls/testSandboxTransactions.js",
     "userinfo": "node src/calls/userInfo.js",
     "charge": "node src/calls/createCharge.js",
     "refresh": "node src/calls/refresh.js"

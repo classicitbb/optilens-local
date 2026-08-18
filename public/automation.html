@@ -180,6 +180,29 @@
             <div><dt>Last run</dt><dd id="lensStatusSyncLastRun">—</dd></div>
           </dl>
         </article>
+
+        <article class="scheduled-task-card qbo-scheduled-card" aria-labelledby="qboInvoiceSyncTitle">
+          <div class="scheduled-heading">
+            <div class="scheduled-task-main">
+              <div class="scheduled-task-icon" aria-hidden="true">QB</div>
+              <div>
+                <h3 id="qboInvoiceSyncTitle">Innovations → QuickBooks invoices</h3>
+                <p id="qboInvoiceSyncDetail">Checking the connection and latest sync…</p>
+              </div>
+            </div>
+            <div class="scheduled-actions">
+              <button class="button secondary" id="runQboInvoiceSyncDryRun" type="button">Preview new invoices</button>
+              <button class="button primary" id="runQboInvoiceSync" type="button">Run sync</button>
+            </div>
+          </div>
+          <dl class="scheduled-task-meta">
+            <div><dt>Mode</dt><dd id="qboInvoiceSyncMode">—</dd></div>
+            <div><dt>Schedule</dt><dd id="qboInvoiceSyncSchedule">—</dd></div>
+            <div><dt>Task state</dt><dd id="qboInvoiceSyncTaskState">—</dd></div>
+            <div><dt>Last run</dt><dd id="qboInvoiceSyncLastRun">—</dd></div>
+          </dl>
+          <div class="qbo-ledger-preview" id="qboInvoiceSyncLedger" aria-live="polite">No transaction history loaded.</div>
+        </article>
       </section>
 
       <section class="workflow-panel" id="audit">
