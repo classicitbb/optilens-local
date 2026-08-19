@@ -1,0 +1,342 @@
+{
+ "data": {
+  "IRData": {
+   "customReportFields": [
+    {
+     "groupIndex": -1,
+     "dataType": 4,
+     "sortIndex": -1,
+     "oldID": 7046,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "alignment": 1,
+     "allowSorting": true,
+     "visible": true,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 100,
+     "displayFormat": "#0",
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "InvoiceNo",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "InvoiceNo",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "nullString": "0"
+    },{
+     "groupIndex": -1,
+     "dataType": 1,
+     "sortIndex": -1,
+     "oldID": 7047,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 1,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 139,
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "Customer",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "Customer",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 1
+    },{
+     "groupIndex": -1,
+     "dataType": 1,
+     "sortIndex": -1,
+     "oldID": 7048,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 2,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 191,
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "Item (Product\/Service)",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "Item (Product\/Service)",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 2
+    },{
+     "groupIndex": -1,
+     "dataType": 1,
+     "sortIndex": -1,
+     "oldID": 7050,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 8,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 100,
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "ItemTaxCode",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "ItemTaxCode",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 8
+    },{
+     "groupIndex": -1,
+     "dataType": 3,
+     "sortIndex": -1,
+     "oldID": 7052,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 6,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 100,
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "InvoiceDate",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "InvoiceDate",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 6
+    },{
+     "groupIndex": -1,
+     "dataType": 3,
+     "sortIndex": -1,
+     "oldID": 7053,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 7,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 211,
+     "displayFormat": "DD\/MM\/YYYY",
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "DueDate",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "DueDate",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 7
+    },{
+     "groupIndex": -1,
+     "dataType": 1,
+     "oldID": 7054,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 3,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 338,
+     "sorted": true,
+     "allowSearching": true,
+     "fieldName": "Memo",
+     "sortOrder": 2,
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "Memo",
+     "allowFiltering": true,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 3
+    },{
+     "groupIndex": -1,
+     "dataType": 4,
+     "sortIndex": -1,
+     "oldID": 7055,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "alignment": 1,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 5,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 100,
+     "displayFormat": "#,##0.00",
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "ItemAmount",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "ItemAmount",
+     "allowFiltering": true,
+     "aggregation": 1,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 4,
+     "nullString": "0.00"
+    },{
+     "groupIndex": -1,
+     "dataType": 4,
+     "sortIndex": -1,
+     "oldID": 7056,
+     "allowExporting": true,
+     "allowHiding": true,
+     "allowMoving": true,
+     "alignment": 1,
+     "allowSorting": true,
+     "visible": true,
+     "visibleIndex": 4,
+     "canCustomize": true,
+     "customReportID": 314,
+     "width": 100,
+     "displayFormat": "#,##0.00",
+     "sorted": false,
+     "allowSearching": true,
+     "fieldName": "ItemRate",
+     "formulaZeroToNull": false,
+     "allowFixing": true,
+     "displayName": "ItemRate",
+     "allowFiltering": true,
+     "aggregation": 1,
+     "grouped": false,
+     "isFormula": false,
+     "allowGrouping": true,
+     "fieldIndex": 5,
+     "nullString": "0.00"
+    }],
+   "IRFieldConditions": [],
+   "customReportParents": [
+    {
+     "parentName": "Sales",
+     "parentGUID": "3CF3AFD6-28D1-4594-B49C-012BC9B21A92"
+    }],
+   "constraintIDs": [],
+   "customReport": {
+    "showFooter": true,
+    "showToolbar": true,
+    "PID": 111,
+    "allowSorting": true,
+    "editable": true,
+    "hasParameters": false,
+    "queryTimeout": 300000,
+    "systemGUID": "892D9616-38C9-4FFB-9878-4C0C10AF39F0",
+    "showColumnHeaders": true,
+    "enableAutoRefresh": false,
+    "allowFiltering": true,
+    "reportLayoutType": 1,
+    "name": "Invoice Export to Quickbooks - All",
+    "securityEnabled": false,
+    "SQLID": 265,
+    "displayOrder": 20,
+    "allowGrouping": true,
+    "allowCustomizing": true
+   },
+   "customReportSQL": {
+    "SQLQuery": "DECLARE @StartDate date = '2026-01-01';
+                 DECLARE @EndDate   date = '2026-08-17';
+                 
+                 SELECT
+                     fsj.InvoiceID AS InvoiceNo,
+                     c.CustomerName + ' - ' + c.AccountNumber AS Customer,
+                     CASE
+                         WHEN ot.OrderTypeID = 6
+                             THEN 'Stock Orders - ' + bg.BuyinGroupName
+                         ELSE ot.OrderTypeName + ' Orders - ' + bg.BuyinGroupName
+                     END AS [Item (Product\/Service)],
+                     fsj.Patient AS Memo,
+                     fsj.Total AS ItemAmount,
+                     fsj.Total AS ItemRate,
+                     CAST(fsj.InvoiceTime AS date) AS InvoiceDate,
+                     CAST(DATEADD(DAY, 30, fsj.InvoiceTime) AS date) AS DueDate,
+                     CASE
+                         WHEN fsj.TaxAmount = 0 THEN 'VAT-0%'
+                         ELSE 'VAT 17.5%'
+                     END AS ItemTaxCode
+                 FROM FinARSalesJournal AS fsj
+                 INNER JOIN FinARPeriods AS fp
+                     ON fp.FinARPeriodID = fsj.FinARPeriodID
+                 INNER JOIN OrderTypes AS ot
+                     ON ot.OrderTypeID = fsj.OrderType
+                 INNER JOIN Customers AS c
+                     ON c.CustomerID = fsj.CustomerID
+                 LEFT JOIN BuyinGroups AS bg
+                     ON bg.BuyinGroupID = c.BuyinGroupID
+                 WHERE fsj.FinARPeriodID >= 74
+                   AND (fsj.Patient <> 'FINANCE CHARGE' OR fsj.Patient IS NOT NULL)
+                   AND ot.OrderType IN (1, 3, 5, 6, 8, 9, 10, 11, 12, 25, 26, 27, 30, 33, 36, 37)
+                   AND (c.AccountNumber NOT IN ('3628', '1000', '1001', '650044', 'IDS', 'OSVS', 'BOS', 'PSMT')
+                        OR c.AccountNumber IS NULL)
+                   AND c.AccountNumber NOT LIKE '%ED'
+                   AND (c.IsActive <> 0 OR c.IsActive IS NULL)
+                   AND CAST(fsj.InvoiceTime AS date) ['BETWEEN'].[BetweenDateRange:'Report Date Range']
+                 
+                 UNION ALL
+                 
+                 SELECT
+                     i.InvoiceID AS InvoiceNo,
+                     c.CustomerName + ' - ' + c.AccountNumber AS Customer,
+                     CASE
+                         WHEN ot.OrderTypeID = 6
+                             THEN 'Stock Orders - ' + bg.BuyinGroupName
+                         ELSE ot.OrderTypeName + ' Orders - ' + bg.BuyinGroupName
+                     END AS [Item (Product\/Service)],
+                     o.PatientID AS Memo,
+                     i.Total AS ItemAmount,
+                     i.Total AS ItemRate,
+                     CAST(i.InvoiceTime AS date) AS InvoiceDate,
+                     CAST(DATEADD(DAY, 30, i.InvoiceTime) AS date) AS DueDate,
+                     CASE
+                         WHEN i.TaxAmount = 0 THEN 'VAT-0%'
+                         ELSE 'VAT 17.5%'
+                     END AS ItemTaxCode
+                 FROM Invoices AS i
+                 LEFT JOIN Orders AS o
+                     ON o.OrderID = i.OrderID
+                 LEFT JOIN OrderTypes AS ot
+                     ON ot.OrderTypeID = o.OrderType
+                 LEFT JOIN Customers AS c
+                     ON c.CustomerID = i.CustomerID
+                 LEFT JOIN BuyinGroups AS bg
+                     ON bg.BuyinGroupID = c.BuyinGroupID
+                 WHERE ot.OrderType IN (1, 3, 5, 6, 8, 9, 10, 11, 12, 25, 26, 27, 30, 33, 36, 37)
+                   AND c.AccountNumber = 'PSMT'
+                   AND CAST(i.InvoiceTime AS date) ['BETWEEN'].[BetweenDateRange:'Report Date Range'];"
+   },
+   "constantIDs": []
+  }
+ }
+}
