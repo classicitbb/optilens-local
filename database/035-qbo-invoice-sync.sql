@@ -65,7 +65,10 @@ BEGIN
     );
 END;
 
-CREATE INDEX IX_qbo_invoice_sync_ledger_status ON qbo.invoice_sync_ledger(status, updated_at DESC);
-CREATE INDEX IX_qbo_invoice_sync_ledger_source_time ON qbo.invoice_sync_ledger(source_invoice_time DESC);
-CREATE INDEX IX_qbo_invoice_sync_ledger_qbo ON qbo.invoice_sync_ledger(qbo_realm_id, qbo_transaction_type, qbo_transaction_id);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_qbo_invoice_sync_ledger_status' AND object_id = OBJECT_ID(N'qbo.invoice_sync_ledger'))
+    CREATE INDEX IX_qbo_invoice_sync_ledger_status ON qbo.invoice_sync_ledger(status, updated_at DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_qbo_invoice_sync_ledger_source_time' AND object_id = OBJECT_ID(N'qbo.invoice_sync_ledger'))
+    CREATE INDEX IX_qbo_invoice_sync_ledger_source_time ON qbo.invoice_sync_ledger(source_invoice_time DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_qbo_invoice_sync_ledger_qbo' AND object_id = OBJECT_ID(N'qbo.invoice_sync_ledger'))
+    CREATE INDEX IX_qbo_invoice_sync_ledger_qbo ON qbo.invoice_sync_ledger(qbo_realm_id, qbo_transaction_type, qbo_transaction_id);
 GO

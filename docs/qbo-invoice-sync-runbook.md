@@ -35,6 +35,38 @@ npm run qbo:invoice-sync:task:install
 powershell -File scripts/install-qbo-invoice-sync-task.ps1 -Apply
 ```
 
+## Production cutover and approval policy
+
+Production is reconciliation-first and fail-closed. A production run never creates
+or updates a QBO transaction directly, including when `--apply` is used. For each
+Innovations invoice it searches both QBO `Invoice` and `CreditMemo` records by
+`DocNumber`, then accepts only one record whose private note is exactly
+`OptiLens source Innovations invoice {InvoiceID}`.
+
+- One exact existing match is linked to the private ledger without changing QBO.
+- No match becomes a durable `pending_approval` create proposal.
+- A changed source invoice linked to a QBO transaction becomes a durable
+  `pending_approval` update proposal.
+- Zero, multiple, wrong-type, or incorrectly marked matches are exceptions. The
+  integration does not guess or create a duplicate.
+
+An authenticated automation manager may apply one pending proposal through:
+
+`POST /api/automation/qbo-invoices/{sourceInvoiceId}/approve`
+
+That operation re-reads the Innovations invoice, QBO mappings, and QBO record.
+For updates it also compares the live QBO transaction with the snapshot captured
+during reconciliation. Any change since review blocks the write and requires a new
+reconciliation. Production writes additionally require the host-only setting:
+
+```text
+OPTILENS_QBO_PRODUCTION_APPLY_ENABLED=true
+```
+
+Leave the setting absent or false during reconciliation and review. Do not add it
+to committed `.env` files. The ledger and append-only audit log retain the proposal,
+approver, QBO ID, snapshot hash, and final result.
+
 ## Records and audit
 
 `qbo.invoice_sync_ledger` is the idempotency and reconciliation ledger. It stores one row per Innovations invoice and QBO realm, source totals and timestamps, QBO transaction IDs, payload hash, status, retry count, and errors.
