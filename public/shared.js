@@ -75,6 +75,7 @@ function setup() {
   wireAuth();
   wireUpdateCheck();
   wireConnectionRecovery();
+  wireGlobalAssistant();
 }
 
 function exposeShellCatalog() {
@@ -151,6 +152,9 @@ function renderShellHeader() {
       </button>` : ""}
       <button class="${helpClasses.join(" ")}" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
         <span class="material-symbols-outlined">help</span>
+      </button>
+      <button class="top-action-btn assistant-toggle-btn" id="globalAssistantToggle" type="button" aria-label="OptiLens AI Assistant" title="OptiLens AI Assistant (Ctrl+Shift+A)">
+        <span class="material-symbols-outlined">smart_toy</span>
       </button>
       <button class="top-action-btn theme-toggle material-symbols-outlined" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">dark_mode</button>
       <button class="${userChipClasses.join(" ")}" type="button" aria-label="User">
@@ -425,6 +429,63 @@ function injectOverlays() {
   </div>
 </div>`;
 
+  const assistantFabHtml = `
+<button id="globalAssistantFab" class="global-assistant-fab" type="button" aria-label="OptiLens AI Assistant" title="OptiLens AI Assistant (Ctrl+Shift+A)">
+  <span class="material-symbols-outlined">smart_toy</span>
+  <span class="fab-badge">AI</span>
+</button>`;
+
+  const assistantDrawerHtml = `
+<div id="globalAssistantDrawer" class="global-assistant-drawer" hidden role="dialog" aria-label="OptiLens System Assistant">
+  <div class="assistant-drawer-header">
+    <div class="assistant-drawer-title">
+      <span class="material-symbols-outlined assistant-logo-icon">smart_toy</span>
+      <div class="assistant-title-text">
+        <strong>OptiLens Assistant</strong>
+        <span class="assistant-context-chip" id="assistantRouteChip">📍 Page Context</span>
+      </div>
+    </div>
+    <div class="assistant-drawer-actions">
+      <button type="button" id="assistantDockToggle" title="Dock Side / Float" class="icon-btn">
+        <span class="material-symbols-outlined" id="assistantDockIcon">dock</span>
+      </button>
+      <button type="button" id="assistantConfigBtn" title="Configure Chat API" class="icon-btn">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+      <button type="button" id="assistantCloseBtn" title="Close Assistant" class="icon-btn">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="assistant-drawer-messages" id="assistantMessages">
+    <div class="assistant-msg assistant-msg-ai">
+      <div class="msg-avatar"><span class="material-symbols-outlined">smart_toy</span></div>
+      <div class="msg-content">
+        Hello! I'm your system-wide OptiLens AI Assistant. Ask me anything, navigate modules, or dictate voice commands.
+      </div>
+    </div>
+  </div>
+
+  <div class="assistant-drawer-controls">
+    <div class="assistant-quick-chips" id="assistantQuickChips"></div>
+
+    <div class="assistant-input-row">
+      <div class="assistant-input-wrap">
+        <input type="text" id="assistantInput" placeholder="Ask assistant or dictate voice command..." aria-label="OptiLens Assistant question" autocomplete="off">
+        <button type="button" id="assistantMicBtn" class="assistant-mic-btn" title="Voice mic transcription">
+          <span class="material-symbols-outlined">mic</span>
+        </button>
+      </div>
+      <button type="button" id="assistantSendBtn" class="assistant-send-btn" title="Send Question">
+        <span class="material-symbols-outlined">send</span>
+      </button>
+    </div>
+
+    <div id="assistantVoiceStatus" class="assistant-voice-status" hidden></div>
+  </div>
+</div>`;
+
   let html = "";
   if (!document.getElementById("launcherOverlay")) html += launcherHtml;
   if (!document.getElementById("searchOverlay")) html += searchHtml;
@@ -432,6 +493,8 @@ function injectOverlays() {
   if (!document.getElementById("accountOverlay")) html += accountHtml;
   if (!document.getElementById("updateLogOverlay")) html += updateLogHtml;
   if (!document.getElementById("updateProgressOverlay")) html += updateProgressHtml;
+  if (!document.getElementById("globalAssistantFab")) html += assistantFabHtml;
+  if (!document.getElementById("globalAssistantDrawer")) html += assistantDrawerHtml;
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
@@ -1533,4 +1596,264 @@ function esc(v) {
   return String(v)
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+// ─── Global System Assistant ──────────────────────────────────────────────────
+
+const GLOBAL_ASSISTANT_STATE = {
+  isOpen: false,
+  isDocked: false,
+  listening: false,
+  asking: false,
+  history: []
+};
+
+function wireGlobalAssistant() {
+  const toggleBtn = document.querySelector("#globalAssistantToggle");
+  const fabBtn = document.querySelector("#globalAssistantFab");
+  const drawer = document.querySelector("#globalAssistantDrawer");
+  const closeBtn = document.querySelector("#assistantCloseBtn");
+  const dockBtn = document.querySelector("#assistantDockToggle");
+  const configBtn = document.querySelector("#assistantConfigBtn");
+  const input = document.querySelector("#assistantInput");
+  const sendBtn = document.querySelector("#assistantSendBtn");
+  const micBtn = document.querySelector("#assistantMicBtn");
+  const chipContainer = document.querySelector("#assistantQuickChips");
+  const routeChip = document.querySelector("#assistantRouteChip");
+
+  if (!drawer) return;
+
+  function updateRouteChip() {
+    if (routeChip) {
+      const p = window.location.pathname;
+      routeChip.textContent = `📍 ${p === "/" ? "Home" : p}`;
+    }
+  }
+
+  function renderQuickChips() {
+    if (!chipContainer) return;
+    const p = window.location.pathname;
+    let chips = ["Check system health", "Run diagnostics", "Go to Delivery & Export", "Go to Business Metrics"];
+
+    if (p.includes("business-metrics")) {
+      chips = ["What should I write off first?", "Check dead stock value", "Check system health", "Go to Delivery & Export"];
+    } else if (p.includes("delivery-export")) {
+      chips = ["Check active shipments", "Go to Business Metrics", "Check system health", "Run diagnostics"];
+    } else if (p.includes("automation")) {
+      chips = ["Check supplier mailboxes", "Check BeSwift status", "Check system health", "Go to Pricing Automation"];
+    }
+
+    chipContainer.innerHTML = chips.map(q => `<button type="button" class="assistant-chip" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+    chipContainer.querySelectorAll("[data-q]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (input) input.value = btn.dataset.q;
+        sendGlobalAssistantQuestion();
+      });
+    });
+  }
+
+  function toggleAssistant(show) {
+    GLOBAL_ASSISTANT_STATE.isOpen = typeof show === "boolean" ? show : !GLOBAL_ASSISTANT_STATE.isOpen;
+    if (GLOBAL_ASSISTANT_STATE.isOpen) {
+      drawer.removeAttribute("hidden");
+      updateRouteChip();
+      renderQuickChips();
+      if (input) input.focus();
+    } else {
+      drawer.setAttribute("hidden", "");
+    }
+  }
+
+  if (toggleBtn) toggleBtn.addEventListener("click", () => toggleAssistant());
+  if (fabBtn) fabBtn.addEventListener("click", () => toggleAssistant());
+  if (closeBtn) closeBtn.addEventListener("click", () => toggleAssistant(false));
+
+  if (dockBtn) {
+    dockBtn.addEventListener("click", () => {
+      GLOBAL_ASSISTANT_STATE.isDocked = !GLOBAL_ASSISTANT_STATE.isDocked;
+      drawer.classList.toggle("is-docked", GLOBAL_ASSISTANT_STATE.isDocked);
+    });
+  }
+
+  if (configBtn) {
+    configBtn.addEventListener("click", () => {
+      window.location.href = "/settings.html";
+    });
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      toggleAssistant();
+    }
+  });
+
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendGlobalAssistantQuestion();
+    });
+  }
+  if (sendBtn) sendBtn.addEventListener("click", sendGlobalAssistantQuestion);
+  if (micBtn) micBtn.addEventListener("click", toggleGlobalMic);
+
+  const msgContainer = document.querySelector("#assistantMessages");
+  if (msgContainer) {
+    msgContainer.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".action-exec-btn");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const params = JSON.parse(btn.dataset.params || "{}");
+      btn.disabled = true;
+      btn.textContent = "Executing...";
+
+      try {
+        if (action === "navigate_to" && params.url) {
+          window.location.href = params.url;
+          return;
+        }
+
+        const res = await authFetch("/api/assistant/execute-action", {
+          method: "POST",
+          body: { action, params }
+        });
+
+        appendAssistantMessage("ai", `✅ **Action Executed Successfully**\n\`\`\`json\n${JSON.stringify(res.result || res, null, 2)}\n\`\`\``);
+      } catch (err) {
+        appendAssistantMessage("ai", `❌ **Action Execution Failed**: ${err.message || err}`);
+      }
+    });
+  }
+}
+
+async function sendGlobalAssistantQuestion() {
+  const input = document.querySelector("#assistantInput");
+  const q = input ? input.value.trim() : "";
+  if (!q || GLOBAL_ASSISTANT_STATE.asking) return;
+
+  GLOBAL_ASSISTANT_STATE.asking = true;
+  if (input) input.value = "";
+
+  appendAssistantMessage("user", q);
+  GLOBAL_ASSISTANT_STATE.history.push({ role: "user", content: q });
+
+  const loadingId = appendAssistantMessage("ai", "Thinking...");
+
+  try {
+    const res = await authFetch("/api/assistant/ask", {
+      method: "POST",
+      body: {
+        question: q,
+        route: window.location.pathname,
+        history: GLOBAL_ASSISTANT_STATE.history
+      }
+    });
+
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+
+    GLOBAL_ASSISTANT_STATE.history.push({ role: "assistant", content: res.answer || "" });
+
+    appendAssistantMessage("ai", res.answer || "No response.", res.actionProposal);
+  } catch (err) {
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+    appendAssistantMessage("ai", `⚠️ Error: ${err.message || err}`);
+  } finally {
+    GLOBAL_ASSISTANT_STATE.asking = false;
+  }
+}
+
+function appendAssistantMessage(role, text, actionProposal = null) {
+  const container = document.querySelector("#assistantMessages");
+  if (!container) return;
+
+  const msgId = "msg_" + Math.random().toString(36).substr(2, 9);
+  const div = document.createElement("div");
+  div.className = `assistant-msg assistant-msg-${role}`;
+  div.id = msgId;
+
+  const icon = role === "ai" ? "smart_toy" : "person";
+  let contentHtml = esc(text).replace(/\n/g, "<br>");
+
+  if (actionProposal) {
+    contentHtml += `
+      <div class="assistant-action-card">
+        <div class="action-card-header">
+          <span class="material-symbols-outlined">bolt</span>
+          <strong>${esc(actionProposal.label || actionProposal.action)}</strong>
+        </div>
+        <p class="action-card-desc">${esc(actionProposal.description || "")}</p>
+        <button type="button" class="action-exec-btn" data-action="${esc(actionProposal.action)}" data-params='${esc(JSON.stringify(actionProposal.params || {}))}'>
+          Execute Action
+        </button>
+      </div>`;
+  }
+
+  div.innerHTML = `
+    <div class="msg-avatar"><span class="material-symbols-outlined">${icon}</span></div>
+    <div class="msg-content">${contentHtml}</div>
+  `;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return msgId;
+}
+
+function toggleGlobalMic() {
+  const micBtn = document.querySelector("#assistantMicBtn");
+  const statusEl = document.querySelector("#assistantVoiceStatus");
+  const input = document.querySelector("#assistantInput");
+
+  if (GLOBAL_ASSISTANT_STATE.listening) {
+    if (GLOBAL_ASSISTANT_STATE.recognition) {
+      try { GLOBAL_ASSISTANT_STATE.recognition.stop(); } catch (_) {}
+    }
+    GLOBAL_ASSISTANT_STATE.listening = false;
+    if (micBtn) micBtn.classList.remove("is-listening");
+    if (statusEl) statusEl.hidden = true;
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+      const baseText = input ? input.value.trim() + " " : "";
+
+      rec.onstart = () => {
+        GLOBAL_ASSISTANT_STATE.listening = true;
+        if (micBtn) micBtn.classList.add("is-listening");
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = "🎙 Listening... Speak your request.";
+        }
+      };
+
+      rec.onresult = (e) => {
+        let transcript = "";
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          transcript += e.results[i][0].transcript;
+        }
+        if (input) input.value = baseText + transcript;
+      };
+
+      rec.onerror = () => {
+        GLOBAL_ASSISTANT_STATE.listening = false;
+        if (micBtn) micBtn.classList.remove("is-listening");
+        if (statusEl) statusEl.hidden = true;
+      };
+
+      rec.onend = () => {
+        GLOBAL_ASSISTANT_STATE.listening = false;
+        if (micBtn) micBtn.classList.remove("is-listening");
+        if (statusEl) statusEl.hidden = true;
+      };
+
+      GLOBAL_ASSISTANT_STATE.recognition = rec;
+      rec.start();
+    } catch (_) {}
+  }
 }

@@ -133,7 +133,7 @@ const {
   getRecommendations,
   recordDecision: recordRecommendationDecision
 } = require("./lib/metrics/inventory-recommendations");
-const { ask: askAssistant, getAssistantStatus } = require("./lib/metrics/assistant");
+const { ask: askAssistant, systemAsk, executeAction, ACTION_TOOLS, getAssistantStatus, loadProviderConfig, saveProviderConfig, transcribeAudio } = require("./lib/metrics/assistant");
 const { getLensSummary, getLensDetails, streamLensCsv } = require("./lib/lens-grid-service");
 const {
   addShipmentSessionItem,
@@ -1611,6 +1611,46 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/business-metrics/assistant/config" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const cfg = await loadProviderConfig();
+      return {
+        provider: cfg.provider,
+        baseUrl: cfg.baseUrl,
+        model: cfg.model,
+        hasApiKey: !!cfg.apiKey
+      };
+    });
+  }
+
+  if (url.pathname === "/api/business-metrics/assistant/config" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const actor = req.actor || {};
+      const body = await readJsonBody(req);
+      const updated = await saveProviderConfig(body, actor.username || actor.userId || "user");
+      return {
+        provider: updated.provider,
+        baseUrl: updated.baseUrl,
+        model: updated.model,
+        hasApiKey: !!updated.apiKey
+      };
+    });
+  }
+
+  if (url.pathname === "/api/business-metrics/transcribe" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const body = await readJsonBody(req);
+      if (!body.audioBase64) {
+        throw Object.assign(new Error("audioBase64 payload required for audio transcription."), { statusCode: 400 });
+      }
+      const audioBuffer = Buffer.from(body.audioBase64, "base64");
+      return transcribeAudio({ audioBuffer, mimeType: body.mimeType || "audio/webm" });
+    });
+  }
+
   // Ask a question about a section. Answers come from precomputed figures only —
   // the model is handed a JSON document, never a database handle.
   if (url.pathname === "/api/business-metrics/ask" && req.method === "POST") {
@@ -1618,6 +1658,30 @@ const server = http.createServer(async (req, res) => {
       await requirePermission(req, "delivery.read");
       const body = await readJsonBody(req);
       return askAssistant({ question: body.question, section: body.section });
+    });
+  }
+
+  if (url.pathname === "/api/assistant/ask" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const body = await readJsonBody(req);
+      return systemAsk({ question: body.question, route: body.route, contextData: body.contextData, history: body.history });
+    });
+  }
+
+  if (url.pathname === "/api/assistant/execute-action" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const actor = req.actor || {};
+      const body = await readJsonBody(req);
+      return executeAction({ action: body.action, params: body.params, actor: actor.username || actor.userId || "operator" });
+    });
+  }
+
+  if (url.pathname === "/api/assistant/tools" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { tools: ACTION_TOOLS };
     });
   }
 

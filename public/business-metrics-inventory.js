@@ -41,7 +41,7 @@
 
   // Phase 3: recommendations and the assistant, each on their own clock again.
   var recs = { data: null, error: null, loading: false, loaded: false, showAll: false };
-  var ask = { status: null, answer: null, error: null, asking: false, question: "" };
+  var ask = { status: null, answer: null, error: null, asking: false, question: "", listening: false, transcribing: false, showConfig: false, configSaving: false, configError: null, configSuccess: null };
 
   /* ─────────── data ─────────── */
 
@@ -670,6 +670,10 @@
     }
   }
 
+  var MIC_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+  var GEAR_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+  var AI_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
   var ASK_SUGGESTIONS = [
     "What should I write off first?",
     "Which add power should I buy more of?",
@@ -680,16 +684,85 @@
 
   function askBody() {
     var st = ask.status || {};
+
     var out = '<div class="inv-ask">' +
+      '<div class="inv-ask-header">' +
+        '<div class="inv-ask-title">' + AI_ICON + '<span>Ask about inventory figures</span></div>' +
+        '<button type="button" class="inv-ask-config-btn" id="invAskConfigToggle" title="Configure Chat API & Model">' +
+          GEAR_ICON + ' <span>Configure Chat API</span>' +
+        '</button>' +
+      '</div>' +
       '<div class="inv-ask-row">' +
-        '<input type="text" class="inv-ask-input" id="invAskInput" placeholder="Ask about these figures…"' +
-          ' value="' + esc(ask.question) + '" aria-label="Ask a question about the inventory figures">' +
+        '<div class="inv-ask-input-wrap">' +
+          '<input type="text" class="inv-ask-input" id="invAskInput" placeholder="Ask about these figures or click mic to speak…"' +
+            ' value="' + esc(ask.question) + '" aria-label="Ask a question about the inventory figures">' +
+          '<button type="button" class="inv-ask-mic-btn' + (ask.listening ? " is-listening" : "") + '" id="invAskMic"' +
+            ' title="' + (ask.listening ? "Stop listening" : "Voice input (Mic & Transcription)") + '">' +
+            MIC_ICON +
+          '</button>' +
+        '</div>' +
         '<button type="button" class="ov-btn" id="invAskGo"' + (ask.asking ? " disabled" : "") + ">" +
           (ask.asking ? "Thinking…" : "Ask") + "</button>" +
-      "</div>" +
-      '<div class="inv-ask-suggestions">' + ASK_SUGGESTIONS.map(function (q) {
-        return '<button type="button" class="inv-ask-chip" data-q="' + esc(q) + '">' + esc(q) + "</button>";
-      }).join("") + "</div>";
+      '</div>';
+
+    if (ask.listening) {
+      out += '<div class="inv-ask-voice-status">' +
+        '<span class="inv-voice-pulse"></span>' +
+        '<span>Listening... Speak into your microphone. Click mic again to stop.</span>' +
+      '</div>';
+    }
+
+    if (ask.transcribing) {
+      out += '<div class="inv-ask-voice-status" style="background: rgba(2, 132, 199, 0.08); border-color: rgba(2, 132, 199, 0.2); color: #0284c7;">' +
+        '<span class="inv-voice-pulse" style="background: #0284c7;"></span>' +
+        '<span>Transcribing speech to text...</span>' +
+      '</div>';
+    }
+
+    if (ask.showConfig) {
+      var curProv = st.provider || "ollama";
+      var curUrl = st.baseUrl || "http://localhost:11434/v1";
+      var curMod = st.model || "qwen2.5-coder:7b";
+
+      out += '<div class="inv-ask-config-drawer">' +
+        '<div class="inv-ask-config-title">Chat API & LLM Provider Configuration</div>' +
+        '<div class="inv-ask-config-grid">' +
+          '<div class="inv-config-field">' +
+            '<label for="cfgProvider">Provider Preset</label>' +
+            '<select id="cfgProvider">' +
+              '<option value="openai"' + (curProv === "openai" ? " selected" : "") + '>OpenAI API (gpt-4o-mini / gpt-4o)</option>' +
+              '<option value="gemini"' + (curProv === "gemini" ? " selected" : "") + '>Google Gemini API (gemini-2.5-flash)</option>' +
+              '<option value="ollama"' + (curProv === "ollama" ? " selected" : "") + '>Local Ollama (localhost:11434)</option>' +
+              '<option value="litellm"' + (curProv === "litellm" ? " selected" : "") + '>LiteLLM Proxy (localhost:4000)</option>' +
+              '<option value="custom"' + (curProv === "custom" || curProv === "openai_compatible" ? " selected" : "") + '>Custom OpenAI-Compatible Endpoint</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="inv-config-field">' +
+            '<label for="cfgBaseUrl">Base URL (Endpoint)</label>' +
+            '<input type="text" id="cfgBaseUrl" value="' + esc(curUrl) + '" placeholder="e.g. https://api.openai.com/v1">' +
+          '</div>' +
+          '<div class="inv-config-field">' +
+            '<label for="cfgModel">Model Name</label>' +
+            '<input type="text" id="cfgModel" value="' + esc(curMod) + '" placeholder="e.g. gpt-4o-mini or qwen2.5-coder:7b">' +
+          '</div>' +
+          '<div class="inv-config-field">' +
+            '<label for="cfgApiKey">API Key (Optional for local Ollama)</label>' +
+            '<input type="password" id="cfgApiKey" value="' + (st.hasApiKey ? "********" : "") + '" placeholder="sk-...">'+
+          '</div>' +
+        '</div>' +
+        '<div class="inv-config-actions">' +
+          '<button type="button" class="ov-btn" id="cfgSaveBtn"' + (ask.configSaving ? " disabled" : "") + '>' +
+            (ask.configSaving ? "Saving..." : "Save & Test Connection") +
+          '</button>' +
+        '</div>' +
+        (ask.configSuccess ? '<div style="margin-top:6px; color:#16a34a; font-size:12px;">' + esc(ask.configSuccess) + '</div>' : '') +
+        (ask.configError ? '<div class="ov-error" style="margin-top:6px">' + esc(ask.configError) + '</div>' : '') +
+      '</div>';
+    }
+
+    out += '<div class="inv-ask-suggestions">' + ASK_SUGGESTIONS.map(function (q) {
+      return '<button type="button" class="inv-ask-chip" data-q="' + esc(q) + '">' + esc(q) + "</button>";
+    }).join("") + "</div>";
 
     if (ask.error) out += '<div class="ov-error" style="margin-top:8px">' + esc(ask.error) + "</div>";
 
@@ -700,18 +773,184 @@
           esc("Answered from precomputed figures by " + (ask.answer.model || ask.answer.provider) +
             ". No SQL was generated and nothing was written.") + "</div>";
       } else {
-        // No local model: say so plainly, and point at what still works.
         out += '<div class="inv-ask-answer">' + esc(ask.answer.note || "No answer available.") + "</div>" +
           '<div class="inv-ask-meta">' +
           esc("The context API still serves every figure on this tab to any external assistant: " +
-            "GET /api/business-metrics/context/inventory") + "</div>";
+            "GET /api/business-metrics/context/inventory") + ' <button type="button" style="background:none; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; font-size:11px;" id="invAskConfigLink">Configure Chat API</button></div>';
       }
     } else if (st.configured === false) {
       out += '<div class="inv-ask-meta">' + esc(st.detail || "No assistant provider configured.") +
-        " Questions still return the full grounding context for an external AI to answer from.</div>";
+        ' <button type="button" style="background:none; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; font-size:11px;" id="invAskConfigLink">Configure Chat API & Model</button></div>';
     }
 
     return out + "</div>";
+  }
+
+  function toggleMic() {
+    if (ask.listening) {
+      stopMic();
+    } else {
+      startMic();
+    }
+  }
+
+  function startMic() {
+    ask.error = null;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        var recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        var baseText = ask.question ? (ask.question.trim() + " ") : "";
+
+        recognition.onstart = function () {
+          ask.listening = true;
+          renderAsk();
+        };
+
+        recognition.onresult = function (event) {
+          var transcript = "";
+          for (var i = event.resultIndex; i < event.results.length; ++i) {
+            transcript += event.results[i][0].transcript;
+          }
+          ask.question = baseText + transcript;
+          var input = state.root && state.root.querySelector("#invAskInput");
+          if (input) input.value = ask.question;
+        };
+
+        recognition.onerror = function (e) {
+          console.warn("Speech recognition error:", e);
+          if (e.error !== "no-speech") {
+            ask.error = "Speech recognition error: " + (e.error || "failed");
+          }
+          ask.listening = false;
+          renderAsk();
+        };
+
+        recognition.onend = function () {
+          ask.listening = false;
+          renderAsk();
+        };
+
+        ask.recognition = recognition;
+        recognition.start();
+        return;
+      } catch (e) {
+        console.warn("Failed to start SpeechRecognition:", e);
+      }
+    }
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+          var chunks = [];
+          var recorder = new MediaRecorder(stream);
+          ask.mediaRecorder = recorder;
+          ask.audioStream = stream;
+          ask.listening = true;
+          renderAsk();
+
+          recorder.ondataavailable = function (e) { chunks.push(e.data); };
+          recorder.onstop = async function () {
+            ask.listening = false;
+            ask.transcribing = true;
+            renderAsk();
+
+            var blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+            var reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = async function () {
+              var base64 = (reader.result || "").split(",")[1];
+              try {
+                var res = await fetch("/api/business-metrics/transcribe", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ audioBase64: base64, mimeType: blob.type })
+                });
+                var body = await res.json();
+                if (!res.ok) throw new Error(body.error || "Transcription failed.");
+                if (body.text) {
+                  ask.question = (ask.question ? (ask.question.trim() + " ") : "") + body.text;
+                }
+              } catch (err) {
+                ask.error = "Audio transcription failed: " + BM.describeError(err);
+              } finally {
+                ask.transcribing = false;
+                renderAsk();
+              }
+            };
+
+            stream.getTracks().forEach(function (t) { t.stop(); });
+          };
+
+          recorder.start();
+        })
+        .catch(function (err) {
+          ask.error = "Microphone access failed: " + BM.describeError(err);
+          renderAsk();
+        });
+    } else {
+      ask.error = "Voice recording / Web Speech API is not supported in this browser.";
+      renderAsk();
+    }
+  }
+
+  function stopMic() {
+    if (ask.recognition) {
+      try { ask.recognition.stop(); } catch (_) {}
+      ask.recognition = null;
+    }
+    if (ask.mediaRecorder && ask.mediaRecorder.state !== "inactive") {
+      try { ask.mediaRecorder.stop(); } catch (_) {}
+      ask.mediaRecorder = null;
+    }
+    if (ask.audioStream) {
+      try { ask.audioStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
+      ask.audioStream = null;
+    }
+    ask.listening = false;
+    renderAsk();
+  }
+
+  async function saveConfig() {
+    var host = state.root && state.root.querySelector("#invAsk");
+    if (!host) return;
+    var provider = host.querySelector("#cfgProvider") ? host.querySelector("#cfgProvider").value : "ollama";
+    var baseUrl = host.querySelector("#cfgBaseUrl") ? host.querySelector("#cfgBaseUrl").value : "";
+    var model = host.querySelector("#cfgModel") ? host.querySelector("#cfgModel").value : "";
+    var apiKeyInput = host.querySelector("#cfgApiKey");
+    var apiKey = apiKeyInput ? apiKeyInput.value : "";
+    if (apiKey === "********") apiKey = null; // keep existing key if unmodified
+
+    ask.configSaving = true;
+    ask.configError = null;
+    ask.configSuccess = null;
+    renderAsk();
+
+    try {
+      var payload = { provider: provider, baseUrl: baseUrl, model: model };
+      if (apiKey !== null) payload.apiKey = apiKey;
+
+      var res = await fetch("/api/business-metrics/assistant/config", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      var body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Failed to save configuration.");
+      ask.configSuccess = "Chat API settings saved successfully!";
+      ask.status = null;
+      await loadAskStatus();
+    } catch (err) {
+      ask.configError = BM.describeError(err);
+    } finally {
+      ask.configSaving = false;
+      renderAsk();
+    }
   }
 
   function renderAsk() {
@@ -721,11 +960,52 @@
 
     var input = host.querySelector("#invAskInput");
     var go = host.querySelector("#invAskGo");
+    var mic = host.querySelector("#invAskMic");
+    var cfgToggle = host.querySelector("#invAskConfigToggle");
+    var cfgLink = host.querySelector("#invAskConfigLink");
+    var cfgSave = host.querySelector("#cfgSaveBtn");
+    var cfgProvSelect = host.querySelector("#cfgProvider");
+
     if (input) {
       input.addEventListener("input", function () { ask.question = input.value; });
       input.addEventListener("keydown", function (e) { if (e.key === "Enter") submitAsk(); });
     }
     if (go) go.addEventListener("click", submitAsk);
+    if (mic) mic.addEventListener("click", toggleMic);
+    if (cfgToggle) cfgToggle.addEventListener("click", function () {
+      ask.showConfig = !ask.showConfig;
+      ask.configError = null;
+      ask.configSuccess = null;
+      renderAsk();
+    });
+    if (cfgLink) cfgLink.addEventListener("click", function () {
+      ask.showConfig = true;
+      ask.configError = null;
+      ask.configSuccess = null;
+      renderAsk();
+    });
+    if (cfgProvSelect) {
+      cfgProvSelect.addEventListener("change", function () {
+        var p = cfgProvSelect.value;
+        var urlInput = host.querySelector("#cfgBaseUrl");
+        var modelInput = host.querySelector("#cfgModel");
+        if (p === "openai") {
+          if (urlInput) urlInput.value = "https://api.openai.com/v1";
+          if (modelInput) modelInput.value = "gpt-4o-mini";
+        } else if (p === "gemini") {
+          if (urlInput) urlInput.value = "https://generativelanguage.googleapis.com/v1beta/openai";
+          if (modelInput) modelInput.value = "gemini-2.5-flash";
+        } else if (p === "ollama") {
+          if (urlInput) urlInput.value = "http://localhost:11434/v1";
+          if (modelInput) modelInput.value = "qwen2.5-coder:7b";
+        } else if (p === "litellm") {
+          if (urlInput) urlInput.value = "http://localhost:4000/v1";
+          if (modelInput) modelInput.value = "qwen2.5-coder:7b";
+        }
+      });
+    }
+    if (cfgSave) cfgSave.addEventListener("click", saveConfig);
+
     host.querySelectorAll("[data-q]").forEach(function (el) {
       el.addEventListener("click", function () { ask.question = el.dataset.q; submitAsk(); });
     });

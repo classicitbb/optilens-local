@@ -428,18 +428,61 @@
 /* ── assistant ────────────────────────────────────────────────────────────── */
 
 .inv-ask {
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
-.inv-ask-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.inv-ask-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
 
-.inv-ask-input {
+.inv-ask-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.inv-ask-config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inv-ask-config-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.inv-ask-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.inv-ask-input-wrap {
+  position: relative;
   flex: 1;
-  min-width: 220px;
-  padding: 8px 10px;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+}
+
+.inv-ask-input-wrap .inv-ask-input {
+  width: 100%;
+  padding: 8px 40px 8px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   background: var(--input-bg);
@@ -448,9 +491,120 @@
   font-size: 13px;
 }
 
-.inv-ask-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-ask-input-wrap .inv-ask-input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.inv-ask-suggestions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.inv-ask-mic-btn {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.inv-ask-mic-btn:hover {
+  background: var(--bg-elevated);
+  color: #0284c7;
+}
+
+.inv-ask-mic-btn.is-listening {
+  background: #ef4444;
+  color: #ffffff;
+  animation: mic-pulse 1.2s infinite alternate;
+}
+
+@keyframes mic-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  100% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+.inv-ask-voice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.inv-voice-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: voice-dot-pulse 0.8s infinite alternate;
+}
+
+@keyframes voice-dot-pulse {
+  0% { opacity: 0.3; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.3); }
+}
+
+.inv-ask-config-drawer {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+}
+
+.inv-ask-config-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.inv-ask-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.inv-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inv-config-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.inv-config-field input, .inv-config-field select {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.inv-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.inv-ask-suggestions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 
 .inv-ask-chip {
   padding: 3px 9px;
