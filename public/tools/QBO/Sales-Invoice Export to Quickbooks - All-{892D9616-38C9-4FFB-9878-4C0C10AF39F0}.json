@@ -268,7 +268,7 @@
    "customReportSQL": {
     "SQLQuery": "DECLARE @StartDate date = '2026-01-01';
                  DECLARE @EndDate   date = '2026-08-17';
-                 
+
                  SELECT
                      fsj.InvoiceID AS InvoiceNo,
                      c.CustomerName + ' - ' + c.AccountNumber AS Customer,
@@ -303,9 +303,9 @@
                    AND c.AccountNumber NOT LIKE '%ED'
                    AND (c.IsActive <> 0 OR c.IsActive IS NULL)
                    AND CAST(fsj.InvoiceTime AS date) ['BETWEEN'].[BetweenDateRange:'Report Date Range']
-                 
+
                  UNION ALL
-                 
+
                  SELECT
                      i.InvoiceID AS InvoiceNo,
                      c.CustomerName + ' - ' + c.AccountNumber AS Customer,
