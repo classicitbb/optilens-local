@@ -133,7 +133,7 @@ const {
   getRecommendations,
   recordDecision: recordRecommendationDecision
 } = require("./lib/metrics/inventory-recommendations");
-const { ask: askAssistant, systemAsk, executeAction, ACTION_TOOLS, getAssistantStatus, loadProviderConfig, saveProviderConfig, transcribeAudio } = require("./lib/metrics/assistant");
+const { ask: askAssistant, systemAsk, executeAction, ACTION_TOOLS, getAssistantStatus, loadProviderConfig, saveProviderConfig, transcribeAudio, getKnowledgeStatus } = require("./lib/metrics/assistant");
 const { getLensSummary, getLensDetails, streamLensCsv } = require("./lib/lens-grid-service");
 const {
   addShipmentSessionItem,
@@ -1682,6 +1682,15 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
       return { tools: ACTION_TOOLS };
+    });
+  }
+
+  // Returns the Innova-Training knowledge base status: which files are loaded,
+  // their sizes, and the current cache age. Safe to expose to authenticated operators.
+  if (url.pathname === "/api/assistant/knowledge" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return getKnowledgeStatus();
     });
   }
 
