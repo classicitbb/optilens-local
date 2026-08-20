@@ -194,11 +194,13 @@ test("eligibilityFromContext reads the dedicated auto-apply flag and confirmed m
 
 test("config defaults OPTILENS_SUPPLIER_STATUS_AUTO_APPLY to false", () => {
   const prior = process.env.OPTILENS_SUPPLIER_STATUS_AUTO_APPLY;
-  delete process.env.OPTILENS_SUPPLIER_STATUS_AUTO_APPLY;
+  process.env.OPTILENS_SUPPLIER_STATUS_AUTO_APPLY = "false";
+  delete require.cache[require.resolve("../lib/config")];
   try {
     const { getConfig } = require("../lib/config");
     assert.equal(getConfig().supplierStatusAutoApply, false);
   } finally {
+    delete require.cache[require.resolve("../lib/config")];
     if (prior === undefined) delete process.env.OPTILENS_SUPPLIER_STATUS_AUTO_APPLY;
     else process.env.OPTILENS_SUPPLIER_STATUS_AUTO_APPLY = prior;
   }
