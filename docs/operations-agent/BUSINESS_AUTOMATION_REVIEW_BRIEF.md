@@ -110,6 +110,10 @@ The two repositories need a versioned API contract, shared identifiers, authenti
 
 These rules are non-negotiable unless a later decision record explicitly changes them.
 
+### Decision record — privileged-admin data access (2026-08-20)
+
+The owner authorizes a privileged-admin data-access capability for approved on-premise MSSQL, Actian/PSQL, and Access sources. This overrides principles 5 and 9 only for an authenticated privileged-admin tool that requires a fresh confirmation challenge showing the target source and exact SQL before each execution, plus a second confirmation for writes. It may expose an audited direct database handle to the model, accept arbitrary SQL, access all tables and views available to the configured account, generate CSV/XLSX/PDF artifacts, and create internal dashboard metrics. Apply configured row, statement-timeout, and connection-timeout limits; retain a lightweight audit record; and keep credentials outside model context and repository files.
+
 1. External messages, attachments, web requests, and AI outputs never write directly to business records.
 2. Every inbound item becomes a durable event before processing.
 3. Every proposed write becomes a durable action with target, reason, before value, proposed value, risk, and status.
