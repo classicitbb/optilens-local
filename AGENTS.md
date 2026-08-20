@@ -116,13 +116,18 @@ copy, so it cannot be trusted to reconcile itself.
 
 Practical notes for agents:
 
+- Read `docs/REMOTE_AGENT_OPERATIONS.md` before using SSH, PowerShell remoting,
+  deployment, restart, or host recovery. It is the authoritative remote
+  operations runbook; authenticate with keys or approved credential storage
+  and never add credentials to repository files or agent instructions.
 - Edit via the remote harness, not scp-by-hand: pull a file to a sandbox
   cache, do exact-match string surgery there, push it back. The push verifies
   a SHA match on both sides, runs `node --check` on the host for `.js`, and
   **refuses to write if the host file changed since it was pulled** — so a
   human editing on the host is never silently clobbered.
-- Commit and restart on the host (`npm run app:restart`), per the standing
-  authorization in CLAUDE.md.
+- After a verified scoped change, commit on the host and follow the complete
+  deployment, health verification, and controlled recovery sequence in the
+  remote operations runbook.
 - Browser-internal pages (`chrome://extensions`, `edge://extensions`) are
   unreachable from the Chrome MCP — it force-prefixes `https://`. This host
   runs **Edge**, not Chrome. The beta extension therefore self-reloads from
