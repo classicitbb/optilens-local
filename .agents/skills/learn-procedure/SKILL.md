@@ -1,15 +1,16 @@
-# Learn / Remember Procedure Skill
+---
+name: learn-procedure
+description: Capture repeatable work as a documented procedure and reusable agent guidance. Use when a user asks to learn a task, remember a workflow, save a procedure, or establish a repeatable process.
+---
 
-This skill triggers when a user asks the assistant to learn a new task, remember a workflow, or establish a repeatable procedure.
+# Learn / Remember Procedure
 
-## Instructions for Agents
-
-When the user asks to "learn", "remember", or "save a procedure for" a task:
+When asked to learn, remember, or save a procedure:
 
 1. **Extract Procedure Steps**: Identify the trigger conditions, input parameters, detailed step-by-step instructions, and expected output formats.
 2. **Document the Procedure**: Create or update a markdown procedure guide in `docs/procedures/<task-slug>.md` (e.g. `docs/procedures/generate-ap-aging-analysis.md`).
 3. **Update Index**: If `docs/procedures/README.md` exists, append the new procedure to the table of contents.
-4. **Register Skill / Rule Context**: If the procedure includes non-negotiable rules or guidelines for future tasks, update `.agents/AGENTS.md` or create a dedicated skill folder under `.agents/skills/`.
+4. **Register Skill / Rule Context**: If the procedure includes non-negotiable rules or guidelines for future tasks, update the applicable repository instructions or create a dedicated skill folder under `.agents/skills/`.
 
 ## Format for Procedure Docs (`docs/procedures/<task-slug>.md`)
 
