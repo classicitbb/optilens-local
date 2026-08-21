@@ -21,6 +21,7 @@
     "qbo:invoice-sync:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-qbo-invoice-sync-task.ps1",
     "qbo:auth:migrate-vault": "node scripts/migrate-qbo-sandbox-to-vault.js",
     "qbo:auth:exchange": "node scripts/claim-qbo-oauth.js",
+    "qbo:commands:run": "node scripts/run-qbo-command-worker.js",
     "innovations:lens-status-sync": "node scripts/sync-actian-lens-status.js",
     "innovations:lens-status-sync:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-actian-lens-status-sync-task.ps1",
     "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-app.ps1",
