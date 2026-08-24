@@ -27,7 +27,22 @@ if (-not (Test-Path $logDirectory)) {
 
 function Write-UpdateLog {
     param([string] $Message)
-    Add-Content -LiteralPath $logFile -Value "$(Get-Date -Format o) $Message"
+    $line = "$(Get-Date -Format o) $Message"
+    Add-Content -LiteralPath $logFile -Value $line
+    Write-Host $line
+}
+
+function Invoke-UpdateStep {
+    param([string] $Name, [scriptblock] $Action)
+    $started = Get-Date
+    Write-UpdateLog "[$Name] started."
+    try {
+        & $Action
+        Write-UpdateLog "[$Name] completed in $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s."
+    } catch {
+        Write-UpdateLog "[$Name] failed after $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s: $($_.Exception.Message)"
+        throw
+    }
 }
 
 function Import-OptiLensEnvironment {
@@ -89,35 +104,49 @@ try {
         $dirty = (& git -c "safe.directory=$ProjectRoot" status --porcelain).Trim()
         if ($dirty) { throw "Refusing to pull into a checkout with local changes." }
         $originalRevision = (& git -c "safe.directory=$ProjectRoot" rev-parse HEAD).Trim()
-        & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
-        if ($LASTEXITCODE -ne 0) { throw "Git fetch failed with exit code $LASTEXITCODE." }
+        Invoke-UpdateStep "git fetch" {
+            & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Git fetch failed with exit code $LASTEXITCODE." }
+        }
         $pulledRevision = (& git -c "safe.directory=$ProjectRoot" rev-parse "$GitRemote/$GitBranch").Trim()
-        & git -c "safe.directory=$ProjectRoot" merge --ff-only $pulledRevision *>> $logFile
-        if ($LASTEXITCODE -ne 0) { throw "Git fast-forward merge failed with exit code $LASTEXITCODE." }
+        Invoke-UpdateStep "git fast-forward" {
+            & git -c "safe.directory=$ProjectRoot" merge --ff-only $pulledRevision *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Git fast-forward merge failed with exit code $LASTEXITCODE." }
+        }
         $InstallDependencies = $true
         $RunMigrations = $true
     }
 
     if ($InstallDependencies) {
-        & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
-        if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
+        Invoke-UpdateStep "production dependency installation" {
+            & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
+        }
     }
 
-    & node --check server.js *>> $logFile
-    if ($LASTEXITCODE -ne 0) { throw "Server syntax check failed with exit code $LASTEXITCODE." }
+    Invoke-UpdateStep "server syntax check" {
+        & node --check server.js *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "Server syntax check failed with exit code $LASTEXITCODE." }
+    }
 
-    & npm.cmd test *>> $logFile
-    if ($LASTEXITCODE -ne 0) { throw "Application tests failed with exit code $LASTEXITCODE." }
+    Invoke-UpdateStep "application tests" {
+        & npm.cmd test *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "Application tests failed with exit code $LASTEXITCODE." }
+    }
 
     if ($RunMigrations) {
         Import-OptiLensEnvironment
         $migrationsStarted = $true
-        & node scripts/run-app-migrations.js *>> $logFile
-        if ($LASTEXITCODE -ne 0) { throw "Application migration failed with exit code $LASTEXITCODE." }
+        Invoke-UpdateStep "application migrations" {
+            & node scripts/run-app-migrations.js *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Application migration failed with exit code $LASTEXITCODE." }
+        }
     }
 
-    & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
-    if ($LASTEXITCODE -ne 0) { throw "Application restart failed with exit code $LASTEXITCODE." }
+    Invoke-UpdateStep "application restart" {
+        & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "Application restart failed with exit code $LASTEXITCODE." }
+    }
 
     $healthy = $false
     for ($attempt = 1; $attempt -le 20; $attempt++) {
@@ -129,8 +158,10 @@ try {
     }
     if (-not $healthy) {
         Write-UpdateLog "Service did not report healthy after restart; running self-repair."
-        & (Join-Path $PSScriptRoot "repair-host.ps1") -ProjectRoot $ProjectRoot -Port $Port -Reason "Update did not come up healthy" *>> $logFile
-        if ($LASTEXITCODE -ne 0) { throw "Self-repair after update failed with exit code $LASTEXITCODE. See data\host-repair.log." }
+        Invoke-UpdateStep "bounded self-repair" {
+            & (Join-Path $PSScriptRoot "repair-host.ps1") -ProjectRoot $ProjectRoot -Port $Port -Reason "Update did not come up healthy" *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Self-repair after update failed with exit code $LASTEXITCODE. See data\host-repair.log." }
+        }
         Write-UpdateLog "Self-repair after update succeeded."
     }
 

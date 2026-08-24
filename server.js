@@ -14,6 +14,7 @@ const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
 const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
 const { createHostIncidentReporter } = require("./lib/host-incidents");
+const { createHostRecoveryObserver } = require("./lib/host-recovery-observer");
 
 // ─── Vault — server-side crypto + file storage ────────────────────────────────
 // crypto.subtle is unavailable over plain HTTP on LAN devices, so all PIN
@@ -26,6 +27,7 @@ const applicationStartedAt = new Date().toISOString();
 const updateManager = createUpdateManager(__dirname, applicationStartedAt);
 const gitUpdateChecker = createGitUpdateChecker(__dirname);
 const hostIncidentReporter = createHostIncidentReporter({ dataDir });
+const hostRecoveryObserver = createHostRecoveryObserver({ projectRoot: __dirname, dataDir });
 const AUTO_APPLY_GIT_UPDATES = ["1", "true", "yes", "on"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "").toLowerCase());
 let scheduledUpdate = null;
 let supplierMailboxPoller = null;
@@ -1434,6 +1436,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // The interactive host monitor needs this while the update runner briefly
+  // restarts this process.  Keeping it loopback-only exposes useful operator
+  // diagnostics without making host logs available on the LAN.
+  if (url.pathname === "/api/monitor/updates/logs" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return readUpdateLogs();
+    });
+  }
+
   if (url.pathname === "/api/monitor/incidents" && req.method === "POST") {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);
@@ -1469,6 +1481,26 @@ const server = http.createServer(async (req, res) => {
         "-FailedConnections", failedConnections.join(","),
       ]);
       return { ok: true, applying: true, message: "Self-heal started. The service will be restarted and checked automatically." };
+    });
+  }
+
+  if (url.pathname === "/api/monitor/recovery/report" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return hostRecoveryObserver.inspect();
+    });
+  }
+
+  if (url.pathname === "/api/monitor/recovery/fix" && req.method === "POST") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      const body = await readJsonBody(req);
+      if (body.confirmation !== "FIX ERRORS") {
+        const error = new Error("Type FIX ERRORS in the super-user confirmation to run a controlled repair.");
+        error.statusCode = 400;
+        throw error;
+      }
+      return hostRecoveryObserver.runSuperuserFix({ actor: "local-monitor-superuser", failedConnections: body.failedConnections || [] });
     });
   }
 
@@ -3689,6 +3721,7 @@ function readJsonFile(filePath, fallback) {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  console.error(`OptiLens recovery observer boot ${new Date().toISOString()}`);
   refreshGitUpdatesOnSchedule().catch(() => {});
   const gitUpdateTimer = setInterval(() => {
     refreshGitUpdatesOnSchedule().catch(() => {});
