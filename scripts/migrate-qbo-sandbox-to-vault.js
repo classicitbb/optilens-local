@@ -7,19 +7,18 @@ const { save } = require('../lib/qbo-secret-store');
 const root = path.join(__dirname, '..');
 const envPath = path.join(root, 'public', 'tools', 'QBO', '.env');
 const tokenPath = path.join(root, 'public', 'tools', 'QBO', 'data', 'tokens.json');
+<<<<<<< Updated upstream
+=======
+const { save } = require('../lib/qbo-secret-store');
+>>>>>>> Stashed changes
 
 function parseEnv(text) {
   return Object.fromEntries(text.split(/\r?\n/).map((line) => line.match(/^\s*([^#=]+)=(.*)\s*$/)).filter(Boolean).map((match) => [match[1].trim(), match[2].trim()]));
 }
-function upsertField(fields, label, value, secret) {
-  const existing = fields.find((field) => String(field.label || '').toLowerCase().replace(/[^a-z0-9]/g, '') === label.toLowerCase().replace(/[^a-z0-9]/g, ''));
-  if (existing) existing.val = value;
-  else fields.push({ label, val: value, secret });
-}
-
 const env = parseEnv(fs.readFileSync(envPath, 'utf8'));
 const token = JSON.parse(fs.readFileSync(tokenPath, 'utf8'));
 if (!env.INTUIT_CLIENT_ID || !env.INTUIT_CLIENT_SECRET || !token.refresh_token || !token.realmId) throw new Error('QBO sandbox .env/token files are incomplete.');
+<<<<<<< Updated upstream
 const environment = String(env.INTUIT_ENVIRONMENT || 'sandbox').trim().toLowerCase();
 if (environment !== 'sandbox') throw new Error('This migration only accepts sandbox credentials. Production credentials use the OAuth handoff and production protected store.');
 save({
@@ -34,3 +33,7 @@ save({
   vatStandardTaxCodeId: env.QBO_VAT_STANDARD_TAX_CODE_ID || null
 });
 console.log('Migrated QuickBooks sandbox authorization to the Windows-protected sandbox store. Remove the legacy sandbox .env and tokens.json manually after verifying a dry run.');
+=======
+save({ clientId: env.INTUIT_CLIENT_ID, clientSecret: env.INTUIT_CLIENT_SECRET, refreshToken: token.refresh_token, accessToken: token.access_token || '', realmId: String(token.realmId), createdAt: token.createdAt || Date.now() }, 'sandbox');
+console.log('Migrated QuickBooks sandbox authorization to the DPAPI-protected sandbox store. The browser Credentials Vault was not modified.');
+>>>>>>> Stashed changes
