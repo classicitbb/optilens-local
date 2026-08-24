@@ -4,7 +4,17 @@ The integration reads `FinARSalesJournal` through the existing read-only Innovat
 
 ## Credential setup
 
-The server resolves QuickBooks credentials from the Credentials Vault entry named `QuickBooks Online`. Required fields are `clientId`, `clientSecret`, `refreshToken`, `accessToken`, `realmId`, `createdAt`, and `environment`. Optional fields are `vatZeroTaxCodeId` and `vatStandardTaxCodeId`.
+The server resolves QuickBooks credentials only from host-only Windows-protected
+stores, never from the browser-accessible Credentials Vault. Sandbox and
+production credentials use different files and cannot overwrite each other:
+
+- `data/qbo-sandbox-secrets.json` for sandbox.
+- `data/qbo-production-secrets.json` for production.
+
+Both files are DPAPI-protected for the Windows host account. Required fields
+are `clientId`, `clientSecret`, `refreshToken`, `accessToken`, `realmId`,
+`createdAt`, and `environment`. Optional fields are `vatZeroTaxCodeId` and
+`vatStandardTaxCodeId`.
 
 The existing sandbox scaffold can be reauthorized at `http://localhost:8000/connect`, then the rotated token can be migrated with:
 
@@ -12,7 +22,14 @@ The existing sandbox scaffold can be reauthorized at `http://localhost:8000/conn
 npm run qbo:auth:migrate-vault
 ```
 
-Do not use the sandbox `.env` or `data/tokens.json` as the long-term server credential store.
+This imports into the protected **sandbox** store. It refuses production values.
+After a successful dry run, remove the legacy sandbox `.env` and
+`data/tokens.json` manually. Do not use either as a long-term server credential
+store.
+
+Select the environment explicitly with the machine-level setting
+`OPTILENS_QBO_ENVIRONMENT`. It defaults to `sandbox` when unset. Do not set it
+to `production` during the sandbox pilot.
 
 ## Modes
 
