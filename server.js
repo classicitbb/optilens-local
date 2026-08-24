@@ -1434,6 +1434,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // The interactive host monitor needs this while the update runner briefly
+  // restarts this process.  Keeping it loopback-only exposes useful operator
+  // diagnostics without making host logs available on the LAN.
+  if (url.pathname === "/api/monitor/updates/logs" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return readUpdateLogs();
+    });
+  }
+
   if (url.pathname === "/api/monitor/incidents" && req.method === "POST") {
     return handleApi(res, async () => {
       requireLoopbackMonitor(req);

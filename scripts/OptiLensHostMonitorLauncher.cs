@@ -55,6 +55,10 @@ internal sealed class OptiLensHostMonitor : Form
     private string lastIncidentFingerprint = "";
     private bool repairInProgress;
     private readonly bool startVisible;
+    private bool updateInProgress;
+    private Form updateProgressWindow;
+    private TextBox updateProgressBox;
+    private Label updateProgressSummary;
 
     public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal, bool visibleOnStartup)
     {
@@ -287,7 +291,7 @@ internal sealed class OptiLensHostMonitor : Form
             var areas = Value(status, "changedAreas") as object[];
             updateStatus.Text = available ? "Updates ready: " + (areas == null ? "pushed changes" : areas.Length + " area(s)") : "Updates: up to date";
             updateStatus.ForeColor = available ? Color.DarkGoldenrod : Color.ForestGreen;
-            applyUpdatesButton.Enabled = available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
+            applyUpdatesButton.Enabled = !updateInProgress && available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
         }
         catch (Exception error) { updateStatus.Text = "Update check failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; applyUpdatesButton.Enabled = false; }
     }
@@ -295,10 +299,93 @@ internal sealed class OptiLensHostMonitor : Form
     private async Task ApplyUpdates()
     {
         if (MessageBox.Show("Apply the pushed OptiLens Local update and restart the service?", "Confirm update", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        updateInProgress = true;
         applyUpdatesButton.Enabled = false;
-        try { var result = Map(json.DeserializeObject(await Api("/api/monitor/updates/apply", "POST"))); updateStatus.Text = S(Value(result, "message")); updateStatus.ForeColor = Color.DarkGoldenrod; }
-        catch (Exception error) { updateStatus.Text = "Update failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; }
-        await Task.Delay(1000); await RefreshAll();
+        ShowUpdateProgress();
+        try
+        {
+            var result = Map(json.DeserializeObject(await Api("/api/monitor/updates/apply", "POST")));
+            updateStatus.Text = S(Value(result, "message")); updateStatus.ForeColor = Color.DarkGoldenrod;
+            AppendUpdateProgress("Update accepted. The monitor will show each runner step and reconnect after the service restart.");
+            for (var attempt = 1; attempt <= 180; attempt++)
+            {
+                await RefreshUpdateProgress();
+                await Task.Delay(1000);
+                if (await IsUpdateComplete()) break;
+            }
+        }
+        catch (Exception error)
+        {
+            updateStatus.Text = "Update failed to start: " + error.Message; updateStatus.ForeColor = Color.Firebrick;
+            AppendUpdateProgress("UPDATE REQUEST FAILED: " + error.Message);
+        }
+        finally
+        {
+            updateInProgress = false;
+        }
+        await RefreshUpdateProgress();
+        await RefreshAll();
+    }
+
+    private void ShowUpdateProgress()
+    {
+        if (updateProgressWindow == null || updateProgressWindow.IsDisposed)
+        {
+            updateProgressWindow = new Form { Text = "OptiLens Local Update Progress", ClientSize = new Size(820, 520), StartPosition = FormStartPosition.CenterParent, MinimizeBox = true };
+            updateProgressSummary = new Label { Text = "Preparing update runner…", Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 10, 0), ForeColor = Color.DarkGoldenrod };
+            updateProgressBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill, Font = new Font("Consolas", 9) };
+            updateProgressWindow.Controls.Add(updateProgressBox);
+            updateProgressWindow.Controls.Add(updateProgressSummary);
+        }
+        updateProgressWindow.Show();
+        updateProgressWindow.BringToFront();
+    }
+
+    private void AppendUpdateProgress(string text)
+    {
+        if (updateProgressBox == null) return;
+        updateProgressBox.AppendText(DateTime.Now.ToString("HH:mm:ss") + " " + text + Environment.NewLine);
+        updateProgressBox.SelectionStart = updateProgressBox.TextLength;
+        updateProgressBox.ScrollToCaret();
+    }
+
+    private async Task RefreshUpdateProgress()
+    {
+        try
+        {
+            var response = Map(json.DeserializeObject(await Api("/api/monitor/updates/logs")));
+            var logs = Value(response, "logs") as object[];
+            var updateLog = logs == null ? null : logs.Select(Map).FirstOrDefault(log => S(Value(log, "path")).EndsWith("data/local-update.log", StringComparison.OrdinalIgnoreCase));
+            if (updateLog != null && updateProgressBox != null)
+            {
+                var text = S(Value(updateLog, "text"));
+                if (!string.Equals(updateProgressBox.Tag as string, text, StringComparison.Ordinal))
+                {
+                    updateProgressBox.Text = text;
+                    updateProgressBox.Tag = text;
+                    updateProgressBox.SelectionStart = updateProgressBox.TextLength;
+                    updateProgressBox.ScrollToCaret();
+                }
+            }
+            if (updateProgressSummary != null) { updateProgressSummary.Text = "Update runner is active. Refreshing diagnostic log every second…"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+        }
+        catch (Exception error)
+        {
+            if (updateProgressSummary != null) { updateProgressSummary.Text = "Waiting for service to restart: " + error.Message; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+        }
+    }
+
+    private async Task<bool> IsUpdateComplete()
+    {
+        try
+        {
+            var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
+            if (Convert.ToBoolean(Value(status, "available"))) return false;
+            if (updateProgressSummary != null) { updateProgressSummary.Text = "Update completed and service is reachable."; updateProgressSummary.ForeColor = Color.ForestGreen; }
+            updateStatus.Text = "Updates: up to date"; updateStatus.ForeColor = Color.ForestGreen;
+            return true;
+        }
+        catch { return false; }
     }
 
     private async Task ReportIncident(List<string> failedConnections)
