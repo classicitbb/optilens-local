@@ -284,6 +284,21 @@
         : "No transaction history loaded.";
     } catch (error) { $("#qboInvoiceSyncLedger").textContent = error.message || "Unable to load transaction history."; }
   }
+  async function loadQboInvoiceExceptions() {
+    const container = $("#qboInvoiceSyncExceptions");
+    const count = $("#qboInvoiceSyncExceptionCount");
+    try {
+      const data = await (await request("/api/automation/qbo-invoices/ledger?status=exception&limit=50")).json();
+      const rows = data.rows || [];
+      count.textContent = String(rows.length);
+      container.innerHTML = rows.length
+        ? `<div class="qbo-exception-list">${rows.map((row) => `<article class="qbo-exception-item"><div class="qbo-exception-meta"><strong>Invoice ${escapeHtml(row.source_invoice_id)}</strong><span>${escapeHtml(row.source_customer_account || row.source_customer_name || "Unmatched customer")}</span></div><p>${escapeHtml(row.last_error || "No reason recorded.")}</p><small>Updated ${escapeHtml(formatSyncTime(row.updated_at))}</small></article>`).join("")}</div>`
+        : "No exceptions are currently recorded.";
+    } catch (error) {
+      count.textContent = "—";
+      container.textContent = error.message || "Unable to load exceptions for review.";
+    }
+  }
   async function loadQboInvoiceSyncStatus() {
     try { renderQboInvoiceSyncStatus(await (await request("/api/automation/qbo-invoices")).json()); }
     catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "Unable to load QuickBooks sync status."; qboSyncButton.disabled = true; qboDryRunButton.disabled = true; }
@@ -297,6 +312,7 @@
       $("#qboInvoiceSyncDetail").textContent = `${dryRun ? "Preview" : "Sync"} complete: ${c.created || 0} created, ${c.updated || 0} updated, ${c.skipped || 0} skipped, ${c.exception || 0} exceptions.`;
       await loadQboInvoiceSyncStatus();
       await loadQboInvoiceLedger();
+      await loadQboInvoiceExceptions();
     } catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "QuickBooks invoice sync failed."; qboSyncButton.disabled = false; qboDryRunButton.disabled = false; }
   }
 
@@ -320,4 +336,5 @@
   loadLensStatusSyncStatus();
   loadQboInvoiceSyncStatus();
   loadQboInvoiceLedger();
+  loadQboInvoiceExceptions();
 })();

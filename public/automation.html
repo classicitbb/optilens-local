@@ -202,6 +202,16 @@
             <div><dt>Last run</dt><dd id="qboInvoiceSyncLastRun">—</dd></div>
           </dl>
           <div class="qbo-ledger-preview" id="qboInvoiceSyncLedger" aria-live="polite">No transaction history loaded.</div>
+          <section class="qbo-exception-review" aria-labelledby="qboExceptionReviewTitle">
+            <div class="qbo-exception-review-heading">
+              <div>
+                <h4 id="qboExceptionReviewTitle">Exceptions awaiting review</h4>
+                <p>Review-only findings from the latest dry run. Nothing here writes to QuickBooks.</p>
+              </div>
+              <span class="qbo-exception-count" id="qboInvoiceSyncExceptionCount">0</span>
+            </div>
+            <div id="qboInvoiceSyncExceptions" aria-live="polite">No exceptions loaded.</div>
+          </section>
         </article>
       </section>
 
