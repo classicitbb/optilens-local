@@ -10,7 +10,7 @@ test('QBO defaults to sandbox and uses separate protected store paths', () => {
   assert.notEqual(store.fileFor('sandbox'), store.fileFor('production'));
 });
 
-test('unknown QBO environment values cannot select production', () => {
-  assert.equal(store.normalizeEnvironment('staging'), 'sandbox');
+test('unknown QBO environment values fail closed', () => {
+  assert.throws(() => store.normalizeEnvironment('staging'), /sandbox or production/);
   assert.equal(store.normalizeEnvironment('production'), 'production');
 });
