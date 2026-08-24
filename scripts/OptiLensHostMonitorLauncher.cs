@@ -23,7 +23,7 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Label updateStatus = new Label();
     private readonly Button checkUpdatesButton = new Button { Text = "Check for updates", Width = 125 };
     private readonly Button applyUpdatesButton = new Button { Text = "Apply pushed updates", Width = 145, Enabled = false };
-    private readonly Button fixErrorsButton = new Button { Text = "Fix errors", Width = 90, Enabled = false };
+    private readonly Button fixErrorsButton = new Button { Text = "Super-user Fix errors", Width = 150, Enabled = false };
     private readonly Button startServiceButton = new Button { Text = "Start service", Width = 100 };
     private readonly Button restartServiceButton = new Button { Text = "Restart service", Width = 110 };
     private readonly Button stopServiceButton = new Button { Text = "Shut down service", Width = 120 };
@@ -399,14 +399,15 @@ internal sealed class OptiLensHostMonitor : Form
     private async Task FixErrors()
     {
         if (repairInProgress) return;
+        if (MessageBox.Show("This privileged command collects host evidence and runs one bounded repair. It never edits source files automatically. Continue?", "Super-user Fix errors", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         repairInProgress = true; fixErrorsButton.Enabled = false;
         try
         {
             var failed = connections.Items.Cast<ListViewItem>().Where(item => item.ForeColor == Color.Firebrick).Select(item => item.Text).ToArray();
-            var result = Map(json.DeserializeObject(await Api("/api/monitor/repair", "POST", new { failedConnections = failed, message = "Host monitor Fix errors action" })));
+            var result = Map(json.DeserializeObject(await Api("/api/monitor/recovery/fix", "POST", new { confirmation = "FIX ERRORS", failedConnections = failed })));
             summary.Text = S(Value(result, "message")); summary.ForeColor = Color.DarkGoldenrod;
         }
-        catch (Exception error) { summary.Text = "Self-heal failed to start: " + error.Message; summary.ForeColor = Color.Firebrick; repairInProgress = false; fixErrorsButton.Enabled = true; }
+        catch (Exception error) { summary.Text = "Super-user recovery blocked or failed: " + error.Message; summary.ForeColor = Color.Firebrick; repairInProgress = false; fixErrorsButton.Enabled = true; }
         await Task.Delay(1000); await RefreshAll(); repairInProgress = false;
     }
 
