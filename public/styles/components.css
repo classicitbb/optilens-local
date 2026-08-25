@@ -611,6 +611,10 @@ th {
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+  /* The sticky invoice checklist needs a non-clipping ancestor, and the shared
+     workspace card clips by default. The panels on this page already clip their
+     own overflowing tables, so the card does not have to. */
+  overflow: visible;
 }
 
 .module-title {
