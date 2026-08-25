@@ -6,7 +6,6 @@ const { URL } = require("node:url");
 const nodeCrypto = require("node:crypto");
 const sql = require("mssql");
 const { getConfig } = require("./lib/config");
-const { runOdbcProbe } = require("./lib/odbc-probe");
 const { normalizeVaultData } = require("./lib/credential-vault");
 const credentialVault = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
@@ -111,7 +110,6 @@ function bearerToken(req) {
   const h = req.headers["authorization"] || "";
   return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
 }
-const { checkPsqlConfig } = require("./lib/psql-odbc");
 const { getIntegrationHealthSnapshot } = require("./lib/integration-health");
 const {
   buildDashboard,
@@ -215,13 +213,10 @@ const innovationsSync = require("./lib/innovations-sync");
 const rxOrderSubmitter = require("./lib/rx-order-submitter");
 const stockOrderSubmitter = require("./lib/stock-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
-const { getLensStatusSyncStatus, runLensStatusSync } = require("./lib/actian-lens-status-sync");
 const liveGatewayWorker = require("./lib/live-gateway-worker");
 const liveGatewayAutostart = require("./lib/live-gateway-autostart");
 const { dispatch: dispatchLiveDataRequest } = require("./lib/live-data-gateway");
-const zenMirrorWorker = require("./lib/zen-mirror-worker");
 const { startSupplierMailboxPoller } = require("./lib/operations/mailbox-poller");
-const sourceBackend = require("./lib/source-backend");
 
 const PL_DIR = path.join(__dirname, "data", "pricelist");
 const PL_GEN      = path.join(PL_DIR, "lens-data.generated.json");
@@ -669,9 +664,6 @@ function summarizeConnectivityCategory(category, entries) {
 async function checkVaultEntryConnectivity(category, entry) {
   try {
     if (category === "SQL Server") return checkSqlServerVaultEntry(entry);
-    if (category === "PSQL") return checkPsqlVaultEntry(entry);
-    if (category === "ODBC") return checkOdbcVaultEntry(entry);
-    if (category === "Access DB") return checkAccessVaultEntry(entry);
     if (category === "API Keys") return checkApiKeyVaultEntry(entry);
     if (category === "Web Portals") return checkWebPortalVaultEntry(entry);
     return entryConnectivity(entry, "warning", "Saved", "No connectivity check is configured for this entry type.");
@@ -731,77 +723,6 @@ async function checkSqlServerVaultEntry(entry) {
   }
 }
 
-async function checkPsqlVaultEntry(entry) {
-  const fields = vaultFieldMap(entry);
-  const base = getConfig().sourcePsql;
-  const user = fields.username || fields.user || fields.userid || "";
-  const password = fields.password || fields.pwd || "";
-  const missing = [];
-  if (!user) missing.push("username");
-  if (!password) missing.push("password");
-
-  if (missing.length) {
-    return entryConnectivity(entry, "warning", "Credentials incomplete", `Missing ${missing.join(", ")}.`);
-  }
-
-  const config = {
-    ...base,
-    dsn: fields.dsn || fields.dsnname || base.dsn,
-    driver: fields.driver || base.driver,
-    host: fields.host || fields.server || base.host,
-    port: Number(fields.port || base.port),
-    database: fields.database || fields.db || base.database,
-    user,
-    password
-  };
-  const health = await checkPsqlConfig(config);
-  return entryConnectivity(entry, health.state === "online" ? "online" : health.state === "error" ? "error" : "warning", health.state === "online" ? "Connected" : "Needs attention", health.detail);
-}
-
-async function checkOdbcVaultEntry(entry) {
-  const fields = vaultFieldMap(entry);
-  const dsn = fields.dsn || fields.dsnname || fields.name || "";
-  const user = fields.username || fields.user || fields.uid || "";
-  const password = fields.password || fields.pwd || "";
-
-  if (!dsn) {
-    return entryConnectivity(entry, "warning", "Credentials incomplete", "Missing ODBC DSN name.");
-  }
-  if (user && !password) {
-    return entryConnectivity(entry, "warning", "Credentials incomplete", "Missing password.");
-  }
-
-  const connectionString = [
-    ["DSN", dsn],
-    user ? ["UID", user] : null,
-    password ? ["PWD", password] : null
-  ].filter(Boolean).map(([key, value]) => `${key}=${odbcValue(value)}`).join(";");
-
-  try {
-    await testOdbcConnection(connectionString);
-    return entryConnectivity(entry, "online", "Connected", `${dsn} opened successfully through ODBC.`);
-  } catch (error) {
-    return entryConnectivity(entry, "error", "Connection failed", error.message);
-  }
-}
-
-function checkAccessVaultEntry(entry) {
-  const fields = vaultFieldMap(entry);
-  const filePath = fields.filepath || fields.path || fields.file || fields.database || "";
-  if (!filePath) {
-    return entryConnectivity(entry, "warning", "Path missing", "Add the Access database file path to confirm availability.");
-  }
-
-  try {
-    const stat = fs.statSync(filePath);
-    if (stat.isFile()) {
-      return entryConnectivity(entry, "online", "File found", `${filePath} is reachable from this machine.`);
-    }
-    return entryConnectivity(entry, "error", "Not a file", `${filePath} exists but is not a file.`);
-  } catch {
-    return entryConnectivity(entry, "error", "File not found", `${filePath} is not reachable from this machine.`);
-  }
-}
 
 async function checkApiKeyVaultEntry(entry) {
   const fields = vaultFieldMap(entry);
@@ -882,16 +803,6 @@ function parseBool(value, fallback) {
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
-function odbcValue(value) {
-  const text = String(value ?? "");
-  if (!/[;{}]/.test(text)) return text;
-  return `{${text.replaceAll("}", "}}")}}`;
-}
-
-function testOdbcConnection(connectionString) {
-  return runOdbcProbe(connectionString, { timeoutMs: 8000 })
-    .then(() => undefined);
-}
 
 function isLoopbackRequest(req) {
   const address = req.socket && req.socket.remoteAddress;
@@ -1043,30 +954,6 @@ const server = http.createServer(async (req, res) => {
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
-
-  // ── Actian lens active/inactive status sync ──────────────────────────────
-  if (url.pathname === "/api/automation/actian-lens-status-sync" && req.method === "GET") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "automation.read");
-      return getLensStatusSyncStatus();
-    });
-  }
-
-  if (url.pathname === "/api/automation/actian-lens-status-sync/run" && req.method === "POST") {
-    return handleApi(res, async () => {
-      const actor = await requirePermission(req, "automation.manage");
-      const result = await runLensStatusSync({ trigger: "manual" });
-      await recordAuditEvent({
-        moduleCode: "automation",
-        actorUserId: actor.userId,
-        eventType: "automation.actian_lens_status_sync.run",
-        entityType: "InnovationsLensStatus",
-        entityId: null,
-        eventData: { plannedUpdates: result.plannedUpdates, updated: result.updated }
-      }).catch(() => {});
-      return result;
-    });
-  }
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
@@ -1357,8 +1244,7 @@ const server = http.createServer(async (req, res) => {
       sourceMode: "read-only",
       writeBack: config.writeBackEnabled ? "enabled" : "disabled",
       appDatabase: snapshot.appDatabase,
-      sourceDatabase: snapshot.sourceDatabase,
-      psqlDatabase: snapshot.psqlDatabase
+      sourceDatabase: snapshot.sourceDatabase
     });
   }
 
@@ -1709,18 +1595,6 @@ const server = http.createServer(async (req, res) => {
       () => requirePermission(req, "delivery.read"),
       () => getSectionContext(section)
     );
-  }
-
-  if (url.pathname === "/api/access-import/status" && req.method === "GET") {
-    return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-last-run.json"), {
-      error: "Access import has not run yet."
-    }));
-  }
-
-  if (url.pathname === "/api/access-import/dry-run" || url.pathname.startsWith("/api/access-import/")) {
-    return sendJson(res, readJsonFile(path.join(__dirname, "docs", "access-import-dry-run.json"), {
-      error: "Access import dry-run has not been generated yet."
-    }));
   }
 
   if (url.pathname === "/api/admin/migrate" && req.method === "POST") {
@@ -2633,29 +2507,6 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  if (url.pathname === "/api/monitor/source-backend" && req.method === "GET") {
-    return handleApi(res, async () => {
-      requireLoopbackMonitor(req);
-      return sourceBackend.getStatus();
-    });
-  }
-
-  if (url.pathname === "/api/monitor/source-backend/switch" && req.method === "POST") {
-    return handleApi(res, async () => {
-      requireLoopbackMonitor(req);
-      const body = await readJsonBody(req);
-      return sourceBackend.switchTo(body.target, { force: !!body.force, actorUserId: "local-monitor" });
-    });
-  }
-
-  if (url.pathname === "/api/monitor/zen-mirror/sync" && req.method === "POST") {
-    return handleApi(res, async () => {
-      requireLoopbackMonitor(req);
-      const body = await readJsonBody(req);
-      return zenMirrorWorker.startManual({ full: !!body.full });
-    });
-  }
-
   // ── On-demand CV Web live-data gateway ───────────────────────────────────
   // The worker makes outbound-only calls to CV Web and performs strictly
   // allow-listed reads against Innovations and the OptiLens app database.
@@ -2676,7 +2527,6 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const data = await dispatchLiveDataRequest({
         operation: body.operation,
-        source_backend: body.source_backend,
         target: body.target,
         arguments: body.arguments,
       });
@@ -2712,40 +2562,6 @@ const server = http.createServer(async (req, res) => {
       liveGatewayWorker.stop();
       liveGatewayAutostart.clear();
       return liveGatewayStatus();
-    });
-  }
-
-  // ── Innovations source backend (live vendor MSSQL vs Zen-fed mirror) ─────
-  // Temporary bridge while the vendor Innovations MSSQL is unreliable. See
-  // docs/operations-agent/IMPLEMENTATION_PLAN.md.
-  if (url.pathname === "/api/connectors/source-backend" && req.method === "GET") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "integrations.read");
-      return sourceBackend.getStatus();
-    });
-  }
-
-  if (url.pathname === "/api/connectors/source-backend/switch" && req.method === "POST") {
-    return handleApi(res, async () => {
-      const user = await requirePermission(req, "credentials.manage");
-      const body = await readJsonBody(req);
-      return sourceBackend.switchTo(body.target, { force: !!body.force, actorUserId: user.userId });
-    });
-  }
-
-  if (url.pathname === "/api/connectors/zen-mirror/status" && req.method === "GET") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "integrations.read");
-      return zenMirrorWorker.status();
-    });
-  }
-
-  if (url.pathname === "/api/connectors/zen-mirror/sync" && req.method === "POST") {
-    return handleApi(res, async () => {
-      await requirePermission(req, "credentials.manage");
-      const body = await readJsonBody(req);
-      // A full sync can run for minutes; kick it off and let the UI poll status.
-      return zenMirrorWorker.startManual({ full: !!body.full });
     });
   }
 
@@ -3545,10 +3361,8 @@ function processDiagnostics() {
 async function buildMonitorDiagnostics(limit = 120) {
   const maxEvents = Math.min(Math.max(Number(limit) || 120, 1), 200);
   const credentials = credentialVault.cvApiFromVault();
-  const [health, source, mirror, git] = await Promise.allSettled([
+  const [health, git] = await Promise.allSettled([
     getIntegrationHealthSnapshot({ force: true }),
-    sourceBackend.getStatus(),
-    zenMirrorWorker.status(),
     Promise.resolve(gitUpdateChecker.getStatus()),
   ]);
 
@@ -3557,8 +3371,6 @@ async function buildMonitorDiagnostics(limit = 120) {
     service: "optilens-local",
     process: processDiagnostics(),
     health: safeResult(health, { service: "health" }),
-    sourceBackend: safeResult(source, { service: "source-backend" }),
-    zenMirror: safeResult(mirror, { service: "zen-mirror" }),
     innovationsSync: {
       status: safeResult(health, {}).innovationsSync || null,
       credentialsConfigured: !!credentials,
@@ -3595,7 +3407,7 @@ async function buildAiDiagnosticsContext(limit = 120) {
       directSourceWriteAccess: false,
     },
     howToUse: [
-      "Use health states, recent sync events, mirror worker state, and log tails to explain current failures.",
+      "Use health states, recent sync events, and log tails to explain current failures.",
       "Do not infer missing credentials or private payload values; report missing or redacted fields as unavailable.",
       "Recommend write actions only as operator steps; this endpoint does not perform changes.",
     ],
@@ -3679,14 +3491,6 @@ function beswiftBetaRelease() {
   };
 }
 
-function readJsonFile(filePath, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
   refreshGitUpdatesOnSchedule().catch(() => {});
@@ -3694,8 +3498,6 @@ server.listen(port, host, () => {
     refreshGitUpdatesOnSchedule().catch(() => {});
   }, 5 * 60 * 1000);
   gitUpdateTimer.unref();
-  const mirrorWorkerState = zenMirrorWorker.start();
-  console.log(`Zen mirror sync worker: ${mirrorWorkerState.detail}`);
   supplierMailboxPoller = startSupplierMailboxPoller();
   supplierMailboxPoller.start();
   startLiveGatewayOnBoot();

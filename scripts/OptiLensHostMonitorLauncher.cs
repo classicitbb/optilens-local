@@ -234,7 +234,7 @@ internal sealed class OptiLensHostMonitor : Form
             var hasFailure = false;
             var hasWarning = false;
             var failedConnections = new List<string>();
-            foreach (var key in new[] { "appDatabase", "sourceDatabase", "psqlDatabase", "mirrorDatabase", "innovationsSync", "rxAliasSync" })
+            foreach (var key in new[] { "appDatabase", "sourceDatabase", "innovationsSync", "rxAliasSync" })
             {
                 var item = Map(Value(health, key)); if (item == null) continue;
                 var state = S(Value(item, "state"));
@@ -356,13 +356,13 @@ internal sealed class OptiLensHostMonitor : Form
     {
         try
         {
-            var status = Map(json.DeserializeObject(await Api("/api/monitor/source-backend")));
-            sourceStatus.Text = "Active: " + S(Value(status, "active")); sourceStatus.ForeColor = Color.ForestGreen;
-            var parity = Value(status, "parity") as object[];
-            sourceParity.Text = parity != null && parity.Length > 0 ? "Parity warning: " + string.Join("; ", parity.Select(S)) : "Live and mirror are within parity tolerance.";
-            sourceParity.ForeColor = parity != null && parity.Length > 0 ? Color.DarkGoldenrod : Color.ForestGreen;
-            liveButton.Enabled = S(Value(status, "active")) != "live"; mirrorButton.Enabled = S(Value(status, "active")) != "mirror";
-            sourceMessage.Text = "Source controls are connected to OptiLens Local.";
+            var health = Map(json.DeserializeObject(await Api("/api/health")));
+            var source = Map(Value(health, "sourceDatabase"));
+            sourceStatus.Text = "Direct MSSQL: " + S(Value(source, "state")); sourceStatus.ForeColor = ColorFor(S(Value(source, "state")));
+            sourceParity.Text = "Mirror, PSQL, ODBC, and Access connections are retired.";
+            sourceParity.ForeColor = Color.ForestGreen;
+            liveButton.Enabled = false; mirrorButton.Enabled = false; mirrorSyncButton.Enabled = false;
+            sourceMessage.Text = S(Value(source, "detail"));
         }
         catch (Exception error) { sourceStatus.Text = "Source backend unavailable"; sourceStatus.ForeColor = Color.Firebrick; sourceMessage.Text = error.Message; }
     }
@@ -418,16 +418,13 @@ internal sealed class OptiLensHostMonitor : Form
 
     private async Task SwitchSource(string target)
     {
-        if (forcedSource != target && sourceParity.Text.StartsWith("Parity warning", StringComparison.OrdinalIgnoreCase)) { forcedSource = target; sourceMessage.Text = "Parity warning detected. Click again to force the switch."; return; }
-        try { await Api("/api/monitor/source-backend/switch", "POST", new { target = target, force = forcedSource == target }); forcedSource = ""; sourceMessage.Text = "Source switched to " + target + "."; await RefreshAll(); }
-        catch (Exception error) { sourceMessage.Text = error.Message; }
+        sourceMessage.Text = "The Innovations source is direct MSSQL only.";
+        await RefreshSource();
     }
 
     private async Task StartMirrorSync()
     {
-        try { mirrorSyncButton.Enabled = false; await Api("/api/monitor/zen-mirror/sync", "POST", new { full = false }); sourceMessage.Text = "Mirror sync started."; }
-        catch (Exception error) { sourceMessage.Text = error.Message; }
-        mirrorSyncButton.Enabled = true;
+        sourceMessage.Text = "Mirror synchronization is retired.";
         await RefreshSource();
     }
 

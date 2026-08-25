@@ -70,12 +70,12 @@ $sourcePanel.WrapContents = $true
 $sourcePanel.AutoScroll = $true
 $connectionsLayout.Controls.Add($sourcePanel, 0, 1)
 $sourceTitle = New-Object System.Windows.Forms.Label
-$sourceTitle.Text = "Innovations source backend"
+$sourceTitle.Text = "Innovations source"
 $sourceTitle.AutoSize = $true
 $sourceTitle.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $sourcePanel.Controls.Add($sourceTitle)
 $sourceActive = New-Object System.Windows.Forms.Label
-$sourceActive.Text = "Active: checking…"
+$sourceActive.Text = "Direct MSSQL: checking…"
 $sourceActive.AutoSize = $true
 $sourcePanel.Controls.Add($sourceActive)
 $sourceParity = New-Object System.Windows.Forms.Label
@@ -83,15 +83,15 @@ $sourceParity.Text = ""
 $sourceParity.AutoSize = $true
 $sourcePanel.Controls.Add($sourceParity)
 $sourceLiveButton = New-Object System.Windows.Forms.Button
-$sourceLiveButton.Text = "Use live MSSQL"
+$sourceLiveButton.Text = "MSSQL only"
 $sourceLiveButton.Width = 120
 $sourcePanel.Controls.Add($sourceLiveButton)
 $sourceMirrorButton = New-Object System.Windows.Forms.Button
-$sourceMirrorButton.Text = "Use mirror"
+$sourceMirrorButton.Visible = $false
 $sourceMirrorButton.Width = 100
 $sourcePanel.Controls.Add($sourceMirrorButton)
 $sourceSyncButton = New-Object System.Windows.Forms.Button
-$sourceSyncButton.Text = "Sync mirror now"
+$sourceSyncButton.Visible = $false
 $sourceSyncButton.Width = 120
 $sourcePanel.Controls.Add($sourceSyncButton)
 $sourceMessage = New-Object System.Windows.Forms.Label
@@ -220,7 +220,7 @@ function Invoke-MonitorApi([string] $Path, [string] $Method = "GET", [hashtable]
 function Update-HealthView {
     try {
         $health = Invoke-MonitorApi "/api/health"
-        $items = @($health.appDatabase, $health.sourceDatabase, $health.psqlDatabase, $health.mirrorDatabase, $health.innovationsSync) | Where-Object { $_ }
+        $items = @($health.appDatabase, $health.sourceDatabase, $health.innovationsSync) | Where-Object { $_ }
         $list.Items.Clear()
         $hasFailure = $false; $hasWarning = $false
         foreach ($item in $items) {
@@ -256,42 +256,23 @@ function Update-HealthView {
 
 function Update-SourceBackend {
     try {
-        $status = Invoke-MonitorApi "/api/monitor/source-backend"
-        $script:sourceLatest = $status
-        $sourceActive.Text = "Active: $($status.active)"
-        $sourceParity.Text = if ($status.parity -and $status.parity.Count) { "Parity warning: $($status.parity -join '; ')" } else { "Live and mirror are within parity tolerance." }
-        $sourceParity.ForeColor = if ($status.parity -and $status.parity.Count) { [System.Drawing.Color]::DarkGoldenrod } else { [System.Drawing.Color]::ForestGreen }
-        $sourceLiveButton.Enabled = $status.active -ne "live"
-        $sourceMirrorButton.Enabled = $status.active -ne "mirror"
-        $profileDetails = @("live", "mirror") | ForEach-Object {
-            $profile = $status.profiles.PSObject.Properties[$_].Value
-            if ($profile) { "$($_): $($profile.detail)" }
-        }
-        $sourceMessage.Text = ($profileDetails -join " | ")
-    } catch { $sourceActive.Text = "Source backend unavailable: $($_.Exception.Message)"; $sourceActive.ForeColor = [System.Drawing.Color]::Firebrick }
+        $health = Invoke-MonitorApi "/api/health"
+        $sourceActive.Text = "Direct MSSQL: $($health.sourceDatabase.state)"
+        $sourceActive.ForeColor = Get-HealthColour $health.sourceDatabase.state
+        $sourceParity.Text = "Mirror, PSQL, ODBC, and Access connections are retired."
+        $sourceParity.ForeColor = [System.Drawing.Color]::ForestGreen
+        $sourceLiveButton.Enabled = $false
+        $sourceMessage.Text = $health.sourceDatabase.detail
+    } catch { $sourceActive.Text = "MSSQL source unavailable: $($_.Exception.Message)"; $sourceActive.ForeColor = [System.Drawing.Color]::Firebrick }
 }
 
 function Switch-SourceBackend([string] $Target) {
-    $parity = @($script:sourceLatest.parity)
-    if ($parity.Count -and $script:sourceForceTarget -ne $Target) {
-        $script:sourceForceTarget = $Target
-        $sourceMessage.Text = "Parity warning detected. Click again to force switch to $Target."
-        return
-    }
-    try {
-        $sourceLiveButton.Enabled = $false; $sourceMirrorButton.Enabled = $false
-        $response = Invoke-MonitorApi "/api/monitor/source-backend/switch" "POST" @{ target = $Target; force = ($script:sourceForceTarget -eq $Target) }
-        $script:sourceForceTarget = ""
-        $sourceMessage.Text = if ($response.switched) { "Source switched to $($response.active)." } else { $response.detail }
-        Update-SourceBackend
-    } catch { $sourceMessage.Text = "Source switch failed: $($_.Exception.Message)"; Update-SourceBackend }
+    $sourceMessage.Text = "The Innovations source is direct MSSQL only."
+    Update-SourceBackend
 }
 
 function Start-SourceMirrorSync {
-    $sourceSyncButton.Enabled = $false
-    try { [void](Invoke-MonitorApi "/api/monitor/zen-mirror/sync" "POST" @{ full = $false }); $sourceMessage.Text = "Mirror sync started; refreshing status…" }
-    catch { $sourceMessage.Text = "Mirror sync failed: $($_.Exception.Message)" }
-    finally { Start-Sleep -Milliseconds 500; $sourceSyncButton.Enabled = $true; Update-SourceBackend }
+    $sourceMessage.Text = "Mirror synchronization is retired."
 }
 
 function Update-SyncStatus {

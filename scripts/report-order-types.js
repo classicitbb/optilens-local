@@ -1,10 +1,10 @@
 // Read-only discovery: what order types exist in the Innovations mirror, so we
 // can identify which one(s) represent bulk/finished "stock" lens sales as
 // opposed to per-patient Rx lab jobs. Safe to re-run any time.
-const { getMirrorPool } = require('../lib/db');
+const { getSourcePool } = require('../lib/db');
 
 async function main() {
-  const pool = await getMirrorPool();
+  const pool = await getSourcePool();
   try {
     const types = await pool.request().query(`
       SELECT OrderTypeID, OrderType, OrderTypeName, Credit, OrderSign

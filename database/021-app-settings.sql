@@ -1,5 +1,5 @@
 -- 021-app-settings.sql — generic key/value application settings.
--- First consumer: the Innovations source-backend switch (live vs mirror).
+-- Used for app-owned settings.
 -- Rerunnable.
 
 IF OBJECT_ID(N'core.app_settings', N'U') IS NULL
