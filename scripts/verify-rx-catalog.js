@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { connectZen } = require("../lib/zen-source");
+const { getSourcePool } = require("../lib/db");
 
 const ROOT = path.join(__dirname, "..");
 const RX_DIR = path.join(ROOT, "data", "rx");
@@ -13,10 +13,10 @@ async function verify() {
   const catalog = readJson("catalog.generated.json");
   const addons = readJson("addons.generated.json");
   const coatings = readJson("coatings.generated.json");
-  const connection = await connectZen();
-  try {
-    const aliases = await connection.query('SELECT "Alias" AS alias FROM "LensAlias"');
-    const misc = await connection.query('SELECT "SKU" AS sku, "Alias" AS alias FROM "MiscItems"');
+  const pool = await getSourcePool();
+  {
+    const aliases = (await pool.request().query('SELECT Alias AS alias FROM dbo.LensAlias')).recordset;
+    const misc = (await pool.request().query('SELECT SKU AS sku, Alias AS alias FROM dbo.MiscItems')).recordset;
     const sourceAliases = new Set(aliases.map((row) => String(row.alias || "").trim()));
     const sourceMisc = new Set(misc.flatMap((row) => [row.sku, row.alias].map((value) => String(value || "").trim())).filter(Boolean));
     const invalidAliases = catalog.map((row) => row.alias).filter((alias) => !sourceAliases.has(alias));
@@ -25,8 +25,6 @@ async function verify() {
     const result = { aliasesChecked: catalog.length, invalidAliases, coatingItemsChecked: coatings.length, automaticItemsChecked: addons.length, invalidMisc };
     console.log(JSON.stringify(result, null, 2));
     if (invalidAliases.length || invalidMisc.length) process.exitCode = 1;
-  } finally {
-    await connection.close();
   }
 }
 

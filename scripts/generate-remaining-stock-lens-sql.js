@@ -15,7 +15,7 @@ const path = require('path');
 const crypto = require('crypto');
 const sql = require('mssql');
 const { getConfig } = require('../lib/config');
-const { getMirrorPool } = require('../lib/db');
+const { getSourcePool } = require('../lib/db');
 
 const REF = {
   material: {
@@ -71,7 +71,7 @@ function sqlNum(v) { return Number.isFinite(v) ? String(v) : 'NULL'; }
 
 async function main() {
   // 1) Full stock-order lens-line sales history from the mirror, last 90 days.
-  const mirrorPool = await getMirrorPool();
+  const mirrorPool = await getSourcePool();
   let soldSkus;
   try {
     const result = await mirrorPool.request().input('days', 90).query(`

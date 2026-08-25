@@ -18,7 +18,7 @@ const path = require('path');
 const crypto = require('crypto');
 const sql = require('mssql');
 const { getConfig } = require('../lib/config');
-const { getMirrorPool } = require('../lib/db');
+const { getSourcePool } = require('../lib/db');
 
 // erp: [MaterialGroup, Material, MFType, LensType, Option, Manufacturer, Fin_Semi]
 const MAPPING = [
@@ -79,7 +79,7 @@ function sqlStr(v) { return `'${String(v).replace(/'/g, "''")}'`; }
 function sqlNum(v) { return Number.isFinite(v) ? String(v) : 'NULL'; }
 
 async function main() {
-  const mirrorPool = await getMirrorPool();
+  const mirrorPool = await getSourcePool();
   let soldSkus;
   try {
     const result = await mirrorPool.request().input('days', 90).query(`

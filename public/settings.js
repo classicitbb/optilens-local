@@ -5,8 +5,6 @@ initSettings();
 
 async function initSettings() {
   await refreshDashboardHealth();
-  const accessImport = await getJson("/api/access-import/dry-run", { tables: [] });
-  renderAccessImport(accessImport.tables || []);
   startSettingsRefresh();
   // Theme + launcher handled by shared.js (loaded before settings.js)
 }
@@ -49,18 +47,6 @@ function renderHealth(items) {
       <p>${escapeHtml(item.detail)}</p>
     </article>
   `).join("");
-}
-
-function renderAccessImport(tables) {
-  const target = document.querySelector("#accessImportRows");
-  if (!target) return;
-  target.innerHTML = tables.map(table => `
-    <tr>
-      <td>${escapeHtml(table.table)}</td>
-      <td>${table.row_count === null || table.row_count === undefined ? "-" : Number(table.row_count).toLocaleString()}</td>
-      <td><span class="badge">${escapeHtml(table.migration_treatment || "review")}</span></td>
-    </tr>
-  `).join("") || `<tr><td colspan="3">Run the Access import dry-run script to populate this section.</td></tr>`;
 }
 
 async function getJson(url, fallback) {
