@@ -22,8 +22,7 @@
           <h1>Integrations</h1>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center" aria-label="Integration health">
-          <span id="headerSourceLive" class="badge planned">Live MSSQL …</span>
-          <span id="headerSourceMirror" class="badge planned">Zen mirror …</span>
+          <span id="headerSourceLive" class="badge planned">MSSQL …</span>
           <span id="headerSync" class="badge planned">CV sync …</span>
         </div>
       </div>
@@ -38,32 +37,14 @@
           <article>
             <span class="icon" style="background:#1A8A9C">SQL</span>
             <h3>MSSQL — Innovations</h3>
-            <p>Read-only vendor source for customer, shipment, order, and product data. Health and source selection are controlled from the host monitor.</p>
-            <span class="badge open">Monitor controlled</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#0f766e">SRC</span>
-            <h3>Innovations source</h3>
-            <p>Live MSSQL and the Zen-fed mirror are the two approved read-only backends. Use the monitor for parity checks, switching, and mirror sync.</p>
-            <span class="badge open">Monitor controlled</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#389457">PG</span>
-            <h3>PSQL — Innovations</h3>
-            <p>Read-only shipment and ShipmentItems source used for shipped-state and export checks.</p>
-            <span class="badge open">Discovered</span>
+            <p>Direct read-only source for customer, shipment, order, and product data.</p>
+            <span class="badge open">MSSQL only</span>
           </article>
           <article>
             <span class="icon" style="background:#7c3aed">API</span>
             <h3>Classic Visions sync</h3>
             <p>Credentials are read from the Credentials Vault. Dry runs, writes, self-test, and local logs are operated from the host monitor.</p>
             <span class="badge open">Monitor controlled</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#4b5563">ODBC</span>
-            <h3>ODBC DSNs</h3>
-            <p>Generic connector for remaining legacy sources. DSN configuration is managed in Credentials.</p>
-            <span class="badge planned">Planned</span>
           </article>
           <article>
             <span class="icon" style="background:#b45309">CSV</span>
@@ -92,7 +73,6 @@
 
     (function () {
       const liveEl = document.getElementById("headerSourceLive");
-      const mirrorEl = document.getElementById("headerSourceMirror");
       const syncEl = document.getElementById("headerSync");
       const setBadge = (el, label, state) => {
         if (!el) return;
@@ -101,18 +81,12 @@
       };
       async function refreshHeaderIndicators() {
         try {
-          const [sourceResponse, healthResponse] = await Promise.all([
-            fetch("/api/connectors/source-backend"),
-            fetch("/api/health")
-          ]);
-          const source = await sourceResponse.json().catch(() => ({}));
+          const healthResponse = await fetch("/api/health");
           const health = await healthResponse.json().catch(() => ({}));
-          setBadge(liveEl, "Live MSSQL", source.profiles?.live?.state || "unknown");
-          setBadge(mirrorEl, "Zen mirror", source.profiles?.mirror?.state || "unknown");
+          setBadge(liveEl, "MSSQL", health.sourceDatabase?.state || "unknown");
           setBadge(syncEl, "CV sync", health.innovationsSync?.state || "unknown");
         } catch {
-          setBadge(liveEl, "Live MSSQL", "offline");
-          setBadge(mirrorEl, "Zen mirror", "offline");
+          setBadge(liveEl, "MSSQL", "offline");
           setBadge(syncEl, "CV sync", "offline");
         }
       }

@@ -80,20 +80,6 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM integration.connections WHERE connection_code = N'source-access-cv-accounts')
-BEGIN
-    INSERT INTO integration.connections (connection_code, connection_name, connection_type, safe_config_json, secret_reference, mode)
-    VALUES (
-        N'source-access-cv-accounts',
-        N'CV Accounts Access Backend',
-        N'access',
-        N'{"source":"CV_Accounts_be.accdb","retention":"last 12 months active plus archive"}',
-        NULL,
-        N'read-only'
-    );
-END;
-GO
-
 MERGE core.dashboard_tiles AS target
 USING (VALUES
     (N'open-source-shipments', N'Open source shipments', N'Source shipments still open for export prep.', N'delivery-export', N'kpi', N'normal', 10, 1),
@@ -102,7 +88,6 @@ USING (VALUES
     (N'reopened-shipments', N'Reopened shipments', N'Reopened shipment sessions tracked by the app.', N'delivery-export', N'kpi', N'normal', 40, 1),
     (N'source-mssql-health', N'Source MSSQL health', N'Read-only Innovations source connection status.', NULL, N'health', N'normal', 50, 1),
     (N'private-app-db-health', N'Private app DB health', N'Private optilens_local database status.', NULL, N'health', N'normal', 60, 1),
-    (N'access-archive-import-status', N'Access archive/import status', N'Historic CV_Accounts_be import and archive readiness.', N'delivery-export', N'kpi', N'normal', 70, 1),
     (N'write-back-status', N'Write-back status', N'Source write-back remains disabled until explicitly approved.', NULL, N'kpi', N'normal', 80, 1),
     (N'integration-readiness', N'Integration readiness', N'Integration module setup and connector readiness.', N'integrations', N'kpi', N'normal', 90, 1),
     (N'automation-readiness', N'Automation readiness', N'Local LLM and automation readiness.', N'automation', N'kpi', N'normal', 100, 1),

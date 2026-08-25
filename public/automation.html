@@ -156,31 +156,6 @@
       </section>
 
       <section class="workflow-panel" id="scheduled">
-        <div class="scheduled-heading">
-          <div>
-            <p class="eyebrow">Scheduled task</p>
-            <h2>Actian lens status sync</h2>
-            <p>Mirrors active and inactive states from Actian Zen into Innovations SQL Server. Only the inactive status flag is changed; every run verifies matching lens keys first.</p>
-          </div>
-          <button class="button primary" id="runLensStatusSync" type="button">Run now</button>
-        </div>
-        <div id="lensStatusSyncNotice" class="scheduled-notice" role="status" aria-live="polite">Loading scheduled-task status…</div>
-        <article class="scheduled-task-card" aria-labelledby="lensStatusSyncTitle">
-          <div class="scheduled-task-main">
-            <div class="scheduled-task-icon" aria-hidden="true">↻</div>
-            <div>
-              <h3 id="lensStatusSyncTitle">Actian → Innovations lens availability</h3>
-              <p id="lensStatusSyncDetail">Checking the task and latest run…</p>
-            </div>
-          </div>
-          <dl class="scheduled-task-meta">
-            <div><dt>Schedule</dt><dd id="lensStatusSyncSchedule">—</dd></div>
-            <div><dt>Task state</dt><dd id="lensStatusSyncTaskState">—</dd></div>
-            <div><dt>Next run</dt><dd id="lensStatusSyncNextRun">—</dd></div>
-            <div><dt>Last run</dt><dd id="lensStatusSyncLastRun">—</dd></div>
-          </dl>
-        </article>
-
         <article class="scheduled-task-card qbo-scheduled-card" aria-labelledby="qboInvoiceSyncTitle">
           <div class="scheduled-heading">
             <div class="scheduled-task-main">
@@ -227,6 +202,6 @@
 
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
-  <script src="/automation.js?v=actian-lens-status-20260804"></script>
+  <script src="/automation.js?v=mssql-only-20260825"></script>
 </body>
 </html>

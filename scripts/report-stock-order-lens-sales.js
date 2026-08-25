@@ -14,7 +14,7 @@
 // Safe, read-only, no writes anywhere. Pass a window size in days as argv[2]
 // (default 180).
 const sql = require('mssql');
-const { getMirrorPool } = require('../lib/db');
+const { getSourcePool } = require('../lib/db');
 const { getConfig } = require('../lib/config');
 
 const DAYS = Number(process.argv[2]) || 180;
@@ -39,7 +39,7 @@ async function getLiveSourcePoolLongTimeout() {
 }
 
 async function main() {
-  const mirrorPool = await getMirrorPool();
+  const mirrorPool = await getSourcePool();
   let stockLensLines;
   try {
     const result = await mirrorPool.request()
