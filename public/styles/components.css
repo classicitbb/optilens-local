@@ -886,6 +886,26 @@ th {
   min-height: 420px;
 }
 
+.co-side-column {
+  display: grid;
+  /* Fill jobs sizes to its content; the checklist row takes the rest so the
+     sticky checklist has room to travel next to the tall invoice sheet. */
+  grid-template-rows: auto 1fr;
+  align-self: stretch;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The checklist sits under Fill jobs, so the jobs panel no longer has to hold
+   the full height of the column on its own. */
+.co-side-column .co-jobs-panel {
+  min-height: 0;
+}
+
+.co-compliance-slot {
+  min-width: 0;
+}
+
 .co-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2571,7 +2591,7 @@ textarea.ci-line-input {
 /* Commercial-invoice entry workspace: the print/PDF route retains the paper document. */
 .commercial-invoice-shell { padding: 0; overflow: visible; background: transparent; }
 .commercial-invoice-entry { padding: 14px; background: var(--surface); }
-.ci-entry-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); gap: 16px; align-items: start; }
+.ci-entry-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .ci-entry-main { display: grid; gap: 14px; min-width: 0; }
 .ci-entry-intro, .ci-entry-section { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
 .ci-entry-intro { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 14px; }
@@ -2610,7 +2630,7 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 .ci-compliance-sidebar details { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .ci-compliance-sidebar summary { cursor: pointer; color: var(--blue); font-size: 12px; font-weight: 800; }
 .ci-compliance-reminders { margin-top: 8px; padding-left: 18px; list-style: disc; color: var(--muted); font-size: 12px; line-height: 1.35; }
-@media (max-width: 920px) { .ci-entry-layout { grid-template-columns: 1fr; } .ci-compliance-sidebar { position: static; } }
+@media (max-width: 1050px) { .ci-compliance-sidebar { position: static; } }
 @media (max-width: 620px) { .ci-entry-intro { display: grid; } .ci-entry-grid { grid-template-columns: 1fr; } .ci-entry-field-wide { grid-column: auto; } .ci-entry-totals { grid-template-columns: 1fr; } }
 
 /* Shipment details and charges are a distinct entry section, not a paper-invoice header. */

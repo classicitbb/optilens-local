@@ -257,7 +257,7 @@ function renderCoDraft() {
   }
 
   fillCoForm({
-    portalEnvironment: app.portalEnvironment || "training",
+    portalEnvironment: app.portalEnvironment || "production",
     trackingNumber: payload.transport?.trackingNumber || "",
     shippingDate: payload.transport?.shippingDate || "",
     boxCode: payload.packaging?.box || "DHL-FLYER",
@@ -280,7 +280,7 @@ function renderCoDraft() {
 
 function fillCoForm(values) {
   const pairs = {
-    coPortalEnvironment: values.portalEnvironment || "training",
+    coPortalEnvironment: values.portalEnvironment || "production",
     coTrackingNumber: values.trackingNumber || "",
     coShippingDate: values.shippingDate || "",
     coBoxCode: values.boxCode || "DHL-FLYER",
@@ -418,10 +418,13 @@ function renderCommercialInvoicePreview() {
   const target = document.querySelector("#commercialInvoicePreview");
   const summary = document.querySelector("#commercialPreviewSummary");
   if (!target) return;
+  const preview = moduleState.invoicePreview;
+  // The checklist lives in the right-hand column beside Fill jobs, outside this
+  // sheet, so it can refresh while the operator is still typing in the form.
+  renderCiComplianceSlot(preview?.compliance);
   // Avoid replacing the form while an operator is actively typing.
   if (target.contains(document.activeElement)
     && document.activeElement?.matches("[data-ci-header-field], [data-ci-field]")) return;
-  const preview = moduleState.invoicePreview;
   if (!preview) {
     if (summary) summary.textContent = "Select an export shipment to open its commercial-invoice workspace.";
     target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>`;
@@ -506,7 +509,6 @@ function renderCommercialInvoicePreview() {
             </div>
           </section>
         </div>
-        ${renderCiCompliance(preview.compliance)}
       </div>
     </article>
   `;
@@ -766,6 +768,20 @@ function renderCiCompliance(c) {
       <p class="${c.ready ? "ci-compliance-ok" : "ci-compliance-warn"}">${c.ready ? "All required invoice fields are present." : `${outstanding} required item${outstanding === 1 ? "" : "s"} still need attention.`}</p>
       <ul class="ci-compliance-checks">${checks}</ul>
       ${reminders ? `<details><summary>Filing reminders</summary><ul class="ci-compliance-reminders">${reminders}</ul></details>` : ""}
+    </aside>
+  `;
+}
+
+// Renders the checklist into its own slot in the right-hand column, beneath
+// Fill jobs, so the invoice sheet keeps the full width of the left panel.
+function renderCiComplianceSlot(compliance) {
+  const slot = document.querySelector("#coComplianceSlot");
+  if (!slot) return;
+  slot.innerHTML = renderCiCompliance(compliance) || `
+    <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
+      <p class="eyebrow">Automatic checklist</p>
+      <h2>No shipment selected</h2>
+      <p class="ci-compliance-warn">Select an export shipment to run the invoice checklist.</p>
     </aside>
   `;
 }
@@ -1117,7 +1133,7 @@ async function queueCoJob() {
 
 function readCoDraftForm() {
   return {
-    portalEnvironment: valueOf("#coPortalEnvironment") || "training",
+    portalEnvironment: valueOf("#coPortalEnvironment") || "production",
     trackingNumber: valueOf("#coTrackingNumber"),
     shippingDate: valueOf("#coShippingDate"),
     boxCode: valueOf("#coBoxCode"),

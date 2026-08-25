@@ -151,8 +151,8 @@
               </div>
               <label>Portal
                 <select id="coPortalEnvironment" name="portalEnvironment">
+                  <option value="production" selected>BeSwift production</option>
                   <option value="training">BeSwift training</option>
-                  <option value="production">BeSwift production</option>
                 </select>
               </label>
               <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
@@ -212,17 +212,27 @@
             </details>
           </section>
 
-          <section class="workflow-block co-jobs-panel">
-            <div class="section-head tight shipment-detail-head">
-              <div>
-                <h2>Fill jobs</h2>
-                <p>Concurrent Chrome extension jobs for saved drafts.</p>
+          <div class="co-side-column">
+            <section class="workflow-block co-jobs-panel">
+              <div class="section-head tight shipment-detail-head">
+                <div>
+                  <h2>Fill jobs</h2>
+                  <p>Concurrent Chrome extension jobs for saved drafts.</p>
+                </div>
               </div>
+              <div class="co-job-list" id="coJobList">
+                <p class="shipment-empty">No queued jobs for this draft.</p>
+              </div>
+            </section>
+
+            <div class="co-compliance-slot" id="coComplianceSlot">
+              <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
+                <p class="eyebrow">Automatic checklist</p>
+                <h2>No shipment selected</h2>
+                <p class="ci-compliance-warn">Select an export shipment to run the invoice checklist.</p>
+              </aside>
             </div>
-            <div class="co-job-list" id="coJobList">
-              <p class="shipment-empty">No queued jobs for this draft.</p>
-            </div>
-          </section>
+          </div>
         </div>
       </section>
 
