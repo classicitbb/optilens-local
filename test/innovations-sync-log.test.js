@@ -31,7 +31,11 @@ test('sync fetch retries transient receiver failures', async () => {
   assert.equal(attempts, 2);
 });
 
-test('statement sync uses a longer single-attempt receiver timeout', () => {
+test('contact and statement sync use longer single-attempt receiver timeouts', () => {
+  assert.deepEqual(entityFetchOptions('contacts'), {
+    timeoutMs: 120000,
+    retries: 0,
+  });
   assert.deepEqual(entityFetchOptions('statements'), {
     timeoutMs: 120000,
     retries: 0,
