@@ -8,11 +8,12 @@ param(
 $ErrorActionPreference = "Stop"
 if ($IntervalMinutes -lt 5) { throw "IntervalMinutes must be at least 5." }
 if (-not $ProjectRoot) { $ProjectRoot = Split-Path -Parent $PSScriptRoot }
+$runner = Join-Path $ProjectRoot "scripts\run-qbo-invoice-sync-hidden.ps1"
+if (-not (Test-Path -LiteralPath $runner)) { throw "QBO invoice sync runner not found at $runner" }
 $node = (Get-Command node -ErrorAction Stop).Source
-$cli = Join-Path $ProjectRoot "scripts\sync-qbo-invoices.js"
-if (-not (Test-Path -LiteralPath $cli)) { throw "QBO invoice sync script not found at $cli" }
-$mode = if ($Apply) { " --apply" } else { "" }
-$action = New-ScheduledTaskAction -Execute $node -Argument "`"$cli`"$mode" -WorkingDirectory $ProjectRoot
+$powerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+$mode = if ($Apply) { " -Apply" } else { "" }
+$action = New-ScheduledTaskAction -Execute $powerShell -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$runner`" -ProjectRoot `"$ProjectRoot`" -NodePath `"$node`"$mode" -WorkingDirectory $ProjectRoot
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -StartWhenAvailable -RestartCount 2 -RestartInterval (New-TimeSpan -Minutes 5)
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Description "Reads Innovations invoices and synchronizes them to QuickBooks ($($(if ($Apply) { 'apply' } else { 'dry-run' })) mode) every $IntervalMinutes minute(s)." -Force | Out-Null
