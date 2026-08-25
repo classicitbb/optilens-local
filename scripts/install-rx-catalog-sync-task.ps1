@@ -14,7 +14,7 @@ $argument = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$run
 $action = New-ScheduledTaskAction -Execute $powershell -Argument $argument -WorkingDirectory $ProjectRoot
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -StartWhenAvailable -RestartCount 2 -RestartInterval (New-TimeSpan -Minutes 10)
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Description "Refreshes the read-only Zen RX alias catalog used by OptiLens Local." -Force | Out-Null
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Description "Refreshes the read-only Innovations MSSQL RX alias catalog used by OptiLens Local." -Force | Out-Null
 $marker = Join-Path $ProjectRoot "data\logs\rx-catalog-sync-task.json"
 New-Item -ItemType Directory -Path (Split-Path -Parent $marker) -Force | Out-Null
 @{ name = "RX alias catalog sync"; taskName = $TaskName; state = "registered"; intervalMinutes = $IntervalMinutes; installedAt = (Get-Date).ToUniversalTime().ToString("o") } | ConvertTo-Json | Set-Content -LiteralPath $marker -Encoding UTF8
