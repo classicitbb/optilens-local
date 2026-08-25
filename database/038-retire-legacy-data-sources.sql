@@ -10,10 +10,17 @@ DELETE FROM core.app_settings
 WHERE setting_key = N'source_backend';
 GO
 
-DELETE layout_row
-FROM core.user_dashboard_tiles AS layout_row
+DELETE device_layout_row
+FROM core.user_device_dashboard_tiles AS device_layout_row
 INNER JOIN core.dashboard_tiles AS tile
-    ON tile.dashboard_tile_id = layout_row.dashboard_tile_id
+    ON tile.dashboard_tile_id = device_layout_row.dashboard_tile_id
+WHERE tile.tile_key = N'access-archive-import-status';
+GO
+
+DELETE user_layout_row
+FROM core.user_dashboard_tiles AS user_layout_row
+INNER JOIN core.dashboard_tiles AS tile
+    ON tile.dashboard_tile_id = user_layout_row.dashboard_tile_id
 WHERE tile.tile_key = N'access-archive-import-status';
 GO
 
