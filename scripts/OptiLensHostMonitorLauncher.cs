@@ -257,6 +257,7 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshSource();
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
+            await RefreshQboInvoiceSyncStatus();
             RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !startVisible && !hasFailure && !hasWarning)
@@ -477,6 +478,28 @@ internal sealed class OptiLensHostMonitor : Form
             rxAliasSyncButton.Enabled = true;
         }
         catch (Exception error) { rxAliasSyncMessage.Text = "RX alias sync status unavailable: " + error.Message; rxAliasSyncMessage.ForeColor = Color.Firebrick; }
+    }
+
+    private async Task RefreshQboInvoiceSyncStatus()
+    {
+        try
+        {
+            var status = Map(json.DeserializeObject(await Api("/api/monitor/qbo-invoice-sync/status")));
+            var state = S(Value(status, "state"));
+            var row = new ListViewItem(S(Value(status, "name")));
+            row.SubItems.Add(state.ToUpperInvariant());
+            row.SubItems.Add(S(Value(status, "detail")));
+            row.ForeColor = ColorFor(state);
+            connections.Items.Add(row);
+        }
+        catch (Exception error)
+        {
+            var row = new ListViewItem("Innovations → QuickBooks invoices");
+            row.SubItems.Add("ERROR");
+            row.SubItems.Add("Status unavailable: " + error.Message);
+            row.ForeColor = Color.Firebrick;
+            connections.Items.Add(row);
+        }
     }
 
     private void RefreshTlsStatus()

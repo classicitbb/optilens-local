@@ -175,6 +175,7 @@ const { getSetting, setSetting } = require("./lib/app-settings");
 const { recordAuditEvent } = require("./lib/audit");
 const { handleOperationsRoute } = require("./lib/operations/routes");
 const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
+const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
@@ -2478,6 +2479,13 @@ const server = http.createServer(async (req, res) => {
       requireLoopbackMonitor(req);
       const health = await getIntegrationHealthSnapshot({ force: true });
       return health.rxAliasSync;
+    });
+  }
+
+  if (url.pathname === "/api/monitor/qbo-invoice-sync/status" && req.method === "GET") {
+    return handleApi(res, async () => {
+      requireLoopbackMonitor(req);
+      return getQboInvoiceSyncStatus();
     });
   }
 

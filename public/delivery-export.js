@@ -257,7 +257,7 @@ function renderCoDraft() {
   }
 
   fillCoForm({
-    portalEnvironment: app.portalEnvironment || "training",
+    portalEnvironment: app.portalEnvironment || "production",
     trackingNumber: payload.transport?.trackingNumber || "",
     shippingDate: payload.transport?.shippingDate || "",
     boxCode: payload.packaging?.box || "DHL-FLYER",
@@ -280,7 +280,7 @@ function renderCoDraft() {
 
 function fillCoForm(values) {
   const pairs = {
-    coPortalEnvironment: values.portalEnvironment || "training",
+    coPortalEnvironment: values.portalEnvironment || "production",
     coTrackingNumber: values.trackingNumber || "",
     coShippingDate: values.shippingDate || "",
     coBoxCode: values.boxCode || "DHL-FLYER",
@@ -418,21 +418,18 @@ function renderCommercialInvoicePreview() {
   const target = document.querySelector("#commercialInvoicePreview");
   const summary = document.querySelector("#commercialPreviewSummary");
   if (!target) return;
-  // A background refresh (polling, tab visibility, or this module's own debounced
-  // line-edit autosave) can land while an operator is mid-edit on a pencil field
-  // or a line-item cell. Replacing the DOM under a focused input fires a synthetic
-  // focusout, which would autosave whatever the fresh render's default value is
-  // and silently clobber the edit in progress. Skip the rebuild until they commit
-  // (blur/Enter) or leave the field.
+  const preview = moduleState.invoicePreview;
+  // The checklist lives in the right-hand column beside Fill jobs, outside this
+  // sheet, so it can refresh while the operator is still typing in the form.
+  renderCiComplianceSlot(preview?.compliance);
+  // Avoid replacing the form while an operator is actively typing.
   if (target.contains(document.activeElement)
     && document.activeElement?.matches("[data-ci-header-field], [data-ci-field]")) return;
-  const preview = moduleState.invoicePreview;
   if (!preview) {
-    if (summary) summary.textContent = "Select an export shipment to preview the commercial invoice.";
-    target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial invoice preview.</p>`;
+    if (summary) summary.textContent = "Select an export shipment to open its commercial-invoice workspace.";
+    target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>`;
     return;
   }
-
   if (summary) {
     summary.textContent = `Shipment ${preview.shipmentId} · ${preview.itemCount} invoice line${preview.itemCount === 1 ? "" : "s"} · ${formatMoneyBbd(preview.totals?.invoiceTotal || 0)}`;
   }
@@ -452,103 +449,81 @@ function renderCommercialInvoicePreview() {
     </tr>
   `).join("");
 
-  const declarationView = preview.declarationOverride
-    ? `<div class="ci-declaration-line"><strong>${escapeHtml(preview.declarationOverride)}</strong></div>`
-    : preview.tariffHeadings?.length
-      ? preview.tariffHeadings.map((heading) => `
-        <div class="ci-declaration-line">
-          <strong>${escapeHtml(heading.heading || "")}</strong>
-          <b>${escapeHtml(heading.hsCode || "")}</b>
-        </div>
-      `).join("")
-      : `
-        <div class="ci-declaration-line">
-          <strong>${escapeHtml(preview.declarationText || "")}</strong>
-          <b>${escapeHtml(preview.declarationHsCode || "")}</b>
-        </div>
-      `;
-
   target.innerHTML = `
-    <article class="commercial-invoice-preview">
-      <header class="ci-title-row">
-        <h1>Commercial Invoice</h1>
-        <span>Classic Visions · Export</span>
-      </header>
-      <section class="ci-header-grid">
-        <div class="ci-field ci-seller">
-          <small>Seller (name, full address, country)</small>
-          <strong>${escapeHtml(preview.seller?.name || "")}</strong>
-          <p>${escapeHtml((preview.seller?.addressLines || []).join(", "))}<br>${escapeHtml(preview.seller?.phone || "")}</p>
+    <article class="commercial-invoice-entry">
+      <div class="ci-entry-layout">
+        <div class="ci-entry-main">
+          <section class="ci-entry-intro">
+            <div>
+              <p class="eyebrow">Commercial invoice workspace</p>
+              <h3>Edit the shipment record, then use Print / PDF for the final document.</h3>
+              <p>Source-controlled details are shown for reference. Shipment details, costs, delivery terms and shipping marks are editable above; invoice-specific fields below save when you leave the field.</p>
+            </div>
+            <span class="ci-entry-status">Draft for shipment ${escapeHtml(preview.shipmentId || "")}</span>
+          </section>
+          <section class="ci-entry-section">
+            <div class="ci-entry-section-head"><div><h3>Invoice & parties</h3><p>Invoice identity and consignee details supplied by the selected shipment.</p></div></div>
+            <div class="ci-entry-grid">
+              ${ciReadOnly("Invoice date", preview.invoiceDate)}
+              ${ciReadOnly("Invoice number", preview.invoiceNo)}
+              ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Enter customer order number" })}
+              ${ciEntryInput("PO numbers", "poNumbers", preview.poNumbers, { placeholder: "Enter PO numbers" })}
+              ${ciReadOnly("Presenting bank", preview.presentingBank)}
+              ${ciReadOnly("Buyer", "Buyer (if not consignee)")}
+              ${ciReadOnly("Seller", preview.seller?.name, { detail: [...(preview.seller?.addressLines || []), preview.seller?.phone].filter(Boolean).join(" · ") })}
+              ${ciReadOnly("Consignee", preview.consignee?.name, { detail: [preview.consignee?.address, preview.consignee?.country, preview.consignee?.phone].filter(Boolean).join(" · ") })}
+            </div>
+          </section>
+          <section class="ci-entry-section">
+            <div class="ci-entry-section-head"><div><h3>Shipment & customs</h3><p>Complete the commercial-invoice fields that differ from the shipment defaults.</p></div></div>
+            <div class="ci-entry-grid">
+              ${ciEntryInput("Port of loading", "portOfLoading", preview.transport?.portOfLoading, { placeholder: "Enter port of loading" })}
+              ${ciEntryInput("Carrier", "carrier", preview.transport?.carrier, { placeholder: "Enter carrier" })}
+              ${ciEntryInput("Marks & numbers", "marksAndNumbers", preview.transport?.marksAndNumbers, { placeholder: "Customer account / shipment" })}
+              ${ciEntryInput("Package type", "packageType", preview.packaging?.packageType, { placeholder: "Enter package type" })}
+              ${ciEntryInput("Gross weight (lbs)", "grossWeightLbs", preview.packaging?.grossWeightLbs, { placeholder: "Enter pounds", hint: preview.packaging?.grossWeight ? `Calculated: ${preview.packaging.grossWeight}` : "" })}
+              ${ciReadOnly("Delivery terms", preview.deliveryTerms)}
+              ${ciReadOnly("Tracking / AWB", preview.transport?.trackingNumber)}
+              ${ciReadOnly("No. & kind of packages", [preview.packaging?.numberOfPackages, preview.packaging?.packageType].filter(Boolean).join(" · "))}
+              ${ciReadOnly("Cube", preview.packaging?.cube)}
+              ${ciReadOnly("Country of origin", preview.countryOfOriginOfGoods)}
+              ${ciReadOnly("Final destination", preview.transport?.countryOfDestination)}
+              ${ciEntryInput("Declaration", "declaration", preview.declarationOverride, { multiline: true, wide: true, placeholder: "Leave blank to use the standard tariff declaration" })}
+            </div>
+          </section>
+          <section class="ci-entry-section ci-entry-lines-section">
+            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div></div>
+            <div class="table-wrap ci-entry-table-wrap">
+              <table class="ci-items ci-entry-items">
+                <thead><tr><th>Line #</th><th>Ref #</th><th>Inv #</th><th>Specification of commodities</th><th>HS code</th><th>Origin</th><th>Qty</th><th>Unit price</th><th>Amount</th><th>Weight kg</th></tr></thead>
+                <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
+              </table>
+            </div>
+            <div class="ci-entry-totals" data-ci-totals>
+              ${renderTotalRow("Sub total", preview.totals?.subTotal)}
+              ${renderTotalRow("Packaging", preview.totals?.packaging)}
+              ${renderTotalRow("Freight", preview.totals?.freight)}
+              ${renderTotalRow("Other costs", preview.totals?.other)}
+              ${renderTotalRow("Insurance", preview.totals?.insurance)}
+              ${renderTotalRow("Invoice total", preview.totals?.invoiceTotal, true)}
+            </div>
+          </section>
         </div>
-        <div class="ci-field"><small>Date</small><strong>${escapeHtml(preview.invoiceDate || "")}</strong></div>
-        <div class="ci-field"><small>Inv No</small><strong>${escapeHtml(preview.invoiceNo || "")}</strong></div>
-        ${ciEditableField("Customer order no", "customerOrderNo", preview.customerOrderNo, { placeholder: "(blank)" })}
-        <div class="ci-field ci-consignee">
-          <small>Consignee</small>
-          <strong>${escapeHtml(preview.consignee?.name || "")}</strong>
-          <p>${escapeHtml(preview.consignee?.address || "")}<br>${escapeHtml(preview.consignee?.country || "")} ${escapeHtml(preview.consignee?.phone || "")}</p>
-        </div>
-        ${ciEditableField("PO numbers", "poNumbers", preview.poNumbers, { wide: true })}
-        <div class="ci-field"><small>Buyer (if other than consignee)</small><em>Buyer (if not consignee)</em></div>
-        <div class="ci-field"><small>Presenting bank</small><strong>${escapeHtml(preview.presentingBank || "")}</strong></div>
-        <div class="ci-field"><small>Country of origin of goods</small><strong>${escapeHtml(preview.countryOfOriginOfGoods || "")}</strong></div>
-        <div class="ci-field"><small>Terms & conditions of delivery and payment</small><em>${escapeHtml(preview.deliveryTerms || "")}</em></div>
-        ${ciEditableField("Port of loading", "portOfLoading", preview.transport?.portOfLoading)}
-        <div class="ci-field"><small>Country of final destination</small><strong>${escapeHtml(preview.transport?.countryOfDestination || "")}</strong></div>
-        <div class="ci-field">
-          <small>Mode of transportation & other transport information</small>
-          ${ciEditableField("Carrier", "carrier", preview.transport?.carrier, { bare: true })}
-          <br>${escapeHtml(preview.transport?.trackingNumber || "")}
-        </div>
-        ${ciEditableField("Marks & numbers", "marksAndNumbers", preview.transport?.marksAndNumbers)}
-        <div class="ci-field">
-          <small>No. & kind of packages</small>
-          ${escapeHtml(preview.packaging?.numberOfPackages || "")}
-          ${ciEditableField("Package type", "packageType", preview.packaging?.packageType, { bare: true })}
-        </div>
-        ${ciEditableField("Gross weight (lbs)", "grossWeightLbs", preview.packaging?.grossWeightLbs, { display: preview.packaging?.grossWeight, placeholder: "(enter lbs)" })}
-        <div class="ci-field"><small>Cube</small><em>${escapeHtml(preview.packaging?.cube || "Cube")}</em></div>
-        <div class="ci-field ci-declaration">
-          <div class="ci-field-head"><small>Declaration</small><button type="button" class="ci-edit-btn" data-ci-edit="declaration" aria-label="Edit declaration" title="Edit declaration">&#9998;</button></div>
-          <div class="ci-field-view" data-ci-view="declaration">${declarationView}</div>
-          <textarea class="ci-field-input" data-ci-header-field="declaration" hidden>${escapeHtml(preview.declarationOverride || "")}</textarea>
-        </div>
-      </section>
-      <table class="ci-items">
-        <thead>
-          <tr>
-            <th>Line #</th>
-            <th>Ref #</th>
-            <th>Inv #</th>
-            <th>Specification of Commodities</th>
-            <th>HS Code</th>
-            <th>Origin</th>
-            <th>Quant.</th>
-            <th>Unit Price</th>
-            <th>Amount</th>
-            <th>Weight kg</th>
-          </tr>
-        </thead>
-        <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
-      </table>
-      <footer class="ci-bottom">
-        <section>
-          <p>${escapeHtml(preview.itemCount || 0)} Items <strong>${escapeHtml(preview.noChargeNote || "")}</strong></p>
-          <p>${escapeHtml(preview.certificationText || "")}</p>
-          <div class="ci-signature"><strong>Classic Visions</strong><span>Authorised signature for Classic Visions</span></div>
-        </section>
-        <aside class="ci-totals" data-ci-totals>
-          ${renderTotalRow("Sub Total", preview.totals?.subTotal)}
-          ${renderTotalRow("Packaging", preview.totals?.packaging)}
-          ${renderTotalRow("Freight", preview.totals?.freight)}
-          ${renderTotalRow("Other Costs", preview.totals?.other)}
-          ${renderTotalRow("Insurance", preview.totals?.insurance)}
-          ${renderTotalRow("Invoice Total", preview.totals?.invoiceTotal, true)}
-        </aside>
-      </footer>
-      ${renderCiCompliance(preview.compliance)}
+      </div>
     </article>
   `;
+}
+
+function ciEntryInput(label, key, rawValue, opts = {}) {
+  const value = rawValue ?? "";
+  const control = opts.multiline
+    ? `<textarea class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}" placeholder="${escapeHtml(opts.placeholder || "")}">${escapeHtml(value)}</textarea>`
+    : `<input type="text" class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(opts.placeholder || "")}">`;
+  return `<label class="ci-entry-field ${opts.wide ? "ci-entry-field-wide" : ""}"><span>${escapeHtml(label)}</span>${control}${opts.hint ? `<small>${escapeHtml(opts.hint)}</small>` : ""}</label>`;
+}
+
+function ciReadOnly(label, value, opts = {}) {
+  return `<div class="ci-entry-readonly"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "—")}</strong>${opts.detail ? `<small>${escapeHtml(opts.detail)}</small>` : ""}</div>`;
 }
 
 function renderTotalRow(label, value, strong = false) {
@@ -781,20 +756,33 @@ async function saveCommercialInvoiceHeader() {
 // reminders. Data comes from preview.compliance (server-side, lib/beswift-co.js).
 function renderCiCompliance(c) {
   if (!c) return "";
-  const status = c.ready
-    ? `<p class="ci-compliance-ok">✓ Standardised — all required CARICOM / Barbados invoice fields are present.</p>`
-    : `<p class="ci-compliance-warn">⚠ Not ready to certify — missing: ${(c.missing || []).map(escapeHtml).join("; ")}</p>`;
   const checks = (c.checks || [])
-    .map((chk) => `<li class="${chk.ok ? "ci-check-ok" : "ci-check-miss"}">${chk.ok ? "✓" : "✗"} ${escapeHtml(chk.label)}</li>`)
+    .map((chk) => `<li class="${chk.ok ? "ci-check-ok" : "ci-check-miss"}"><span aria-hidden="true">${chk.ok ? "✓" : "!"}</span>${escapeHtml(chk.label)}</li>`)
     .join("");
   const reminders = (c.reminders || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+  const outstanding = (c.missing || []).length;
   return `
-    <section class="ci-compliance" aria-label="Commercial invoice compliance">
-      <h2>Incoterms 2020 · CARICOM / Barbados compliance</h2>
-      ${status}
+    <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
+      <p class="eyebrow">Automatic checklist</p>
+      <h2>${c.ready ? "Ready to print" : "Finish before printing"}</h2>
+      <p class="${c.ready ? "ci-compliance-ok" : "ci-compliance-warn"}">${c.ready ? "All required invoice fields are present." : `${outstanding} required item${outstanding === 1 ? "" : "s"} still need attention.`}</p>
       <ul class="ci-compliance-checks">${checks}</ul>
-      <details><summary>Filing reminders</summary><ul class="ci-compliance-reminders">${reminders}</ul></details>
-    </section>
+      ${reminders ? `<details><summary>Filing reminders</summary><ul class="ci-compliance-reminders">${reminders}</ul></details>` : ""}
+    </aside>
+  `;
+}
+
+// Renders the checklist into its own slot in the right-hand column, beneath
+// Fill jobs, so the invoice sheet keeps the full width of the left panel.
+function renderCiComplianceSlot(compliance) {
+  const slot = document.querySelector("#coComplianceSlot");
+  if (!slot) return;
+  slot.innerHTML = renderCiCompliance(compliance) || `
+    <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
+      <p class="eyebrow">Automatic checklist</p>
+      <h2>No shipment selected</h2>
+      <p class="ci-compliance-warn">Select an export shipment to run the invoice checklist.</p>
+    </aside>
   `;
 }
 
@@ -1145,7 +1133,7 @@ async function queueCoJob() {
 
 function readCoDraftForm() {
   return {
-    portalEnvironment: valueOf("#coPortalEnvironment") || "training",
+    portalEnvironment: valueOf("#coPortalEnvironment") || "production",
     trackingNumber: valueOf("#coTrackingNumber"),
     shippingDate: valueOf("#coShippingDate"),
     boxCode: valueOf("#coBoxCode"),
