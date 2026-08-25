@@ -611,6 +611,10 @@ th {
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+  /* The sticky invoice checklist needs a non-clipping ancestor, and the shared
+     workspace card clips by default. The panels on this page already clip their
+     own overflowing tables, so the card does not have to. */
+  overflow: visible;
 }
 
 .module-title {
@@ -884,6 +888,26 @@ th {
 .co-draft-panel,
 .co-jobs-panel {
   min-height: 420px;
+}
+
+.co-side-column {
+  display: grid;
+  /* Fill jobs sizes to its content; the checklist row takes the rest so the
+     sticky checklist has room to travel next to the tall invoice sheet. */
+  grid-template-rows: auto 1fr;
+  align-self: stretch;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* The checklist sits under Fill jobs, so the jobs panel no longer has to hold
+   the full height of the column on its own. */
+.co-side-column .co-jobs-panel {
+  min-height: 0;
+}
+
+.co-compliance-slot {
+  min-width: 0;
 }
 
 .co-actions {
@@ -2566,3 +2590,60 @@ textarea.ci-line-input {
   font-size: 12px;
   cursor: pointer;
 }
+
+
+/* Commercial-invoice entry workspace: the print/PDF route retains the paper document. */
+.commercial-invoice-shell { padding: 0; overflow: visible; background: transparent; }
+.commercial-invoice-entry { padding: 14px; background: var(--surface); }
+.ci-entry-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.ci-entry-main { display: grid; gap: 14px; min-width: 0; }
+.ci-entry-intro, .ci-entry-section { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
+.ci-entry-intro { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 14px; }
+.ci-entry-intro h3, .ci-entry-section h3 { margin: 2px 0 4px; color: var(--ink); font-size: 16px; }
+.ci-entry-intro p:not(.eyebrow), .ci-entry-section-head p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.ci-entry-status { flex: none; padding: 6px 8px; border-radius: 999px; background: #e5f4fb; color: #03678a; font-size: 11px; font-weight: 800; }
+.ci-entry-section-head { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ci-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; }
+.ci-entry-field, .ci-entry-readonly { display: grid; gap: 5px; min-width: 0; }
+.ci-entry-field > span, .ci-entry-readonly > span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.ci-entry-input { box-sizing: border-box; width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; background: white; color: var(--ink); font: inherit; font-size: 13px; }
+.ci-entry-input:focus { border-color: var(--blue); outline: 2px solid color-mix(in srgb, var(--blue) 20%, transparent); outline-offset: 1px; }
+textarea.ci-entry-input { min-height: 78px; resize: vertical; }
+.ci-entry-field small, .ci-entry-readonly small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.ci-entry-readonly { padding: 9px; border-radius: 6px; background: #f4f7fa; }
+.ci-entry-readonly strong { overflow-wrap: anywhere; color: var(--ink); font-size: 13px; }
+.ci-entry-field-wide { grid-column: span 2; }
+.ci-entry-lines-section { overflow: hidden; }
+.ci-entry-table-wrap { overflow-x: auto; }
+.ci-entry-items { min-width: 920px; margin: 0; border: 0; font-size: 12px; }
+.ci-entry-items th { padding: 9px 6px; font-size: 10px; }
+.ci-entry-items td { padding: 4px 6px; }
+.ci-entry-items .ci-line-input { min-height: 28px; border: 1px solid transparent; border-radius: 4px; padding: 4px; font-size: 12px; }
+.ci-entry-items .ci-line-input:focus { border-color: var(--blue); }
+.ci-entry-totals { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 8px; padding: 14px; border-top: 1px solid var(--line); }
+.ci-entry-totals div { display: flex; justify-content: space-between; gap: 8px; padding: 8px; border-radius: 6px; background: #f4f7fa; font-size: 12px; }
+.ci-entry-totals .strong { background: var(--ink); color: white; }
+.ci-compliance-sidebar { position: sticky; top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
+.ci-compliance-sidebar h2 { margin: 2px 0 8px; color: var(--ink); font-size: 17px; }
+.ci-compliance-sidebar .ci-compliance-ok, .ci-compliance-sidebar .ci-compliance-warn { margin: 0 0 10px; font-size: 12px; line-height: 1.4; font-weight: 700; }
+.ci-compliance-checks, .ci-compliance-reminders { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.ci-compliance-checks li { display: flex; gap: 7px; align-items: start; font-size: 12px; line-height: 1.35; }
+.ci-compliance-checks li > span { display: grid; flex: none; width: 17px; height: 17px; place-items: center; border-radius: 50%; font-size: 11px; font-weight: 900; }
+.ci-check-ok > span { background: #dff4e7; color: #16733b; }
+.ci-check-miss > span { background: #fff0d9; color: #a95b00; }
+.ci-compliance-sidebar details { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ci-compliance-sidebar summary { cursor: pointer; color: var(--blue); font-size: 12px; font-weight: 800; }
+.ci-compliance-reminders { margin-top: 8px; padding-left: 18px; list-style: disc; color: var(--muted); font-size: 12px; line-height: 1.35; }
+@media (max-width: 1050px) { .ci-compliance-sidebar { position: static; } }
+@media (max-width: 620px) { .ci-entry-intro { display: grid; } .ci-entry-grid { grid-template-columns: 1fr; } .ci-entry-field-wide { grid-column: auto; } .ci-entry-totals { grid-template-columns: 1fr; } }
+
+/* Shipment details and charges are a distinct entry section, not a paper-invoice header. */
+#commercialInvoice .co-draft-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 12px 14px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
+#commercialInvoice .co-draft-controls-head { grid-column: 1 / -1; }
+#commercialInvoice .co-draft-controls-head h3 { margin: 0 0 3px; color: var(--ink); font-size: 16px; }
+#commercialInvoice .co-draft-controls-head p { margin: 0; color: var(--muted); font-size: 12px; }
+#commercialInvoice .co-draft-controls label { min-height: 66px; padding: 0; border: 0; background: transparent; }
+#commercialInvoice .co-draft-controls input, #commercialInvoice .co-draft-controls select { min-height: 36px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 9px; background: white; font-size: 13px; font-weight: 500; }
+#commercialInvoice .co-controls-wide { grid-column: span 2; }
+@media (max-width: 760px) { #commercialInvoice .co-draft-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { #commercialInvoice .co-draft-controls { grid-template-columns: 1fr; } #commercialInvoice .co-controls-wide { grid-column: auto; } }

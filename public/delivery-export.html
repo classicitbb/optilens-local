@@ -131,8 +131,8 @@
           <section class="workflow-block commercial-preview-panel">
             <div class="section-head tight shipment-detail-head">
               <div>
-                <h2>Commercial invoice preview</h2>
-                <p id="commercialPreviewSummary">Select an export shipment to preview the commercial invoice.</p>
+                <h2>Commercial invoice workspace</h2>
+                <p id="commercialPreviewSummary">Select an export shipment to edit its commercial invoice.</p>
               </div>
               <div class="co-actions">
                 <button class="button secondary" id="printCommercialInvoiceBtn" type="button" disabled>Print / PDF</button>
@@ -146,10 +146,13 @@
             <div class="co-warning-list" id="coWarnings" hidden></div>
 
             <form id="coDraftForm" class="co-draft-controls">
+              <div class="co-draft-controls-head">
+                <div><h3>Shipment details & charges</h3><p>Complete transport, packaging, charges, delivery terms and shipping marks for this invoice.</p></div>
+              </div>
               <label>Portal
                 <select id="coPortalEnvironment" name="portalEnvironment">
+                  <option value="production" selected>BeSwift production</option>
                   <option value="training">BeSwift training</option>
-                  <option value="production">BeSwift production</option>
                 </select>
               </label>
               <label>Tracking / AWB<input id="coTrackingNumber" name="trackingNumber" autocomplete="off"></label>
@@ -178,7 +181,7 @@
             </form>
 
             <div class="commercial-invoice-shell" id="commercialInvoicePreview">
-              <p class="shipment-empty">Select an export shipment to load the commercial invoice preview.</p>
+              <p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>
             </div>
 
             <details class="certificate-summary">
@@ -209,17 +212,27 @@
             </details>
           </section>
 
-          <section class="workflow-block co-jobs-panel">
-            <div class="section-head tight shipment-detail-head">
-              <div>
-                <h2>Fill jobs</h2>
-                <p>Concurrent Chrome extension jobs for saved drafts.</p>
+          <div class="co-side-column">
+            <section class="workflow-block co-jobs-panel">
+              <div class="section-head tight shipment-detail-head">
+                <div>
+                  <h2>Fill jobs</h2>
+                  <p>Concurrent Chrome extension jobs for saved drafts.</p>
+                </div>
               </div>
+              <div class="co-job-list" id="coJobList">
+                <p class="shipment-empty">No queued jobs for this draft.</p>
+              </div>
+            </section>
+
+            <div class="co-compliance-slot" id="coComplianceSlot">
+              <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
+                <p class="eyebrow">Automatic checklist</p>
+                <h2>No shipment selected</h2>
+                <p class="ci-compliance-warn">Select an export shipment to run the invoice checklist.</p>
+              </aside>
             </div>
-            <div class="co-job-list" id="coJobList">
-              <p class="shipment-empty">No queued jobs for this draft.</p>
-            </div>
-          </section>
+          </div>
         </div>
       </section>
 
