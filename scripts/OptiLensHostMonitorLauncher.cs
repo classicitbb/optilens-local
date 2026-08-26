@@ -289,10 +289,11 @@ internal sealed class OptiLensHostMonitor : Form
         {
             var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
             var available = Convert.ToBoolean(Value(status, "available"));
+            var applying = Convert.ToBoolean(Value(status, "applying"));
             var areas = Value(status, "changedAreas") as object[];
-            updateStatus.Text = available ? "Updates ready: " + (areas == null ? "pushed changes" : areas.Length + " area(s)") : "Updates: up to date";
-            updateStatus.ForeColor = available ? Color.DarkGoldenrod : Color.ForestGreen;
-            applyUpdatesButton.Enabled = !updateInProgress && available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
+            updateStatus.Text = applying ? "Update in progress — waiting for service restart" : available ? "Updates ready: " + (areas == null ? "pushed changes" : areas.Length + " area(s)") : "Updates: up to date";
+            updateStatus.ForeColor = applying || available ? Color.DarkGoldenrod : Color.ForestGreen;
+            applyUpdatesButton.Enabled = !updateInProgress && !applying && available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
         }
         catch (Exception error) { updateStatus.Text = "Update check failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; applyUpdatesButton.Enabled = false; }
     }

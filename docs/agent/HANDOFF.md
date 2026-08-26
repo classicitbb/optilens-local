@@ -1,7 +1,7 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Pending protected source-write configuration and Delivery Export browser verification — no source writes performed
+- Status: Pending protected source-write configuration, Delivery Export browser verification, and authorized Host Monitor executable refresh — no source writes performed
 - Last synchronized: 2026-08-26
 
 ## Objective and current state
@@ -9,6 +9,8 @@
 The Automation capability overview is now a collapsed native accordion. Source status write-back now requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The current local environment has no dedicated source writer or allowlist, so the change remains safely unavailable rather than reusing the read identity.
 
 Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
+
+The update endpoints now make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The currently running Host Monitor executable is locked, so its replacement has not been built or deployed.
 
 ## Completed work and affected files
 
@@ -18,6 +20,7 @@ Delivery Export now uses one current-shipment universal search, compact invoice 
 - `public/delivery-export.html`, `public/delivery-export.js`, and `public/styles/components.css`: redesigned shipment search, compact commercial-invoice workspace, shipment-defaults launcher/tab, tooltip, package dropdown, and accessible divider.
 - `lib/delivery.js`, `lib/source-innovations.js`, `server.js`, and `lib/beswift-co.js`: zero-item mirror suppression, read-only universal source search, clean shipping-marks format, and lens/item descriptions without a PO prefix.
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
+- `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 
 ## Verification
 
@@ -27,6 +30,9 @@ Delivery Export now uses one current-shipment universal search, compact invoice 
 - `node --test test/operations-source-status-writeback.test.js test/operations-supplier-status-auto-apply.test.js` — 13 passed
 - `npm run check` — passed
 - `npm test` did not finish within the local command runner's 30-second window; its first four tests passed before the runner stopped it.
+- `node --check server.js` — passed.
+- `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed.
+- `npm run app:monitor:build` — source compiled, but Windows could not replace the running `OptiLensHostMonitor.exe` because it is in use.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - Delivery Export has not yet been browser-verified in an authenticated external Edge/Chrome session.
 
@@ -36,7 +42,7 @@ Configure a protected dedicated source writer outside the repository and explici
 
 ## Next action
 
-Run `node --test test/delivery-export-current-shipments.test.js` and then open the authenticated Delivery Export page in an external Edge/Chrome session to verify direct search typing, the zero-row suppression, settings launch, and invoice layout.
+After authorized Host Monitor shutdown/restart, run `npm run app:monitor:build` to replace the executable, then use Check for updates twice during one update to confirm the second request reports progress rather than an error. Separately, run `node --test test/delivery-export-current-shipments.test.js` and then open the authenticated Delivery Export page in an external Edge/Chrome session to verify direct search typing, the zero-row suppression, settings launch, and invoice layout.
 
 ## Required handoff fields
 

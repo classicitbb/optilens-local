@@ -847,6 +847,8 @@ function buildUpdateStatus() {
   return {
     ...application,
     available,
+    applying: Boolean(scheduledUpdate),
+    applyingSince: scheduledUpdate?.requestedAt || null,
     changedAreas,
     git,
     plan: {
@@ -1267,9 +1269,11 @@ const server = http.createServer(async (req, res) => {
       const status = buildUpdateStatus();
 
       if (scheduledUpdate) {
-        const error = new Error("An update is already being applied.");
-        error.statusCode = 409;
-        throw error;
+        return {
+          ...status,
+          applying: true,
+          message: "An update is already being applied. Waiting for the service to restart."
+        };
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
@@ -1308,9 +1312,11 @@ const server = http.createServer(async (req, res) => {
       await gitUpdateChecker.refresh();
       const status = buildUpdateStatus();
       if (scheduledUpdate) {
-        const error = new Error("An update is already being applied.");
-        error.statusCode = 409;
-        throw error;
+        return {
+          ...status,
+          applying: true,
+          message: "An update is already being applied. Waiting for the service to restart."
+        };
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
