@@ -71,6 +71,15 @@
     numeric: true,
     sensitivity: "base",
   });
+  const SUBJECT_MATCH_TYPES = ["CONTAINS", "EXACT", "STARTS_WITH", "REGEX"];
+  const RULE_MAPPING_STATES = ["PENDING_CONFIRMATION", "CONFIRMED", "DISABLED"];
+  const PARSER_CODES = ["SupplierCsvParser", "TOGXlsxParser", "SkyLabShippedPdfParser"];
+  const MATCHING_FIELDS = [
+    ["customer_order_reference", "Customer order reference"],
+    ["customer_tray_id", "Customer tray ID"],
+    ["job_id", "Job ID"],
+    ["order_id", "Order ID"],
+  ];
   async function json(url, options = {}) {
     const response = await fetch(url, {
       credentials: "same-origin",
@@ -380,13 +389,231 @@
       }),
     );
   }
+  function ruleFieldsHtml(rule = {}) {
+    const subjectType = (rule.subject_match_type || "CONTAINS").toUpperCase();
+    const mappingState = (rule.mapping_state || "PENDING_CONFIRMATION").toUpperCase();
+    const parserCode = rule.parser_code || PARSER_CODES[0];
+    const matchingField = rule.matching_field || "";
+    return `
+      <label>Supplier code<input name="supplier_code" value="${esc(rule.supplier_code || "")}" required></label>
+      <label>Supplier name<input name="supplier_name" value="${esc(rule.supplier_name || "")}" required></label>
+      <label>Priority<input name="priority" type="number" min="1" max="999" value="${esc(rule.priority ?? 100)}"></label>
+      <label>Sender address<input name="sender_address" value="${esc(rule.sender_address || "")}" placeholder="name@supplier.com"></label>
+      <label>Sender domain<input name="sender_domain" value="${esc(rule.sender_domain || "")}" placeholder="supplier.com"></label>
+      <label>Subject match type<select name="subject_match_type">${SUBJECT_MATCH_TYPES.map((value) => `<option value="${value}"${value === subjectType ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+      <label class="rx-wide">Subject pattern<input name="subject_pattern" value="${esc(rule.subject_pattern || "")}" required></label>
+      <label>Report code<input name="report_code" value="${esc(rule.report_code || "")}" required></label>
+      <label>Parser<select name="parser_code">${PARSER_CODES.map((value) => `<option value="${value}"${value === parserCode ? " selected" : ""}>${value}</option>`).join("")}</select></label>
+      <label>Matching field<select name="matching_field"><option value=""${matchingField ? "" : " selected"}>Not set</option>${MATCHING_FIELDS.map(([value, label]) => `<option value="${value}"${value === matchingField ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
+      <label>Allowed extensions<input name="allowed_extensions" value="${esc(rule.allowed_extensions || ".xlsx")}" required></label>
+      <label class="rx-check"><input type="checkbox" name="attachment_required"${rule.attachment_required !== false ? " checked" : ""}> Attachment required</label>
+      <label class="rx-check"><input type="checkbox" name="is_enabled"${rule.is_enabled ? " checked" : ""}> Enabled</label>
+      <label>Rule state<select name="mapping_state">${RULE_MAPPING_STATES.map((value) => `<option value="${value}"${value === mappingState ? " selected" : ""}>${value}</option>`).join("")}</select><small>Only CONFIRMED + Enabled rules propose CurrentStatusID updates.</small></label>
+      <label class="rx-wide">Notes<textarea name="notes">${esc(rule.notes || "")}</textarea></label>
+    `;
+  }
+  function ruleCardHtml(rule) {
+    return `<form class="rx-card rule-editor" data-rule-code="${esc(rule.rule_code)}">
+      <div class="rule-editor-head">
+        <div><h3>${esc(rule.rule_code)}</h3><small>Updated ${esc(dateLabel(rule.updated_at))}</small></div>
+        <div class="rx-actions" style="margin:0"><button class="button secondary" type="button" data-rule-delete="${esc(rule.rule_code)}"${rule.is_enabled ? " disabled" : ""} title="${rule.is_enabled ? "Disable the rule before deleting it" : "Delete this rule"}">Delete</button></div>
+      </div>
+      <div class="rx-fields rx-fields-3">${ruleFieldsHtml(rule)}</div>
+      <div class="rx-actions"><button class="button primary" type="submit">Save rule</button><span class="rule-status" data-rule-status="${esc(rule.rule_code)}" role="status"></span></div>
+    </form>`;
+  }
+  function newRuleFormHtml() {
+    return `<form class="rx-card rule-editor" id="createRuleForm">
+      <div class="rule-editor-head"><h3>New supplier rule</h3></div>
+      <div class="rx-fields rx-fields-3">
+        <label class="rx-wide">Rule code<input name="rule_code" required pattern="[a-z0-9][a-z0-9-]{1,119}" placeholder="e.g. new-supplier-dispatch"><small>Lowercase letters, numbers, and hyphens only.</small></label>
+        ${ruleFieldsHtml({})}
+      </div>
+      <div class="rx-actions"><button class="button primary" type="submit">Create rule</button><button class="button secondary" type="button" id="cancelNewRule">Cancel</button><span class="rule-status" id="createRuleStatus" role="status"></span></div>
+    </form>`;
+  }
+  function readRuleForm(form) {
+    const data = new FormData(form);
+    return {
+      supplier_code: (data.get("supplier_code") || "").trim(),
+      supplier_name: (data.get("supplier_name") || "").trim(),
+      priority: Number(data.get("priority")) || 100,
+      sender_address: (data.get("sender_address") || "").trim(),
+      sender_domain: (data.get("sender_domain") || "").trim(),
+      subject_match_type: data.get("subject_match_type"),
+      subject_pattern: (data.get("subject_pattern") || "").trim(),
+      report_code: (data.get("report_code") || "").trim(),
+      parser_code: data.get("parser_code"),
+      matching_field: data.get("matching_field") || "",
+      allowed_extensions: (data.get("allowed_extensions") || "").trim(),
+      attachment_required: form.querySelector('[name="attachment_required"]').checked,
+      is_enabled: form.querySelector('[name="is_enabled"]').checked,
+      mapping_state: data.get("mapping_state"),
+      notes: (data.get("notes") || "").trim(),
+    };
+  }
+  function wireRuleForm(form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const status = form.querySelector("[data-rule-status]");
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      status.textContent = "Saving…";
+      status.className = "rule-status";
+      try {
+        await json(
+          `/api/operations/supplier-rules/${encodeURIComponent(form.dataset.ruleCode)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(readRuleForm(form)),
+          },
+        );
+        status.textContent = "Saved.";
+        status.className = "rule-status success";
+        await loadSupportPanels();
+      } catch (error) {
+        status.textContent = error.message;
+        status.className = "rule-status error";
+        button.disabled = false;
+      }
+    });
+  }
+  async function renderRules(rules) {
+    $("rules").innerHTML =
+      (rules || [])
+        .map((rule) => ruleCardHtml(rule))
+        .join("") || `<p class="empty-state">No supplier rules configured.</p>`;
+    document
+      .querySelectorAll("#rules .rule-editor")
+      .forEach((form) => wireRuleForm(form));
+    document.querySelectorAll("[data-rule-delete]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        if (!confirm(`Delete rule "${button.dataset.ruleDelete}"? This cannot be undone.`)) return;
+        button.disabled = true;
+        try {
+          await json(
+            `/api/operations/supplier-rules/${encodeURIComponent(button.dataset.ruleDelete)}`,
+            { method: "DELETE" },
+          );
+          await loadSupportPanels();
+        } catch (error) {
+          alert(error.message);
+          button.disabled = false;
+        }
+      }),
+    );
+  }
+  $("newRuleButton").addEventListener("click", () => {
+    const container = $("newRuleForm");
+    if (!container.hidden) {
+      container.hidden = true;
+      container.innerHTML = "";
+      return;
+    }
+    container.innerHTML = newRuleFormHtml();
+    container.hidden = false;
+    const form = $("createRuleForm");
+    form.querySelector("#cancelNewRule").addEventListener("click", () => {
+      container.hidden = true;
+      container.innerHTML = "";
+    });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const status = $("createRuleStatus");
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      status.textContent = "Creating…";
+      status.className = "rule-status";
+      try {
+        const data = new FormData(form);
+        await json("/api/operations/supplier-rules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ruleCode: (data.get("rule_code") || "").trim(),
+            ...readRuleForm(form),
+          }),
+        });
+        container.hidden = true;
+        container.innerHTML = "";
+        await loadSupportPanels();
+      } catch (error) {
+        status.textContent = error.message;
+        status.className = "rule-status error";
+        button.disabled = false;
+      }
+    });
+  });
+  function populateMailboxConfigForm(payload) {
+    const form = $("mailboxConfigForm");
+    const config = payload?.config;
+    const hint = $("mailboxConfigHint");
+    if (!config) {
+      form.querySelectorAll("input:not([disabled]), select").forEach((field) => (field.disabled = true));
+      hint.innerHTML = `<small>No mailbox configuration row exists yet.</small>`;
+      return;
+    }
+    form.querySelectorAll("input:not([disabled]), select").forEach((field) => (field.disabled = false));
+    form.elements.configuration_name.value = config.configuration_name || "";
+    form.elements.server_hostname.value = config.server_hostname || "";
+    form.elements.port.value = config.port || 993;
+    form.elements.ssl_enabled.checked = Boolean(config.ssl_enabled);
+    form.elements.unread_only.checked = Boolean(config.unread_only);
+    form.elements.mailbox_username.value = config.mailbox_username || "";
+    form.elements.folder_name.value = config.folder_name || "Inbox";
+    form.elements.processed_folder_name.value = config.processed_folder_name || "";
+    form.elements.scan_previous_days.value = config.scan_previous_days || 7;
+    form.elements.max_messages_per_run.value = config.max_messages_per_run || 200;
+    form.elements.is_enabled.checked = Boolean(config.is_enabled);
+    hint.innerHTML = payload.credentialConfigured
+      ? `<small>Mailbox password is present in the encrypted credential vault.</small>`
+      : `<small class="rule-status error">No mailbox credential found in the vault — Scan Inbox will fail until one is added.</small>`;
+  }
+  $("mailboxConfigForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const status = $("mailboxConfigStatus");
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    status.textContent = "Saving…";
+    status.className = "";
+    try {
+      const data = new FormData(form);
+      await json("/api/operations/mailbox/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          configuration_name: data.get("configuration_name"),
+          server_hostname: data.get("server_hostname"),
+          port: Number(data.get("port")),
+          ssl_enabled: form.elements.ssl_enabled.checked,
+          unread_only: form.elements.unread_only.checked,
+          mailbox_username: data.get("mailbox_username"),
+          folder_name: data.get("folder_name"),
+          processed_folder_name: data.get("processed_folder_name"),
+          scan_previous_days: Number(data.get("scan_previous_days")),
+          max_messages_per_run: Number(data.get("max_messages_per_run")),
+          is_enabled: form.elements.is_enabled.checked,
+        }),
+      });
+      status.textContent = "Saved.";
+      status.className = "rule-status success";
+    } catch (error) {
+      status.textContent = error.message;
+      status.className = "rule-status error";
+    } finally {
+      button.disabled = false;
+    }
+  });
   async function loadSupportPanels() {
-    const [events, actions, rules, exceptions, capability] = await Promise.all([
+    const [events, actions, rules, exceptions, capability, mailboxConfig] = await Promise.all([
       json("/api/operations/events?limit=50"),
       json("/api/operations/actions?limit=50"),
       json("/api/operations/supplier-rules"),
       json("/api/operations/exceptions?limit=50"),
       json("/api/operations/source-write-capability"),
+      json("/api/operations/mailbox/config"),
     ]);
     $("events").textContent = JSON.stringify(events.events || [], null, 2);
     $("actions").innerHTML =
@@ -396,13 +623,8 @@
             `<div class="action-card"><strong>${esc(action.action_type)}</strong><span>Order: ${esc(action.target_reference)} · ${esc(action.status)}</span></div>`,
         )
         .join("") || `<p class="empty-state">No actions awaiting approval.</p>`;
-    $("rules").innerHTML =
-      (rules.rules || [])
-        .map(
-          (rule) =>
-            `<div class="rule-card"><strong>${esc(rule.supplier_name)} · ${esc(rule.rule_code)}</strong><span>${esc(rule.subject_pattern)} · ${esc(rule.mapping_state)} · ${rule.is_enabled ? "Enabled" : "Disabled"}</span></div>`,
-        )
-        .join("") || `<p class="empty-state">No supplier rules configured.</p>`;
+    await renderRules(rules.rules);
+    populateMailboxConfigForm(mailboxConfig);
     $("exceptions").innerHTML =
       (exceptions.exceptions || [])
         .map(

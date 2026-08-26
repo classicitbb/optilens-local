@@ -15,6 +15,9 @@ const moduleState = {
   customerParams: null,
   customerParamsAccount: "",
   invoicePreview: null,
+  shipmentSearchTimer: null,
+  shipmentSearchMatches: null,
+  packageTypes: [],
   coAutosaveTimer: null,
   coAutosaveInFlight: false,
   coAutosaveQueued: false
@@ -23,14 +26,14 @@ const moduleState = {
 initModule();
 
 async function initModule() {
-  setDefaultDateRange();
   wireTabs();
   wireActions();
   wireShipmentDivider();
 
-  const [dashboard, customers] = await Promise.all([
+  const [dashboard, customers, packageTypes] = await Promise.all([
     getJson("/api/dashboard", { integrationHealth: [] }),
-    getJson("/api/source/customers", { customers: [], error: "" })
+    getJson("/api/source/customers", { customers: [], error: "" }),
+    getJson("/api/standards-catalog?field=packageType", { options: [] })
   ]);
 
   moduleState.dashboard = dashboard;
@@ -39,6 +42,7 @@ async function initModule() {
     String(customer.customerAccount || "").toUpperCase(),
     customer
   ]));
+  moduleState.packageTypes = packageTypes.options || [];
 
   renderHealth();
   renderCustomers(customers.error);
@@ -56,11 +60,12 @@ function wireTabs() {
 }
 
 function wireActions() {
-  document.querySelector("#startShipmentBtn")?.addEventListener("click", loadFilteredShipments);
   document.querySelector("#clearFiltersBtn")?.addEventListener("click", clearFilters);
   document.querySelector("#refreshShipmentsBtn")?.addEventListener("click", () => refreshShipmentSessions({ preserveSelection: true }));
   document.querySelector("#deliverySettingsBtn")?.addEventListener("click", openDeliverySettings);
   document.querySelector("#deliverySettingsClose")?.addEventListener("click", closeDeliverySettings);
+  document.querySelector("#shipmentDefaultsBtn")?.addEventListener("click", () => openDeliverySettings("shipmentDefaults"));
+  document.querySelector("#applyShipmentDefaultsBtn")?.addEventListener("click", applyShipmentDefaults);
   document.querySelector("#deliverySettingsModal")?.addEventListener("click", (event) => {
     if (event.target.id === "deliverySettingsModal") closeDeliverySettings();
   });
@@ -68,25 +73,7 @@ function wireActions() {
     button.addEventListener("click", () => activateSettingsTab(button.dataset.settingsTab));
   });
   document.querySelector("#closeSelectedBtn")?.addEventListener("click", openSelectedDocumentStep);
-  document.querySelector("#customerAccountInput")?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    loadFilteredShipments();
-  });
-  document.querySelector("#customerAccountInput")?.addEventListener("input", (event) => {
-    // A datalist selection raises `input` immediately. Only react to an exact
-    // account match so normal typing does not repeatedly reload the list.
-    if (moduleState.customerByAccount.has(String(event.target.value || "").trim().toUpperCase())) {
-      loadFilteredShipments();
-    }
-  });
-  document.querySelector("#shipmentIdInput")?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    loadFilteredShipments();
-  });
-  document.querySelector("#fromDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
-  document.querySelector("#toDateInput")?.addEventListener("change", () => refreshShipmentSessions({ preserveSelection: false }));
+  document.querySelector("#shipmentSearchInput")?.addEventListener("input", queueShipmentSearch);
   document.querySelector("#addRowsBtn")?.addEventListener("click", openAddRowsModal);
   document.querySelector("#addRowsClose")?.addEventListener("click", closeAddRowsModal);
   document.querySelector("#addRowsModal")?.addEventListener("click", (event) => {
@@ -113,6 +100,14 @@ function wireActions() {
     const row = event.target.closest("[data-session-id]");
     if (row) selectShipmentSession(row.dataset.sessionId);
   });
+  document.querySelector("#commercialInvoicePreview")?.addEventListener("click", (event) => {
+    const jump = event.target.closest("[data-jump-to]");
+    if (!jump) return;
+    const target = document.querySelector(`#${jump.dataset.jumpTo}`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.focus({ preventScroll: true });
+  });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -132,16 +127,6 @@ function activateTab(tabId) {
     panel.classList.toggle("active", panel.id === tabId);
   });
   if (tabId === "commercialInvoice") loadCoDraft();
-}
-
-function setDefaultDateRange() {
-  const to = new Date();
-  const from = new Date(to);
-  from.setDate(from.getDate() - 7);
-  const fromInput = document.querySelector("#fromDateInput");
-  const toInput = document.querySelector("#toDateInput");
-  if (fromInput) fromInput.value = toDateInputValue(from);
-  if (toInput) toInput.value = toDateInputValue(to);
 }
 
 function renderHealth() {
@@ -177,14 +162,14 @@ function renderShipmentSessions() {
   const visible = getVisibleShipmentSessions();
   const open = visible.filter((session) => session.app_status !== "closed");
   const closed = visible.filter((session) => session.app_status === "closed");
-  const filterAccount = getCustomerFilterAccount();
+  const search = getShipmentSearch();
 
   setText("#openShipmentCount", String(open.length));
   setText("#closedShipmentCount", String(closed.length));
-  setText("#shipmentListSummary", `${open.length} open / ${closed.length} closed${filterAccount ? ` for ${filterAccount}` : ""}`);
+  setText("#shipmentListSummary", `${open.length} open / ${closed.length} closed${search ? ` matching “${search}”` : ""}`);
 
   renderShipmentRows("#openShipmentRows", open, "No open shipments.");
-  renderShipmentRows("#closedShipmentRows", closed, "No closed shipments in this close-date range.");
+  renderShipmentRows("#closedShipmentRows", closed, "No recently closed shipments.");
   updateCloseSelectedState();
   updateCommercialInvoiceAvailability();
 }
@@ -377,7 +362,7 @@ function wireShipmentDivider() {
     const rect = grid.getBoundingClientRect();
     const move = (moveEvent) => {
       const x = Math.min(Math.max(moveEvent.clientX - rect.left, 360), rect.width - 420);
-      grid.style.gridTemplateColumns = `${x}px 8px minmax(420px, 1fr)`;
+      grid.style.gridTemplateColumns = `${x}px 10px minmax(420px, 1fr)`;
     };
     const up = () => {
       grid.classList.remove("resizing");
@@ -388,6 +373,14 @@ function wireShipmentDivider() {
     divider.addEventListener("pointermove", move);
     divider.addEventListener("pointerup", up);
     divider.addEventListener("pointercancel", up);
+  });
+  divider.addEventListener("keydown", (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    const rect = grid.getBoundingClientRect();
+    const current = grid.querySelector(".shipment-list-panel")?.getBoundingClientRect().width || 520;
+    const next = Math.min(Math.max(current + (event.key === "ArrowLeft" ? -36 : 36), 360), rect.width - 420);
+    grid.style.gridTemplateColumns = `${next}px 10px minmax(420px, 1fr)`;
   });
 }
 
@@ -453,17 +446,9 @@ function renderCommercialInvoicePreview() {
     <article class="commercial-invoice-entry">
       <div class="ci-entry-layout">
         <div class="ci-entry-main">
-          <section class="ci-entry-intro">
-            <div>
-              <p class="eyebrow">Commercial invoice workspace</p>
-              <h3>Edit the shipment record, then use Print / PDF for the final document.</h3>
-              <p>Source-controlled details are shown for reference. Shipment details, costs, delivery terms and shipping marks are editable above; invoice-specific fields below save when you leave the field.</p>
-            </div>
-            <span class="ci-entry-status">Draft for shipment ${escapeHtml(preview.shipmentId || "")}</span>
-          </section>
-          <section class="ci-entry-section">
-            <div class="ci-entry-section-head"><div><h3>Invoice & parties</h3><p>Invoice identity and consignee details supplied by the selected shipment.</p></div></div>
-            <div class="ci-entry-grid">
+          <section class="ci-entry-section ci-entry-details-section">
+            <div class="ci-entry-section-head"><div><h3>Invoice, parties & customs</h3><p>Source facts stay read-only; compact shipment controls above apply to this draft.</p></div><span class="ci-entry-status">Shipment ${escapeHtml(preview.shipmentId || "")}</span></div>
+            <div class="ci-entry-grid ci-entry-grid-compact">
               ${ciReadOnly("Invoice date", preview.invoiceDate)}
               ${ciReadOnly("Invoice number", preview.invoiceNo)}
               ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Enter customer order number" })}
@@ -472,15 +457,11 @@ function renderCommercialInvoicePreview() {
               ${ciReadOnly("Buyer", "Buyer (if not consignee)")}
               ${ciReadOnly("Seller", preview.seller?.name, { detail: [...(preview.seller?.addressLines || []), preview.seller?.phone].filter(Boolean).join(" · ") })}
               ${ciReadOnly("Consignee", preview.consignee?.name, { detail: [preview.consignee?.address, preview.consignee?.country, preview.consignee?.phone].filter(Boolean).join(" · ") })}
-            </div>
-          </section>
-          <section class="ci-entry-section">
-            <div class="ci-entry-section-head"><div><h3>Shipment & customs</h3><p>Complete the commercial-invoice fields that differ from the shipment defaults.</p></div></div>
-            <div class="ci-entry-grid">
+              <div class="ci-entry-divider" role="presentation"><span>Shipment & customs</span></div>
               ${ciEntryInput("Port of loading", "portOfLoading", preview.transport?.portOfLoading, { placeholder: "Enter port of loading" })}
               ${ciEntryInput("Carrier", "carrier", preview.transport?.carrier, { placeholder: "Enter carrier" })}
-              ${ciEntryInput("Marks & numbers", "marksAndNumbers", preview.transport?.marksAndNumbers, { placeholder: "Customer account / shipment" })}
-              ${ciEntryInput("Package type", "packageType", preview.packaging?.packageType, { placeholder: "Enter package type" })}
+              ${ciReadOnlyJump("Marks & numbers", preview.transport?.marksAndNumbers, "coShippingMarks", "Shipping marks · click to edit")}
+              ${ciEntrySelect("Package type", "packageType", preview.packaging?.packageType, moduleState.packageTypes)}
               ${ciEntryInput("Gross weight (lbs)", "grossWeightLbs", preview.packaging?.grossWeightLbs, { placeholder: "Enter pounds", hint: preview.packaging?.grossWeight ? `Calculated: ${preview.packaging.grossWeight}` : "" })}
               ${ciReadOnly("Delivery terms", preview.deliveryTerms)}
               ${ciReadOnly("Tracking / AWB", preview.transport?.trackingNumber)}
@@ -522,8 +503,20 @@ function ciEntryInput(label, key, rawValue, opts = {}) {
   return `<label class="ci-entry-field ${opts.wide ? "ci-entry-field-wide" : ""}"><span>${escapeHtml(label)}</span>${control}${opts.hint ? `<small>${escapeHtml(opts.hint)}</small>` : ""}</label>`;
 }
 
+function ciEntrySelect(label, key, rawValue, options = []) {
+  const value = rawValue ?? "";
+  const values = [...options];
+  if (value && !values.some((option) => option.value === value)) values.unshift({ value, label: value });
+  const choices = values.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label || option.value)}</option>`).join("");
+  return `<label class="ci-entry-field"><span>${escapeHtml(label)}</span><select class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}">${choices}</select></label>`;
+}
+
 function ciReadOnly(label, value, opts = {}) {
   return `<div class="ci-entry-readonly"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "—")}</strong>${opts.detail ? `<small>${escapeHtml(opts.detail)}</small>` : ""}</div>`;
+}
+
+function ciReadOnlyJump(label, value, targetId, hint) {
+  return `<button class="ci-entry-readonly ci-entry-jump" type="button" data-jump-to="${escapeHtml(targetId)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || "—")}</strong><small>${escapeHtml(hint)}</small></button>`;
 }
 
 function renderTotalRow(label, value, strong = false) {
@@ -656,6 +649,10 @@ function wireCommercialInvoiceHeaderEditing() {
   target.addEventListener("focusout", (event) => {
     const input = event.target.closest("[data-ci-header-field]");
     if (input) saveCommercialInvoiceHeader();
+  });
+
+  target.addEventListener("change", (event) => {
+    if (event.target.closest("select[data-ci-header-field]")) saveCommercialInvoiceHeader();
   });
 
   target.addEventListener("keydown", (event) => {
@@ -806,13 +803,76 @@ function renderItemDefaults() {
   }).join("") || `<tr><td colspan="7">Load an export shipment to edit item defaults.</td></tr>`;
 }
 
-function openDeliverySettings() {
+function openDeliverySettings(tabId = "customerDefaults") {
   const modal = document.querySelector("#deliverySettingsModal");
   if (!modal) return;
-  activateSettingsTab("customerDefaults");
+  activateSettingsTab(tabId);
+  fillShipmentDefaultsForm();
   renderItemDefaults();
   modal.hidden = false;
   document.body.style.overflow = "hidden";
+}
+
+function fillShipmentDefaultsForm() {
+  const session = getSelectedSession();
+  const applyBtn = document.querySelector("#applyShipmentDefaultsBtn");
+  const boxSource = document.querySelector("#coBoxCode");
+  const boxTarget = document.querySelector("#sdBoxCode");
+  if (boxTarget && boxSource) boxTarget.innerHTML = boxSource.innerHTML;
+
+  const values = readCoDraftForm();
+  const pairs = {
+    sdBoxCode: values.boxCode,
+    sdPackageCount: values.packageCount,
+    sdDeliveryTerms: values.deliveryTerms,
+    sdFreightCost: values.freightCost,
+    sdPackingCost: values.packingCost,
+    sdInsuranceCost: values.insuranceCost,
+    sdOtherCost: values.otherCost,
+    sdOriginNotes: values.originNotes
+  };
+  for (const [id, value] of Object.entries(pairs)) {
+    const field = document.querySelector(`#${id}`);
+    if (field) field.value = value ?? "";
+  }
+  setText("#shipmentDefaultsSummary", session && isExportSession(session)
+    ? `Applies only to shipment ${session.source_shipment_id}; it does not change customer defaults.`
+    : "Select an export shipment to set this shipment's delivery defaults.");
+  if (applyBtn) applyBtn.disabled = !(session && isExportSession(session));
+}
+
+function readShipmentDefaultsForm() {
+  return {
+    boxCode: valueOf("#sdBoxCode"),
+    packageCount: valueOf("#sdPackageCount"),
+    deliveryTerms: valueOf("#sdDeliveryTerms"),
+    freightCost: valueOf("#sdFreightCost"),
+    packingCost: valueOf("#sdPackingCost"),
+    insuranceCost: valueOf("#sdInsuranceCost"),
+    otherCost: valueOf("#sdOtherCost"),
+    originNotes: valueOf("#sdOriginNotes")
+  };
+}
+
+async function applyShipmentDefaults() {
+  const session = getSelectedSession();
+  if (!session || !isExportSession(session)) return;
+  fillCoForm({ ...readCoDraftForm(), ...readShipmentDefaultsForm() });
+  try {
+    if (moduleState.coApplication) await saveCoDraft();
+    else await prepareCoDraft();
+    setShipmentDefaultsMessage(`Applied to shipment ${session.source_shipment_id}.`);
+    await loadCommercialInvoicePreview();
+  } catch (error) {
+    setShipmentDefaultsMessage(error.message, true);
+  }
+}
+
+function setShipmentDefaultsMessage(message, isError = false) {
+  const target = document.querySelector("#shipmentDefaultsMessage");
+  if (!target) return;
+  target.textContent = message || "";
+  target.classList.toggle("error", Boolean(isError));
 }
 
 function closeDeliverySettings() {
@@ -871,13 +931,11 @@ function printCommercialInvoice() {
 }
 
 function clearFilters() {
-  const customerInput = document.querySelector("#customerAccountInput");
-  const shipmentIdInput = document.querySelector("#shipmentIdInput");
-  if (customerInput) customerInput.value = "";
-  if (shipmentIdInput) shipmentIdInput.value = "";
-  setDefaultDateRange();
-  refreshShipmentSessions({ preserveSelection: false });
-  setMessage("Filters cleared.");
+  const searchInput = document.querySelector("#shipmentSearchInput");
+  if (searchInput) searchInput.value = "";
+  moduleState.shipmentSearchMatches = null;
+  loadFilteredShipments();
+  setMessage("Showing all current shipments.");
 }
 
 async function loadFilteredShipments() {
@@ -891,18 +949,12 @@ async function loadFilteredShipments() {
   }
   renderShipmentSessions();
   await loadSelectedShipmentItems();
-  const account = getCustomerFilterAccount();
-  const shipmentId = getShipmentIdFilter();
-  const scope = [account && `account ${account}`, shipmentId && `shipment ${shipmentId}`].filter(Boolean).join(", ");
-  setMessage(`Loaded ${visible.length} shipment${visible.length === 1 ? "" : "s"}${scope ? ` for ${scope}` : ""}.`);
+  const search = getShipmentSearch();
+  setMessage(`Loaded ${visible.length} current shipment${visible.length === 1 ? "" : "s"}${search ? ` matching “${search}”` : ""}.`);
 }
 
 async function refreshShipmentSessions(options = {}) {
-  const query = new URLSearchParams({
-    fromDate: document.querySelector("#fromDateInput")?.value || "",
-    toDate: document.querySelector("#toDateInput")?.value || ""
-  });
-  const data = await getJson(`/api/delivery/shipments?${query.toString()}`, { sessions: [] });
+  const data = await getJson("/api/delivery/shipments", { sessions: [] });
   moduleState.shipmentSessions = (data.sessions || []).map(enrichSessionFromCustomerList);
   moduleState.selectedDomesticIds.clear();
 
@@ -917,11 +969,6 @@ async function refreshShipmentSessions(options = {}) {
 
 async function selectShipmentSession(sessionId) {
   moduleState.selectedSessionId = sessionId;
-  const session = getSelectedSession();
-  const customerInput = document.querySelector("#customerAccountInput");
-  if (session && customerInput && !customerInput.value) {
-    customerInput.value = session.customer_account || "";
-  }
   renderShipmentSessions();
   await loadSelectedShipmentItems();
 }
@@ -1308,26 +1355,38 @@ function getSessionById(id) {
 }
 
 function getVisibleShipmentSessions() {
-  const account = getCustomerFilterAccount();
-  const shipmentId = getShipmentIdFilter();
+  const searchMatches = moduleState.shipmentSearchMatches;
   return moduleState.shipmentSessions.filter((session) => {
-    if (account && String(session.customer_account || "").toUpperCase() !== account.toUpperCase()) return false;
-    if (shipmentId && String(session.source_shipment_id || "") !== shipmentId) return false;
+    // Empty mirrored source headers cannot produce a shipment document. They
+    // are stale source shells, while manually added app rows remain visible.
+    if (session.source_system === "mssql-innovations"
+      && session.app_status !== "closed"
+      && Number(session.item_count || 0) === 0) return false;
+    if (searchMatches && !searchMatches.has(String(session.source_shipment_id || ""))) return false;
     return true;
   });
 }
 
-function getCustomerFilterAccount() {
-  return document.querySelector("#customerAccountInput")?.value.trim() || "";
+function getShipmentSearch() {
+  return document.querySelector("#shipmentSearchInput")?.value.trim() || "";
 }
 
-function getShipmentIdFilter() {
-  return document.querySelector("#shipmentIdInput")?.value.trim() || "";
+function queueShipmentSearch() {
+  if (moduleState.shipmentSearchTimer) clearTimeout(moduleState.shipmentSearchTimer);
+  moduleState.shipmentSearchTimer = setTimeout(runShipmentSearch, 180);
 }
 
-function getSelectedCustomer() {
-  const account = document.querySelector("#customerAccountInput")?.value || "";
-  return moduleState.customerByAccount.get(String(account).toUpperCase()) || null;
+async function runShipmentSearch() {
+  const search = getShipmentSearch();
+  if (search.length < 2) {
+    moduleState.shipmentSearchMatches = null;
+    await loadFilteredShipments();
+    return;
+  }
+  setMessage(`Searching current shipments for “${search}”…`);
+  const result = await getJson(`/api/source/current-shipments/search?q=${encodeURIComponent(search)}`, { shipmentIds: [] });
+  moduleState.shipmentSearchMatches = new Set((result.shipmentIds || []).map((id) => String(id)));
+  await loadFilteredShipments();
 }
 
 function isExportSession(session) {
@@ -1393,10 +1452,6 @@ function setCoMessage(message, isError = false) {
 function setText(selector, value) {
   const target = document.querySelector(selector);
   if (target) target.textContent = value;
-}
-
-function toDateInputValue(date) {
-  return date.toISOString().slice(0, 10);
 }
 
 function formatDate(value) {

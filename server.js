@@ -185,6 +185,7 @@ const {
   listDispatchers,
   listExportCustomers,
   listPricelistCustomers,
+  searchCurrentShipmentIds,
   listShipmentItems
 } = require("./lib/source-innovations");
 const {
@@ -1692,6 +1693,13 @@ const server = http.createServer(async (req, res) => {
         customerAccount: url.searchParams.get("customerAccount") || "",
         shipmentId: url.searchParams.get("shipmentId") || ""
       }) };
+    });
+  }
+
+  if (url.pathname === "/api/source/current-shipments/search" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { shipmentIds: await searchCurrentShipmentIds(url.searchParams.get("q") || "") };
     });
   }
 

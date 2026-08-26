@@ -76,7 +76,28 @@ TEST-002,Unknown supplier wording</textarea></label><button class="button primar
       </section>
 
       <section class="supplier-email-panel" id="rules-panel" data-content-panel>
-        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Routing and mapping</p><h2>Supplier rules</h2></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div><div id="rules"></div></div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Mailbox connection</p><h2>Mailbox configuration</h2><p>IMAP connection, scan window, and processed-folder settings used by Scan Inbox and the daily poller.</p></div><button class="back-to-inbox" type="button" data-panel="mailbox">← Inbox</button></div>
+          <form id="mailboxConfigForm" class="rx-fields rx-fields-3">
+            <label>Configuration name<input name="configuration_name" required></label>
+            <label>Protocol<input value="IMAP" disabled><small>Only IMAP is implemented by the connector.</small></label>
+            <label>Server hostname<input name="server_hostname" required placeholder="imap.example.com"></label>
+            <label>Port<input name="port" type="number" min="1" max="65535" required></label>
+            <label class="rx-check"><input type="checkbox" name="ssl_enabled"> Use SSL/TLS</label>
+            <label class="rx-check"><input type="checkbox" name="unread_only"> Scan unread messages only</label>
+            <label>Mailbox username<input name="mailbox_username" required placeholder="orders@example.com"></label>
+            <label>Folder to scan<input name="folder_name" required placeholder="Inbox"></label>
+            <label>Processed folder<input name="processed_folder_name" placeholder="Inbox/Processed"><small>Required before "Archive selected" will work.</small></label>
+            <label>Scan window (days)<input name="scan_previous_days" type="number" min="1" max="90" required></label>
+            <label>Max messages per run<input name="max_messages_per_run" type="number" min="1" max="1000" required></label>
+            <label class="rx-check"><input type="checkbox" name="is_enabled"> Configuration enabled</label>
+            <p class="rx-wide" id="mailboxConfigHint"><small>The mailbox password is stored in the encrypted credential vault, not here.</small></p>
+            <div class="rx-actions rx-wide"><button class="button primary" type="submit">Save connection settings</button><span id="mailboxConfigStatus" role="status"></span></div>
+          </form>
+        </div>
+        <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">Routing and mapping</p><h2>Supplier rules</h2><p>Full read/write control over sender matching, parsing, and enablement for each supplier feed.</p></div><button class="button secondary" type="button" id="newRuleButton">+ New rule</button></div>
+          <div id="newRuleForm" hidden></div>
+          <div id="rules"></div>
+        </div>
         <div class="ops-panel"><div class="section-heading"><div><p class="eyebrow">CurrentStatusID targets</p><h2>Status mappings</h2><p>Confirm the live detailed status that each supplier status should apply. GenStatus is not changed.</p></div></div><div id="statusMappings"></div></div>
       </section>
 
