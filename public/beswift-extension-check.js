@@ -108,7 +108,8 @@
         <pre class="ext-cmd">${cmd}</pre>
         <button type="button" class="beswift-ext-copy">Copy command</button>
         <p>Then restart Edge. It installs automatically and stays updated.</p>
-        <p class="ext-muted">Policy value: <code>${policy}</code></p>`;
+        <p class="ext-muted">Policy value: <code>${policy}</code></p>
+        <p class="ext-muted">Dev machine with no policy yet? <a href="${release?.crxUrl || "#"}" class="beswift-ext-download">Download the .crx</a> and drag it onto <code>edge://extensions</code> with Developer mode on.</p>`;
     }
     if (compareVersions(detected.version, shipped) < 0) {
       return `
