@@ -32,32 +32,38 @@
       </nav>
 
       <section class="workflow-panel active" id="rules">
-        <div class="capability-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 4px;">
-          <article>
-            <span class="icon" style="background:#7c3aed">📋</span>
-            <h3>Rule-based workflows</h3>
-            <p>Define trigger → condition → action rules that run against platform data without direct database writes.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#1A8A9C">🔌</span>
-            <h3>API tool routing</h3>
-            <p>All automation actions are routed through audited platform APIs. No automation script has direct DB access.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#389457">✅</span>
-            <h3>Approval gates</h3>
-            <p>High-impact actions (write-back, price changes, shipment close) require explicit approval before execution.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon" style="background:#C89130">📨</span>
-            <h3>Notification hooks</h3>
-            <p>Email, local webhook, and file-drop notifications when rules fire or require human review.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-        </div>
+        <details class="capability-accordion">
+          <summary>
+            <span>Automation capabilities</span>
+            <span class="badge planned">4 planned</span>
+          </summary>
+          <div class="capability-grid capability-accordion-content" style="grid-template-columns: repeat(2, 1fr);">
+            <article>
+              <span class="icon" style="background:#7c3aed">📋</span>
+              <h3>Rule-based workflows</h3>
+              <p>Define trigger → condition → action rules that run against platform data without direct database writes.</p>
+              <span class="badge planned">Planned</span>
+            </article>
+            <article>
+              <span class="icon" style="background:#1A8A9C">🔌</span>
+              <h3>API tool routing</h3>
+              <p>All automation actions are routed through audited platform APIs. No automation script has direct DB access.</p>
+              <span class="badge planned">Planned</span>
+            </article>
+            <article>
+              <span class="icon" style="background:#389457">✅</span>
+              <h3>Approval gates</h3>
+              <p>High-impact actions (write-back, price changes, shipment close) require explicit approval before execution.</p>
+              <span class="badge planned">Planned</span>
+            </article>
+            <article>
+              <span class="icon" style="background:#C89130">📨</span>
+              <h3>Notification hooks</h3>
+              <p>Email, local webhook, and file-drop notifications when rules fire or require human review.</p>
+              <span class="badge planned">Planned</span>
+            </article>
+          </div>
+        </details>
       </section>
 
       <section class="workflow-panel" id="file-generation">

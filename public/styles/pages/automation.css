@@ -15,6 +15,13 @@
 .module-body:has(.workflow-tabs) .supplier-email-tab-panel { padding:0; min-height:calc(100vh - 104px); }
 .module-body:has(.workflow-tabs) .supplier-email-tab-panel iframe { display:block; width:100%; height:calc(100vh - 104px); min-height:720px; border:0; background:#f7f5ef; }
 .module-body:has(.workflow-tabs) .capability-grid article { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
+.capability-accordion { border:1px solid #ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
+.capability-accordion > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 18px; cursor:pointer; color:#0b1e35; font-size:15px; font-weight:800; list-style:none; }
+.capability-accordion > summary::-webkit-details-marker { display:none; }
+.capability-accordion > summary::before { content:"›"; margin-right:2px; color:#45688d; font-size:22px; font-weight:400; line-height:.7; transform:rotate(0deg); transition:transform .15s ease; }
+.capability-accordion[open] > summary::before { transform:rotate(90deg); }
+.capability-accordion > summary > :first-child { margin-right:auto; }
+.capability-accordion-content { margin:0; padding:0 14px 14px; }
 .scheduled-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin:0 0 12px; }
 .scheduled-heading h2 { margin:2px 0 4px; color:#071d35; font-size:22px; }
 .scheduled-heading p:not(.eyebrow) { max-width:760px; margin:0; color:#45688d; font-size:13px; line-height:1.38; }
@@ -166,4 +173,14 @@
 .rx-actions { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0; }.rx-actions .button { border:0; border-radius:6px; padding:7px 10px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }.rx-actions .button:disabled { opacity:.5; cursor:not-allowed; }.rx-actions .primary { background:#0c7299; color:#fff; }.rx-actions .secondary { background:#eaf1f7; color:#133b60; }.rx-actions .danger { background:#ffe9e7; color:#a73a31; }
 .rx-preview { border:1px solid #cbd7e4; border-radius:9px; overflow:hidden; background:#fff; }.rx-preview-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); background:#f4f8fb; border-bottom:1px solid #d9e3ec; }.rx-preview-summary div { min-width:0; padding:7px 9px; border-right:1px solid #d9e3ec; }.rx-preview-summary div:last-child { border-right:0; }.rx-preview-summary span { display:block; color:#66829d; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }.rx-preview-summary strong { display:block; overflow:hidden; margin-top:2px; color:#09203a; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }.rx-preview pre { max-height:330px; overflow:auto; margin:0; padding:10px; background:#071d35; color:#d7f2ff; font:11px/1.38 Consolas,"Courier New",monospace; white-space:pre; }
 @media (max-width:850px) { .rx-layout { grid-template-columns:1fr; }.rx-fields-3 { grid-template-columns:repeat(2,minmax(0,1fr)); }.rx-heading { display:block; }.rx-test-badge { display:inline-block; margin-top:8px; }.rx-preview-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }.rx-preview-summary div:nth-child(2) { border-right:0; }.rx-preview-summary div:nth-child(-n+2) { border-bottom:1px solid #d9e3ec; } }
+
+#rules { display:grid; gap:12px; }
+.rule-editor { margin:0; }
+.rule-editor-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:9px; }
+.rule-editor-head h3 { margin:0; font-size:14px; color:#0b1e35; }
+.rule-editor-head small { color:#71869a; font-size:10px; }
+.rule-status { color:#536b82; font-size:11px; }
+.rule-status.success { color:#22663c; }
+.rule-status.error { color:#a72e2e; }
+#newRuleForm:not([hidden]) { margin-bottom:12px; }
 @media (max-width:560px) { .rx-fields-2,.rx-fields-3 { grid-template-columns:1fr; }.rx-wide { grid-column:auto; }.rx-rx-grid { grid-template-columns:42px repeat(5,78px); overflow:auto; padding-bottom:4px; }.rx-preview-summary { grid-template-columns:1fr; }.rx-preview-summary div { border-right:0; border-bottom:1px solid #d9e3ec; }.rx-preview-summary div:last-child { border-bottom:0; } }
