@@ -43,7 +43,7 @@ const basePayload = () => ({
 test("uncut web order matches the real UNCUT enum pattern (no fabricated trace claim)", () => {
   const payload = basePayload();
   payload.frame = { is_uncut: true };
-  const order = buildOrder(payload, config);
+  const order = buildOrder(payload, config, { reserveIdentifiers: false });
   const real = fieldsOf(UNCUT_SAMPLE);
 
   assert.equal(order.frame.source, real.frame_source, "frame_source must match the real UNCUT sample");
@@ -55,7 +55,7 @@ test("uncut web order matches the real UNCUT enum pattern (no fabricated trace c
 test("edged web order never claims TRACED without real trace geometry", () => {
   const payload = basePayload();
   payload.frame = { is_uncut: false, job_scope: "full_glaze", brand: "Test Frame", a_mm: 55, b_mm: 38, dbl_mm: 15 };
-  const order = buildOrder(payload, config);
+  const order = buildOrder(payload, config, { reserveIdentifiers: false });
 
   // We have no tracer hardware behind the web form, so we must never send
   // "TRACED" / "TRACE - UNCUT" -- that would misrepresent the job to Innova.
@@ -77,7 +77,7 @@ test("edged web order never claims TRACED without real trace geometry", () => {
 test("rendered order text uses colon-delimited fields and CRLF, like real Innova exports", () => {
   const payload = basePayload();
   payload.frame = { is_uncut: true };
-  const order = buildOrder(payload, config);
+  const order = buildOrder(payload, config, { reserveIdentifiers: false });
   assert.match(order.content, /\r\n/, "output must use CRLF line endings to match real exports");
   assert.match(order.content, /^file_version:/);
   assert.match(order.content, /start_order\r\n/);
@@ -93,7 +93,7 @@ test("a confirmed standard-shape selection produces a real trace block and TRACE
     computed: { ed: 60.5, edAxis: 15, circ: 160 },
     radii: { R: [25, 25.5, 26, 26.5, 27], L: [24, 24.5, 25, 25.5, 26] },
   };
-  const order = buildOrder(payload, config);
+  const order = buildOrder(payload, config, { reserveIdentifiers: false });
   assert.equal(order.frame.tracing, "TRACED");
   assert.equal(order.frame.source, "TRACE - UNCUT");
   assert.match(order.content, /x_standard_shape_trace:true/);
@@ -110,7 +110,7 @@ test("an unconfirmed shape selection is dropped -- sent as NO TRACE, not fabrica
     computed: { ed: 60.5, edAxis: 15, circ: 160 },
     radii: { R: [25, 26, 27], L: [24, 25, 26] },
   };
-  const order = buildOrder(payload, config);
+  const order = buildOrder(payload, config, { reserveIdentifiers: false });
   assert.equal(order.frame.tracing, "NO TRACE");
   assert.equal(order.frame.source, "NO TRACE - UNCUT");
   assert.match(order.content, /x_standard_shape_trace:false/);
@@ -121,11 +121,11 @@ test("an unconfirmed shape selection is dropped -- sent as NO TRACE, not fabrica
 test("a submission with no resolved Innovations alias is rejected before it can reach the lab", () => {
   const payload = basePayload();
   delete payload.lenses[0].codes.material_code;
-  assert.throws(() => buildOrder(payload, config), /No Innovations alias resolved/);
+  assert.throws(() => buildOrder(payload, config, { reserveIdentifiers: false }), /No Innovations alias resolved/);
 });
 
 test("a submission with no ERP account number is rejected before it can reach the lab", () => {
   const payload = basePayload();
   payload.account = {};
-  assert.throws(() => buildOrder(payload, config), /no account number/);
+  assert.throws(() => buildOrder(payload, config, { reserveIdentifiers: false }), /no account number/);
 });

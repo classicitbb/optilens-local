@@ -765,7 +765,7 @@ function renderCiCompliance(c) {
     <aside class="ci-compliance ci-compliance-sidebar" aria-label="Commercial invoice compliance">
       <p class="eyebrow">Automatic checklist</p>
       <h2>${c.ready ? "Ready to print" : "Finish before printing"}</h2>
-      <p class="${c.ready ? "ci-compliance-ok" : "ci-compliance-warn"}">${c.ready ? "All required invoice fields are present." : `${outstanding} required item${outstanding === 1 ? "" : "s"} still need attention.`}</p>
+      <p class="${c.ready ? "ci-compliance-ok" : "ci-compliance-warn"}">${c.ready ? "All required invoice fields are present." : `${outstanding} required item${outstanding === 1 ? "" : "s"} still need${outstanding === 1 ? "s" : ""} attention.`}</p>
       <ul class="ci-compliance-checks">${checks}</ul>
       ${reminders ? `<details><summary>Filing reminders</summary><ul class="ci-compliance-reminders">${reminders}</ul></details>` : ""}
     </aside>

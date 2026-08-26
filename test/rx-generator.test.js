@@ -63,11 +63,21 @@ test("lens constraints limit both fixed and random alias selection", () => {
 });
 
 test("preview is non-writing and retains the required RX line ordering", () => {
+  // data/rx/sequence.json is live, gitignored runtime state shared with the
+  // running service, so comparing the file around the call races against any
+  // real order submitted mid-test. Assert the invariant instead: reserving an
+  // identifier is what advances the sequence, so two previews with the same
+  // seed must produce the same order ID, and neither may be the ID a real
+  // order would take next.
   const sequenceFile = path.join(__dirname, "..", "data", "rx", "sequence.json");
-  const before = fs.readFileSync(sequenceFile, "utf8");
+  const seeded = { ...basePayload, randomSeed: "preview-is-non-writing" };
+  const nextOrderId = String(JSON.parse(fs.readFileSync(sequenceFile, "utf8")).nextOrderId);
+  const first = rx.preview(seeded);
+  const second = rx.preview(seeded);
+  assert.equal(first.summary.orderId, second.summary.orderId);
+  assert.notEqual(first.summary.orderId, nextOrderId);
+
   const preview = rx.preview(basePayload);
-  const after = fs.readFileSync(sequenceFile, "utf8");
-  assert.equal(after, before);
   assert.match(preview.filename, /^\d{8}_BROOKS_HAZEL\.rx$/);
   assert.match(preview.content, /start_order\r\nagent_name:LL/);
   assert.match(preview.content, new RegExp(`lens_od_material_code:${sourceLens.materialCode}\\r\\nlens_od_material_desc:${sourceLens.materialDescription}`));
