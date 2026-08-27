@@ -31,9 +31,6 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Label sourceStatus = new Label();
     private readonly Label sourceParity = new Label();
     private readonly Label sourceMessage = new Label();
-    private readonly Button liveButton = new Button { Text = "Use live MSSQL", Width = 120 };
-    private readonly Button mirrorButton = new Button { Text = "Use mirror", Width = 100 };
-    private readonly Button mirrorSyncButton = new Button { Text = "Sync mirror now", Width = 120 };
     private readonly Button rxAliasSyncButton = new Button { Text = "Sync RX aliases now", Width = 135 };
     private readonly Label rxAliasSyncMessage = new Label();
     private readonly Label httpsStatus = new Label();
@@ -48,7 +45,6 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Timer timer = new Timer { Interval = 10000 };
     private readonly Timer activationTimer = new Timer { Interval = 250 };
     private readonly System.Threading.EventWaitHandle showSignal;
-    private string forcedSource = "";
     private bool serviceOnline;
     private bool exitRequested;
     private bool firstRefresh = true;
@@ -138,12 +134,9 @@ internal sealed class OptiLensHostMonitor : Form
         source.Controls.Add(new Label { Text = "Innovations source backend", AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
         sourceStatus.Text = "Active: checking…"; sourceStatus.AutoSize = true; source.Controls.Add(sourceStatus);
         sourceParity.AutoSize = true; source.Controls.Add(sourceParity);
-        source.Controls.Add(liveButton); source.Controls.Add(mirrorButton); source.Controls.Add(mirrorSyncButton); source.Controls.Add(rxAliasSyncButton);
+        source.Controls.Add(rxAliasSyncButton);
         rxAliasSyncMessage.AutoSize = true; source.Controls.Add(rxAliasSyncMessage);
         sourceMessage.AutoSize = true; source.Controls.Add(sourceMessage);
-        liveButton.Click += async delegate { await SwitchSource("live"); };
-        mirrorButton.Click += async delegate { await SwitchSource("mirror"); };
-        mirrorSyncButton.Click += async delegate { await StartMirrorSync(); };
         rxAliasSyncButton.Click += async delegate { await StartRxAliasSync(); };
         checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
         applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
@@ -451,7 +444,6 @@ internal sealed class OptiLensHostMonitor : Form
             sourceStatus.Text = "Direct MSSQL: " + S(Value(source, "state")); sourceStatus.ForeColor = ColorFor(S(Value(source, "state")));
             sourceParity.Text = "Mirror, PSQL, ODBC, and Access connections are retired.";
             sourceParity.ForeColor = Color.ForestGreen;
-            liveButton.Enabled = false; mirrorButton.Enabled = false; mirrorSyncButton.Enabled = false;
             sourceMessage.Text = S(Value(source, "detail"));
         }
         catch (Exception error) { sourceStatus.Text = "Source backend unavailable"; sourceStatus.ForeColor = Color.Firebrick; sourceMessage.Text = error.Message; }
@@ -526,18 +518,6 @@ internal sealed class OptiLensHostMonitor : Form
         try { rxAliasSyncButton.Enabled = false; await Api("/api/monitor/rx-alias-sync/run", "POST", new { }); rxAliasSyncMessage.Text = "RX alias sync started."; }
         catch (Exception error) { rxAliasSyncMessage.Text = "RX alias sync failed to start: " + error.Message; rxAliasSyncMessage.ForeColor = Color.Firebrick; }
         await RefreshRxAliasSyncStatus();
-    }
-
-    private async Task SwitchSource(string target)
-    {
-        sourceMessage.Text = "The Innovations source is direct MSSQL only.";
-        await RefreshSource();
-    }
-
-    private async Task StartMirrorSync()
-    {
-        sourceMessage.Text = "Mirror synchronization is retired.";
-        await RefreshSource();
     }
 
     private async Task RunSelfTest()
