@@ -170,8 +170,16 @@ function renderShipmentSessions() {
 
   renderShipmentRows("#openShipmentRows", open, "No open shipments.");
   renderShipmentRows("#closedShipmentRows", closed, "No recently closed shipments.");
+  revealSelectedShipmentGroup();
   updateCloseSelectedState();
   updateCommercialInvoiceAvailability();
+}
+
+function revealSelectedShipmentGroup() {
+  const selected = getSelectedSession();
+  if (!selected) return;
+  const groupRows = selected.app_status === "closed" ? "#closedShipmentRows" : "#openShipmentRows";
+  document.querySelector(groupRows)?.closest("details")?.setAttribute("open", "");
 }
 
 function renderShipmentRows(selector, sessions, emptyText) {
@@ -182,7 +190,7 @@ function renderShipmentRows(selector, sessions, emptyText) {
     const id = escapeHtml(session.shipment_session_id);
     const selected = moduleState.selectedSessionId === session.shipment_session_id;
     return `
-      <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}">
+      <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}"${selected ? ' aria-current="true"' : ""}>
         <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
         <span>${escapeHtml(session.customer_account || "")}</span>
         <span>${escapeHtml(session.shipping_method_name || "")}</span>
@@ -1439,6 +1447,7 @@ function setMessage(message, isError = false) {
   if (!target) return;
   target.textContent = message || "";
   target.classList.toggle("error", Boolean(isError));
+  target.hidden = !message;
 }
 
 function setCoMessage(message, isError = false) {

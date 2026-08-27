@@ -731,6 +731,12 @@ th {
   padding: 0;
 }
 
+.delivery-export-page #shipmentPrep.active {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: calc(100vh - 105px);
+}
+
 .access-toolbar {
   display: grid;
   grid-template-columns: minmax(240px, 1.2fr) minmax(160px, .8fr) minmax(220px, 1fr) minmax(200px, 1fr);
@@ -803,10 +809,10 @@ th {
 .delivery-export-page .shipment-prep-toolbar {
   grid-template-columns: minmax(360px, 1fr) auto auto;
   gap: 12px;
+  margin: 0;
   padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f7fbfd, var(--surface));
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .shipment-search-field {
@@ -886,6 +892,11 @@ th {
   margin: 2px 12px 8px;
 }
 
+.delivery-export-page .shipment-status-line:empty,
+.delivery-export-page .shipment-status-line[hidden] {
+  display: none;
+}
+
 .shipment-status-line.error {
   color: var(--red);
 }
@@ -939,6 +950,7 @@ th {
 .delivery-export-page .shipment-master-detail {
   gap: 0;
   margin: 0;
+  min-height: 0;
 }
 
 .co-workspace {
@@ -1741,6 +1753,11 @@ textarea.ci-line-input {
 
 .delivery-export-page .shipment-list-panel,
 .delivery-export-page .shipment-detail-panel {
+  min-height: 0;
+}
+
+.delivery-export-page .shipment-list-panel,
+.delivery-export-page .shipment-detail-panel {
   border-radius: 0;
 }
 
@@ -1758,6 +1775,19 @@ textarea.ci-line-input {
 .shipment-list-head,
 .shipment-detail-head {
   align-items: center;
+}
+
+.shipment-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shipment-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .shipment-list-head {
@@ -1803,7 +1833,7 @@ textarea.ci-line-input {
   display: grid;
   gap: 0;
   padding: 0;
-  max-height: 720px;
+  max-height: none;
   overflow: auto;
 }
 
@@ -1855,13 +1885,20 @@ textarea.ci-line-input {
   line-height: 1.2;
 }
 
-.shipment-list-row:hover,
-.shipment-list-row.selected {
+.shipment-list-row:hover {
   background: var(--bg-elevated);
 }
 
 .shipment-list-row.selected {
-  box-shadow: inset 3px 0 0 var(--blue);
+  position: relative;
+  z-index: 1;
+  background: #dcebf8;
+  box-shadow: inset 5px 0 0 var(--blue), inset 0 0 0 1px color-mix(in srgb, var(--blue) 42%, transparent);
+}
+
+.shipment-list-row.selected strong,
+.shipment-list-row.selected > span {
+  color: var(--ink);
 }
 
 .shipment-list-row strong,
@@ -1907,6 +1944,17 @@ textarea.ci-line-input {
 
 .shipment-detail-panel .table-wrap {
   min-height: 538px;
+}
+
+.delivery-export-page .shipment-detail-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.delivery-export-page .shipment-detail-panel .table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .shipment-items-table th,

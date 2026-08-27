@@ -53,7 +53,6 @@
                 <h2>Shipments</h2>
                 <p id="shipmentListSummary">Loading shipments</p>
               </div>
-              <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
             </div>
             <div class="shipment-list-table-head" aria-hidden="true">
               <span>Ship To Name</span>
@@ -87,7 +86,10 @@
                 <h2 id="selectedShipmentTitle">Select a shipment</h2>
                 <p id="selectedShipmentMeta">Choose an open or closed shipment to review jobs.</p>
               </div>
-              <button class="button primary" id="addRowsBtn" type="button" hidden>Add Rows</button>
+              <div class="shipment-detail-actions">
+                <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
+                <button class="button primary" id="addRowsBtn" type="button" hidden>Add Rows</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table class="shipment-items-table">
