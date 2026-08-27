@@ -6,9 +6,10 @@ const assert = require("node:assert/strict");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("current shipment list uses the synced Innovations item count to suppress only empty source shipments", () => {
+test("current shipment list contains only synced Innovations shipments and suppresses empty source headers", () => {
   const source = read("lib/delivery.js");
-  assert.match(source, /WHERE \([\s\S]*app_status = N'closed'[\s\S]*source_system <> N'mssql-innovations'[\s\S]*OR ISNULL\(source_item_count, 0\) > 0/);
+  assert.match(source, /WHERE source_system = N'mssql-innovations'/);
+  assert.match(source, /app_status = N'closed'[\s\S]*OR ISNULL\(source_item_count, 0\) > 0/);
   assert.match(source, /CASE[\s\S]*source_system = N'mssql-innovations'[\s\S]*source_item_count[\s\S]*AS item_count/);
   assert.match(source, /source_synced_at >= @sourceSyncStartedAt/);
 });
