@@ -169,7 +169,9 @@
                 </select>
               </label>
               <label>Packages<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
-              <label>Gross kg<input id="coActualGrossKg" name="actualGrossKg" type="number" min="0" step="0.001"></label>
+              <label>Gross weight
+                <span class="co-weight-input"><input id="coGrossWeight" name="grossWeight" type="number" min="0" step="any" inputmode="decimal" autocomplete="off"><select id="coGrossWeightUnit" name="grossWeightUnit" aria-label="Gross weight unit"><option value="lbs" selected>Pounds</option><option value="kg">Kilos</option></select></span>
+              </label>
               <label>Cube<input id="coCubeQuantity" name="cubeQuantity" type="number" min="0" step="0.0001"></label>
               <label>Freight<input id="coFreightCost" name="freightCost" type="number" min="0" step="0.01"></label>
               <label>Packing<input id="coPackingCost" name="packingCost" type="number" min="0" step="0.01"></label>

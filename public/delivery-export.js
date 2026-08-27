@@ -20,7 +20,9 @@ const moduleState = {
   packageTypes: [],
   coAutosaveTimer: null,
   coAutosaveInFlight: false,
-  coAutosaveQueued: false
+  coAutosaveQueued: false,
+  coAutoPreparedSessionIds: new Set(),
+  coGrossWeightKg: ""
 };
 
 initModule();
@@ -255,14 +257,14 @@ function renderCoDraft() {
     shippingDate: payload.transport?.shippingDate || "",
     boxCode: payload.packaging?.box || "DHL-FLYER",
     packageCount: payload.packaging?.numberOfPackages || 1,
-    actualGrossKg: payload.packaging?.actualGrossKg || "",
+    actualGrossKg: payload.packaging?.actualGrossKg ?? "",
     cubeQuantity: payload.invoiceDetails?.cubeQuantity || "",
     shippingMarks: payload.transport?.shippingMarks || "",
-    freightCost: payload.invoiceDetails?.freightCost || 0,
+    freightCost: payload.invoiceDetails?.freightCost ?? 62,
     packingCost: payload.invoiceDetails?.packingCost || 0,
     insuranceCost: payload.invoiceDetails?.insuranceCost || 0,
     otherCost: payload.invoiceDetails?.otherCost || 0,
-    deliveryTerms: payload.transport?.deliveryTerms || "",
+    deliveryTerms: payload.transport?.deliveryTerms || "Free on Board",
     originNotes: payload.origin?.notes || ""
   });
   renderCoHeaderPreview(payload);
@@ -277,21 +279,47 @@ function fillCoForm(values) {
     coTrackingNumber: values.trackingNumber || "",
     coShippingDate: values.shippingDate || "",
     coBoxCode: values.boxCode || "DHL-FLYER",
-    coPackageCount: values.packageCount || "",
-    coActualGrossKg: values.actualGrossKg || "",
+    coPackageCount: values.packageCount ?? 1,
     coCubeQuantity: values.cubeQuantity || "",
     coShippingMarks: values.shippingMarks || "",
-    coFreightCost: values.freightCost ?? "",
+    coFreightCost: values.freightCost ?? 62,
     coPackingCost: values.packingCost ?? "",
     coInsuranceCost: values.insuranceCost ?? "",
     coOtherCost: values.otherCost ?? "",
-    coDeliveryTerms: values.deliveryTerms || "",
+    coDeliveryTerms: values.deliveryTerms || "Free on Board",
     coOriginNotes: values.originNotes || ""
   };
   for (const [id, value] of Object.entries(pairs)) {
     const input = document.querySelector(`#${id}`);
     if (input) input.value = value;
   }
+  setGrossWeightFormValue(values.actualGrossKg ?? "");
+}
+
+function setGrossWeightFormValue(actualGrossKg) {
+  const input = document.querySelector("#coGrossWeight");
+  const unit = document.querySelector("#coGrossWeightUnit");
+  if (!input || !unit) return;
+  const kg = Number(actualGrossKg);
+  if (!Number.isFinite(kg) || kg <= 0) {
+    moduleState.coGrossWeightKg = "";
+    input.value = "";
+    return;
+  }
+  moduleState.coGrossWeightKg = String(round3(kg));
+  input.value = unit.value === "kg" ? String(kg) : String(round3(kg / 0.45359237));
+}
+
+function readGrossWeightKg() {
+  const value = Number(valueOf("#coGrossWeight"));
+  if (!Number.isFinite(value) || value < 0) return "";
+  const kg = String(round3(document.querySelector("#coGrossWeightUnit")?.value === "kg" ? value : value * 0.45359237));
+  moduleState.coGrossWeightKg = kg;
+  return kg;
+}
+
+function round3(value) {
+  return Math.round(Number(value || 0) * 1000) / 1000;
 }
 
 function renderCoHeaderPreview(payload) {
@@ -459,7 +487,7 @@ function renderCommercialInvoicePreview() {
             <div class="ci-entry-grid ci-entry-grid-compact">
               ${ciReadOnly("Invoice date", preview.invoiceDate)}
               ${ciReadOnly("Invoice number", preview.invoiceNo)}
-              ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Enter customer order number" })}
+              ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Primary contact name" })}
               ${ciEntryInput("PO numbers", "poNumbers", preview.poNumbers, { placeholder: "Enter PO numbers" })}
               ${ciReadOnly("Presenting bank", preview.presentingBank)}
               ${ciReadOnly("Buyer", "Buyer (if not consignee)")}
@@ -470,14 +498,14 @@ function renderCommercialInvoicePreview() {
               ${ciEntryInput("Carrier", "carrier", preview.transport?.carrier, { placeholder: "Enter carrier" })}
               ${ciReadOnlyJump("Marks & numbers", preview.transport?.marksAndNumbers, "coShippingMarks", "Shipping marks · click to edit")}
               ${ciEntrySelect("Package type", "packageType", preview.packaging?.packageType, moduleState.packageTypes)}
-              ${ciEntryInput("Gross weight (lbs)", "grossWeightLbs", preview.packaging?.grossWeightLbs, { placeholder: "Enter pounds", hint: preview.packaging?.grossWeight ? `Calculated: ${preview.packaging.grossWeight}` : "" })}
+              ${ciReadOnly("Gross weight", preview.packaging?.grossWeight, { detail: preview.packaging?.grossWeightLbs ? `${preview.packaging.grossWeightLbs} lbs entered` : "Calculated from the operator weight" })}
               ${ciReadOnly("Delivery terms", preview.deliveryTerms)}
               ${ciReadOnly("Tracking / AWB", preview.transport?.trackingNumber)}
               ${ciReadOnly("No. & kind of packages", [preview.packaging?.numberOfPackages, preview.packaging?.packageType].filter(Boolean).join(" · "))}
               ${ciReadOnly("Cube", preview.packaging?.cube)}
               ${ciReadOnly("Country of origin", preview.countryOfOriginOfGoods)}
               ${ciReadOnly("Final destination", preview.transport?.countryOfDestination)}
-              ${ciEntryInput("Declaration", "declaration", preview.declarationOverride, { multiline: true, wide: true, placeholder: "Leave blank to use the standard tariff declaration" })}
+              ${ciEntryInput("Declaration", "declaration", preview.declarationOverride || preview.declarationText, { multiline: true, wide: true, placeholder: "Declaration text" })}
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
@@ -566,8 +594,13 @@ function wireCoDraftAutosave() {
   const costField = "#coFreightCost, #coPackingCost, #coInsuranceCost, #coOtherCost";
   const commit = () => requestCoDraftAutosave(0);
   form.addEventListener("input", (event) => {
+    if (event.target.id === "coGrossWeight") readGrossWeightKg();
     if (event.target.matches(costField)) updateCommercialInvoiceCostTotals();
     requestCoDraftAutosave(500);
+  });
+  document.querySelector("#coGrossWeightUnit")?.addEventListener("change", () => {
+    setGrossWeightFormValue(moduleState.coGrossWeightKg);
+    requestCoDraftAutosave(0);
   });
   form.addEventListener("change", commit);
   form.addEventListener("focusout", commit);
@@ -1036,6 +1069,12 @@ async function loadCoDraft() {
   ]);
   moduleState.coApplication = data.application || null;
   moduleState.coJobs = data.jobs || [];
+  if (!moduleState.coApplication && !moduleState.coAutoPreparedSessionIds.has(session.shipment_session_id)) {
+    moduleState.coAutoPreparedSessionIds.add(session.shipment_session_id);
+    await prepareCoDraft({ automatic: true });
+    await loadCommercialInvoicePreview(session);
+    return;
+  }
   renderCoDraft();
 }
 
@@ -1130,7 +1169,7 @@ function setCustomerParamsMessage(message, isError = false) {
   target.classList.toggle("error", Boolean(isError));
 }
 
-async function prepareCoDraft() {
+async function prepareCoDraft(options = {}) {
   const session = getSelectedSession();
   if (!session) {
     setCoMessage("Select an export shipment before preparing a BeSwift draft.", true);
@@ -1144,7 +1183,7 @@ async function prepareCoDraft() {
   moduleState.coApplication = data.application;
   moduleState.coJobs = [];
   renderCoDraft();
-  setCoMessage("BeSwift draft prepared from Innovations.");
+  if (!options.automatic) setCoMessage("BeSwift draft prepared from Innovations.");
 }
 
 async function saveCoDraft(options = {}) {
@@ -1193,7 +1232,7 @@ function readCoDraftForm() {
     shippingDate: valueOf("#coShippingDate"),
     boxCode: valueOf("#coBoxCode"),
     packageCount: valueOf("#coPackageCount"),
-    actualGrossKg: valueOf("#coActualGrossKg"),
+    actualGrossKg: readGrossWeightKg(),
     cubeQuantity: valueOf("#coCubeQuantity"),
     shippingMarks: valueOf("#coShippingMarks"),
     freightCost: valueOf("#coFreightCost"),

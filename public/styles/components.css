@@ -851,6 +851,16 @@ th {
 .shipment-current-scope strong { font-size: 12px; }
 .shipment-current-scope small { color: #47756a; font-size: 10px; font-weight: 700; }
 
+.co-weight-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.co-weight-input select {
+  min-width: 88px;
+}
+
 .customer-start-row {
   display: flex;
   align-items: center;
