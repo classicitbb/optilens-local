@@ -1,7 +1,7 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Pending protected source-write configuration and authorized Host Monitor executable refresh — Delivery Export shipment-currentness correction deployed
+- Status: Pending protected source-write configuration and authorized application restart — Delivery Export document preview and packing-slip refinement ready for review
 - Last synchronized: 2026-08-27
 
 ## Objective and current state
@@ -10,9 +10,11 @@ The Automation capability overview is now a collapsed native accordion. Source s
 
 Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Shipment prep has a page-header search, explicit active selection, and a viewport-filling preview. Commercial Invoice now defaults freight to 62, packages to 1, and delivery terms to Free on Board; uses a single pounds/kilos gross-weight input persisted as kilograms; defaults Customer order no. to the primary contact; traces shipment tracking before reference fallbacks; and labels stock/fulfillment commodity specifications. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
 
+Delivery Export now has a reusable on-page document-preview module for Commercial Invoice and Packing Slip. The browser host has no trusted native print bridge, so Print accurately invokes the browser print dialog for the exact preview document. The new Classic Visions packing slip is available from Shipment prep for either classification and includes shipment/customer/job/signature details. The Delivery Checklist tab is deliberately disabled for local shipments with an explanatory title, while the separate packing-slip action remains available. A shipment composed solely of stock/fulfillment orders replaces its printable and on-screen invoice rows with `STOCK ORDER - SEE ATTACHED DOCUMENTS.`; mixed shipments retain their ordinary lines.
+
 The Delivery Export shipment-currentness correction is deployed. `lib/delivery.js` uses `source_item_count` (not optional local scan rows) for mirrored shipment visibility and displayed counts, and presents only synchronized Innovations rows in the current screen. `server.js` limits a successful refresh to source rows refreshed by that request, so stale local mirrors cannot appear as open. The contents endpoint reads source shipment items on click. The authenticated external-browser check confirmed the deployed source-aligned open/closed counts and contents for a selected shipment in each group.
 
-The update endpoints now make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The currently running Host Monitor executable is locked, so its replacement has not been built or deployed.
+The update endpoints now make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The Host Monitor executable was rebuilt from the merged source and relaunched successfully; the server-side endpoint change awaits an authorized application restart.
 
 ## Completed work and affected files
 
@@ -36,7 +38,8 @@ The update endpoints now make a repeat apply request idempotent: while the updat
 - `npm test` did not finish within the local command runner's 30-second window; its first four tests passed before the runner stopped it.
 - `node --check server.js` — passed.
 - `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed.
-- `npm run app:monitor:build` — source compiled, but Windows could not replace the running `OptiLensHostMonitor.exe` because it is in use.
+- `npm run app:monitor:build` — passed after the Host Monitor was stopped; rebuilt executable was relaunched and `node scripts/monitor-harness.js verify` passed.
+- `node --test test/delivery-document-preview.test.js test/innovations-sync-log.test.js test/update-manager.test.js test/git-update-checker.test.js` — 17 passed after merging the monitor-sync-error branch and current remote master.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
 - Delivery Export has not yet been browser-verified in an authenticated external Edge/Chrome session.
@@ -51,7 +54,7 @@ Configure a protected dedicated source writer outside the repository and explici
 
 ## Next action
 
-After authorized Host Monitor shutdown/restart, run `npm run app:monitor:build` to replace the executable, then use Check for updates twice during one update to confirm the second request reports progress rather than an error. Separately, run `node --test test/delivery-export-current-shipments.test.js` and then open the authenticated Delivery Export page in an external Edge/Chrome session to verify direct search typing, the zero-row suppression, settings launch, and invoice layout.
+After authorized application restart, run `npm run app:restart` followed by `node scripts/monitor-harness.js verify`, then use Check for updates twice during one update to confirm the second request reports progress rather than an error. Separately, run `node --test test/delivery-export-current-shipments.test.js` and then open the authenticated Delivery Export page in an external Edge/Chrome session to verify direct search typing, the zero-row suppression, settings launch, and invoice layout.
 
 
 ## Required handoff fields
