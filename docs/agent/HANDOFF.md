@@ -8,7 +8,7 @@
 
 The Automation capability overview is now a collapsed native accordion. Source status write-back now requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The current local environment has no dedicated source writer or allowlist, so the change remains safely unavailable rather than reusing the read identity.
 
-Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
+Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Shipment prep has a page-header search, explicit active selection, and a viewport-filling preview. Commercial Invoice now defaults freight to 62, packages to 1, and delivery terms to Free on Board; uses a single pounds/kilos gross-weight input persisted as kilograms; defaults Customer order no. to the primary contact; traces shipment tracking before reference fallbacks; and labels stock/fulfillment commodity specifications. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
 
 The Delivery Export shipment-currentness correction is deployed. `lib/delivery.js` uses `source_item_count` (not optional local scan rows) for mirrored shipment visibility and displayed counts, and presents only synchronized Innovations rows in the current screen. `server.js` limits a successful refresh to source rows refreshed by that request, so stale local mirrors cannot appear as open. The contents endpoint reads source shipment items on click. The authenticated external-browser check confirmed the deployed source-aligned open/closed counts and contents for a selected shipment in each group.
 
@@ -20,6 +20,7 @@ The update endpoints now make a repeat apply request idempotent: while the updat
 - `lib/db.js` and `lib/operations/source-status-writeback.js`: separate source write pool and fail-closed configuration checks.
 - `.env.example` and `test/operations-source-status-writeback.test.js`: document and test the required writer and allowlist gates.
 - `public/delivery-export.html`, `public/delivery-export.js`, and `public/styles/components.css`: redesigned shipment search, compact commercial-invoice workspace, shipment-defaults launcher/tab, tooltip, package dropdown, and accessible divider.
+- `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, and `test/commercial-invoice-defaults.test.js`: shipment-prep reconciliation plus commercial-invoice defaults, tracking fallback, stock-order wording, declaration display, unit conversion, and focused coverage.
 - `lib/delivery.js`, `lib/source-innovations.js`, `server.js`, and `lib/beswift-co.js`: zero-item mirror suppression, read-only universal source search, clean shipping-marks format, and lens/item descriptions without a PO prefix.
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
@@ -37,6 +38,7 @@ The update endpoints now make a repeat apply request idempotent: while the updat
 - `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed.
 - `npm run app:monitor:build` — source compiled, but Windows could not replace the running `OptiLensHostMonitor.exe` because it is in use.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
+- `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
 - Delivery Export has not yet been browser-verified in an authenticated external Edge/Chrome session.
 - `node --test test/delivery-export-current-shipments.test.js` — 4 passed after the currentness correction.
 - `node --check lib/delivery.js`, `node --check server.js`, and `git diff --check` — passed.
