@@ -19,6 +19,8 @@ test("shared document preview supports sanitized save and browser print fallback
   assert.match(preview, /function sanitizeFilename/);
   assert.match(preview, /frame\.contentWindow\?\.print\(\)/);
   assert.match(preview, /Opens your browser print dialog/);
+  assert.match(preview, /Close document preview/);
+  assert.match(preview, /event\.target === dialog/);
   assert.match(read("public/delivery-export.html"), /document-preview\.js/);
 });
 
@@ -35,6 +37,16 @@ test("commercial invoice uses the shared preview, branded filename, and whole-st
   assert.match(client, /Classic Commercial Invoice -/);
   assert.match(client, /OptiLensDocumentPreview\?\.open/);
   assert.match(read("public/delivery-export.html"), /id="saveCoDraftBottomBtn"/);
-  assert.match(client, /preview\.stockOrderOnly/);
-  assert.match(server, /preview\.stockOrderOnly/);
+  assert.match(server, /item\.stockOrder/);
+  assert.match(server, /item\.stockOrder/);
+  assert.match(client, /item\.stockOrder/);
+});
+
+test("stock detection prefers source order type and item defaults use the normalised label", () => {
+  const source = read("lib/beswift-co.js");
+  const client = read("public/delivery-export.js");
+  assert.match(source, /orderTypeName\s*\?\s*\/stock\|fulfil/);
+  assert.match(source, /orderLines\.some\(isStockOrFulfillmentOrder\)/);
+  assert.match(client, /function itemDefaultDisplayLabel/);
+  assert.match(client, /item\.catalogName \|\| item\.specification/);
 });

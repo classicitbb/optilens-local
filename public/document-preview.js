@@ -10,8 +10,11 @@
       dialog = document.createElement("dialog");
       dialog.id = "optilensDocumentPreview";
       dialog.className = "document-preview-dialog";
-      dialog.innerHTML = `<form method="dialog" class="document-preview-shell"><header><div><p class="eyebrow">Document preview</p><h2 data-preview-title></h2><small data-preview-print-note>Opens your browser print dialog.</small></div><div class="document-preview-actions"><button class="button secondary" type="button" data-preview-save>Save</button><button class="button primary" type="button" data-preview-print>Print</button><button class="launcher-close" value="cancel" aria-label="Close preview">&#x2715;</button></div></header><iframe title="Document preview" data-preview-frame></iframe></form>`;
+      dialog.innerHTML = `<form method="dialog" class="document-preview-shell"><header><div><p class="eyebrow">Document preview</p><h2 data-preview-title></h2><small data-preview-print-note>Opens your browser print dialog.</small></div><div class="document-preview-actions"><button class="button secondary" type="button" data-preview-save>Save</button><button class="button primary" type="button" data-preview-print>Print</button><button class="button secondary" value="cancel" aria-label="Close document preview">Close</button></div></header><div class="document-preview-stage"><div class="document-preview-page"><iframe title="Document preview" data-preview-frame></iframe></div></div></form>`;
       document.body.append(dialog);
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
     }
     dialog.querySelector("[data-preview-title]").textContent = title || "Document";
     const frame = dialog.querySelector("[data-preview-frame]");

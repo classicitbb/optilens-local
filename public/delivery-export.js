@@ -78,6 +78,7 @@ function wireActions() {
   document.querySelector("#shipmentSearchInput")?.addEventListener("input", queueShipmentSearch);
   document.querySelector("#addRowsBtn")?.addEventListener("click", openAddRowsModal);
   document.querySelector("#addRowsClose")?.addEventListener("click", closeAddRowsModal);
+  document.querySelector("#addRowsCancel")?.addEventListener("click", closeAddRowsModal);
   document.querySelector("#addRowsModal")?.addEventListener("click", (event) => {
     if (event.target.id === "addRowsModal") closeAddRowsModal();
   });
@@ -469,7 +470,9 @@ function renderCommercialInvoicePreview() {
     summary.textContent = `Shipment ${preview.shipmentId} · ${preview.itemCount} invoice line${preview.itemCount === 1 ? "" : "s"} · ${formatMoneyBbd(preview.totals?.invoiceTotal || 0)}`;
   }
 
-  const rows = preview.stockOrderOnly ? `<tr class="ci-stock-order-row"><td colspan="10">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>` : (preview.items || []).map((item) => `
+  const rows = (preview.items || []).map((item) => item.stockOrder
+    ? `<tr class="ci-stock-order-row"><td colspan="10">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>`
+    : `
     <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
       <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
@@ -839,7 +842,7 @@ function renderItemDefaults() {
     return `
       <tr data-item-setting="${index}" data-item-name="${escapeHtml(key)}">
         <td><input data-setting-field="certificateEligible" type="checkbox" ${item.certificateEligible ? "checked" : ""} aria-label="Certificate eligible for ${escapeHtml(key)}"></td>
-        <td class="item-setting-source" title="${escapeHtml(item.sourceName || key)}">${escapeHtml(item.sourceName || key)}</td>
+        <td class="item-setting-source" title="${escapeHtml(item.sourceName || key)}">${escapeHtml(itemDefaultDisplayLabel(item, key))}</td>
         <td><input data-setting-field="shortName" value="${escapeHtml(item.catalogName || item.specification || item.sourceName || "")}" autocomplete="off"></td>
         <td><input data-setting-field="hsCode" value="${escapeHtml(item.hsCode || "")}" autocomplete="off"></td>
         <td><input data-setting-field="countryOfOrigin" value="${escapeHtml(item.origin || "")}" autocomplete="off"></td>
@@ -985,6 +988,12 @@ async function printCommercialInvoice() {
   const date = new Date(preview.invoiceDate || Date.now());
   const filename = `Classic Commercial Invoice - ${customer} ${account} ${preview.shipmentId || session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
   window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename });
+}
+
+function itemDefaultDisplayLabel(item, fallback) {
+  // catalogName is the existing source-normalised item label. It avoids the
+  // raw material-group tail without changing saved commercial descriptions.
+  return item.catalogName || item.specification || fallback;
 }
 
 function buildPackingSlipData() {
