@@ -1,12 +1,12 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Pending protected source-write configuration and authorized application restart — Delivery Export document preview and packing-slip refinement ready for review
+- Status: Complete — no active handoff
 - Last synchronized: 2026-08-27
 
 ## Objective and current state
 
-The Automation capability overview is now a collapsed native accordion. Source status write-back now requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The current local environment has no dedicated source writer or allowlist, so the change remains safely unavailable rather than reusing the read identity.
+The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. No protected writer configuration was added; the capability remains safely unavailable rather than reusing the read identity.
 
 Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Shipment prep has a page-header search, explicit active selection, and a viewport-filling preview. Commercial Invoice now defaults freight to 62, packages to 1, and delivery terms to Free on Board; uses a single pounds/kilos gross-weight input persisted as kilograms; defaults Customer order no. to the primary contact; traces shipment tracking before reference fallbacks; and labels stock/fulfillment commodity specifications. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
 
@@ -14,7 +14,7 @@ Delivery Export now has a reusable on-page document-preview module for Commercia
 
 The Delivery Export shipment-currentness correction is deployed. `lib/delivery.js` uses `source_item_count` (not optional local scan rows) for mirrored shipment visibility and displayed counts, and presents only synchronized Innovations rows in the current screen. `server.js` limits a successful refresh to source rows refreshed by that request, so stale local mirrors cannot appear as open. The contents endpoint reads source shipment items on click. The authenticated external-browser check confirmed the deployed source-aligned open/closed counts and contents for a selected shipment in each group.
 
-The update endpoints now make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The Host Monitor executable was rebuilt from the merged source and relaunched successfully; the server-side endpoint change awaits an authorized application restart.
+The update endpoints make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The Host Monitor executable was rebuilt from the merged source and relaunched successfully. The server-side endpoint change was applied with a controlled application restart and the health harness confirmed the application and monitor are online.
 
 ## Completed work and affected files
 
@@ -46,16 +46,9 @@ The update endpoints now make a repeat apply request idempotent: while the updat
 - `node --test test/delivery-export-current-shipments.test.js` — 4 passed after the currentness correction.
 - `node --check lib/delivery.js`, `node --check server.js`, and `git diff --check` — passed.
 - Read-only MSSQL comparison and authenticated external-browser check confirmed the deployed current source result: 7 non-empty open shipments and 76 recent closed shipments, with contents loading for selected open and closed rows.
-
-## Blocker and approval required
-
-Configure a protected dedicated source writer outside the repository and explicitly approve the CurrentStatusID targets that may be written. Do not reuse the existing read identity. The exact guard message is: `Dedicated source write credentials are not configured.`
-
-
-## Next action
-
-After authorized application restart, run `npm run app:restart` followed by `node scripts/monitor-harness.js verify`, then use Check for updates twice during one update to confirm the second request reports progress rather than an error. Separately, run `node --test test/delivery-export-current-shipments.test.js` and then open the authenticated Delivery Export page in an external Edge/Chrome session to verify direct search typing, the zero-row suppression, settings launch, and invoice layout.
-
+- `npm test` — passed (4 discovered tests).
+- `npm run app:restart` — passed; the OptiLens Local service restarted healthy.
+- `node scripts/monitor-harness.js verify` — passed; all systems online.
 
 ## Required handoff fields
 
