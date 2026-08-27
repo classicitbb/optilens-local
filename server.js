@@ -1661,12 +1661,19 @@ const server = http.createServer(async (req, res) => {
       // Mirror Innovations first (best-effort — a source outage should not
       // block reading whatever is already cached locally), then read back.
       let syncResult = null;
+      // source_synced_at is stored at whole-second precision, so start the
+      // marker slightly before the sync rather than excluding its own rows.
+      const sourceSyncStartedAt = new Date(Date.now() - 2000);
       try {
         syncResult = await syncShipmentSessions(range);
       } catch (error) {
         syncResult = { error: error.message };
       }
-      const sessions = await listShipmentSessions(range);
+      const syncCompleted = !syncResult.error && !(syncResult.errors || []).length;
+      const sessions = await listShipmentSessions({
+        ...range,
+        sourceSyncStartedAt: syncCompleted ? sourceSyncStartedAt : null
+      });
       return { sessions: await enrichShipmentSessions(sessions), sync: syncResult };
     });
   }
