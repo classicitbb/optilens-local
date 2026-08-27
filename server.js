@@ -2921,7 +2921,9 @@ function renderCommercialInvoiceHtml(preview) {
     : preview.tariffHeadings?.length
       ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
       : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
-  const rows = (preview.items || []).map((item) => `
+  const rows = preview.stockOrderOnly
+    ? `<tr><td colspan="10" style="text-align:center;font-weight:800;letter-spacing:.4px">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>`
+    : (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
       <td>${escapeHtmlServer(item.ref)}</td>

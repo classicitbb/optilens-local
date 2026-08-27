@@ -88,6 +88,9 @@ function wireActions() {
   document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
+  document.querySelector("#printCommercialInvoiceBottomBtn")?.addEventListener("click", printCommercialInvoice);
+  document.querySelector("#saveCoDraftBottomBtn")?.addEventListener("click", saveCoDraft);
+  document.querySelector("#packingSlipBtn")?.addEventListener("click", openPackingSlipPreview);
   wireCommercialInvoiceHeaderEditing();
   wireCommercialInvoiceLineEditing();
   wireCoDraftAutosave();
@@ -175,6 +178,7 @@ function renderShipmentSessions() {
   revealSelectedShipmentGroup();
   updateCloseSelectedState();
   updateCommercialInvoiceAvailability();
+  updateDeliveryChecklistAvailability();
 }
 
 function revealSelectedShipmentGroup() {
@@ -238,8 +242,10 @@ function renderCoDraft() {
       : "Select an export shipment, then prepare a draft.");
 
   const saveBtn = document.querySelector("#saveCoDraftBtn");
+  const bottomSaveBtn = document.querySelector("#saveCoDraftBottomBtn");
   const queueBtn = document.querySelector("#queueCoJobBtn");
   if (saveBtn) saveBtn.disabled = !(hasDraft || moduleState.invoicePreview);
+  if (bottomSaveBtn) bottomSaveBtn.disabled = !(hasDraft || moduleState.invoicePreview);
   if (queueBtn) queueBtn.disabled = !hasDraft;
 
   if (!hasDraft) {
@@ -463,7 +469,7 @@ function renderCommercialInvoicePreview() {
     summary.textContent = `Shipment ${preview.shipmentId} · ${preview.itemCount} invoice line${preview.itemCount === 1 ? "" : "s"} · ${formatMoneyBbd(preview.totals?.invoiceTotal || 0)}`;
   }
 
-  const rows = (preview.items || []).map((item) => `
+  const rows = preview.stockOrderOnly ? `<tr class="ci-stock-order-row"><td colspan="10">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>` : (preview.items || []).map((item) => `
     <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
       <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
@@ -965,10 +971,47 @@ function setItemDefaultsMessage(message, isError = false) {
   target.classList.toggle("error", Boolean(isError));
 }
 
-function printCommercialInvoice() {
+async function printCommercialInvoice() {
   const session = getSelectedSession();
-  if (!session) return;
-  window.open(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice.pdf`, "_blank", "noopener");
+  const preview = moduleState.invoicePreview;
+  if (!session || !preview) return;
+  const response = await fetch(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice.pdf`, { cache: "no-store" });
+  if (!response.ok) {
+    setCoMessage("Could not load the commercial invoice preview.", true);
+    return;
+  }
+  const customer = preview.consignee?.name || session.customer_name || session.customer_account || "Customer";
+  const account = preview.consignee?.account || session.customer_account || "";
+  const date = new Date(preview.invoiceDate || Date.now());
+  const filename = `Classic Commercial Invoice - ${customer} ${account} ${preview.shipmentId || session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
+  window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename });
+}
+
+function buildPackingSlipData() {
+  const session = getSelectedSession();
+  const customer = moduleState.customerByAccount.get(String(session?.customer_account || "").toUpperCase()) || {};
+  const lines = moduleState.shipmentItems || [];
+  const stockOnly = lines.length > 0 && lines.every((item) => /stock|fulfil(?:l)?ment/i.test(String(item.orderTypeName || item.orderType || "")) || String(item.patientName || "").trim().toUpperCase() === "STOCK ORDER");
+  const total = lines.reduce((sum, item) => sum + Number(item.price || item.total || 0), 0);
+  return { session, customer, lines, stockOnly, total };
+}
+
+function renderPackingSlipHtml(data) {
+  const { session, customer, lines, stockOnly, total } = data;
+  const shipmentId = session.source_shipment_id || "—";
+  const date = formatDate(session.closed_at || session.started_at || new Date());
+  const rows = stockOnly
+    ? `<tr class="stock"><td colspan="4">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>`
+    : lines.map((item) => `<tr><td>${escapeHtml(item.invoiceNumber || item.rxNumber || "—")}</td><td>${escapeHtml(item.patientName || "—")}</td><td>${escapeHtml(formatMoneyBbd(item.price || item.total || 0))}</td><td>${escapeHtml(item.comments || item.orderTypeName || item.orderType || "")}</td></tr>`).join("") || `<tr><td colspan="4">No shipment jobs recorded.</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Packing Slip ${escapeHtml(shipmentId)}</title><style>@page{size:Letter;margin:.45in}body{font:11px Arial,sans-serif;color:#08213d}header{border-bottom:3px solid #d89023;padding-bottom:12px;display:flex;justify-content:space-between}.brand{color:#0082a8;font-weight:800;letter-spacing:2px}.title{font-size:25px;margin:4px 0}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:16px 0}.card{border:1px solid #c8d4e0;padding:9px}.label{display:block;text-transform:uppercase;font-size:8px;color:#3b628a;font-weight:bold;margin-bottom:3px}table{width:100%;border-collapse:collapse;margin-top:14px}th{background:#071d35;color:#fff;text-align:left;padding:8px;font-size:9px;text-transform:uppercase}td{padding:8px;border-bottom:1px solid #d7e0ea}.stock{font-weight:800;text-align:center;letter-spacing:.4px}.total{text-align:right;font-size:13px;font-weight:800;margin:12px 0}.signature{margin-top:52px;display:grid;grid-template-columns:1fr 1fr;gap:50px}.line{border-top:1px solid #08213d;padding-top:7px}footer{margin-top:35px;border-top:1px solid #c8d4e0;padding-top:8px;color:#526b85}</style></head><body><header><div><div class="brand">CLASSIC VISIONS</div><h1 class="title">Packing List</h1><div>Shipment ID: <b>${escapeHtml(shipmentId)}</b></div></div><div>Delivery / shipment date<br><b>${escapeHtml(date)}</b></div></header><section class="grid"><div class="card"><span class="label">Customer / business</span><b>${escapeHtml(session.customer_name || customer.customerName || session.customer_account || "—")}</b><br>Account / branch: ${escapeHtml(session.customer_account || "—")}<br>Phone: ${escapeHtml(customer.phone || "—")}</div><div class="card"><span class="label">Delivery</span>Primary contact: ${escapeHtml(customer.primaryContact || "—")}<br>Dispatcher: ${escapeHtml(session.dispatcher_id || "—")}<br>Shipment method / carrier: ${escapeHtml(session.shipping_method_name || customer.shippingMethodName || "—")}<br>Jobs: ${lines.length}</div></section><table><thead><tr><th>Invoice #</th><th>Patient</th><th>Total</th><th>Comments</th></tr></thead><tbody>${rows}</tbody></table><p class="total">Packing-slip item total: ${escapeHtml(formatMoneyBbd(total))}</p><section class="signature"><div class="line">Received By</div><div class="line">Signature</div></section><footer>Thank you for choosing Classic Visions. Please retain this packing slip with the shipment for your records.</footer></body></html>`;
+}
+
+function openPackingSlipPreview() {
+  const data = buildPackingSlipData();
+  if (!data.session) return;
+  const date = new Date(data.session.closed_at || data.session.started_at || Date.now());
+  const filename = `Classic Packing Slip - ${data.session.customer_name || data.session.customer_account || "Customer"} ${data.session.customer_account || ""} ${data.session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
+  window.OptiLensDocumentPreview?.open({ title: "Packing slip", html: renderPackingSlipHtml(data), filename });
 }
 
 function clearFilters() {
@@ -1017,6 +1060,7 @@ async function selectShipmentSession(sessionId) {
 async function loadSelectedShipmentItems(options = {}) {
   const session = getSelectedSession();
   const addRowsBtn = document.querySelector("#addRowsBtn");
+  const packingSlipBtn = document.querySelector("#packingSlipBtn");
 
   if (!session) {
     moduleState.shipmentItems = [];
@@ -1025,8 +1069,10 @@ async function loadSelectedShipmentItems(options = {}) {
     setText("#selectedShipmentTitle", "Select a shipment");
     setText("#selectedShipmentMeta", "Choose an open or closed shipment to review jobs.");
     if (addRowsBtn) addRowsBtn.hidden = true;
+    if (packingSlipBtn) packingSlipBtn.disabled = true;
     renderShipmentItems();
     updateCommercialInvoiceAvailability();
+    updateDeliveryChecklistAvailability();
     renderCoDraft();
     return;
   }
@@ -1041,11 +1087,13 @@ async function loadSelectedShipmentItems(options = {}) {
   if (session.dispatcher_id) metaParts.push(`Operator ${session.dispatcher_id}`);
   setText("#selectedShipmentMeta", metaParts.join(" · "));
   if (addRowsBtn) addRowsBtn.hidden = !(isExportSession(session) && session.app_status !== "closed");
+  if (packingSlipBtn) packingSlipBtn.disabled = false;
 
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/items`, { items: [] });
   moduleState.shipmentItems = data.items || [];
   renderShipmentItems();
   updateCommercialInvoiceAvailability();
+  updateDeliveryChecklistAvailability();
   if (!options.skipCoDraft) await loadCoDraft();
 }
 
@@ -1080,9 +1128,11 @@ async function loadCoDraft() {
 
 async function loadCommercialInvoicePreview(session = getSelectedSession()) {
   const printBtn = document.querySelector("#printCommercialInvoiceBtn");
+  const bottomPrintBtn = document.querySelector("#printCommercialInvoiceBottomBtn");
   if (!session || !isExportSession(session)) {
     moduleState.invoicePreview = null;
     if (printBtn) printBtn.disabled = true;
+    if (bottomPrintBtn) bottomPrintBtn.disabled = true;
     renderCommercialInvoicePreview();
     renderItemDefaults();
     return;
@@ -1090,8 +1140,11 @@ async function loadCommercialInvoicePreview(session = getSelectedSession()) {
   const data = await getJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/preview`, { preview: null });
   moduleState.invoicePreview = data.preview || null;
   if (printBtn) printBtn.disabled = !moduleState.invoicePreview;
+  if (bottomPrintBtn) bottomPrintBtn.disabled = !moduleState.invoicePreview;
   const saveBtn = document.querySelector("#saveCoDraftBtn");
+  const bottomSaveBtn = document.querySelector("#saveCoDraftBottomBtn");
   if (saveBtn) saveBtn.disabled = !(moduleState.coApplication || moduleState.invoicePreview);
+  if (bottomSaveBtn) bottomSaveBtn.disabled = !(moduleState.coApplication || moduleState.invoicePreview);
   renderCommercialInvoicePreview();
   renderItemDefaults();
 }
@@ -1487,6 +1540,16 @@ function setMessage(message, isError = false) {
   target.textContent = message || "";
   target.classList.toggle("error", Boolean(isError));
   target.hidden = !message;
+}
+
+function updateDeliveryChecklistAvailability() {
+  const tab = document.querySelector("#deliveryChecklistTab");
+  if (!tab) return;
+  const session = getSelectedSession();
+  const enabled = Boolean(session && isExportSession(session));
+  tab.disabled = !enabled;
+  tab.title = enabled ? "" : "Delivery checklist is not used for local shipments. Use Packing slip from Shipment prep.";
+  if (!enabled && tab.classList.contains("active")) activateTab("shipmentPrep");
 }
 
 function setCoMessage(message, isError = false) {

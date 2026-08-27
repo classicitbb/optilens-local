@@ -88,6 +88,7 @@
               </div>
               <div class="shipment-detail-actions">
                 <button class="button secondary" id="closeSelectedBtn" type="button" disabled>Prepare certificate/invoice</button>
+                <button class="button secondary" id="packingSlipBtn" type="button" disabled>Packing slip</button>
                 <button class="button primary" id="addRowsBtn" type="button" hidden>Add Rows</button>
               </div>
             </div>
@@ -184,6 +185,11 @@
 
             <div class="commercial-invoice-shell" id="commercialInvoicePreview">
               <p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>
+            </div>
+
+            <div class="co-bottom-actions" aria-label="Commercial invoice actions">
+              <button class="button secondary" id="saveCoDraftBottomBtn" type="button" disabled>Save draft</button>
+              <button class="button primary" id="printCommercialInvoiceBottomBtn" type="button" disabled>Print / PDF</button>
             </div>
 
           </section>
@@ -329,6 +335,7 @@
 
   <script src="/shared.js"></script>
   <script src="/beswift-extension-check.js" defer></script>
+  <script src="/document-preview.js"></script>
   <script src="/delivery-export.js"></script>
   <script src="/pwa.js"></script>
 </body>
