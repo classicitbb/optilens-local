@@ -876,8 +876,12 @@ function scheduleApplicationUpdate(status) {
     "-Port", String(port)
   ];
 
-  if (status.plan.installDependencies || status.plan.pullGit) args.push("-InstallDependencies");
-  if (status.plan.runMigrations || status.plan.pullGit) args.push("-RunMigrations");
+  // These are a starting default only. When a Git pull is involved, the
+  // script re-derives dependency/migration needs from the actual diff
+  // between the current and incoming revision (scripts/plan-update-scope.js)
+  // instead of installing and migrating on every pull regardless of need.
+  if (status.plan.installDependencies) args.push("-InstallDependencies");
+  if (status.plan.runMigrations) args.push("-RunMigrations");
   if (status.plan.pullGit) {
     args.push("-PullGit", "-GitRemote", status.git.remote, "-GitBranch", status.git.branch);
   }
@@ -918,9 +922,21 @@ function scheduleHostRestart() {
   }, 250).unref();
 }
 
+function readUpdateStatusFile() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dataDir, "update-status.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 function readUpdateLogs() {
   return {
     checkedAt: new Date().toISOString(),
+    // Structured verdict from the last apply-local-update.ps1 run — state,
+    // whether it rolled back, and the advisory test-suite result — so the
+    // dashboard can show a clear answer instead of raw log text.
+    lastUpdate: readUpdateStatusFile(),
     logs: [
       tailTextFile(path.join(dataDir, "local-update.log")),
       tailTextFile(path.join(dataDir, "watchdog.log")),
