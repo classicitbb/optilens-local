@@ -43,6 +43,7 @@
     "imapflow": "^1.6.3",
     "mailparser": "^3.9.14",
     "mssql": "^12.5.5",
+    "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5"
   },
   "directories": {

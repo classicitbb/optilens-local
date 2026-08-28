@@ -5,6 +5,7 @@
     message: null,
     workspace: null,
     mappings: null,
+    focusMappingId: null,
     recordSearch: "",
     sort: { key: null, direction: null },
     filters: {
@@ -351,7 +352,7 @@
       (data.mappings || [])
         .map(
           (mapping) =>
-            `<div class="mapping-row"><div><strong>${esc(mapping.supplier_code)} · ${esc(mapping.supplier_status_label)}</strong><small>${esc(mapping.rule_code)} · ${esc(mapping.mapping_state)}</small></div><select data-mapping-select="${esc(mapping.mapping_id)}"><option value="">Select CurrentStatusID</option>${(
+            `<div class="mapping-row${mapping.mapping_id === state.focusMappingId ? " focus-target" : ""}" id="mapping-${esc(mapping.mapping_id)}"><div><strong>${esc(mapping.supplier_code)} · ${esc(mapping.supplier_status_label)}</strong><small>${esc(mapping.rule_code)} · ${esc(mapping.mapping_state)}</small></div><select data-mapping-select="${esc(mapping.mapping_id)}"><option value="">Select CurrentStatusID</option>${(
               data.statusItems || []
             )
               .filter((item) => !item.inactive)
@@ -388,6 +389,29 @@
         }
       }),
     );
+    if (state.focusMappingId) {
+      document.getElementById(`mapping-${state.focusMappingId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      state.focusMappingId = null;
+    }
+  }
+
+  function showDetail(title, sections, remediation) {
+    const dialog = $("automationDetailDialog");
+    $("automationDetailBody").innerHTML = `<h2>${esc(title)}</h2>${sections.map(([label, value]) => `<p><strong>${esc(label)}</strong><br>${esc(value || "—")}</p>`).join("")}${remediation ? `<button class="button primary" type="button" id="detailFix">${esc(remediation.label)}</button>` : ""}`;
+    dialog.showModal();
+    const fix = $("detailFix");
+    if (fix) fix.addEventListener("click", () => {
+      dialog.close();
+      if (remediation.panel === "rules-panel") {
+        state.focusMappingId = remediation.mappingId || null;
+        showPanel("rules-panel");
+        renderMappings();
+      } else {
+        state.message = remediation.messageId || null;
+        showPanel("mailbox");
+        loadWorkspace();
+      }
+    });
   }
   function ruleFieldsHtml(rule = {}) {
     const subjectType = (rule.subject_match_type || "CONTAINS").toUpperCase();
@@ -567,7 +591,7 @@
     form.elements.max_messages_per_run.value = config.max_messages_per_run || 200;
     form.elements.is_enabled.checked = Boolean(config.is_enabled);
     hint.innerHTML = payload.credentialConfigured
-      ? `<small>Mailbox password is present in the encrypted credential vault.</small>`
+      ? `<small>Mailbox password is present in the encrypted credential vault.${payload.smtpConfigured ? " Daily exception digest SMTP is configured." : " Add SMTP Host, SMTP Port, and SMTP Secure fields to the Email vault entry before enabling the daily digest."}</small>`
       : `<small class="rule-status error">No mailbox credential found in the vault — Scan Inbox will fail until one is added.</small>`;
   }
   $("mailboxConfigForm").addEventListener("submit", async (event) => {
@@ -620,7 +644,7 @@
       (actions.actions || [])
         .map(
           (action) =>
-            `<div class="action-card"><strong>${esc(action.action_type)}</strong><span>Order: ${esc(action.target_reference)} · ${esc(action.status)}</span></div>`,
+            `<button class="action-card" type="button" data-action-detail="${esc(action.action_id)}"><strong>${esc(action.action_type)}</strong><span>Order: ${esc(action.target_reference)} · ${esc(action.status)}</span></button>`,
         )
         .join("") || `<p class="empty-state">No actions awaiting approval.</p>`;
     await renderRules(rules.rules);
@@ -629,13 +653,23 @@
       (exceptions.exceptions || [])
         .map(
           (item) =>
-            `<div class="exception-card"><strong>${esc(item.exception_type)}</strong><span>${esc(item.message)}</span></div>`,
+            `<button class="exception-card" type="button" data-exception-detail="${esc(item.exception_id)}"><strong>${esc(item.exception_type)}</strong><span>${esc(item.message)}</span></button>`,
         )
         .join("") || `<p class="empty-state">No open exceptions.</p>`;
     $("writeCapability").textContent = capability.writable
       ? "Writer ready · approval gated"
       : capability.detail || "Write-back gated";
     await renderMappings();
+    document.querySelectorAll("[data-action-detail]").forEach((button) => button.addEventListener("click", async () => {
+      const data = await json(`/api/operations/actions/${encodeURIComponent(button.dataset.actionDetail)}`);
+      const a = data.action || {};
+      showDetail("Proposed status update", [["Order", a.target_reference], ["Supplier status", a.supplier_status], ["Current status", a.current_status_description], ["Target status", a.target_status_description || a.proposed?.targetStatusDescription], ["Eligibility", (data.blockers || []).join(" ") || "Ready under the configured policy."]]);
+    }));
+    document.querySelectorAll("[data-exception-detail]").forEach((button) => button.addEventListener("click", async () => {
+      const data = await json(`/api/operations/exceptions/${encodeURIComponent(button.dataset.exceptionDetail)}`);
+      const e = data.exception || {};
+      showDetail("Exception detail", [["Type", e.exception_type], ["What happened", e.message], ["Reference", e.subject_reference], ["Evidence", typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail || {})]], data.remediation);
+    }));
   }
   function closeFilterMenus(except = null) {
     document.querySelectorAll("[data-filter-menu]").forEach((menu) => {
