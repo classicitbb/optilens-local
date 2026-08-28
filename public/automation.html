@@ -9,6 +9,7 @@
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/automation.css">
+  <link rel="stylesheet" href="/styles/system.css">
 </head>
 <body class="module-body">
 
@@ -22,6 +23,13 @@
 
   <main class="module-main">
     <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Governed operations</p>
+          <h1>Automation</h1>
+          <p class="module-subtitle">Review automation capabilities, controlled file generation, scheduled tasks, and the supplier exception inbox in one accountable workspace.</p>
+        </div>
+      </div>
       <nav class="workflow-tabs" aria-label="Automation tabs">
         <button class="active" type="button" data-tab="rules">Rules engine</button>
         <button type="button" data-tab="file-generation">File Generation</button>
@@ -39,25 +47,25 @@
           </summary>
           <div class="capability-grid capability-accordion-content" style="grid-template-columns: repeat(2, 1fr);">
             <article>
-              <span class="icon" style="background:#7c3aed">📋</span>
+              <span class="icon icon--navy">📋</span>
               <h3>Rule-based workflows</h3>
               <p>Define trigger → condition → action rules that run against platform data without direct database writes.</p>
               <span class="badge planned">Planned</span>
             </article>
             <article>
-              <span class="icon" style="background:#1A8A9C">🔌</span>
+              <span class="icon icon--teal">🔌</span>
               <h3>API tool routing</h3>
               <p>All automation actions are routed through audited platform APIs. No automation script has direct DB access.</p>
               <span class="badge planned">Planned</span>
             </article>
             <article>
-              <span class="icon" style="background:#389457">✅</span>
+              <span class="icon icon--success">✅</span>
               <h3>Approval gates</h3>
               <p>High-impact actions (write-back, price changes, shipment close) require explicit approval before execution.</p>
               <span class="badge planned">Planned</span>
             </article>
             <article>
-              <span class="icon" style="background:#C89130">📨</span>
+              <span class="icon icon--gold">📨</span>
               <h3>Notification hooks</h3>
               <p>Email, local webhook, and file-drop notifications when rules fire or require human review.</p>
               <span class="badge planned">Planned</span>
@@ -81,7 +89,7 @@
         <form id="rxForm" class="rx-layout" novalidate>
           <div class="rx-column">
           <section class="rx-card rx-settings">
-            <div class="rx-card-title"><span class="icon" style="background:#7c3aed">1</span><div><h3>Order settings</h3><p>Use a test instruction unless the lab has approved a different value.</p></div></div>
+            <div class="rx-card-title"><span class="icon icon--navy">1</span><div><h3>Order settings</h3><p>Use a test instruction unless the lab has approved a different value.</p></div></div>
             <div class="rx-fields rx-fields-2 rx-fields-3">
               <label>Number of orders<input name="batchSize" type="number" min="1" max="500" value="1" required></label>
               <label>Random seed <input name="randomSeed" placeholder="Optional repeatable batch seed"></label>
@@ -96,7 +104,7 @@
           </section>
 
           <section class="rx-card">
-            <div class="rx-card-title"><span class="icon" style="background:#389457">3</span><div><h3>Prescription</h3><p>Fixed values are checked before any file is written.</p></div></div>
+            <div class="rx-card-title"><span class="icon icon--success">3</span><div><h3>Prescription</h3><p>Fixed values are checked before any file is written.</p></div></div>
             <div class="rx-fields rx-fields-2">
               <label>Prescription mode<select name="prescriptionMode" id="prescriptionMode"><option value="plano">Plano</option><option value="random">Random</option><option value="fixed">Fixed OD / OS</option></select></label>
               <label>OD near PD<input name="pdOd" type="number" min="0.1" step="0.1" value="33.0"></label>
@@ -112,7 +120,7 @@
 
           <div class="rx-column">
           <section class="rx-card">
-            <div class="rx-card-title"><span class="icon" style="background:#1A8A9C">2</span><div><h3>Patient &amp; lens</h3><p>Supplier, type, and option filters only expose aliases validated against Pricing Automation.</p></div></div>
+            <div class="rx-card-title"><span class="icon icon--teal">2</span><div><h3>Patient &amp; lens</h3><p>Supplier, type, and option filters only expose aliases validated against Pricing Automation.</p></div></div>
             <div class="rx-fields rx-fields-2">
               <label>Patient mode<select name="patientMode" id="patientMode"><option value="random">Random test name</option><option value="fixed">Enter one name</option><option value="list">Paste name list</option></select></label>
               <label>Lens selection<select name="lensMode" id="lensMode"><option value="random">Random valid alias</option><option value="fixed">Specific alias</option></select></label>
@@ -126,7 +134,7 @@
             </div>
           </section>
           <section class="rx-card">
-            <div class="rx-card-title"><span class="icon" style="background:#C89130">4</span><div><h3>Coating &amp; frame</h3><p>Choose from the live Coatings group only. Edged jobs automatically include the required EDGED item.</p></div></div>
+            <div class="rx-card-title"><span class="icon icon--gold">4</span><div><h3>Coating &amp; frame</h3><p>Choose from the live Coatings group only. Edged jobs automatically include the required EDGED item.</p></div></div>
             <div class="rx-fields rx-fields-2">
               <label>Coating<select name="coatingMode" id="coatingMode"><option value="none" selected>No coating</option><option value="fixed">Selected coating</option><option value="random">Random coating</option></select></label>
               <label id="coatingSkuWrap">Coating<select name="coatingSku" id="coatingSku"></select></label>
