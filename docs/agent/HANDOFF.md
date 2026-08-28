@@ -22,6 +22,8 @@ The update endpoints make a repeat apply request idempotent: while the update ru
 
 The updater now persists `data/update-state.json` with a run ID, phase, percentage, message, timestamps, and failure details. The website update overlay and Host Monitor consume the same state across the service restart, while the website also displays the verbose update log tail. Application migrations checkpoint successfully applied files in `dbo.app_migrations`, allowing safe retries after a failed later step.
 
+The update controller now releases its transient in-memory `applying` flag if the detached update runner fails before creating its durable state file. This repairs the observed false-stuck condition: the service remained healthy, but the update UI stayed locked because no runner, state file, or maintenance lock existed. A single controlled monitor repair restored the host monitor after the application restart; the final health harness and update-status check both passed.
+
 ## Completed work and affected files
 
 - `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
@@ -42,6 +44,7 @@ The updater now persists `data/update-state.json` with a run ID, phase, percenta
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 - `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
+- `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
 - `lib/migrations.js`: durable application-migration checkpoints in `dbo.app_migrations`.
 
 ## Verification
@@ -75,6 +78,7 @@ The updater now persists `data/update-state.json` with a run ID, phase, percenta
 - `node scripts/monitor-harness.js verify` — passed; all systems online.
 - `node --test --test-concurrency=1 test/update-manager.test.js test/git-update-checker.test.js` — updater-related tests passed; the combined command also exposed one pre-existing CRLF-sensitive document-preview assertion.
 - Read-only `GET /api/monitor/updates` and `/api/monitor/updates/logs` — passed; no update was active and three diagnostic logs were returned.
+- Update recovery: updater log showed the earlier run completed its restart and monitor steps; the later false in-progress status had no runner, durable state, or maintenance lock. `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed; `node --check server.js` and `git diff --check` — passed. A single `node scripts/monitor-harness.js repair` followed by `verify` — passed; final update status reports no update available or applying.
 
 ## Required handoff fields
 

@@ -11,6 +11,7 @@ const credentialVault = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
 const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
+const { shouldReleaseScheduledUpdate } = require("./lib/update-runner-state");
 const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
 const { createHostIncidentReporter } = require("./lib/host-incidents");
 const { createHostRecoveryObserver } = require("./lib/host-recovery-observer");
@@ -894,8 +895,9 @@ function readUpdateRunState() {
 }
 
 function scheduleApplicationUpdate(status) {
+  const requestedAt = new Date().toISOString();
   scheduledUpdate = {
-    requestedAt: new Date().toISOString(),
+    requestedAt,
     targetRevision: status.availableRevision
   };
 
@@ -923,12 +925,27 @@ function scheduleApplicationUpdate(status) {
         windowsHide: true,
         cwd: __dirname
       });
+      child.once("error", (error) => {
+        if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
+        console.error("Could not start local update:", error.message);
+      });
       child.unref();
     } catch (error) {
-      scheduledUpdate = null;
+      if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
       console.error("Could not start local update:", error.message);
     }
   }, 250).unref();
+
+  // The runner writes durable state before it does any work.  If that record
+  // never appears, its detached launch failed; do not leave the UI locked in
+  // an in-memory "applying" state forever.
+  setTimeout(() => {
+    const run = readUpdateRunState();
+    if (shouldReleaseScheduledUpdate(scheduledUpdate, requestedAt, run)) {
+      scheduledUpdate = null;
+      console.error("Local update runner did not create update state; update can be retried.");
+    }
+  }, 15000).unref();
 }
 
 function scheduleHostStop() {
