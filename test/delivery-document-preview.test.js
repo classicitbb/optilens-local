@@ -18,7 +18,7 @@ test("delivery checklist eligibility and packing slip access use shipment classi
 test("shared document preview saves native PDF bytes with the sanitized PDF filename", () => {
   const preview = read("public/document-preview.js");
   assert.match(preview, /function sanitizeFilename/);
-  assert.match(preview, /frame\.contentWindow\?\.print\(\)/);
+  assert.match(preview, /printPreview\(frame, safeFilename\)/);
   assert.match(preview, /type: "application\/pdf"/);
   assert.match(preview, /%PDF-1\.4/);
   assert.match(preview, /link\.download = `\$\{safeFilename\}\.pdf`/);
@@ -27,6 +27,33 @@ test("shared document preview saves native PDF bytes with the sanitized PDF file
   assert.match(preview, /Close document preview/);
   assert.match(preview, /event\.target === dialog/);
   assert.match(read("public/delivery-export.html"), /document-preview\.js/);
+});
+
+test("shared print uses the sanitized filename as the iframe title and restores it afterward", () => {
+  const source = read("public/document-preview.js");
+  const start = source.indexOf("  function printPreview(frame, filename) {");
+  const end = source.indexOf("\n\n  async function renderFrameAsPdf", start);
+  assert.ok(start >= 0 && end > start, "printPreview should remain a reusable client-side helper");
+  const printPreview = new Function(`${source.slice(start, end)}; return printPreview;`)();
+  const previewDocument = { title: "Document preview" };
+  const calls = [];
+  printPreview({
+    contentDocument: previewDocument,
+    contentWindow: {
+      focus() { calls.push(["focus", previewDocument.title]); },
+      print() { calls.push(["print", previewDocument.title]); }
+    }
+  }, "Classic Packing Slip - A B");
+  assert.deepEqual(calls, [["focus", "Classic Packing Slip - A B"], ["print", "Classic Packing Slip - A B"]]);
+  assert.equal(previewDocument.title, "Document preview");
+  const sanitizeStart = source.indexOf("  function sanitizeFilename(value) {");
+  const sanitizeEnd = source.indexOf("\n\n  function open", sanitizeStart);
+  assert.ok(sanitizeStart >= 0 && sanitizeEnd > sanitizeStart, "sanitizeFilename should remain shared");
+  const sanitizeFilename = new Function(`${source.slice(sanitizeStart, sanitizeEnd)}\nreturn sanitizeFilename;`)();
+  assert.equal(
+    sanitizeFilename("Classic / Invoice:* Customer"),
+    "Classic Invoice Customer"
+  );
 });
 
 test("PDF builder emits a real Letter-page PDF byte stream", async () => {

@@ -45,12 +45,24 @@
     dialog.querySelector("[data-preview-print]").onclick = () => {
       // This web host exposes no native print bridge. Print the exact iframe,
       // which opens the browser's standard print dialog without pretending it
-      // is a desktop-host system dialog.
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
+      // is a desktop-host system dialog. Chromium uses the printable
+      // document's title as its suggested Save as PDF name.
+      printPreview(frame, safeFilename);
     };
     if (!dialog.open) dialog.showModal();
     return dialog;
+  }
+
+  function printPreview(frame, filename) {
+    const previewDocument = frame.contentDocument;
+    const previousTitle = previewDocument?.title;
+    if (previewDocument) previewDocument.title = filename;
+    try {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+    } finally {
+      if (previewDocument) previewDocument.title = previousTitle;
+    }
   }
 
   async function renderFrameAsPdf(frame) {
