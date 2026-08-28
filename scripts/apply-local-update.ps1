@@ -17,9 +17,11 @@ if (-not $ProjectRoot) {
 $logDirectory = Join-Path $ProjectRoot "data"
 $logFile = Join-Path $logDirectory "local-update.log"
 $maintenanceLock = Join-Path $logDirectory "maintenance.lock"
+$stateFile = Join-Path $logDirectory "update-state.json"
 $originalRevision = ""
 $pulledRevision = ""
 $migrationsStarted = $false
+$updateStartedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 if (-not (Test-Path $logDirectory)) {
     New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -32,15 +34,42 @@ function Write-UpdateLog {
     Write-Host $line
 }
 
+function Write-UpdateState {
+    param([string] $Status, [string] $Phase, [int] $Percent, [string] $Message, [string] $ErrorMessage = "")
+    $state = [ordered]@{
+        runId = if ($script:updateRunId) { $script:updateRunId } else { [guid]::NewGuid().ToString() }
+        status = $Status
+        phase = $Phase
+        percent = [Math]::Max(0, [Math]::Min(100, $Percent))
+        message = $Message
+        error = $ErrorMessage
+        startedAt = $updateStartedAt
+        updatedAt = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    $script:updateRunId = $state.runId
+    $temporary = "$stateFile.tmp"
+    $state | ConvertTo-Json -Compress | Set-Content -LiteralPath $temporary -Encoding UTF8
+    Move-Item -LiteralPath $temporary -Destination $stateFile -Force
+}
+
 function Invoke-UpdateStep {
     param([string] $Name, [scriptblock] $Action)
+    $percentByStep = @{
+        "git fetch" = 10; "git fast-forward" = 18; "production dependency installation" = 32
+        "server syntax check" = 42; "application tests" = 55; "application migrations" = 70
+        "application restart" = 86; "bounded self-repair" = 90
+    }
+    $percent = if ($percentByStep.ContainsKey($Name)) { $percentByStep[$Name] } else { 5 }
     $started = Get-Date
+    Write-UpdateState "running" $Name $percent "${Name} started."
     Write-UpdateLog "[$Name] started."
     try {
         & $Action
+        Write-UpdateState "running" $Name $percent "${Name} completed."
         Write-UpdateLog "[$Name] completed in $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s."
     } catch {
-        Write-UpdateLog "[$Name] failed after $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s: $($_.Exception.Message)"
+        Write-UpdateState "failed" $Name 0 "${Name} failed." $_.Exception.Message
+        Write-UpdateLog "[$Name] failed after $([Math]::Round(((Get-Date) - $started).TotalSeconds, 1))s: $($_.Exception.Message)"
         throw
     }
 }
@@ -95,6 +124,7 @@ function Restore-PreviousRevision {
 try {
     Set-Location $ProjectRoot
     Set-Content -LiteralPath $maintenanceLock -Value "$(Get-Date -Format o) update in progress"
+    Write-UpdateState "running" "discover" 2 "Update started."
     Write-UpdateLog "Update started. Git pull: $PullGit; dependencies: $InstallDependencies; migrations: $RunMigrations"
 
     if ($PullGit) {
@@ -165,6 +195,7 @@ try {
         Write-UpdateLog "Self-repair after update succeeded."
     }
 
+    Write-UpdateState "running" "monitor" 95 "Relaunching host monitor and watchdog task."
     Write-UpdateLog "Relaunching host monitor and watchdog task."
     Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
@@ -174,8 +205,10 @@ try {
         Start-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue
     }
 
+    Write-UpdateState "completed" "complete" 100 "Update completed successfully."
     Write-UpdateLog "Update completed."
 } catch {
+    Write-UpdateState "failed" "failed" 0 "Update failed." $_.Exception.Message
     Write-UpdateLog "Update failed: $($_.Exception.Message)"
     Restore-PreviousRevision
     exit 1

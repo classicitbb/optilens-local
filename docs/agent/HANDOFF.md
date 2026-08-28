@@ -18,6 +18,8 @@ The Delivery Export shipment-currentness correction is deployed. `lib/delivery.j
 
 The update endpoints make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The Host Monitor executable was rebuilt from the merged source and relaunched successfully. The server-side endpoint change was applied with a controlled application restart and the health harness confirmed the application and monitor are online.
 
+The updater now persists `data/update-state.json` with a run ID, phase, percentage, message, timestamps, and failure details. The website update overlay and Host Monitor consume the same state across the service restart, while the website also displays the verbose update log tail. Application migrations checkpoint successfully applied files in `dbo.app_migrations`, allowing safe retries after a failed later step.
+
 ## Completed work and affected files
 
 - `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
@@ -32,6 +34,8 @@ The update endpoints make a repeat apply request idempotent: while the update ru
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
+- `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
+- `lib/migrations.js`: durable application-migration checkpoints in `dbo.app_migrations`.
 
 ## Verification
 
@@ -59,6 +63,8 @@ The update endpoints make a repeat apply request idempotent: while the update ru
 - `npm test` — passed (4 discovered tests).
 - `npm run app:restart` — passed; the OptiLens Local service restarted healthy.
 - `node scripts/monitor-harness.js verify` — passed; all systems online.
+- `node --test --test-concurrency=1 test/update-manager.test.js test/git-update-checker.test.js` — updater-related tests passed; the combined command also exposed one pre-existing CRLF-sensitive document-preview assertion.
+- Read-only `GET /api/monitor/updates` and `/api/monitor/updates/logs` — passed; no update was active and three diagnostic logs were returned.
 
 ## Required handoff fields
 

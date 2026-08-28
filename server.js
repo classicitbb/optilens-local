@@ -846,6 +846,7 @@ function writeLocalDevCors(res, req) {
 function buildUpdateStatus() {
   const application = updateManager.getStatus();
   const git = gitUpdateChecker.getStatus();
+  const persistedRun = readUpdateRunState();
   const gitChange = git.updateAvailable ? [{
     id: "git",
     label: `${git.behind} Git commit${git.behind === 1 ? "" : "s"}`,
@@ -857,8 +858,9 @@ function buildUpdateStatus() {
   return {
     ...application,
     available,
-    applying: Boolean(scheduledUpdate),
-    applyingSince: scheduledUpdate?.requestedAt || null,
+    applying: Boolean(scheduledUpdate || persistedRun?.status === "running"),
+    applyingSince: scheduledUpdate?.requestedAt || persistedRun?.startedAt || null,
+    updateRun: persistedRun,
     changedAreas,
     git,
     plan: {
@@ -868,6 +870,27 @@ function buildUpdateStatus() {
       pullGit: git.updateAvailable
     }
   };
+}
+
+function readUpdateRunState() {
+  const stateFile = path.join(dataDir, "update-state.json");
+  try {
+    if (!fs.existsSync(stateFile)) return null;
+    const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+    if (!state || typeof state !== "object") return null;
+    return {
+      runId: typeof state.runId === "string" ? state.runId : null,
+      status: typeof state.status === "string" ? state.status : "unknown",
+      phase: typeof state.phase === "string" ? state.phase : "unknown",
+      percent: Number.isFinite(Number(state.percent)) ? Number(state.percent) : 0,
+      message: typeof state.message === "string" ? state.message : "",
+      error: typeof state.error === "string" ? state.error : "",
+      updatedAt: state.updatedAt || null,
+      startedAt: state.startedAt || null
+    };
+  } catch {
+    return null;
+  }
 }
 
 function scheduleApplicationUpdate(status) {
