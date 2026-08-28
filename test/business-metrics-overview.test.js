@@ -279,6 +279,19 @@ test("the overview summary avoids columns the mirror schema lacks", () => {
     "summary.js references StockLots.OnHandCalcTime, which does not exist in the mirror schema");
 });
 
+test("stock-lens add trends use fulfilment invoices and their OPCs", () => {
+  const trends = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "inventory-trends.js"), "utf8");
+  const context = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "context.js"), "utf8");
+
+  assert.match(trends, /o\.OrderType\s*=\s*6/, "stock-lens sales must include Fulfillment orders");
+  assert.doesNotMatch(trends, /o\.OrderType\s+IN\s*\(\s*3\s*,\s*9\s*\)/,
+    "legacy Stock / Stock Debit types do not contain the current stock-lens sales");
+  assert.match(trends, /li\.OPC_R\s*=\s*il\.SKU[\s\S]*li\.OPC_L\s*=\s*il\.SKU[\s\S]*li\.OPC_P\s*=\s*il\.SKU/,
+    "stock-lens sales must resolve the invoiced SKU through all OPC fields");
+  assert.match(context, /Fulfillment orders \(OrderType 6\)/,
+    "the Business Metrics explanation must describe the population it reports");
+});
+
 test("sales figures come from the journal, never from tax-inclusive invoice totals", () => {
   const summary = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "summary.js"), "utf8");
 

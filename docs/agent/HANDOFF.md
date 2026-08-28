@@ -1,10 +1,12 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Complete — no active handoff
-- Last synchronized: 2026-08-27
+- Status: In progress — local Business Metrics correction pending authorized deployment
+- Last synchronized: 2026-08-28
 
 ## Objective and current state
+
+Business Metrics' add-power `Sold as stock lenses` channel now uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and now reports both Progressive and Bifocal volume. This local correction has not been deployed or browser-verified against the hosted application; deployment needs explicit approval.
 
 The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. No protected writer configuration was added; the capability remains safely unavailable rather than reusing the read identity.
 
@@ -18,6 +20,9 @@ The update endpoints make a repeat apply request idempotent: while the update ru
 
 ## Completed work and affected files
 
+- `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
+- `test/business-metrics-overview.test.js`: regression guard for Fulfillment order type and OPC matching.
+
 - `public/automation.html` and `public/styles/pages/automation.css`: collapsed Automation capabilities accordion.
 - `lib/db.js` and `lib/operations/source-status-writeback.js`: separate source write pool and fail-closed configuration checks.
 - `.env.example` and `test/operations-source-status-writeback.test.js`: document and test the required writer and allowlist gates.
@@ -29,6 +34,11 @@ The update endpoints make a repeat apply request idempotent: while the update ru
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 
 ## Verification
+
+- Read-only live MSSQL check confirmed `OrderType = 6` is `Fulfillment` and contains matching Progressive and Bifocal OPC stock-lens volume in the active analytics window; legacy 3/9 types contained none.
+- `node --test test/business-metrics-overview.test.js` — 20 passed.
+- `node --check lib/metrics/inventory-trends.js`, `node --check lib/metrics/context.js`, `node --check public/business-metrics-inventory.js`, and `git diff --check` — passed.
+- Direct live `getAddPowerTrends(24)` check — Progressive 9,874 units and Bifocal 5,331 units across all 11 add buckets.
 
 - `node --check lib/db.js`
 - `node --check lib/operations/source-status-writeback.js`
@@ -60,6 +70,11 @@ When work is incomplete, record:
 - Environment affected without private identifiers.
 - Blocker and approval required.
 - One exact executable next action.
+
+## Blocker and next action
+
+- Approval required: deploy this local read-only reporting correction to the hosted application, then verify the rendered Business Metrics Inventory page in an authenticated external Chrome or Edge session.
+- Next action: after approval, follow `docs/REMOTE_AGENT_OPERATIONS.md` to deploy and health-check the current checkout, then open Business Metrics in an external browser and confirm `Sold as stock lenses` displays Fulfillment OPC volume.
 
 When fully complete, remove stale steps and set `Status: Complete — no active handoff`.
 
