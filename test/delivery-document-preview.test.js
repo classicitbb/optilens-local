@@ -55,15 +55,15 @@ test("packing slip maps shipment data and stock-only shipments to one attached-d
   assert.match(client, /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
 });
 
-test("commercial invoice uses the shared preview, branded filename, and whole-stock replacement", () => {
+test("commercial invoice uses the shared preview, branded filename, and stock invoice rows", () => {
   const client = read("public/delivery-export.js");
   const server = read("server.js");
   assert.match(client, /Classic Commercial Invoice -/);
   assert.match(client, /OptiLensDocumentPreview\?\.open/);
   assert.match(read("public/delivery-export.html"), /id="saveCoDraftBottomBtn"/);
-  assert.match(server, /item\.stockOrder/);
-  assert.match(server, /item\.stockOrder/);
-  assert.match(client, /item\.stockOrder/);
+  assert.match(server, /signatureDataUrl/);
+  assert.doesNotMatch(server, /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
+  assert.doesNotMatch(client.slice(0, client.indexOf("function renderPackingSlipHtml")), /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
 });
 
 test("stock detection prefers source order type and item defaults use the normalised label", () => {

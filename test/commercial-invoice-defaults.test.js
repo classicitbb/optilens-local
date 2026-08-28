@@ -15,7 +15,7 @@ test("commercial invoice keeps the requested operational defaults and source fal
   assert.match(source, /declarationOverride = text\(headerOverrides\.declaration\) \|\| declarationDefault/);
 });
 
-test("commercial invoice uses one editable gross-weight control and labels stock orders", () => {
+test("commercial invoice uses one editable gross-weight control and consolidates stock orders", () => {
   const markup = read("public/delivery-export.html");
   const client = read("public/delivery-export.js");
   const source = read("lib/beswift-co.js");
@@ -23,6 +23,7 @@ test("commercial invoice uses one editable gross-weight control and labels stock
   assert.match(markup, /id="coGrossWeightUnit"/);
   assert.doesNotMatch(markup, /id="coActualGrossKg"/);
   assert.match(client, /actualGrossKg: readGrossWeightKg\(\)/);
-  assert.match(source, /Stock order - \$\{commercialDescription\}/);
+  assert.match(source, /A stock\/fulfillment order is one commercial-invoice commodity/);
+  assert.match(source, /hsCodes: new Set/);
   assert.match(client, /coAutoPreparedSessionIds/);
 });

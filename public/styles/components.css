@@ -2736,6 +2736,13 @@ textarea.ci-line-input {
 .document-preview-page { width: min(8.5in, 100%); aspect-ratio: 8.5 / 11; flex: none; overflow: hidden; background: #fff; box-shadow: 0 10px 28px rgba(5, 29, 53, .22); }
 .document-preview-shell iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
 .ci-stock-order-row td { text-align: center; font-weight: 800; letter-spacing: .45px; color: #08213d; background: #fff6e2; }
+.archive-table { min-width: 1180px; }
+.archive-table td { vertical-align: top; overflow-wrap: anywhere; }
+.authorisation-upload { margin: 18px 0; padding: 28px; border: 2px dashed var(--line); border-radius: 10px; text-align: center; background: var(--bg-elevated); }
+.authorisation-upload.dragging { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, var(--bg-elevated)); }
+.authorisation-upload p { margin: 0 0 8px; }
+.authorisation-preview { display: flex; align-items: center; gap: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background-image: linear-gradient(45deg,#eef2f5 25%,transparent 25%),linear-gradient(-45deg,#eef2f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef2f5 75%),linear-gradient(-45deg,transparent 75%,#eef2f5 75%); background-size: 18px 18px; background-position: 0 0,0 9px,9px -9px,-9px 0; }
+.authorisation-preview img { max-width: 280px; max-height: 100px; object-fit: contain; }
 @media (max-width: 680px) { .document-preview-dialog { width: calc(100vw - 30px); height: calc(100vh - 30px); } .document-preview-shell > header { align-items: flex-start; flex-direction: column; } .document-preview-stage { padding: 12px; } }
 
 /* Compact, keyboard-friendly Delivery & Export dialogs. */
