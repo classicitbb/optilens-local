@@ -6,6 +6,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 
 ## Required reading
 
+- `AI_OPERATING_SYSTEM.md`
 - `docs/agent/PROJECT_KNOWLEDGE.md`
 - `docs/agent/INTEGRATIONS.md`
 - `docs/agent/HANDOFF.md`
