@@ -6,7 +6,7 @@
 
 ## Objective and current state
 
-Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and reports both Progressive and Bifocal volume. The authoritative host checkout already contained the correction and was restarted successfully on 2026-08-31; the final health harness reported all systems online. External Edge reaches the live application but is currently at its sign-in page, so authenticated rendered verification remains pending.
+Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and reports both Progressive and Bifocal volume. The authoritative host checkout already contained the correction; its focused regression and full test suite passed, a controlled restart was issued, and the final health harness reported all systems online on 2026-08-31. External Edge reaches the live application but is currently at its sign-in page, so authenticated rendered verification remains pending.
 
 Credentials Vault deletion now persists an operator-selected removal without template reseeding on a later read, lock, or unlock. Supplier Automation now exposes protected action/exception detail routes, actionable mapping deep links, and a daily unresolved-items digest path. The digest is fail-closed: it remains disabled unless the explicit digest flag and Email-vault SMTP fields are configured; it sends only to the configured mailbox account and self-marked messages are ignored by the IMAP poller. New migration `041-supplier-exception-digests.sql` is registered but has not been applied. No SMTP delivery or source status write-back was enabled.
 
@@ -54,7 +54,7 @@ The update controller now releases its transient in-memory `applying` flag if th
 
 - Read-only live MSSQL check confirmed `OrderType = 6` is `Fulfillment` and contains matching Progressive and Bifocal OPC stock-lens volume in the active analytics window; legacy 3/9 types contained none.
 - `node --test test/business-metrics-overview.test.js` — 20 passed.
-- Host deployment check: the correction commit is an ancestor of the authoritative checkout; host `npm test` — 4 passed; `npm run app:restart` completed during the controlled deployment; `node scripts/monitor-harness.js verify` — all systems online.
+- Host deployment check: the correction commit is an ancestor of the authoritative checkout; host `npm test` — 4 passed; a controlled `npm run app:restart` was issued; `node scripts/monitor-harness.js verify` — all systems online.
 - `node --check lib/metrics/inventory-trends.js`, `node --check lib/metrics/context.js`, `node --check public/business-metrics-inventory.js`, and `git diff --check` — passed.
 - Direct live `getAddPowerTrends(24)` check — Progressive 9,874 units and Bifocal 5,331 units across all 11 add buckets.
 
