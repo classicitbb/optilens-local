@@ -26,6 +26,8 @@ The updater now persists `data/update-state.json` with a run ID, phase, percenta
 
 The update controller now releases its transient in-memory `applying` flag if the detached update runner fails before creating its durable state file. This repairs the observed false-stuck condition: the service remained healthy, but the update UI stayed locked because no runner, state file, or maintenance lock existed. A single controlled monitor repair restored the host monitor after the application restart; the final health harness and update-status check both passed.
 
+RX alias cloud synchronization now keeps an acknowledged local alias snapshot. On a later successful committed sync, aliases absent from the current source-derived catalog are sent to the receiver with `is_active: false`, removing them from active website selection while retaining the receiver-side record for audit. The snapshot advances only after every batch succeeds, so a dry run, failed transfer, or partial response cannot lose a required deletion notice. This local change has not been deployed or used to send an external sync.
+
 ## Completed work and affected files
 
 - `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
@@ -49,6 +51,7 @@ The update controller now releases its transient in-memory `applying` flag if th
 - `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
 - `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
 - `lib/migrations.js`: durable application-migration checkpoints in `dbo.app_migrations`.
+- `lib/innovations-sync.js` and `test/innovations-sync.test.js`: acknowledged lens-alias reconciliation sends inactive tombstones for source deletions and guards the behavior with regression coverage.
 
 ## Verification
 
@@ -84,6 +87,8 @@ The update controller now releases its transient in-memory `applying` flag if th
 - `node --test --test-concurrency=1 test/update-manager.test.js test/git-update-checker.test.js` — updater-related tests passed; the combined command also exposed one pre-existing CRLF-sensitive document-preview assertion.
 - Read-only `GET /api/monitor/updates` and `/api/monitor/updates/logs` — passed; no update was active and three diagnostic logs were returned.
 - Update recovery: updater log showed the earlier run completed its restart and monitor steps; the later false in-progress status had no runner, durable state, or maintenance lock. `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed; `node --check server.js` and `git diff --check` — passed. A single `node scripts/monitor-harness.js repair` followed by `verify` — passed; final update status reports no update available or applying.
+- `node scripts/verify-rx-catalog.js` — read-only source check passed: 4,093 aliases and no invalid alias or misc records.
+- `node --test test/innovations-sync.test.js test/innovations-sync-log.test.js` — 12 passed; `npm run check` and `git diff --check` — passed.
 
 ## Required handoff fields
 
@@ -102,6 +107,9 @@ When work is incomplete, record:
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
 
 - For the new Automation work: after deployment/migration approval, configure SMTP Host, SMTP Port, and SMTP Secure on the intended Email vault entry and set `OPTILENS_SUPPLIER_EXCEPTION_DIGEST_ENABLED=true` only after a controlled recipient test. Use a dedicated source writer, enable flag, and status allowlist before setting `OPTILENS_SUPPLIER_STATUS_AUTO_APPLY=true`. Verify deletion persistence and detail/deep-link behavior in authenticated external Chrome or Edge.
+
+- Approval required: deploy the local RX alias reconciliation change, then run one controlled committed `lens_aliases` sync and verify deleted aliases are inactive in the website catalog. This will write to the external website receiver.
+- Next action: after approval, follow `docs/REMOTE_AGENT_OPERATIONS.md` to deploy and health-check the current checkout, then use the monitored Innovations sync control for `lens_aliases` and confirm its logged deactivation count.
 
 When fully complete, remove stale steps and set `Status: Complete — no active handoff`.
 
