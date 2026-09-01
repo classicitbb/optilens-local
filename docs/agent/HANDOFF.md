@@ -1,10 +1,14 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — Business Metrics correction deployed; authenticated external-browser verification pending
-- Last synchronized: 2026-08-31
+- Status: In progress — Business Metrics correction deployed; authenticated external-browser verification pending; scheduled cloud-sync data exceptions require remediation
+- Last synchronized: 2026-09-01
 
 ## Objective and current state
+
+Maintenance recovery on 2026-09-01 completed successfully. The guarded local updater had a missing `Write-UpdateStatus` helper, causing a requested runtime update to exit before it created its durable status record. `scripts/apply-local-update.ps1` now persists state, message, revisions, smoke-check, and advisory test-suite results to `data/update-status.json`. A controlled guarded run passed its smoke check, restarted the service, relaunched the host monitor, wrote `Update completed.`, and the loopback update check reported no available runtime or Git updates. The full suite remains advisory and reported two pre-existing unrelated failures: an innovations-sync log expectation that omits an undefined `warnings` field, and an RX-generator source-validated-lens assertion.
+
+The application, private app database, source database, and Host Monitor are online. The health screen still correctly reports the scheduled Innovations-to-Classic-Visions sync as failed. Its latest committed run completed all other entities but rejected one contact with a null mandatory `country` field and one lens alias with a null mandatory `material_code` field at the receiver. Do not supply guessed values or retry this external write until a data-remediation rule or source correction is approved.
 
 Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and reports both Progressive and Bifocal volume. The authoritative host checkout already contained the correction; its focused regression and full test suite passed, a controlled restart was issued, and the final health harness reported all systems online on 2026-08-31. External Edge reaches the live application but is currently at its sign-in page, so authenticated rendered verification remains pending.
 
@@ -55,6 +59,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
 - `lib/migrations.js`: durable application-migration checkpoints in `dbo.app_migrations`.
 - `lib/innovations-sync.js` and `test/innovations-sync.test.js`: acknowledged lens-alias reconciliation sends inactive tombstones for source deletions and guards the behavior with regression coverage.
+- `scripts/apply-local-update.ps1`: restores durable update-status persistence required by the guarded updater.
 
 ## Verification
 
@@ -92,6 +97,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - Update recovery: updater log showed the earlier run completed its restart and monitor steps; the later false in-progress status had no runner, durable state, or maintenance lock. `node --test test/update-manager.test.js test/git-update-checker.test.js` — 4 passed; `node --check server.js` and `git diff --check` — passed. A single `node scripts/monitor-harness.js repair` followed by `verify` — passed; final update status reports no update available or applying.
 - `node scripts/verify-rx-catalog.js` — read-only source check passed: 4,093 aliases and no invalid alias or misc records.
 - `node --test test/innovations-sync.test.js test/innovations-sync-log.test.js` — 12 passed; `npm run check` and `git diff --check` — passed.
+- Guarded maintenance update — smoke check passed; service restart passed; `data/update-state.json` recorded `completed`; `data/update-status.json` recorded `succeeded`; `data/local-update.log` ends with `Update completed.`; loopback update check reported no available updates; Host Monitor process was relaunched. The advisory `npm test` result was 165 passed / 2 failed (the unrelated innovations-sync-log and rx-generator assertions described above).
 
 ## Required handoff fields
 
@@ -113,6 +119,10 @@ When work is incomplete, record:
 
 - Approval required: deploy the local RX alias reconciliation change, then run one controlled committed `lens_aliases` sync and verify deleted aliases are inactive in the website catalog. This will write to the external website receiver.
 - Next action: after approval, follow `docs/REMOTE_AGENT_OPERATIONS.md` to deploy and health-check the current checkout, then use the monitored Innovations sync control for `lens_aliases` and confirm its logged deactivation count.
+
+- Blocker: the latest scheduled Innovations sync rejected one source contact with null `country` and one lens alias with null `material_code`; its committed external receiver write therefore finished with errors.
+- Approval required: specify the approved source correction or deterministic receiver-side treatment for those two mandatory fields, then authorize a controlled external sync retry.
+- Next action: inspect the two source records read-only and propose a field-specific remediation rule; do not submit a retry until approved.
 
 When fully complete, remove stale steps and set `Status: Complete — no active handoff`.
 
