@@ -3068,8 +3068,10 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; align-items: stretch; }
     .cert { display: grid; grid-template-rows: auto 1fr auto; padding: 0 4px; color: #315b83; line-height: 1.4; }
     .cert p { margin: 0 0 12px; }
-    .sig { position: relative; align-self: end; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
-    .sig img { position: absolute; left: 5px; bottom: 18px; max-width: 190px; max-height: 54px; object-fit: contain; }
+    .sig { align-self: end; width: 210px; color: #001b35; font-weight: 800; }
+    .sig img { display: block; width: 190px; height: 54px; margin: 0 0 2px 5px; object-fit: contain; object-position: left bottom; background: transparent; mix-blend-mode: multiply; }
+    .sig-line { border-top: 1px solid #071d35; }
+    .sig-signer { padding-top: 10px; }
     .totals { border: 1px solid #071d35; }
     .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
     .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
@@ -3099,7 +3101,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
       <div class="cert">
         <p>${escapeHtmlServer(preview.itemCount)} Items &nbsp;&nbsp; ${escapeHtmlServer(preview.noChargeNote)}</p>
         <p>${escapeHtmlServer(preview.certificationText)}</p>
-        <div class="sig">${signatureDataUrl ? `<img src="${escapeHtmlServer(signatureDataUrl)}" alt="Authorised Classic Visions signature">` : ""}Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div>
+        <div class="sig">${signatureDataUrl ? `<img src="${escapeHtmlServer(signatureDataUrl)}" alt="Authorised Classic Visions signature">` : ""}<div class="sig-line"></div><div class="sig-signer">Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div></div>
       </div>
       <div class="totals">
         <div class="total-row"><span>Sub Total</span><span>$${money(preview.totals.subTotal)}</span></div>

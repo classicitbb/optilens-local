@@ -93,6 +93,12 @@ test("commercial invoice uses the shared preview, branded filename, and stock in
   assert.doesNotMatch(client.slice(0, client.indexOf("function renderPackingSlipHtml")), /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
 });
 
+test("commercial invoice signature sits above a transparent signing line", () => {
+  const server = read("server.js");
+  assert.match(server, /\.sig img \{ display: block;[\s\S]*background: transparent;[\s\S]*mix-blend-mode: multiply;/);
+  assert.match(server, /<img src="\$\{escapeHtmlServer\(signatureDataUrl\)\}" alt="Authorised Classic Visions signature">[\s\S]*<div class="sig-line"><\/div><div class="sig-signer">Classic Visions/);
+});
+
 test("stock detection prefers source order type and item defaults use the normalised label", () => {
   const source = read("lib/beswift-co.js");
   const client = read("public/delivery-export.js");
