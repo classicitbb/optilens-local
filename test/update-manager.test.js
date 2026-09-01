@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { createUpdateManager } = require("../lib/update-manager");
+const { createUpdateManager, planForChangedPaths } = require("../lib/update-manager");
 const { tailTextFile } = require("../lib/host-control");
 
 function makeProject() {
@@ -45,6 +45,36 @@ test("plans dependency installation and a restart when manifests change", () => 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("planForChangedPaths scopes a docs-only diff to no install and no migration", () => {
+  const plan = planForChangedPaths(["docs/agent/HANDOFF.md", "README.md"]);
+  assert.deepEqual(plan.changedAreas, []);
+  assert.equal(plan.restartService, false);
+  assert.equal(plan.installDependencies, false);
+  assert.equal(plan.runMigrations, false);
+});
+
+test("planForChangedPaths flags dependency installation only when manifests changed", () => {
+  const plan = planForChangedPaths(["package-lock.json", "public/app.js"]);
+  assert.equal(plan.installDependencies, true);
+  assert.equal(plan.runMigrations, false);
+  assert.equal(plan.restartService, true);
+  assert.deepEqual(plan.changedAreas.map((area) => area.id).sort(), ["browser", "dependencies"]);
+});
+
+test("planForChangedPaths flags migrations only when the database area changed", () => {
+  const plan = planForChangedPaths(["database/040-new-thing.sql", "lib/db.js"]);
+  assert.equal(plan.installDependencies, false);
+  assert.equal(plan.runMigrations, true);
+  assert.equal(plan.restartService, true);
+  assert.deepEqual(plan.changedAreas.map((area) => area.id).sort(), ["migrations", "runtime"]);
+});
+
+test("planForChangedPaths does not match a path that merely starts with an area name", () => {
+  const plan = planForChangedPaths(["scripts-external/notes.txt", "publication.md"]);
+  assert.deepEqual(plan.changedAreas, []);
+  assert.equal(plan.restartService, false);
 });
 
 test("tails host log files without failing when they are missing", () => {
