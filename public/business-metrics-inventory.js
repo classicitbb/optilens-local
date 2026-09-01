@@ -476,7 +476,7 @@
       "</div>";
 
     out += '<div class="inv-grid" style="margin-top:12px">' +
-      panel("Sold as stock lenses", "invoiced on stock orders",
+      panel("Sold as stock lenses", "invoiced through fulfillment",
         smallMultiples(ap.channels.stockSold, mf, "--inv-c2")) +
       panel("Demand vs stock held", "biggest mismatches first · Progressive",
         mismatchBars((ap.mismatch && ap.mismatch.Progressive || []).slice(0, 8)) +

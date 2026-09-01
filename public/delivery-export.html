@@ -8,6 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/system.css">
 </head>
 <body class="module-body delivery-export-page">
   <div id="app-shell-header"></div>
@@ -220,11 +221,12 @@
 
       <section class="workflow-panel" id="archive">
         <div class="access-toolbar">
-          <label>Search archive<input placeholder="Delivery no, invoice, patient, customer"></label>
-          <label>From date<input type="date"></label>
-          <label>To date<input type="date"></label>
+          <label>Search archive<input id="archiveSearchInput" placeholder="Shipment, invoice, reference, customer"></label>
+          <label>From date<input id="archiveFromDate" type="date"></label>
+          <label>To date<input id="archiveToDate" type="date"></label>
+          <button class="button secondary" id="archiveSearchBtn" type="button">Search</button>
         </div>
-        <div class="placeholder-pane">Archive search will use older-than-12-month records and source/import audit keys.</div>
+        <div class="table-wrap"><table class="archive-table"><thead><tr><th>Document</th><th>Status</th><th>Shipment</th><th>Invoices</th><th>References</th><th>Customer</th><th>Saved</th><th>Audit source</th><th></th></tr></thead><tbody id="archiveRows"><tr><td colspan="9">Open Archive to load saved documents.</td></tr></tbody></table></div>
       </section>
 
       <section class="workflow-panel" id="sourceHealth">
@@ -260,6 +262,7 @@
         <button type="button" data-settings-tab="shipmentDefaults">Shipment defaults</button>
         <button class="active" type="button" data-settings-tab="customerDefaults">Customer defaults</button>
         <button type="button" data-settings-tab="itemDefaults">Item defaults</button>
+        <button type="button" data-settings-tab="authorisationPeriod">Authorisation</button>
       </div>
       <section class="settings-panel" id="shipmentDefaults">
         <div class="section-head tight shipment-detail-head">
@@ -329,6 +332,16 @@
             </tbody>
           </table>
         </div>
+      </section>
+      <section class="settings-panel" id="authorisationPeriod">
+        <div class="section-head tight shipment-detail-head"><div><h2>Authorisation</h2><p>One active transparent PNG signature is applied to Classic Visions authorisation lines on new commercial invoices.</p></div></div>
+        <div class="shipment-status-line" id="authorisationMessage" role="status"></div>
+        <div class="authorisation-upload" id="authorisationDropZone" tabindex="0">
+          <input id="authorisationFile" type="file" accept="image/png" hidden>
+          <p>Drag a transparent PNG signature here, or <button type="button" class="button secondary" id="authorisationChooseBtn">choose a file</button>.</p>
+          <small>PNG only · transparent background required · 512 KB maximum</small>
+        </div>
+        <div class="authorisation-preview" id="authorisationPreview" hidden><img id="authorisationPreviewImage" alt="Active Classic Visions signature"><button class="button secondary" id="authorisationRemoveBtn" type="button">Remove signature</button></div>
       </section>
     </section>
   </div>

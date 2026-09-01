@@ -6,6 +6,7 @@
   <title>OS Lab Status Update Inbox - OptiLens Local</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/automation.css">
+  <link rel="stylesheet" href="/styles/system.css">
 </head>
 <body class="module-body automation-email-page">
   <script>if (new URLSearchParams(location.search).get("embedded") === "1") document.body.classList.add("automation-embedded");</script>
@@ -106,6 +107,7 @@ TEST-002,Unknown supplier wording</textarea></label><button class="button primar
       </section>
     </section>
   </main>
+  <dialog id="automationDetailDialog" class="ops-detail-dialog"><div id="automationDetailBody"></div><form method="dialog"><button class="button secondary">Close</button></form></dialog>
   <script src="/shared.js"></script>
   <script src="/supplier-email.js"></script>
 </body>

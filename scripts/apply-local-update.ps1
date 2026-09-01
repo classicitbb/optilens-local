@@ -20,10 +20,12 @@ $statusFile = Join-Path $logDirectory "update-status.json"
 $maintenanceLock = Join-Path $logDirectory "maintenance.lock"
 $maxLockAgeMinutes = 20
 $originalRevision = ""
-$pulledRevision = ""
-$migrationsStarted = $false
 $smokeCheckPassed = $null
 $testSuiteResult = $null
+$stateFile = Join-Path $logDirectory "update-state.json"
+$pulledRevision = ""
+$migrationsStarted = $false
+$updateStartedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 if (-not (Test-Path $logDirectory)) {
     New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -36,42 +38,42 @@ function Write-UpdateLog {
     Write-Host $line
 }
 
-# The dashboard and the recovery observer both want a clean, structured
-# answer to "what happened during the last update" instead of scraping log
-# text. This is written at every meaningful transition, not just at the end,
-# so a crash mid-update still leaves an honest "running" (now stale) record.
-function Write-UpdateStatus {
-    param(
-        [string] $State,
-        [string] $Message = ""
-    )
-    $payload = [ordered]@{
-        state             = $State
-        message           = $Message
-        checkedAt         = (Get-Date -Format o)
-        fromRevision      = $originalRevision
-        toRevision        = $pulledRevision
-        installedDependencies = [bool]$InstallDependencies
-        ranMigrations     = [bool]$RunMigrations
-        smokeCheckPassed  = $smokeCheckPassed
-        testSuite         = $testSuiteResult
+function Write-UpdateState {
+    param([string] $Status, [string] $Phase, [int] $Percent, [string] $Message, [string] $ErrorMessage = "")
+    $state = [ordered]@{
+        runId = if ($script:updateRunId) { $script:updateRunId } else { [guid]::NewGuid().ToString() }
+        status = $Status
+        phase = $Phase
+        percent = [Math]::Max(0, [Math]::Min(100, $Percent))
+        message = $Message
+        error = $ErrorMessage
+        startedAt = $updateStartedAt
+        updatedAt = (Get-Date).ToUniversalTime().ToString("o")
     }
-    try {
-        $payload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statusFile
-    } catch {
-        Write-UpdateLog "Could not write update status file: $($_.Exception.Message)"
-    }
+    $script:updateRunId = $state.runId
+    $temporary = "$stateFile.tmp"
+    $state | ConvertTo-Json -Compress | Set-Content -LiteralPath $temporary -Encoding UTF8
+    Move-Item -LiteralPath $temporary -Destination $stateFile -Force
 }
 
 function Invoke-UpdateStep {
     param([string] $Name, [scriptblock] $Action)
+    $percentByStep = @{
+        "git fetch" = 10; "git fast-forward" = 18; "production dependency installation" = 32
+        "server syntax check" = 42; "application tests" = 55; "application migrations" = 70
+        "application restart" = 86; "bounded self-repair" = 90
+    }
+    $percent = if ($percentByStep.ContainsKey($Name)) { $percentByStep[$Name] } else { 5 }
     $started = Get-Date
+    Write-UpdateState "running" $Name $percent "${Name} started."
     Write-UpdateLog "[$Name] started."
     try {
         & $Action
+        Write-UpdateState "running" $Name $percent "${Name} completed."
         Write-UpdateLog "[$Name] completed in $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s."
     } catch {
-        Write-UpdateLog "[$Name] failed after $([math]::Round(((Get-Date) - $started).TotalSeconds, 1))s: $($_.Exception.Message)"
+        Write-UpdateState "failed" $Name 0 "${Name} failed." $_.Exception.Message
+        Write-UpdateLog "[$Name] failed after $([Math]::Round(((Get-Date) - $started).TotalSeconds, 1))s: $($_.Exception.Message)"
         throw
     }
 }
@@ -188,6 +190,7 @@ try {
     }
 
     Set-Content -LiteralPath $maintenanceLock -Value "$(Get-Date -Format o) update in progress"
+    Write-UpdateState "running" "discover" 2 "Update started."
     Write-UpdateLog "Update started. Git pull: $PullGit; dependencies: $InstallDependencies; migrations: $RunMigrations"
     $originalRevision = (& git -c "safe.directory=$ProjectRoot" rev-parse HEAD).Trim()
     Write-UpdateStatus -State "running" -Message "Update started."
@@ -298,6 +301,7 @@ try {
         Write-UpdateLog "Self-repair after update succeeded."
     }
 
+    Write-UpdateState "running" "monitor" 95 "Relaunching host monitor and watchdog task."
     Write-UpdateLog "Relaunching host monitor and watchdog task."
     Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
@@ -307,9 +311,11 @@ try {
         Start-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue
     }
 
+    Write-UpdateState "completed" "complete" 100 "Update completed successfully."
     Write-UpdateLog "Update completed."
     Write-UpdateStatus -State "succeeded" -Message "Update completed."
 } catch {
+    Write-UpdateState "failed" "failed" 0 "Update failed." $_.Exception.Message
     Write-UpdateLog "Update failed: $($_.Exception.Message)"
     Write-UpdateStatus -State "failed" -Message $_.Exception.Message
     Restore-PreviousRevision

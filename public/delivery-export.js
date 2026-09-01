@@ -22,7 +22,8 @@ const moduleState = {
   coAutosaveInFlight: false,
   coAutosaveQueued: false,
   coAutoPreparedSessionIds: new Set(),
-  coGrossWeightKg: ""
+  coGrossWeightKg: "",
+  authorisationImageDataUrl: ""
 };
 
 initModule();
@@ -92,6 +93,11 @@ function wireActions() {
   document.querySelector("#printCommercialInvoiceBottomBtn")?.addEventListener("click", printCommercialInvoice);
   document.querySelector("#saveCoDraftBottomBtn")?.addEventListener("click", saveCoDraft);
   document.querySelector("#packingSlipBtn")?.addEventListener("click", openPackingSlipPreview);
+  document.querySelector("#archiveSearchBtn")?.addEventListener("click", loadDocumentArchive);
+  document.querySelector("#authorisationChooseBtn")?.addEventListener("click", () => document.querySelector("#authorisationFile")?.click());
+  document.querySelector("#authorisationFile")?.addEventListener("change", (event) => uploadAuthorisationFile(event.target.files?.[0]));
+  document.querySelector("#authorisationRemoveBtn")?.addEventListener("click", removeAuthorisation);
+  wireAuthorisationDropZone();
   wireCommercialInvoiceHeaderEditing();
   wireCommercialInvoiceLineEditing();
   wireCoDraftAutosave();
@@ -133,6 +139,7 @@ function activateTab(tabId) {
     panel.classList.toggle("active", panel.id === tabId);
   });
   if (tabId === "commercialInvoice") loadCoDraft();
+  if (tabId === "archive") loadDocumentArchive();
 }
 
 function renderHealth() {
@@ -470,9 +477,7 @@ function renderCommercialInvoicePreview() {
     summary.textContent = `Shipment ${preview.shipmentId} · ${preview.itemCount} invoice line${preview.itemCount === 1 ? "" : "s"} · ${formatMoneyBbd(preview.totals?.invoiceTotal || 0)}`;
   }
 
-  const rows = (preview.items || []).map((item) => item.stockOrder
-    ? `<tr class="ci-stock-order-row"><td colspan="10">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>`
-    : `
+  const rows = (preview.items || []).map((item) => `
     <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
       <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
@@ -859,6 +864,7 @@ function openDeliverySettings(tabId = "customerDefaults") {
   activateSettingsTab(tabId);
   fillShipmentDefaultsForm();
   renderItemDefaults();
+  loadAuthorisation();
   modal.hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -988,6 +994,65 @@ async function printCommercialInvoice() {
   const date = new Date(preview.invoiceDate || Date.now());
   const filename = `Classic Commercial Invoice - ${customer} ${account} ${preview.shipmentId || session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
   window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename });
+}
+
+function setAuthorisationMessage(message, isError = false) {
+  const target = document.querySelector("#authorisationMessage");
+  if (!target) return;
+  target.textContent = message || "";
+  target.classList.toggle("error", Boolean(isError));
+}
+
+function renderAuthorisation() {
+  const box = document.querySelector("#authorisationPreview");
+  const image = document.querySelector("#authorisationPreviewImage");
+  if (!box || !image) return;
+  box.hidden = !moduleState.authorisationImageDataUrl;
+  image.src = moduleState.authorisationImageDataUrl || "";
+}
+
+async function loadAuthorisation() {
+  const data = await getJson("/api/delivery/authorisation/image", { imageDataUrl: "" });
+  moduleState.authorisationImageDataUrl = data.imageDataUrl || "";
+  renderAuthorisation();
+}
+
+function wireAuthorisationDropZone() {
+  const zone = document.querySelector("#authorisationDropZone");
+  if (!zone) return;
+  ["dragenter", "dragover"].forEach((eventName) => zone.addEventListener(eventName, (event) => { event.preventDefault(); zone.classList.add("dragging"); }));
+  ["dragleave", "drop"].forEach((eventName) => zone.addEventListener(eventName, (event) => { event.preventDefault(); zone.classList.remove("dragging"); }));
+  zone.addEventListener("drop", (event) => uploadAuthorisationFile(event.dataTransfer?.files?.[0]));
+  zone.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); document.querySelector("#authorisationFile")?.click(); } });
+}
+
+async function uploadAuthorisationFile(file) {
+  if (!file) return;
+  if (file.type !== "image/png" || file.size > 512 * 1024) { setAuthorisationMessage("Choose a transparent PNG signature smaller than 512 KB.", true); return; }
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const result = await putJson("/api/delivery/authorisation", { imageBase64: reader.result }).catch((error) => { setAuthorisationMessage(error.message, true); return null; });
+    if (!result) return;
+    moduleState.authorisationImageDataUrl = String(reader.result);
+    renderAuthorisation(); setAuthorisationMessage("Signature saved.");
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removeAuthorisation() {
+  const result = await fetch("/api/delivery/authorisation", { method: "DELETE", headers: { "Accept": "application/json" } });
+  if (!result.ok) { const data = await result.json().catch(() => ({})); setAuthorisationMessage(data.error || "Could not remove signature.", true); return; }
+  moduleState.authorisationImageDataUrl = ""; renderAuthorisation(); setAuthorisationMessage("Signature removed.");
+}
+
+async function loadDocumentArchive() {
+  const params = new URLSearchParams();
+  const search = valueOf("#archiveSearchInput"); const from = valueOf("#archiveFromDate"); const to = valueOf("#archiveToDate");
+  if (search) params.set("search", search); if (from) params.set("from", from); if (to) params.set("to", to);
+  const data = await getJson(`/api/delivery/document-archive?${params}`, { entries: [] });
+  const rows = document.querySelector("#archiveRows"); if (!rows) return;
+  rows.innerHTML = (data.entries || []).map((item) => `<tr><td>${escapeHtml(String(item.documentType || "").replaceAll("_", " "))}</td><td>${escapeHtml(item.documentStatus || "")}</td><td>${escapeHtml(item.shipmentId || "")}</td><td>${escapeHtml(item.invoiceNumbers || "")}</td><td>${escapeHtml(item.referenceNumbers || "")}</td><td>${escapeHtml(item.customerName || item.customerAccount || "")}</td><td>${escapeHtml(formatDate(item.createdAt))}</td><td>${escapeHtml(item.sourceAuditKey || item.sourceSystem || "")}</td><td>${item.archiveEntryId ? `<button class="button secondary" type="button" data-archive-open="${escapeHtml(item.archiveEntryId)}">Open</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="9">No saved documents match these filters.</td></tr>`;
+  rows.querySelectorAll("[data-archive-open]").forEach((button) => button.addEventListener("click", () => window.open(`/api/delivery/document-archive/${encodeURIComponent(button.dataset.archiveOpen)}`, "_blank", "noopener")));
 }
 
 function itemDefaultDisplayLabel(item, fallback) {
@@ -1260,7 +1325,7 @@ async function saveCoDraft(options = {}) {
     setCoMessage("");
     return false;
   }
-  const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, readCoDraftForm()).catch((error) => {
+  const data = await putJson(`/api/delivery/co-applications/${encodeURIComponent(app.coApplicationId)}/draft`, { ...readCoDraftForm(), archiveDocument: !options.silent }).catch((error) => {
     setCoMessage(error.message, true);
     return null;
   });

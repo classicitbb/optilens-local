@@ -11,6 +11,7 @@ const credentialVault = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
 const { createUpdateManager } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
+const { shouldReleaseScheduledUpdate } = require("./lib/update-runner-state");
 const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
 const { createHostIncidentReporter } = require("./lib/host-incidents");
 const { createHostRecoveryObserver } = require("./lib/host-recovery-observer");
@@ -151,6 +152,7 @@ const {
   claimAutomationJob: claimBeSwiftAutomationJob,
   createAutomationJob: createBeSwiftAutomationJob,
   getCoForShipment,
+  getApplicationById,
   getCommercialInvoicePreview,
   prepareCoDraft,
   saveCommercialInvoiceLineOverrides,
@@ -163,6 +165,15 @@ const {
   listFillResolutions: listBeSwiftFillResolutions,
   getNextQueuedAutomationJob: getNextQueuedBeSwiftAutomationJob
 } = require("./lib/beswift-co");
+const {
+  appendDocumentArchive,
+  getActiveAuthorisationDataUrl,
+  getActiveAuthorisationMetadata,
+  getArchivedDocument,
+  listDocumentArchive,
+  removeAuthorisation,
+  saveAuthorisation
+} = require("./lib/delivery-documents");
 const {
   getCustomerParameters,
   upsertCustomerParameters
@@ -836,6 +847,7 @@ function writeLocalDevCors(res, req) {
 function buildUpdateStatus() {
   const application = updateManager.getStatus();
   const git = gitUpdateChecker.getStatus();
+  const persistedRun = readUpdateRunState();
   const gitChange = git.updateAvailable ? [{
     id: "git",
     label: `${git.behind} Git commit${git.behind === 1 ? "" : "s"}`,
@@ -847,8 +859,9 @@ function buildUpdateStatus() {
   return {
     ...application,
     available,
-    applying: Boolean(scheduledUpdate),
-    applyingSince: scheduledUpdate?.requestedAt || null,
+    applying: Boolean(scheduledUpdate || persistedRun?.status === "running"),
+    applyingSince: scheduledUpdate?.requestedAt || persistedRun?.startedAt || null,
+    updateRun: persistedRun,
     changedAreas,
     git,
     plan: {
@@ -860,9 +873,31 @@ function buildUpdateStatus() {
   };
 }
 
+function readUpdateRunState() {
+  const stateFile = path.join(dataDir, "update-state.json");
+  try {
+    if (!fs.existsSync(stateFile)) return null;
+    const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+    if (!state || typeof state !== "object") return null;
+    return {
+      runId: typeof state.runId === "string" ? state.runId : null,
+      status: typeof state.status === "string" ? state.status : "unknown",
+      phase: typeof state.phase === "string" ? state.phase : "unknown",
+      percent: Number.isFinite(Number(state.percent)) ? Number(state.percent) : 0,
+      message: typeof state.message === "string" ? state.message : "",
+      error: typeof state.error === "string" ? state.error : "",
+      updatedAt: state.updatedAt || null,
+      startedAt: state.startedAt || null
+    };
+  } catch {
+    return null;
+  }
+}
+
 function scheduleApplicationUpdate(status) {
+  const requestedAt = new Date().toISOString();
   scheduledUpdate = {
-    requestedAt: new Date().toISOString(),
+    requestedAt,
     targetRevision: status.availableRevision
   };
 
@@ -894,12 +929,27 @@ function scheduleApplicationUpdate(status) {
         windowsHide: true,
         cwd: __dirname
       });
+      child.once("error", (error) => {
+        if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
+        console.error("Could not start local update:", error.message);
+      });
       child.unref();
     } catch (error) {
-      scheduledUpdate = null;
+      if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
       console.error("Could not start local update:", error.message);
     }
   }, 250).unref();
+
+  // The runner writes durable state before it does any work.  If that record
+  // never appears, its detached launch failed; do not leave the UI locked in
+  // an in-memory "applying" state forever.
+  setTimeout(() => {
+    const run = readUpdateRunState();
+    if (shouldReleaseScheduledUpdate(scheduledUpdate, requestedAt, run)) {
+      scheduledUpdate = null;
+      console.error("Local update runner did not create update state; update can be retried.");
+    }
+  }, 15000).unref();
 }
 
 function scheduleHostStop() {
@@ -1808,7 +1858,51 @@ const server = http.createServer(async (req, res) => {
     return handleHtml(res, async () => {
       await requirePermission(req, "delivery.read");
       const preview = await getCommercialInvoicePreview(commercialInvoicePrintMatch[1]);
-      return renderCommercialInvoiceHtml(preview);
+      return renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
+    });
+  }
+
+  if (url.pathname === "/api/delivery/authorisation" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { authorisation: await getActiveAuthorisationMetadata() };
+    });
+  }
+  if (url.pathname === "/api/delivery/authorisation/image" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { imageDataUrl: await getActiveAuthorisationDataUrl() };
+    });
+  }
+  if (url.pathname === "/api/delivery/authorisation" && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const authorisation = await saveAuthorisation(await readJsonBody(req), actor.userId);
+      await recordAuditEvent({ moduleCode: "delivery", actorUserId: actor.userId, eventType: "document.authorisation.saved", entityType: "document_authorisation", entityId: authorisation.authorisationId, eventData: { contentHash: authorisation.contentHash } });
+      return { authorisation };
+    });
+  }
+  if (url.pathname === "/api/delivery/authorisation" && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      await removeAuthorisation(actor.userId);
+      await recordAuditEvent({ moduleCode: "delivery", actorUserId: actor.userId, eventType: "document.authorisation.removed", entityType: "document_authorisation" });
+      return { removed: true };
+    });
+  }
+  if (url.pathname === "/api/delivery/document-archive" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.read");
+      return { entries: await listDocumentArchive({ search: url.searchParams.get("search"), fromDate: url.searchParams.get("from"), toDate: url.searchParams.get("to") }) };
+    });
+  }
+  const archivedDocumentMatch = url.pathname.match(/^\/api\/delivery\/document-archive\/([^/]+)$/);
+  if (archivedDocumentMatch && req.method === "GET") {
+    return handleHtml(res, async () => {
+      await requirePermission(req, "delivery.read");
+      const document = await getArchivedDocument(archivedDocumentMatch[1]);
+      if (!document?.renderedHtml) throw Object.assign(new Error("This imported archive record has no saved document preview."), { statusCode: 404 });
+      return document.renderedHtml;
     });
   }
 
@@ -1816,7 +1910,13 @@ const server = http.createServer(async (req, res) => {
   if (coDraftMatch && req.method === "PUT") {
     return handleApi(res, async () => {
       const actor = await requirePermission(req, "delivery.write");
-      const application = await saveCoDraft(coDraftMatch[1], await readJsonBody(req), actor.userId);
+      const body = await readJsonBody(req);
+      const application = await saveCoDraft(coDraftMatch[1], body, actor.userId);
+      if (body.archiveDocument) {
+        const preview = await getCommercialInvoicePreview(application.shipmentSessionId);
+        const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
+        await appendDocumentArchive({ preview, html, status: "saved", actorUserId: actor.userId, sourceAuditKey: application.coApplicationId });
+      }
       return { application };
     });
   }
@@ -1894,6 +1994,12 @@ const server = http.createServer(async (req, res) => {
   if (extensionStatusMatch && req.method === "POST") {
     return handleApi(res, async () => {
       const job = await updateBeSwiftAutomationJobStatus(extensionStatusMatch[1], await readJsonBody(req));
+      if (job.status === "filled_review") {
+        const application = await getApplicationById(job.coApplicationId);
+        const preview = await getCommercialInvoicePreview(application.shipmentSessionId);
+        const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
+        await appendDocumentArchive({ preview, html, status: "filled_review", actorUserId: null, sourceAuditKey: job.automationJobId });
+      }
       return { job };
     });
   }
@@ -2930,16 +3036,14 @@ async function readJsonBody(req) {
   }
 }
 
-function renderCommercialInvoiceHtml(preview) {
+function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
   const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const tariffRows = preview.declarationOverride
     ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
     : preview.tariffHeadings?.length
       ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
       : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
-  const rows = (preview.items || []).map((item) => item.stockOrder
-    ? `<tr><td colspan="10" style="text-align:center;font-weight:800;letter-spacing:.4px">STOCK ORDER - SEE ATTACHED DOCUMENTS.</td></tr>`
-    : `
+  const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
       <td>${escapeHtmlServer(item.ref)}</td>
@@ -2974,12 +3078,15 @@ function renderCommercialInvoiceHtml(preview) {
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
     td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
-    td:nth-child(1), td:nth-child(2), td:nth-child(3), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { text-align: center; white-space: nowrap; }
+    td:nth-child(1), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9), td:nth-child(10) { text-align: center; white-space: nowrap; }
+    td:nth-child(2), td:nth-child(3) { text-align: center; overflow-wrap: anywhere; word-break: normal; }
     td:nth-child(4) { width: 26%; overflow-wrap: anywhere; }
-    .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; }
-    .cert { display: flex; min-height: 126px; flex-direction: column; padding: 8px 4px; color: #315b83; line-height: 1.4; }
-    .sig { margin-top: auto; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
-    .totals { border: 1px solid #071d35; align-self: start; }
+    .bottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 22px; margin-top: 10px; align-items: stretch; }
+    .cert { display: grid; grid-template-rows: auto 1fr auto; padding: 0 4px; color: #315b83; line-height: 1.4; }
+    .cert p { margin: 0 0 12px; }
+    .sig { position: relative; align-self: end; border-top: 1px solid #071d35; width: 210px; padding-top: 10px; color: #001b35; font-weight: 800; }
+    .sig img { position: absolute; left: 5px; bottom: 18px; max-width: 190px; max-height: 54px; object-fit: contain; }
+    .totals { border: 1px solid #071d35; }
     .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
     .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
     .total-row span:last-child { text-align: right; }
@@ -3008,7 +3115,7 @@ function renderCommercialInvoiceHtml(preview) {
       <div class="cert">
         <p>${escapeHtmlServer(preview.itemCount)} Items &nbsp;&nbsp; ${escapeHtmlServer(preview.noChargeNote)}</p>
         <p>${escapeHtmlServer(preview.certificationText)}</p>
-        <div class="sig">Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div>
+        <div class="sig">${signatureDataUrl ? `<img src="${escapeHtmlServer(signatureDataUrl)}" alt="Authorised Classic Visions signature">` : ""}Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div>
       </div>
       <div class="totals">
         <div class="total-row"><span>Sub Total</span><span>$${money(preview.totals.subTotal)}</span></div>

@@ -40,7 +40,8 @@ const UPDATE_STATE = {
   status: null,
   timer: null,
   checking: false,
-  applying: false
+  applying: false,
+  progressTimer: null
 };
 const CONNECTION_RECOVERY_MS = 5000;
 const CONNECTION_STATE = {
@@ -421,6 +422,9 @@ function injectOverlays() {
           <span>Ready</span>
         </li>
       </ul>
+      <div class="update-progress-meter" aria-label="Update progress"><div id="updateProgressBar" class="update-progress-meter-bar" style="width:0%"></div></div>
+      <p id="updateProgressMessage" class="muted">Preparing update…</p>
+      <pre id="updateProgressLog" class="update-log-output" aria-live="polite"></pre>
       <div class="update-progress-error" id="updateProgressError" hidden></div>
     </div>
     <div class="update-progress-footer" id="updateProgressFooter" hidden>
@@ -723,9 +727,11 @@ async function applyAvailableUpdate() {
 
     // Full service restart path.
     showUpdateProgress("applying");
+    startUpdateProgressPolling();
     await waitForUpdatedService(previousStartedAt);
   } catch (error) {
     UPDATE_STATE.applying = false;
+    stopUpdateProgressPolling();
     showUpdateProgressError(error.message || "Update was not applied.");
     renderUpdateControl();
   }
@@ -784,6 +790,7 @@ async function waitForUpdatedService(previousStartedAt) {
   stopUpdateProgressSpinner();
 
   UPDATE_STATE.applying = false;
+  stopUpdateProgressPolling();
   UPDATE_STATE.status = null;
   renderUpdateControl();
 
@@ -826,6 +833,12 @@ function showUpdateProgress(initialStep) {
   if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
   const footer = overlay.querySelector("#updateProgressFooter");
   if (footer) footer.hidden = true;
+  const bar = overlay.querySelector("#updateProgressBar");
+  if (bar) bar.style.width = "0%";
+  const message = overlay.querySelector("#updateProgressMessage");
+  if (message) message.textContent = "Preparing update…";
+  const log = overlay.querySelector("#updateProgressLog");
+  if (log) log.textContent = "";
 
   // Reset title and spinner.
   setUpdateProgressTitle("Applying Update");
@@ -1856,4 +1869,32 @@ function toggleGlobalMic() {
       rec.start();
     } catch (_) {}
   }
+}
+
+function startUpdateProgressPolling() {
+  if (UPDATE_STATE.progressTimer) clearInterval(UPDATE_STATE.progressTimer);
+  const poll = async () => {
+    try {
+      const status = await authFetch("/api/system/updates");
+      const run = status.updateRun;
+      if (run) {
+        const bar = document.querySelector("#updateProgressBar");
+        if (bar) bar.style.width = `${Math.max(0, Math.min(100, Number(run.percent) || 0))}%`;
+        const message = document.querySelector("#updateProgressMessage");
+        if (message) message.textContent = run.message || run.phase || "Updating…";
+        if (run.status === "failed") showUpdateProgressError(run.error || run.message || "Update failed.");
+      }
+      const logs = await authFetch("/api/system/updates/logs");
+      const updateLog = (logs.logs || []).find((log) => String(log.path).endsWith("data/local-update.log"));
+      const output = document.querySelector("#updateProgressLog");
+      if (output && updateLog) output.textContent = updateLog.text || "";
+    } catch { /* expected while the service restarts */ }
+  };
+  poll();
+  UPDATE_STATE.progressTimer = setInterval(poll, 1000);
+}
+
+function stopUpdateProgressPolling() {
+  if (UPDATE_STATE.progressTimer) clearInterval(UPDATE_STATE.progressTimer);
+  UPDATE_STATE.progressTimer = null;
 }

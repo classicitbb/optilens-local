@@ -17,6 +17,7 @@
     "qbo:customer-mappings:seed": "node scripts/seed-qbo-customer-mappings.js",
     "qbo:invoice-sync:apply": "node scripts/sync-qbo-invoices.js --apply",
     "qbo:invoice-sync:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-qbo-invoice-sync-task.ps1",
+    "qbo:auth:seed-production": "node scripts/seed-qbo-production-secrets.js",
     "qbo:auth:migrate-vault": "node scripts/migrate-qbo-sandbox-to-vault.js",
     "qbo:auth:exchange": "node scripts/claim-qbo-oauth.js",
     "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-app.ps1",
@@ -43,6 +44,7 @@
     "imapflow": "^1.6.3",
     "mailparser": "^3.9.14",
     "mssql": "^12.5.5",
+    "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5"
   },
   "directories": {
