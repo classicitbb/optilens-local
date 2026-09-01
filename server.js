@@ -3085,7 +3085,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .cert { display: grid; grid-template-rows: auto 1fr auto; padding: 0 4px; color: #315b83; line-height: 1.4; }
     .cert p { margin: 0 0 12px; }
     .sig { align-self: end; width: 210px; color: #001b35; font-weight: 800; }
-    .sig img { display: block; width: 190px; height: 54px; margin: 0 0 2px 5px; object-fit: contain; object-position: left bottom; background: transparent; mix-blend-mode: multiply; }
+    .sig img { display: block; width: 190px; height: 54px; margin: 0 0 2px 5px; object-fit: contain; object-position: left bottom; background: transparent; mix-blend-mode: multiply; clip-path: inset(2px); }
     .sig-line { border-top: 1px solid #071d35; }
     .sig-signer { padding-top: 10px; }
     .totals { border: 1px solid #071d35; }

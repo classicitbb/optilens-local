@@ -95,7 +95,7 @@ test("commercial invoice uses the shared preview, branded filename, and stock in
 
 test("commercial invoice signature sits above a transparent signing line", () => {
   const server = read("server.js");
-  assert.match(server, /\.sig img \{ display: block;[\s\S]*background: transparent;[\s\S]*mix-blend-mode: multiply;/);
+  assert.match(server, /\.sig img \{ display: block;[\s\S]*background: transparent;[\s\S]*mix-blend-mode: multiply;[\s\S]*clip-path: inset\(2px\);/);
   assert.match(server, /<img src="\$\{escapeHtmlServer\(signatureDataUrl\)\}" alt="Authorised Classic Visions signature">[\s\S]*<div class="sig-line"><\/div><div class="sig-signer">Classic Visions/);
 });
 
