@@ -56,6 +56,23 @@ function Write-UpdateState {
     Move-Item -LiteralPath $temporary -Destination $stateFile -Force
 }
 
+function Write-UpdateStatus {
+    param([string] $State, [string] $Message)
+    $status = [ordered]@{
+        state = $State
+        message = $Message
+        startedAt = $updateStartedAt
+        updatedAt = (Get-Date).ToUniversalTime().ToString("o")
+        originalRevision = $originalRevision
+        pulledRevision = $pulledRevision
+        smokeCheck = [ordered]@{ ran = ($null -ne $smokeCheckPassed); passed = $smokeCheckPassed }
+        testSuite = $testSuiteResult
+    }
+    $temporary = "$statusFile.tmp"
+    $status | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $temporary -Encoding UTF8
+    Move-Item -LiteralPath $temporary -Destination $statusFile -Force
+}
+
 function Invoke-UpdateStep {
     param([string] $Name, [scriptblock] $Action)
     $percentByStep = @{
