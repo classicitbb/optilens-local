@@ -965,7 +965,7 @@ th {
 
 .co-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(180px, .27fr);
   gap: 14px;
   align-items: start;
 }
