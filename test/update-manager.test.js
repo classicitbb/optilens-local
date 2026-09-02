@@ -105,6 +105,7 @@ test("guarded updater verifies and repairs production dependencies before smoke 
   const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
   assert.match(script, /function Test-ProductionDependencies/);
   assert.match(script, /npm\.cmd ls --omit=dev --depth=0/);
+  assert.match(script, /Production dependency verification reported a repairable issue/);
   assert.match(script, /Production dependencies are incomplete; forcing a reproducible reinstall before smoke checks/);
   assert.match(script, /stop-app\.ps1/);
   assert.match(script, /npm\.cmd ci --omit=dev --no-audit --no-fund/);

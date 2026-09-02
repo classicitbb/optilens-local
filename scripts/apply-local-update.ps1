@@ -148,8 +148,15 @@ function Restore-PreviousRevision {
 }
 
 function Test-ProductionDependencies {
-    & npm.cmd ls --omit=dev --depth=0 *>> $logFile
-    return ($LASTEXITCODE -eq 0)
+    # npm ls returns a non-zero exit code for a missing package. That is the
+    # expected repair signal here, not an update failure.
+    try {
+        & npm.cmd ls --omit=dev --depth=0 *>> $logFile
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        Write-UpdateLog "Production dependency verification reported a repairable issue: $($_.Exception.Message)"
+        return $false
+    }
 }
 
 function Install-ProductionDependencies {
