@@ -28,7 +28,10 @@ const updateManager = createUpdateManager(__dirname, applicationStartedAt);
 const gitUpdateChecker = createGitUpdateChecker(__dirname);
 const hostIncidentReporter = createHostIncidentReporter({ dataDir });
 const hostRecoveryObserver = createHostRecoveryObserver({ projectRoot: __dirname, dataDir });
-const AUTO_APPLY_GIT_UPDATES = ["1", "true", "yes", "on"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "").toLowerCase());
+// Pushed revisions are applied automatically unless the host administrator
+// explicitly disables that behavior. Authentication failures are never
+// bypassed; they produce a durable host incident for operator follow-up.
+const AUTO_APPLY_GIT_UPDATES = !["0", "false", "no", "off"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "true").toLowerCase());
 let scheduledUpdate = null;
 let supplierMailboxPoller = null;
 
@@ -1001,6 +1004,19 @@ function readUpdateLogs() {
 async function refreshGitUpdatesOnSchedule() {
   await gitUpdateChecker.refresh();
   const status = buildUpdateStatus();
+  if (status.git.authorizationRequired) {
+    const message = "Automatic update is paused because the configured Git credentials require attention.";
+    console.error(`${message} ${status.git.error}`);
+    await hostIncidentReporter.report({
+      fingerprint: "updates:git-authorization",
+      severity: "error",
+      title: "OptiLens Local update authorization required",
+      message,
+      details: { updateCheckError: status.git.error },
+      source: "update-runner"
+    });
+    return;
+  }
   if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && !status.git.localChanges && !scheduledUpdate) {
     scheduleApplicationUpdate(status);
   }
@@ -3037,7 +3053,9 @@ async function readJsonBody(req) {
 }
 
 function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
-  const money = (value) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Commercial invoices are denominated in Barbados dollars.  Keep the code
+  // beside the dollar sign so a printed or saved invoice is unambiguous.
+  const money = (value) => `BBD $${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const tariffRows = preview.declarationOverride
     ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
     : preview.tariffHeadings?.length
@@ -3052,8 +3070,8 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
       <td>${escapeHtmlServer(item.hsCode)}</td>
       <td>${escapeHtmlServer(item.origin)}</td>
       <td>${escapeHtmlServer(item.quantity)}</td>
-      <td><span>$</span>${money(item.unitPrice)}</td>
-      <td><span>$</span>${money(item.amount)}</td>
+      <td>${money(item.unitPrice)}</td>
+      <td>${money(item.amount)}</td>
       <td>${escapeHtmlServer(item.weightKg)}</td>
     </tr>
   `).join("");
@@ -3101,7 +3119,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     <div class="brand">CLASSIC VISIONS · EXPORT</div>
     <div class="grid">
       <div class="cell"><span class="label">Seller (name, full address, country)</span><div class="strong">${escapeHtmlServer(preview.seller.name)}</div>${escapeHtmlServer((preview.seller.addressLines || []).join(", "))}<br>${escapeHtmlServer(preview.seller.phone)}</div>
-      <div class="cell"><span class="label">Date / Inv No / Customer Order No</span><span class="strong">${escapeHtmlServer(preview.invoiceDate)} · ${escapeHtmlServer(preview.invoiceNo)} · ${escapeHtmlServer(preview.customerOrderNo)}</span></div>
+      <div class="cell"><span class="label">Date / Inv No / Customer Order No</span><span class="strong">${escapeHtmlServer(preview.invoiceDate)} · ${escapeHtmlServer(preview.invoiceNo)} · ${escapeHtmlServer(preview.customerOrderNo)}</span><br><br><span class="label">Currency of Sale</span><span class="strong">Barbados Dollars (BBD)</span></div>
       <div class="cell"><span class="label">Consignee</span><div class="strong">${escapeHtmlServer(preview.consignee.name)}</div>${escapeHtmlServer(preview.consignee.address)}<br>${escapeHtmlServer(preview.consignee.country)} ${escapeHtmlServer(preview.consignee.phone)}</div>
       <div class="cell"><span class="label">PO Numbers</span><span class="strong">${escapeHtmlServer(preview.poNumbers)}</span></div>
       <div class="cell"><span class="label">Port of Loading / Destination</span><span class="strong">${escapeHtmlServer(preview.transport.portOfLoading)} → ${escapeHtmlServer(preview.transport.countryOfDestination)}</span></div>
@@ -3120,12 +3138,12 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
         <div class="sig">${signatureDataUrl ? `<img src="${escapeHtmlServer(signatureDataUrl)}" alt="Authorised Classic Visions signature">` : ""}<div class="sig-line"></div><div class="sig-signer">Classic Visions<br><small>AUTHORISED SIGNATURE FOR CLASSIC VISIONS</small></div></div>
       </div>
       <div class="totals">
-        <div class="total-row"><span>Sub Total</span><span>$${money(preview.totals.subTotal)}</span></div>
-        <div class="total-row"><span>Packaging</span><span>$${money(preview.totals.packaging)}</span></div>
-        <div class="total-row"><span>Freight</span><span>$${money(preview.totals.freight)}</span></div>
-        <div class="total-row"><span>Other Costs</span><span>$${money(preview.totals.other)}</span></div>
-        <div class="total-row"><span>Insurance</span><span>$${money(preview.totals.insurance)}</span></div>
-        <div class="total-row"><span>Invoice Total</span><span>$${money(preview.totals.invoiceTotal)}</span></div>
+        <div class="total-row"><span>Sub Total</span><span>${money(preview.totals.subTotal)}</span></div>
+        <div class="total-row"><span>Packaging</span><span>${money(preview.totals.packaging)}</span></div>
+        <div class="total-row"><span>Freight</span><span>${money(preview.totals.freight)}</span></div>
+        <div class="total-row"><span>Other Costs</span><span>${money(preview.totals.other)}</span></div>
+        <div class="total-row"><span>Insurance</span><span>${money(preview.totals.insurance)}</span></div>
+        <div class="total-row"><span>Invoice Total</span><span>${money(preview.totals.invoiceTotal)}</span></div>
       </div>
     </div>
     <footer><span>Classic Visions · TIN# 1000006494000 · Uplands, St. John, Barbados · Tel 246-433-4928</span><span>Generated ${escapeHtmlServer(preview.generatedAt)}</span></footer>

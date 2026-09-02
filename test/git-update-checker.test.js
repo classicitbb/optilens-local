@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { createGitUpdateChecker } = require("../lib/git-update-checker");
+const { createGitUpdateChecker, isGitAuthorizationFailure } = require("../lib/git-update-checker");
 
 test("reports a fetched upstream update and local worktree changes", async () => {
   const responses = new Map([
@@ -19,4 +19,19 @@ test("reports a fetched upstream update and local worktree changes", async () =>
   assert.equal(status.localChanges, true);
   assert.equal(status.remote, "origin");
   assert.equal(status.branch, "master");
+});
+
+test("classifies non-interactive Git credential failures for operator alerting", async () => {
+  const checker = createGitUpdateChecker("C:/project", {
+    run: async () => {
+      const error = new Error("git fetch failed");
+      error.stderr = "fatal: could not read Username for 'https://example.invalid': terminal prompts disabled";
+      throw error;
+    }
+  });
+
+  const status = await checker.refresh();
+  assert.equal(status.authorizationRequired, true);
+  assert.match(status.error, /terminal prompts disabled/);
+  assert.equal(isGitAuthorizationFailure("network timeout"), false);
 });
