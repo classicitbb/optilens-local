@@ -95,3 +95,8 @@ test("tails host log files without failing when they are missing", () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("guarded updater handles a clean porcelain status without a PowerShell null method call", () => {
+  const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
+  assert.match(script, /\$dirty = \(\(& git -c "safe\.directory=\$ProjectRoot" status --porcelain\) -join "`n"\)\.Trim\(\)/);
+});

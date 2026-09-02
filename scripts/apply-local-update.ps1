@@ -216,7 +216,11 @@ try {
         if (-not $GitBranch -or $GitRemote -notmatch '^[A-Za-z0-9._/-]+$' -or $GitBranch -notmatch '^[A-Za-z0-9._/-]+$') {
             throw "A valid Git remote and branch are required for a pull."
         }
-        $dirty = (& git -c "safe.directory=$ProjectRoot" status --porcelain).Trim()
+        # A clean `git status --porcelain` produces no pipeline object in
+        # PowerShell, so join it first before trimming. This keeps a clean
+        # checkout on the guarded update path instead of treating it as an
+        # updater failure.
+        $dirty = ((& git -c "safe.directory=$ProjectRoot" status --porcelain) -join "`n").Trim()
         if ($dirty) { throw "Refusing to pull into a checkout with local changes." }
         Invoke-UpdateStep "git fetch" {
             & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
