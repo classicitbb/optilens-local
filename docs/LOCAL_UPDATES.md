@@ -14,7 +14,9 @@ The update endpoint is restricted to `platform.admin`. The PowerShell work is la
 
 After the Node service restarts, the update runner polls `/api/health/live` on its own and, if the service does not report healthy, automatically runs the same bounded self-repair used by the monitor's **Fix errors** action before giving up. Once the service is healthy it relaunches the interactive tray monitor (if installed) and kicks the "OptiLens Local Watchdog" scheduled task (if installed) so both immediately reflect the update instead of waiting for the next sign-in or minute tick. This never touches the scheduled sync tasks (innovations-sync, inventory-snapshot, rx-catalog-sync, actian-lens-status-sync) — see below.
 
-Manual apply is the default: a fetched update is announced and an administrator selects **Apply updates**. To opt into unattended fast-forward Git pulls, set the user or machine environment variable `OPTILENS_AUTO_APPLY_UPDATES=true` and restart the app once. Automatic mode refuses to overwrite a dirty checkout and leaves the update as a notification instead.
+Clean fetched Git revisions are applied automatically by default through the same guarded runner used by **Apply updates**. Set the user or machine environment variable `OPTILENS_AUTO_APPLY_UPDATES=false` and restart the app only when an administrator must approve each revision manually. Automatic mode never overwrites a dirty checkout. If Git authentication or authorization fails, the update is paused, the failure is recorded as a deduplicated host incident, and the configured helpdesk/alert endpoints receive the incident when configured; credentials must be corrected before the next automatic attempt.
+
+The authoritative deployment path is therefore: commit and push the scoped revision, allow the host's scheduled Git check to fetch it, then let `scripts/apply-local-update.ps1` fast-forward the clean authoritative checkout, run its smoke check and advisory suite, apply required migrations, restart, and verify deep health. A manual deployment or recovery uses that exact script with `-PullGit`, never a direct `git pull` plus ad-hoc restart.
 
 ## Host recovery
 

@@ -14,7 +14,7 @@ Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovat
 
 Credentials Vault deletion now persists an operator-selected removal without template reseeding on a later read, lock, or unlock. Supplier Automation now exposes protected action/exception detail routes, actionable mapping deep links, and a daily unresolved-items digest path. The digest is fail-closed: it remains disabled unless the explicit digest flag and Email-vault SMTP fields are configured; it sends only to the configured mailbox account and self-marked messages are ignored by the IMAP poller. New migration `041-supplier-exception-digests.sql` is registered but has not been applied. No SMTP delivery or source status write-back was enabled.
 
-The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. No protected writer configuration was added; the capability remains safely unavailable rather than reusing the read identity.
+The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The local Credentials Vault now offers a dedicated `Source MSSQL Writer (Innovations)` SQL Server entry and configuration resolves it without falling back to the read identity. The change is not deployed; write-back remains unavailable until an operator stores that entry and separately authorizes the enable flag and status allowlist.
 
 Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Shipment prep has a page-header search, explicit active selection, and a viewport-filling preview. Commercial Invoice now defaults freight to 62, packages to 1, and delivery terms to Free on Board; uses a single pounds/kilos gross-weight input persisted as kilograms; defaults Customer order no. to the primary contact; traces shipment tracking before reference fallbacks; and labels stock/fulfillment commodity specifications. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
 
@@ -23,6 +23,10 @@ Commercial Invoice now classifies a lens as finished spectacles (`90049000`, dis
 Delivery Export now has a reusable on-page document-preview module for Commercial Invoice and Packing Slip. The browser host has no trusted native print bridge, so Print accurately invokes the browser print dialog for the exact preview document. Save now rasterizes that preview into high-resolution Letter pages and downloads a real PDF with the existing sanitized document filename. The new Classic Visions packing slip is available from Shipment prep for either classification and includes shipment/customer/job/signature details. The Delivery Checklist tab is deliberately disabled for local shipments with an explanatory title, while the separate packing-slip action remains available. A shipment composed solely of stock/fulfillment orders replaces its printable and on-screen invoice rows with `STOCK ORDER - SEE ATTACHED DOCUMENTS.`; mixed shipments retain their ordinary lines.
 
 Commercial Invoice previews now reserve a transparent signature image area above a distinct signing line, with signer text below. This prevents an authorisation PNG from straddling the line, renders any white backdrop invisibly on the white document, and clips the narrow image-edge frame without touching the signature strokes. The local renderer change is not deployed.
+
+Commercial Invoice now states `Currency of Sale: Barbados Dollars (BBD)` in its printed/PDF header and explicitly renders `BBD $` on every printed/PDF line and total. The editable workspace table labels its unit-price and amount columns `BBD $` while retaining numeric-only inputs for safe recalculation. This local change is not deployed.
+
+The authoritative host update flow now auto-applies every clean fetched Git revision through `scripts/apply-local-update.ps1` by default. A Git authentication/authorization failure pauses application, records a deduplicated host incident, and uses the configured alert delivery endpoints when available; setting `OPTILENS_AUTO_APPLY_UPDATES=false` restores manual approval.
 
 The Delivery Export shipment-currentness correction is deployed. `lib/delivery.js` uses `source_item_count` (not optional local scan rows) for mirrored shipment visibility and displayed counts, and presents only synchronized Innovations rows in the current screen. `server.js` limits a successful refresh to source rows refreshed by that request, so stale local mirrors cannot appear as open. The contents endpoint reads source shipment items on click. The authenticated external-browser check confirmed the deployed source-aligned open/closed counts and contents for a selected shipment in each group.
 
@@ -47,11 +51,13 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `public/automation.html` and `public/styles/pages/automation.css`: collapsed Automation capabilities accordion.
 - `lib/db.js` and `lib/operations/source-status-writeback.js`: separate source write pool and fail-closed configuration checks.
 - `.env.example` and `test/operations-source-status-writeback.test.js`: document and test the required writer and allowlist gates.
+- `lib/config.js` and `public/credentials.html`: Credentials Vault source-writer template and resolver, without read-identity fallback.
 - `public/delivery-export.html`, `public/delivery-export.js`, and `public/styles/components.css`: redesigned shipment search, compact commercial-invoice workspace, shipment-defaults launcher/tab, tooltip, package dropdown, and accessible divider.
 - `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, and `test/commercial-invoice-defaults.test.js`: shipment-prep reconciliation plus commercial-invoice defaults, tracking fallback, stock-order wording, declaration display, unit conversion, and focused coverage.
 - `lib/beswift-co.js` and `test/commercial-invoice-defaults.test.js`: source-backed edged-work tariff classification and regression coverage.
 - `lib/delivery.js`, `lib/source-innovations.js`, `server.js`, and `lib/beswift-co.js`: zero-item mirror suppression, read-only universal source search, clean shipping-marks format, and lens/item descriptions without a PO prefix.
 - `server.js` and `test/delivery-document-preview.test.js`: transparent, above-line Commercial Invoice authorisation signature layout and regression coverage.
+- `server.js`, `public/delivery-export.js`, and `test/delivery-document-preview.test.js`: explicit Barbados-dollar (`BBD $`) labels for Commercial Invoice printed/PDF amounts, totals, and workspace price columns.
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
@@ -76,6 +82,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `node --check lib/operations/source-status-writeback.js`
 - `node --check public/automation.js`
 - `node --test test/operations-source-status-writeback.test.js test/operations-supplier-status-auto-apply.test.js` — 13 passed
+- `node --check lib/config.js`; `node --test test/credentials-source-writer.test.js test/operations-source-status-writeback.test.js test/operations-supplier-status-auto-apply.test.js`; and `git diff --check` — passed.
 - `npm run check` — passed
 - `npm test` did not finish within the local command runner's 30-second window; its first four tests passed before the runner stopped it.
 - `node --check server.js` — passed.
@@ -85,6 +92,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
 - `node --test test/commercial-invoice-defaults.test.js` — 3 passed; `node --check lib/beswift-co.js` and `git diff --check` — passed.
+- `node --check server.js`, `node --check public/delivery-export.js`, and `node --test --test-name-pattern="commercial invoice" test/delivery-document-preview.test.js` — passed (2 tests). `node scripts/monitor-harness.js verify` — all systems online. The full document-preview file still has two pre-existing CRLF-sensitive reusable-helper assertions; its two Commercial Invoice tests pass.
 - Delivery Export has not yet been browser-verified in an authenticated external Edge/Chrome session.
 - `node --test test/delivery-export-current-shipments.test.js` — 4 passed after the currentness correction.
 - `node --check lib/delivery.js`, `node --check server.js`, and `git diff --check` — passed.
@@ -112,10 +120,17 @@ When work is incomplete, record:
 
 ## Blocker and next action
 
+- Blocker: the Commercial Invoice currency-label change is verified locally but cannot be committed or deployed because the shared worktree also has unrelated pending Credentials/source-writer changes (`lib/config.js`, `public/credentials.html`, and `test/credentials-source-writer.test.js`).
+- Next action: preserve or complete those unrelated changes, then commit the scoped Commercial Invoice files, restart through the guarded local-update workflow, and rerun `node scripts/monitor-harness.js verify`.
+
 - Blocker: the external Edge session is at OptiLens Local sign-in; no authenticated session is available for rendered verification.
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
 
 - For the new Automation work: after deployment/migration approval, configure SMTP Host, SMTP Port, and SMTP Secure on the intended Email vault entry and set `OPTILENS_SUPPLIER_EXCEPTION_DIGEST_ENABLED=true` only after a controlled recipient test. Use a dedicated source writer, enable flag, and status allowlist before setting `OPTILENS_SUPPLIER_STATUS_AUTO_APPLY=true`. Verify deletion persistence and detail/deep-link behavior in authenticated external Chrome or Edge.
+
+- Blocker: the Credentials Vault source-writer entry change is local only; the live site will not display it until a production deployment is explicitly approved.
+- Approval required: deploy the scoped Credentials Vault source-writer change and restart/health-check the application. This changes production application code but does not configure credentials or write source data.
+- Next action: after approval, deploy the current checkout using `scripts/apply-local-update.ps1` and run `node scripts/monitor-harness.js verify`; then open Credentials → SQL Server → **Add source writer** and enter the new account locally.
 
 - Approval required: deploy the local RX alias reconciliation change, then run one controlled committed `lens_aliases` sync and verify deleted aliases are inactive in the website catalog. This will write to the external website receiver.
 - Next action: after approval, follow `docs/REMOTE_AGENT_OPERATIONS.md` to deploy and health-check the current checkout, then use the monitored Innovations sync control for `lens_aliases` and confirm its logged deactivation count.

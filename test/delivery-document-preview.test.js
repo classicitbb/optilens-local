@@ -89,6 +89,9 @@ test("commercial invoice uses the shared preview, branded filename, and stock in
   assert.match(client, /OptiLensDocumentPreview\?\.open/);
   assert.match(read("public/delivery-export.html"), /id="saveCoDraftBottomBtn"/);
   assert.match(server, /signatureDataUrl/);
+  assert.match(server, /const money = \(value\) => `BBD \$\$\{Number\(value \|\| 0\)/);
+  assert.match(server, /Currency of Sale<\/span><span class="strong">Barbados Dollars \(BBD\)<\/span>/);
+  assert.doesNotMatch(server.slice(server.indexOf("function renderCommercialInvoiceHtml"), server.indexOf("function escapeHtmlServer")), /<span>\$<\/span>|>\$\$\{money\(/);
   assert.doesNotMatch(server, /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
   assert.doesNotMatch(client.slice(0, client.indexOf("function renderPackingSlipHtml")), /STOCK ORDER - SEE ATTACHED DOCUMENTS\./);
 });
