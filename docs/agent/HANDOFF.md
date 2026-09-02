@@ -26,7 +26,7 @@ Delivery Export now has a reusable on-page document-preview module for Commercia
 
 Commercial Invoice previews now reserve a transparent signature image area above a distinct signing line, with signer text below. This prevents an authorisation PNG from straddling the line, renders any white backdrop invisibly on the white document, and clips the narrow image-edge frame without touching the signature strokes. The local renderer change is not deployed.
 
-Commercial Invoice now states `Currency of Sale: Barbados Dollars (BBD)` in its printed/PDF header and explicitly renders `BBD $` on every printed/PDF line and total. The editable workspace table labels its unit-price and amount columns `BBD $` while retaining numeric-only inputs for safe recalculation. This local change is not deployed.
+Commercial Invoice now states `Currency of Sale: Barbados Dollars (BBD)` in its printed/PDF header and explicitly renders `BBD $` on every printed/PDF line and total. The editable workspace table labels its unit-price and amount columns `BBD $` while retaining numeric-only inputs for safe recalculation. This is deployed and health-verified.
 
 The authoritative host update flow now auto-applies every clean fetched Git revision through `scripts/apply-local-update.ps1` by default. A Git authentication/authorization failure pauses application, records a deduplicated host incident, and uses the configured alert delivery endpoints when available; setting `OPTILENS_AUTO_APPLY_UPDATES=false` restores manual approval.
 
