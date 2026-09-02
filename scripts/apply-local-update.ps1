@@ -20,7 +20,7 @@ $statusFile = Join-Path $logDirectory "update-status.json"
 $maintenanceLock = Join-Path $logDirectory "maintenance.lock"
 $maxLockAgeMinutes = 20
 $originalRevision = ""
-$smokeCheckPassed = $null
+$script:smokeCheckPassed = $null
 $testSuiteResult = $null
 $stateFile = Join-Path $logDirectory "update-state.json"
 $pulledRevision = ""
@@ -66,7 +66,7 @@ function Write-UpdateStatus {
         updatedAt = (Get-Date).ToUniversalTime().ToString("o")
         originalRevision = $originalRevision
         pulledRevision = $pulledRevision
-        smokeCheck = [ordered]@{ ran = ($null -ne $smokeCheckPassed); passed = $smokeCheckPassed }
+        smokeCheck = [ordered]@{ ran = ($null -ne $script:smokeCheckPassed); passed = $script:smokeCheckPassed }
         testSuite = $testSuiteResult
     }
     $temporary = "$statusFile.tmp"
@@ -309,9 +309,9 @@ try {
         $smokeArgs = @()
         if ($originalRevision -and $pulledRevision) { $smokeArgs = @($originalRevision, $pulledRevision) }
         $smokeJson = & node (Join-Path $ProjectRoot "scripts/smoke-check.js") @smokeArgs
-        $smokeCheckPassed = ($LASTEXITCODE -eq 0)
+        $script:smokeCheckPassed = ($LASTEXITCODE -eq 0)
         Add-Content -LiteralPath $logFile -Value $smokeJson
-        if (-not $smokeCheckPassed) { throw "Smoke check failed. See data\local-update.log for the file/database detail." }
+        if (-not $script:smokeCheckPassed) { throw "Smoke check failed. See data\local-update.log for the file/database detail." }
     }
 
     # The full test suite is advisory, not a release valve: a flaky or

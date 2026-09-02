@@ -112,3 +112,9 @@ test("guarded updater verifies and repairs production dependencies before smoke 
   assert.match(script, /\$ErrorActionPreference = "Continue"/);
   assert.match(script, /\$exitCode = Invoke-NpmCi/);
 });
+
+test("guarded updater keeps its smoke-check verdict in durable script scope", () => {
+  const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
+  assert.match(script, /\$script:smokeCheckPassed = \(\$LASTEXITCODE -eq 0\)/);
+  assert.match(script, /smokeCheck = \[ordered\]@\{ ran = \(\$null -ne \$script:smokeCheckPassed\); passed = \$script:smokeCheckPassed \}/);
+});
