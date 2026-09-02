@@ -100,3 +100,11 @@ test("guarded updater handles a clean porcelain status without a PowerShell null
   const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
   assert.match(script, /\$dirty = \(\(& git -c "safe\.directory=\$ProjectRoot" status --porcelain\) -join "`n"\)\.Trim\(\)/);
 });
+
+test("guarded updater verifies and repairs production dependencies before smoke checks", () => {
+  const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
+  assert.match(script, /function Test-ProductionDependencies/);
+  assert.match(script, /npm\.cmd ls --omit=dev --depth=0/);
+  assert.match(script, /Production dependencies are incomplete; forcing a reproducible reinstall before smoke checks/);
+  assert.match(script, /stop-app\.ps1.*before reinstalling dependencies[\s\S]*npm\.cmd ci --omit=dev --no-audit --no-fund/);
+});

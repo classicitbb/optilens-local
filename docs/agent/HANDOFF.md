@@ -30,6 +30,8 @@ The authoritative host update flow now auto-applies every clean fetched Git revi
 
 The guarded updater's clean-checkout path joins empty `git status --porcelain` output before calling `Trim()`. This prevents the PowerShell null-method failure observed during the first branch deployment attempt; the failed attempt occurred before smoke checks or restart.
 
+The guarded updater verifies production dependencies before its smoke check. If the installed tree is incomplete, it stops the service before deterministic `npm ci` to avoid Windows module locks, restores/restarts on failure, then proceeds through the normal health-gated update flow.
+
 The Delivery Export shipment-currentness correction is deployed. `lib/delivery.js` uses `source_item_count` (not optional local scan rows) for mirrored shipment visibility and displayed counts, and presents only synchronized Innovations rows in the current screen. `server.js` limits a successful refresh to source rows refreshed by that request, so stale local mirrors cannot appear as open. The contents endpoint reads source shipment items on click. The authenticated external-browser check confirmed the deployed source-aligned open/closed counts and contents for a selected shipment in each group.
 
 The update endpoints make a repeat apply request idempotent: while the update runner is active, they return an in-progress response instead of a conflict. The Host Monitor source renders that state and keeps the apply control disabled. The Host Monitor executable was rebuilt from the merged source and relaunched successfully. The server-side endpoint change was applied with a controlled application restart and the health harness confirmed the application and monitor are online.

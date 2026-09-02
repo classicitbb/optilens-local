@@ -25,6 +25,7 @@ $testSuiteResult = $null
 $stateFile = Join-Path $logDirectory "update-state.json"
 $pulledRevision = ""
 $migrationsStarted = $false
+$serviceStoppedForDependencies = $false
 $updateStartedAt = (Get-Date).ToUniversalTime().ToString("o")
 
 if (-not (Test-Path $logDirectory)) {
@@ -140,6 +141,27 @@ function Restore-PreviousRevision {
     }
     & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
     if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restore dependencies. Manual intervention is required." }
+    if ($script:serviceStoppedForDependencies) {
+        & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
+        if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restart the service after dependency restore. Manual intervention is required." }
+    }
+}
+
+function Test-ProductionDependencies {
+    & npm.cmd ls --omit=dev --depth=0 *>> $logFile
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Install-ProductionDependencies {
+    # npm ci replaces node_modules. Stop the service first so Windows cannot
+    # retain a loaded module and turn a recoverable update into an EPERM.
+    if (-not $script:serviceStoppedForDependencies) {
+        & (Join-Path $PSScriptRoot "stop-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "Could not stop the service before reinstalling dependencies." }
+        $script:serviceStoppedForDependencies = $true
+    }
+    & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
+    if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
 }
 
 # Deep readiness check, not just liveness: /api/health confirms the process
@@ -250,10 +272,14 @@ try {
         }
     }
 
+    if (-not $InstallDependencies -and -not (Test-ProductionDependencies)) {
+        $InstallDependencies = $true
+        Write-UpdateLog "Production dependencies are incomplete; forcing a reproducible reinstall before smoke checks."
+    }
+
     if ($InstallDependencies) {
         Invoke-UpdateStep "production dependency installation" {
-            & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
-            if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
+            Install-ProductionDependencies
         }
     }
 
