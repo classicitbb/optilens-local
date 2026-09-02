@@ -139,8 +139,7 @@ function Restore-PreviousRevision {
         Write-UpdateLog "Could not restore source revision. Manual intervention is required."
         return
     }
-    & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
-    if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restore dependencies. Manual intervention is required." }
+    if ((Invoke-NpmCi) -ne 0) { Write-UpdateLog "Could not restore dependencies. Manual intervention is required." }
     if ($script:serviceStoppedForDependencies) {
         & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
         if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restart the service after dependency restore. Manual intervention is required." }
@@ -159,6 +158,20 @@ function Test-ProductionDependencies {
     }
 }
 
+function Invoke-NpmCi {
+    # npm emits deprecation notices on stderr even when it succeeds. With the
+    # updater's Stop preference those notices must not become exceptions;
+    # npm's exit code remains the authoritative result.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
+        return $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Install-ProductionDependencies {
     # npm ci replaces node_modules. Stop the service first so Windows cannot
     # retain a loaded module and turn a recoverable update into an EPERM.
@@ -167,8 +180,8 @@ function Install-ProductionDependencies {
         if ($LASTEXITCODE -ne 0) { throw "Could not stop the service before reinstalling dependencies." }
         $script:serviceStoppedForDependencies = $true
     }
-    & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
-    if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
+    $exitCode = Invoke-NpmCi
+    if ($exitCode -ne 0) { throw "Dependency installation failed with exit code $exitCode." }
 }
 
 # Deep readiness check, not just liveness: /api/health confirms the process
@@ -204,8 +217,8 @@ function Invoke-AutomaticRollback {
         Invoke-UpdateStep "automatic rollback" {
             & git -c "safe.directory=$ProjectRoot" reset --hard $originalRevision *>> $logFile
             if ($LASTEXITCODE -ne 0) { throw "Rollback git reset failed with exit code $LASTEXITCODE." }
-            & npm.cmd ci --omit=dev --no-audit --no-fund *>> $logFile
-            if ($LASTEXITCODE -ne 0) { throw "Rollback dependency reinstall failed with exit code $LASTEXITCODE." }
+            $exitCode = Invoke-NpmCi
+            if ($exitCode -ne 0) { throw "Rollback dependency reinstall failed with exit code $exitCode." }
             & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
             if ($LASTEXITCODE -ne 0) { throw "Rollback restart failed with exit code $LASTEXITCODE." }
         }

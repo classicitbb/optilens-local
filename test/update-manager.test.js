@@ -108,5 +108,7 @@ test("guarded updater verifies and repairs production dependencies before smoke 
   assert.match(script, /Production dependency verification reported a repairable issue/);
   assert.match(script, /Production dependencies are incomplete; forcing a reproducible reinstall before smoke checks/);
   assert.match(script, /stop-app\.ps1/);
-  assert.match(script, /npm\.cmd ci --omit=dev --no-audit --no-fund/);
+  assert.match(script, /function Invoke-NpmCi/);
+  assert.match(script, /\$ErrorActionPreference = "Continue"/);
+  assert.match(script, /\$exitCode = Invoke-NpmCi/);
 });
