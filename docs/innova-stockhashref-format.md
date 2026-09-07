@@ -89,3 +89,58 @@ The only thing genuinely shared between the two is `data/rx/config.json`'s lab-l
 - No source of stock/SKU orders is wired up yet (no CVWeb cart/outbox for stock items — that's a separate concern from the Rx outbox in [[rx-order-pipeline]]). This module is the send mechanism only; nothing calls `generate()`/`release()` automatically yet.
 
 `.rx`/RXI patient prescription orders remain entirely out of scope for this document and this module — see [[rx-order-pipeline]] for that separate pipeline.
+
+## Verified against the live Incoming share (2026-09-07)
+
+Read-only inspection of the real folder from the host (INO-3FRC3Q3), which
+settles several of the "still open" items above.
+
+**The folder is reachable, and it is the one set in the credentials vault, not
+the one in `data/rx/config.json`.** Innova's own `innovations.ini` has
+`IncomingPath=\\192.168.254.5\innovations\Incoming\`, which is exactly what
+the vault's "Innovations Incoming Folder" entry holds. The checked-in fallback
+`\\INNOVA-SVR\Innovations\Incoming` returns EPERM from the host and is stale —
+the operator override is what makes this work, so do not "fix" config.json to
+match.
+
+**The watcher's verdict is visible in the folder itself.** A file Innova
+accepts is consumed (it turns up under `Incoming/processed/` and
+`Incoming/oldfiles/`); one it cannot parse is renamed `<name>.bad` in place.
+597 `.rxi` files had been processed that day, so the intake is live.
+
+**The format is accepted — the earlier doubt was one bad field.** Five
+`.stockhashref` files have ever been dropped there. Four 2024-era tests were
+rejected. Of the remaining two, `classicmain071405256062.stockhashref` was
+accepted and `classicmain07140526013056062.stockhashref` was renamed `.bad` —
+and those two files are **byte-identical except for one line**:
+
+| | `customer_po_num` |
+|---|---|
+| accepted | `05` |
+| rejected | `07072025` |
+
+Same 56 lines otherwise, same CRLF endings, same trailing bytes. So the file
+layout this module generates is right, and `customer_po_num` is the one field
+with an unknown acceptance rule (length? numeric only? must match a PO Innova
+already holds?). **Do not put a generated identifier in it.** The store-checkout
+bridge leaves it empty and identifies the order through `patient_name`, which
+Innova accepted as free text ("Harvey Stock Order"). Confirm the rule with
+Russell before using the field.
+
+**`release()` alone is not proof.** It reports success on the copy landing,
+which is how the 2026-08-09 sandbox test became a false positive.
+`checkReleaseOutcome(filename)` now waits for the watcher's verdict
+(`accepted` / `rejected` / `pending`) and `lib/stock-order-submitter.js`
+reports a rejection back to CVWeb as a failed submission instead of a
+delivered order.
+
+**A source of stock orders now exists.** CVWeb migration
+`20260907180000_store_checkout_stock_order_bridge.sql` enqueues a
+`stock_order_submissions` row on payment confirmation for every store-checkout
+line whose website variant carries a numeric Innova SKU, which is what this
+module has been waiting for.
+
+Still open: the `customer_po_num` rule above, and whether Innova's
+`item_source` vocabulary really includes the `MISC`/`TINT`/`COAT`/`EDGING`
+categories CVWeb assigns to supplies and add-ons (`FLENS`/`SLENS` are
+confirmed; CVWeb's `SFLENS` is normalised to `SLENS` on the way in).
