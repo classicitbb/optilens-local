@@ -1,10 +1,14 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — Business Metrics correction deployed; authenticated external-browser verification pending; scheduled cloud-sync data exceptions require remediation
+- Status: In progress — invoice-line gateway implementation complete locally; deployment and live read verification pending
 - Last synchronized: 2026-09-01
 
 ## Objective and current state
+
+The portal invoice-line dialog had an approved cloud request path but the private OptiLens gateway did not implement or advertise `innovations.customer_invoice`, producing the empty state in the portal. `lib/live-data-gateway.js` now validates the invoice ID, verifies that it belongs to a non-hidden item on a non-void posted statement owned by the requested customer, and returns only non-suppressed `InvoiceLines` with description, quantity, unit price, and amount. Live order status now includes a posted invoice ID/total; delivery items retain their invoice ID/total so the portal can display prices and open invoice lines per job. The source-schema verification could not run because the configured read-only reporting account reports that its password has expired. No source, cloud, or host writes were made.
+
+Innovations file-drop configuration is now available in Credentials Vault → Other → **Add Innovations incoming folder**. A non-empty `Incoming folder` value overrides only the RX/stock-order incoming destination at runtime; an empty or absent entry retains the existing RX configuration as the safe fallback. This applies consistently to staged RX releases, website-submitted RX file drops, and stock-order releases. Local syntax checks and 20 focused RX/Credentials tests passed. No vault setting, file drop, host restart, deployment, or external submission was performed.
 
 The authoritative guarded update completed successfully on 2026-09-02: revision `36cf9a2` was installed, its smoke gate passed, the full suite was advisory (170 passed / 2 pre-existing failures), and the application plus Host Monitor verified online. Commercial Invoice now prints `Currency of Sale: Barbados Dollars (BBD)` and `BBD $` amounts. The updater now automatically applies clean fetched `master` revisions, pauses and alerts through the configured incident channels on Git authorization failures, repairs incomplete dependencies safely, and records durable progress/status.
 
@@ -125,6 +129,10 @@ When work is incomplete, record:
 - One exact executable next action.
 
 ## Blocker and next action
+
+- Blocker: read-only Innovations source verification fails with `Login failed for user 'sql_reporting'. Reason: The password of the account has expired.`
+- Approval required: deploy the scoped OptiLens gateway and hosted portal changes, then use a valid least-privilege read credential to run one customer-scoped invoice-line read and an authenticated external Edge/Chrome portal check. No production deployment or credential change was authorized in this task.
+- Next action: restore the read-only source credential through the approved vault/credential process, deploy both scoped code changes, then click a posted statement row, a posted live-order row, and a delivery job in an authenticated external browser to confirm the invoice lines and BBD prices render.
 
 - Blocker: the Commercial Invoice currency-label change is verified locally but cannot be committed or deployed because the shared worktree also has unrelated pending Credentials/source-writer changes (`lib/config.js`, `public/credentials.html`, and `test/credentials-source-writer.test.js`).
 - Next action: preserve or complete those unrelated changes, then commit the scoped Commercial Invoice files, restart through the guarded local-update workflow, and rerun `node scripts/monitor-harness.js verify`.

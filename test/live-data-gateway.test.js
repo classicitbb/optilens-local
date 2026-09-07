@@ -5,13 +5,14 @@ const {
 } = require('../lib/live-data-gateway');
 
 test('gateway exposes only approved reads', () => {
-  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_orders', 'optilens.customer_deliveries']);
+  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_invoice', 'innovations.customer_orders', 'optilens.customer_deliveries']);
 });
 
 test('order payload exposes only the portal order-list fields', () => {
   assert.deepEqual(orderPayload({
     order_id: 9,
     invoice_id: 53,
+    amount: '125.50',
     account_number: 'RETAIL',
     order_type_name: 'Rx',
     received_at: '2026-07-11T10:00:00Z',
@@ -20,12 +21,27 @@ test('order payload exposes only the portal order-list fields', () => {
     rx_number: 'RX-99',
     patient: 'PATIENT ONE',
   }), {
+    invoice_id: 53,
+    amount: 125.5,
     rx_number: 'RX-99',
     patient: 'PATIENT ONE',
     received_at: '2026-07-11T10:00:00Z',
     promise_date: '2026-07-15T16:00:00Z',
     status_name: 'In progress',
   });
+});
+
+test('invoice detail is an approved, strictly validated customer-scoped operation', () => {
+  const request = normalizeRequest({
+    operation: 'innovations.customer_invoice',
+    target: { account_number: 'CV-42' },
+    arguments: { invoice_id: '53054' },
+  });
+  assert.equal(request.args.invoice_id, '53054');
+  assert.throws(
+    () => normalizeRequest({ operation: 'innovations.customer_invoice', target: { account_number: 'CV-42' }, arguments: { invoice_id: 'not-an-id' } }),
+    /invoice_id must be a positive integer/i,
+  );
 });
 
 test('order query is limited to active WIP and valid shipments made today', () => {
