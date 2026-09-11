@@ -6,8 +6,20 @@ const rx = require("../lib/rx-generator");
 const { normaliseOrderSettings } = require("../lib/rx-order-settings");
 const { canonicalMaterial } = require("../lib/rx-catalog-sync");
 
-const sourceLens = rx.getCatalog().find((item) => item.mfType === "Single Vision");
-assert.ok(sourceLens, "A source-validated single-vision alias is required for RX tests.");
+// The generated catalogue is live source data, so it is not valid for this
+// suite to require a particular lens class to be present. Select any alias
+// with a profile the generator supports, then assert the profile actually
+// rendered below. This still fails closed when the catalogue has no usable
+// source-validated alias, without turning a normal catalogue change into a
+// failed application update.
+const PROFILE_BY_MF_TYPE = Object.freeze({
+  "Single Vision": { lensSvMf: "s", rxType: "S" },
+  Progressive: { lensSvMf: "m", rxType: "P" },
+  Bifocal: { lensSvMf: "m", rxType: "B" },
+});
+const sourceLens = rx.getCatalog().find((item) => PROFILE_BY_MF_TYPE[item.mfType]);
+assert.ok(sourceLens, "A source-validated alias with a supported RX profile is required for RX tests.");
+const sourceProfile = PROFILE_BY_MF_TYPE[sourceLens.mfType];
 
 const basePayload = {
   batchSize: 1,
@@ -81,7 +93,8 @@ test("preview is non-writing and retains the required RX line ordering", () => {
   assert.match(preview.filename, /^\d{8}_BROOKS_HAZEL\.rx$/);
   assert.match(preview.content, /start_order\r\nagent_name:LL/);
   assert.match(preview.content, new RegExp(`lens_od_material_code:${sourceLens.materialCode}\\r\\nlens_od_material_desc:${sourceLens.materialDescription}`));
-  assert.match(preview.content, /lens_sv_mf:s/);
+  assert.match(preview.content, new RegExp(`lens_sv_mf:${sourceProfile.lensSvMf}`));
+  assert.match(preview.content, new RegExp(`rx_type:${sourceProfile.rxType}`));
   assert.match(preview.content, /rx_od_sphere:\+0\.00[\s\S]*end_order\r\n$/);
 });
 

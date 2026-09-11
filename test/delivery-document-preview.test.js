@@ -5,7 +5,10 @@ const assert = require("node:assert/strict");
 const { PDFParse } = require("pdf-parse");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// These tests extract browser helpers from source text. Normalize the checkout
+// line endings first so Windows' core.autocrlf setting cannot turn a reusable
+// helper into a false test failure.
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8").replace(/\r\n/g, "\n");
 
 test("delivery checklist eligibility and packing slip access use shipment classification", () => {
   const client = read("public/delivery-export.js");

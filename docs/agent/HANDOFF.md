@@ -13,9 +13,13 @@ The portal invoice-line dialog had an approved cloud request path but the privat
 
 Innovations file-drop configuration is now available in Credentials Vault → Other → **Add Innovations incoming folder**. A non-empty `Incoming folder` value overrides only the RX/stock-order incoming destination at runtime; an empty or absent entry retains the existing RX configuration as the safe fallback. This applies consistently to staged RX releases, website-submitted RX file drops, and stock-order releases. Local syntax checks and 20 focused RX/Credentials tests passed. No vault setting, file drop, host restart, deployment, or external submission was performed.
 
+The configured Innovations incoming-folder vault entry resolves at runtime for both RX and stock-order release paths. A host-level non-mutating metadata check confirmed that the destination is reachable. Both the RX and stock-submission workers are registered, ready, and completed their latest scheduled runs successfully. The earlier sandbox-only `EPERM` result was execution confinement rather than an application or folder-permission failure. A single explicitly marked controlled stock file was staged and released successfully; after the normal initial watcher window it remained present and was not renamed as rejected, so delivery is proven but watcher ingestion is still pending.
+
 The authoritative guarded update completed successfully on 2026-09-02: revision `36cf9a2` was installed, its smoke gate passed, the full suite was advisory (170 passed / 2 pre-existing failures), and the application plus Host Monitor verified online. Commercial Invoice now prints `Currency of Sale: Barbados Dollars (BBD)` and `BBD $` amounts. The updater now automatically applies clean fetched `master` revisions, pauses and alerts through the configured incident channels on Git authorization failures, repairs incomplete dependencies safely, and records durable progress/status.
 
 Maintenance recovery on 2026-09-01 completed successfully. The guarded local updater had a missing `Write-UpdateStatus` helper, causing a requested runtime update to exit before it created its durable status record. `scripts/apply-local-update.ps1` now persists state, message, revisions, smoke-check, and advisory test-suite results to `data/update-status.json`. A controlled guarded run passed its smoke check, restarted the service, relaunched the host monitor, wrote `Update completed.`, and the loopback update check reported no available runtime or Git updates. The full suite remains advisory and reported two pre-existing unrelated failures: an innovations-sync log expectation that omits an undefined `warnings` field, and an RX-generator source-validated-lens assertion.
+
+The local test-suite regressions reported by the 2026-09-02 updater are repaired. RX generator coverage now selects any source-validated alias that has a supported RX profile and asserts the corresponding rendered profile, instead of requiring a currently available Single Vision alias. Document-preview helper tests normalize checkout line endings before extracting the browser helpers, so Windows `core.autocrlf` cannot produce false failures. The current complete suite passes 176/176; no host deployment or restart was performed.
 
 The application, private app database, source database, and Host Monitor are online. The health screen still correctly reports the scheduled Innovations-to-Classic-Visions sync as failed. Its latest committed run completed all other entities but rejected one contact with a null mandatory `country` field and one lens alias with a null mandatory `material_code` field at the receiver. Do not supply guessed values or retry this external write until a data-remediation rule or source correction is approved.
 
@@ -79,6 +83,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `lib/migrations.js`: durable application-migration checkpoints in `dbo.app_migrations`.
 - `lib/innovations-sync.js` and `test/innovations-sync.test.js`: acknowledged lens-alias reconciliation sends inactive tombstones for source deletions and guards the behavior with regression coverage.
 - `scripts/apply-local-update.ps1`: restores durable update-status persistence required by the guarded updater.
+- `test/rx-generator.test.js` and `test/delivery-document-preview.test.js`: remove source-catalogue and Windows-line-ending assumptions that previously produced advisory false failures during guarded updates.
 
 ## Verification
 
@@ -119,6 +124,8 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `node scripts/verify-rx-catalog.js` — read-only source check passed: 4,093 aliases and no invalid alias or misc records.
 - `node --test test/innovations-sync.test.js test/innovations-sync-log.test.js` — 12 passed; `npm run check` and `git diff --check` — passed.
 - Guarded maintenance update — smoke check passed; service restart passed; `data/update-state.json` recorded `completed`; `data/update-status.json` recorded `succeeded`; `data/local-update.log` ends with `Update completed.`; loopback update check reported no available updates; Host Monitor process was relaunched. The advisory `npm test` result was 165 passed / 2 failed (the unrelated innovations-sync-log and rx-generator assertions described above).
+- `node --test test/delivery-document-preview.test.js test/rx-generator.test.js test/innovations-sync-log.test.js` — 27 passed.
+- `npm test` — 176 passed, 0 failed.
 
 ## Required handoff fields
 
@@ -142,6 +149,10 @@ When work is incomplete, record:
 
 - Blocker: the external Edge session is at OptiLens Local sign-in; no authenticated session is available for rendered verification.
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
+
+- Current test-system authorization: the user explicitly authorized autonomous controlled testing for this Innovations file-drop scenario. It does not authorize production changes, credentials/permission changes, or non-test external sends.
+- Current state: one controlled file-drop is pending watcher ingestion. The test helper now awaits and reports the watcher outcome reliably.
+- Next action: perform a read-only follow-up on that existing file until the watcher reports `accepted` or `rejected`; do not submit another test file while it remains pending.
 
 - For the new Automation work: after deployment/migration approval, configure SMTP Host, SMTP Port, and SMTP Secure on the intended Email vault entry and set `OPTILENS_SUPPLIER_EXCEPTION_DIGEST_ENABLED=true` only after a controlled recipient test. Use a dedicated source writer, enable flag, and status allowlist before setting `OPTILENS_SUPPLIER_STATUS_AUTO_APPLY=true`. Verify deletion persistence and detail/deep-link behavior in authenticated external Chrome or Edge.
 

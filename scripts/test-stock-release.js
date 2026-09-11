@@ -26,18 +26,29 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
 
 const payload = {
   customer: { custNum: config.defaults.custNum, shipName: config.defaults.shipName },
-  poNum: `CLAUDE-TEST-${stamp}`,
-  patientName: `CLAUDE TEST DO NOT PROCESS ${stamp}`,
+  // A generated PO value was rejected by Innova during earlier validation.
+  // Keep it blank for the connectivity test and identify the order only with
+  // its unmistakably synthetic patient/instructions fields.
+  poNum: "",
+  patientName: `OPTILENS TEST DO NOT PROCESS ${stamp}`,
   instructions: `TEST ORDER - stock order pipeline connectivity check - please ignore / do not fulfill - ${new Date().toISOString()}`,
   items: [
     { sku: "0011751138", source: "FLENS", description: "TEST DO NOT PROCESS - pipeline connectivity check", quantity: 1, comment: "TEST" },
   ],
 };
 
-console.log(`Incoming target: ${config.folders.incoming}`);
-const staged = gen.generate(payload, { username: "connectivity-test" });
-console.log(`Staged: ${staged.filename}`);
+async function main() {
+  const staged = gen.generate(payload, { username: "connectivity-test" });
+  console.log(`Staged: ${staged.filename}`);
 
-const released = gen.release({ filenames: [staged.filename] }, { username: "connectivity-test" });
-console.log(`Released: ${JSON.stringify(released)}`);
-console.log("Now check the Incoming share (and Innova's own order log) for that filename.");
+  const released = gen.release({ filenames: [staged.filename] }, { username: "connectivity-test" });
+  console.log(`Released: ${JSON.stringify(released)}`);
+  const outcome = await gen.checkReleaseOutcome(staged.filename);
+  console.log(`Innova intake outcome: ${outcome}`);
+  if (outcome === "rejected") process.exitCode = 1;
+}
+
+main().catch((error) => {
+  console.error(`Could not verify Innova intake outcome: ${error.message}`);
+  process.exitCode = 1;
+});
