@@ -2821,7 +2821,12 @@ function isInteractivePageRequest(requestPath) {
 function isPublicInteractivePage(requestPath) {
   const route = normalizeRoutePath(requestPath);
   return route === "/"
-    || route === "/index.html";
+    || route === "/index.html"
+    // Chemistry clips has its own PIN gate (lib/chemistry-pin-session.js),
+    // not the platform login -- see the module's design decision to keep
+    // the shop-floor tablet on a shared PIN rather than a per-user account.
+    || route === "/modules/chemistry-clips"
+    || route === "/chemistry-clips.html";
 }
 
 function normalizeRoutePath(requestPath) {
@@ -2918,7 +2923,8 @@ function resolveStaticPath(requestPath) {
     "/modules/automation":          "automation.html",
     "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/business-metrics":    "business-metrics.html",
-    "/admin/users":                 "admin-users.html"
+    "/admin/users":                 "admin-users.html",
+    "/modules/chemistry-clips":     "chemistry-clips.html"
   };
   if (pageRoutes[route]) {
     return path.join(publicDir, pageRoutes[route]);

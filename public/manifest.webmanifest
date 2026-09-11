@@ -28,6 +28,12 @@
       "short_name": "Pricing",
       "url": "/modules/pricing-automation",
       "description": "Open pricing rules and calculator."
+    },
+    {
+      "name": "Chemistrie Clips",
+      "short_name": "Chemistrie",
+      "url": "/modules/chemistry-clips",
+      "description": "Record Chemistrie clip builds and inventory usage."
     }
   ]
 }

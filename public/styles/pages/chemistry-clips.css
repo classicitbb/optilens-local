@@ -1,0 +1,223 @@
+/* Chemistrie Clips — standalone shop-floor page. Deliberately does not use
+   shell.css/components.css (those assume the platform-login app shell);
+   this page has its own PIN gate and its own minimal chrome. */
+
+.cc-body {
+  min-height: 100vh;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+.cc-muted { color: var(--muted); }
+.cc-small { font-size: 0.85rem; }
+.cc-full { grid-column: 1 / -1; }
+
+/* ── PIN screen ─────────────────────────────────────────────────────────── */
+.cc-pin-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cc-pin-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.cc-pin-card h1 {
+  font-size: 1.4rem;
+  margin: 0 0 6px;
+  color: var(--cv-navy);
+}
+
+.cc-pin-form,
+#ccPinForm,
+#ccPinSetupForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cc-pin-input {
+  font-size: 1.4rem;
+  text-align: center;
+  letter-spacing: 0.3em;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(11, 30, 53, 0.18);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.cc-error {
+  color: #c0392b;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.cc-pin-setup {
+  margin-top: 20px;
+  text-align: left;
+}
+.cc-pin-setup summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.cc-btn {
+  font: inherit;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  min-height: 44px; /* touch target */
+}
+.cc-btn-primary { background: var(--cv-teal); color: #fff; }
+.cc-btn-primary:hover { background: var(--cv-teal-bright); }
+.cc-btn-secondary { background: var(--surface); border-color: rgba(11, 30, 53, 0.18); color: var(--ink); }
+.cc-btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+
+/* ── App shell ──────────────────────────────────────────────────────────── */
+.cc-app { min-height: 100vh; padding-bottom: 40px; }
+
+.cc-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--cv-navy);
+  color: #fff;
+  flex-wrap: wrap;
+}
+.cc-header-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; }
+.cc-header-actions { display: flex; gap: 8px; }
+.cc-header .cc-btn-ghost { color: #fff; }
+
+.cc-view { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+/* ── List view ──────────────────────────────────────────────────────────── */
+.cc-search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.cc-search-row input {
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(11, 30, 53, 0.18);
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 44px;
+}
+
+.cc-table-wrap { overflow-x: auto; }
+.cc-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-md); overflow: hidden; }
+.cc-table th, .cc-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(11, 30, 53, 0.08); white-space: nowrap; }
+.cc-table th { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.cc-table tbody tr { cursor: pointer; }
+.cc-table tbody tr:hover { background: rgba(26, 138, 156, 0.08); }
+
+/* ── Form view ──────────────────────────────────────────────────────────── */
+.cc-form-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cc-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(26, 138, 156, 0.15);
+  color: var(--cv-teal);
+  text-transform: uppercase;
+}
+.cc-badge.locked { background: rgba(192, 57, 43, 0.12); color: #c0392b; }
+
+.cc-message {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(26, 138, 156, 0.1);
+  color: var(--cv-navy);
+  margin-bottom: 12px;
+}
+.cc-message.cc-message-error { background: rgba(192, 57, 43, 0.1); color: #c0392b; }
+
+.cc-fieldset {
+  border: 1px solid rgba(11, 30, 53, 0.12);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--surface);
+}
+.cc-fieldset legend { font-weight: 700; color: var(--cv-navy); padding: 0 6px; }
+
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.cc-grid label, .cc-fieldset > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.cc-grid input, .cc-grid select,
+.cc-fieldset input[type="text"], .cc-fieldset textarea {
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(11, 30, 53, 0.18);
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 44px;
+}
+.cc-fieldset textarea { min-height: 60px; }
+
+.cc-checkrow { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0; }
+.cc-checkrow label, fieldset > label:has(input[type="checkbox"]) {
+  display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--ink);
+}
+
+.cc-item-add-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.cc-item-add-row input[type="text"],
+.cc-item-add-row select,
+.cc-item-add-row input[type="number"] {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(11, 30, 53, 0.18);
+  min-height: 44px;
+}
+#ccScanInput { flex: 1; min-width: 160px; }
+
+.cc-scan-message { min-height: 1.2em; font-size: 0.85rem; color: var(--cv-teal); }
+.cc-scan-message.cc-error { color: #c0392b; }
+
+.cc-item-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cc-item-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+.cc-item-list .cc-item-remove { color: #c0392b; background: none; border: none; cursor: pointer; font-size: 1.1rem; min-height: 32px; }
+
+.cc-form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+@media (max-width: 480px) {
+  .cc-header { flex-direction: column; align-items: stretch; }
+  .cc-header-actions { justify-content: stretch; }
+  .cc-header-actions .cc-btn { flex: 1; }
+}

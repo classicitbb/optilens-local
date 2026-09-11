@@ -1,4 +1,4 @@
-const CACHE_NAME = "optilens-local-v10";
+const CACHE_NAME = "optilens-local-v11";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -22,6 +22,10 @@ const APP_SHELL = [
   "/business-metrics-tabs.js",
   "/business-metrics-inventory.js",
   "/delivery-export.html",
+  "/modules/chemistry-clips",
+  "/chemistry-clips.html",
+  "/chemistry-clips.js",
+  "/styles/pages/chemistry-clips.css",
   "/delivery-export.js",
   "/beswift-extension-check.js",
   "/modules/pricing-automation",
