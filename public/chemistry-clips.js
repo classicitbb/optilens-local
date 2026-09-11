@@ -237,10 +237,6 @@
       <td>${escapeHtml(order.patientName || "")}</td>
       <td>${escapeHtml(order.jobNumber || "")}</td>
       <td>${escapeHtml(order.trayNumber || "")}</td>
-      <td>${escapeHtml(order.baseCurve || "")}</td>
-      <td>${escapeHtml(order.bridgeColor || "")}</td>
-      <td>${escapeHtml(order.magnetColor || "")}</td>
-      <td>${order.status === "locked" ? "🔒 Locked" : "Draft"}</td>
     </tr>`;
   }
 
