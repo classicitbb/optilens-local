@@ -55,6 +55,17 @@ internal sealed class OptiLensHostMonitor : Form
     private Form updateProgressWindow;
     private TextBox updateProgressBox;
     private Label updateProgressSummary;
+    private bool restartInProgress;
+    private DateTime restartProgressStartedAt;
+    private string restartProgressRunId = "";
+    private Form restartProgressWindow;
+    private ProgressBar restartProgressBar;
+    private TextBox restartProgressBox;
+    private Label restartProgressSummary;
+    private readonly Timer restartProgressTimer = new Timer { Interval = 1000 };
+    private ToolStripMenuItem trayStartService;
+    private ToolStripMenuItem trayRestartService;
+    private ToolStripMenuItem trayStopService;
 
     public OptiLensHostMonitor(string root, int requestedPort, System.Threading.EventWaitHandle signal, bool visibleOnStartup)
     {
@@ -88,9 +99,15 @@ internal sealed class OptiLensHostMonitor : Form
         menu.Items.Add("Open OptiLens Local", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:" + port + "/") { UseShellExecute = true }); });
         menu.Items.Add("Open OptiLens HTTPS", null, delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); });
         menu.Items.Add("Open local DNS console", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); });
-        menu.Items.Add("Start OptiLens Local", null, delegate { RunHostScript("start-app.ps1"); });
-        menu.Items.Add("Restart OptiLens Local", null, delegate { RunHostScript("restart-app.ps1"); });
-        menu.Items.Add("Shut down OptiLens Local", null, delegate { RunHostScript("stop-app.ps1", true); });
+        trayStartService = new ToolStripMenuItem("Start OptiLens Local");
+        trayStartService.Click += delegate { if (!restartInProgress) RunHostScript("start-app.ps1"); };
+        menu.Items.Add(trayStartService);
+        trayRestartService = new ToolStripMenuItem("Restart OptiLens Local");
+        trayRestartService.Click += delegate { BeginRestartProgressWorkflow(true, "Restart requested from the tray."); };
+        menu.Items.Add(trayRestartService);
+        trayStopService = new ToolStripMenuItem("Shut down OptiLens Local");
+        trayStopService.Click += delegate { if (!restartInProgress) RunHostScript("stop-app.ps1", true); };
+        menu.Items.Add(trayStopService);
         menu.Items.Add("Check for pushed updates", null, async delegate { await CheckUpdates(); });
         menu.Items.Add("Exit monitor", null, delegate { exitRequested = true; Close(); });
         tray = new NotifyIcon { Icon = Icon, Text = "OptiLens Local Host Monitor", ContextMenuStrip = menu, Visible = true };
@@ -98,9 +115,10 @@ internal sealed class OptiLensHostMonitor : Form
 
         timer.Tick += async delegate { await RefreshAll(); };
         activationTimer.Tick += delegate { try { if (showSignal.WaitOne(0)) ShowMonitorWindow(); } catch { } };
+        restartProgressTimer.Tick += async delegate { await RefreshRestartProgress(); };
         Shown += async delegate { await RefreshAll(); await RefreshLogs(); };
         FormClosing += OnFormClosing;
-        FormClosed += delegate { Log("closed"); timer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
+        FormClosed += delegate { Log("closed"); timer.Stop(); restartProgressTimer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
         timer.Start();
         activationTimer.Start();
         Log("started port " + port);
@@ -141,9 +159,9 @@ internal sealed class OptiLensHostMonitor : Form
         checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
         applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
         fixErrorsButton.Click += async delegate { await FixErrors(); };
-        startServiceButton.Click += delegate { RunHostScript("start-app.ps1"); };
-        restartServiceButton.Click += delegate { RunHostScript("restart-app.ps1"); };
-        stopServiceButton.Click += delegate { RunHostScript("stop-app.ps1", true); };
+        startServiceButton.Click += delegate { if (!restartInProgress) RunHostScript("start-app.ps1"); };
+        restartServiceButton.Click += delegate { BeginRestartProgressWorkflow(true, "Restart requested from Connections."); };
+        stopServiceButton.Click += delegate { if (!restartInProgress) RunHostScript("stop-app.ps1", true); };
         return page;
     }
 
@@ -224,9 +242,7 @@ internal sealed class OptiLensHostMonitor : Form
         {
             var health = Map(json.DeserializeObject(await Api("/api/health")));
             serviceOnline = health != null;
-            startServiceButton.Enabled = !serviceOnline;
-            restartServiceButton.Enabled = serviceOnline;
-            stopServiceButton.Enabled = serviceOnline;
+            SetServiceControls();
             connections.Items.Clear();
             var hasFailure = false;
             var hasWarning = false;
@@ -246,7 +262,7 @@ internal sealed class OptiLensHostMonitor : Form
             summary.ForeColor = hasFailure ? Color.Firebrick : hasWarning ? Color.DarkGoldenrod : Color.ForestGreen;
             tray.Icon = hasFailure ? SystemIcons.Error : hasWarning ? SystemIcons.Warning : SystemIcons.Information;
             tray.Text = "OptiLens Local: " + overall;
-            fixErrorsButton.Enabled = hasFailure && !repairInProgress;
+            fixErrorsButton.Enabled = hasFailure && !repairInProgress && !restartInProgress;
             await RefreshSource();
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
@@ -269,10 +285,10 @@ internal sealed class OptiLensHostMonitor : Form
             summary.Text = "OptiLens Local service is offline — use the tray menu to start it.";
             summary.ForeColor = Color.Firebrick;
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
-            startServiceButton.Enabled = true; restartServiceButton.Enabled = false; stopServiceButton.Enabled = false;
-            fixErrorsButton.Enabled = true;
+            SetServiceControls();
+            fixErrorsButton.Enabled = !restartInProgress;
             var _ = ReportIncident(new List<string> { "OptiLens Local service" });
-            RunHostScript("ensure-app-running.ps1");
+            if (!restartInProgress) RunHostScript("ensure-app-running.ps1");
         }
     }
 
@@ -401,11 +417,86 @@ internal sealed class OptiLensHostMonitor : Form
             var failed = connections.Items.Cast<ListViewItem>().Where(item => item.ForeColor == Color.Firebrick).Select(item => item.Text).ToArray();
             var result = Map(json.DeserializeObject(await Api("/api/monitor/recovery/fix", "POST", new { confirmation = "FIX ERRORS", failedConnections = failed })));
             summary.Text = S(Value(result, "message")); summary.ForeColor = Color.DarkGoldenrod;
+            BeginRestartProgressWorkflow(false, "Controlled recovery started; waiting for its restart run.");
         }
         catch (Exception error) { summary.Text = "Super-user recovery blocked or failed: " + error.Message; summary.ForeColor = Color.Firebrick; repairInProgress = false; fixErrorsButton.Enabled = true; }
         await Task.Delay(1000); await RefreshAll(); repairInProgress = false;
     }
 
+    private void SetServiceControls()
+    {
+        var enabled = !restartInProgress;
+        startServiceButton.Enabled = enabled && !serviceOnline;
+        restartServiceButton.Enabled = enabled && serviceOnline;
+        stopServiceButton.Enabled = enabled && serviceOnline;
+        if (trayStartService != null) trayStartService.Enabled = enabled && !serviceOnline;
+        if (trayRestartService != null) trayRestartService.Enabled = enabled && serviceOnline;
+        if (trayStopService != null) trayStopService.Enabled = enabled && serviceOnline;
+    }
+
+    private void BeginRestartProgressWorkflow(bool launchRestart, string initialMessage)
+    {
+        if (restartInProgress) { ShowRestartProgress(); return; }
+        restartInProgress = true; restartProgressStartedAt = DateTime.UtcNow; restartProgressRunId = "";
+        SetServiceControls(); ShowRestartProgress(); restartProgressSummary.Text = initialMessage; restartProgressSummary.ForeColor = Color.DarkGoldenrod; restartProgressBar.Value = 0;
+        restartProgressBox.Text = "Waiting for durable restart state and logs..." + Environment.NewLine;
+        if (launchRestart) RunHostScript("restart-app.ps1");
+        restartProgressTimer.Start(); var ignored = RefreshRestartProgress();
+    }
+
+    private void ShowRestartProgress()
+    {
+        if (restartProgressWindow == null || restartProgressWindow.IsDisposed)
+        {
+            restartProgressWindow = new Form { Text = "OptiLens Local Restart Progress", ClientSize = new Size(820, 560), StartPosition = FormStartPosition.CenterParent, MinimizeBox = true };
+            restartProgressSummary = new Label { Text = "Preparing restart…", Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 10, 0), ForeColor = Color.DarkGoldenrod };
+            restartProgressBar = new ProgressBar { Dock = DockStyle.Top, Height = 22, Minimum = 0, Maximum = 100, Style = ProgressBarStyle.Continuous };
+            restartProgressBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill, Font = new Font("Consolas", 9) };
+            restartProgressWindow.Controls.Add(restartProgressBox); restartProgressWindow.Controls.Add(restartProgressBar); restartProgressWindow.Controls.Add(restartProgressSummary);
+        }
+        restartProgressWindow.Show(); restartProgressWindow.BringToFront();
+    }
+
+    private static string ReadTail(string path, int maximumCharacters)
+    {
+        try { using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) { var length = Math.Min(stream.Length, maximumCharacters * 2L); stream.Seek(-length, SeekOrigin.End); using (var reader = new StreamReader(stream)) return reader.ReadToEnd(); } }
+        catch { return "(no output yet)"; }
+    }
+
+    private async Task RefreshRestartProgress()
+    {
+        if (!restartInProgress) return;
+        try
+        {
+            IDictionary<string, object> state = null;
+            try { state = Map(json.DeserializeObject(File.ReadAllText(Path.Combine(projectRoot, "data", "service-restart-state.json")))); } catch { }
+            var restartLog = ReadTail(Path.Combine(projectRoot, "data", "logs", "service-restart.log"), 50000);
+            var serverErrors = ReadTail(Path.Combine(projectRoot, "server.err.log"), 50000);
+            var combined = "RESTART RUN OUTPUT" + Environment.NewLine + restartLog + Environment.NewLine + Environment.NewLine + "SERVER-ERROR OUTPUT" + Environment.NewLine + serverErrors;
+            if (restartProgressBox != null && !string.Equals(restartProgressBox.Tag as string, combined, StringComparison.Ordinal)) { restartProgressBox.Text = combined; restartProgressBox.Tag = combined; restartProgressBox.SelectionStart = restartProgressBox.TextLength; restartProgressBox.ScrollToCaret(); }
+            if (state == null) { if ((DateTime.UtcNow - restartProgressStartedAt).TotalSeconds > 180) FinishRestartProgress(false, "Timed out waiting for a durable restart state."); return; }
+            var runId = S(Value(state, "runId"));
+            if (string.IsNullOrEmpty(restartProgressRunId)) { DateTime updated; if (DateTime.TryParse(S(Value(state, "updatedAt")), out updated) && updated.ToUniversalTime() < restartProgressStartedAt.AddSeconds(-2)) return; restartProgressRunId = runId; }
+            if (!string.Equals(restartProgressRunId, runId, StringComparison.Ordinal)) return;
+            var percentage = 0; int.TryParse(S(Value(state, "percentage")), out percentage); restartProgressBar.Value = Math.Max(0, Math.Min(100, percentage));
+            var phase = S(Value(state, "phase")).Replace("_", " "); var message = S(Value(state, "message")); var stateName = S(Value(state, "state"));
+            restartProgressSummary.Text = string.IsNullOrEmpty(phase) ? message : phase + " — " + message;
+            restartProgressSummary.ForeColor = stateName == "failed" ? Color.Firebrick : stateName == "completed" ? Color.ForestGreen : Color.DarkGoldenrod;
+            if (stateName == "completed") FinishRestartProgress(true, message);
+            else if (stateName == "failed") FinishRestartProgress(false, string.IsNullOrEmpty(S(Value(state, "error"))) ? message : S(Value(state, "error")));
+            else if ((DateTime.UtcNow - restartProgressStartedAt).TotalSeconds > 180) FinishRestartProgress(false, "Timed out waiting for the restart to complete.");
+        }
+        catch (Exception error) { if (restartProgressSummary != null) { restartProgressSummary.Text = "Restart progress read failed: " + error.Message; restartProgressSummary.ForeColor = Color.Firebrick; } }
+        await Task.CompletedTask;
+    }
+
+    private void FinishRestartProgress(bool succeeded, string message)
+    {
+        restartProgressTimer.Stop(); restartInProgress = false; SetServiceControls();
+        if (restartProgressSummary != null) { restartProgressSummary.Text = message; restartProgressSummary.ForeColor = succeeded ? Color.ForestGreen : Color.Firebrick; }
+        summary.Text = succeeded ? "OptiLens Local restart completed." : "OptiLens Local restart failed: " + message; summary.ForeColor = succeeded ? Color.ForestGreen : Color.Firebrick;
+        var ignored = RefreshAll();
+    }
     private void ShowMonitorWindow()
     {
         ShowInTaskbar = true;
