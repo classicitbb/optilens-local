@@ -191,6 +191,7 @@ const { handleOperationsRoute } = require("./lib/operations/routes");
 const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
+const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1042,6 +1043,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
