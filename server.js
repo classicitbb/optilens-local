@@ -191,6 +191,7 @@ const { handleOperationsRoute } = require("./lib/operations/routes");
 const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
+const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1042,6 +1043,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
@@ -2819,7 +2821,12 @@ function isInteractivePageRequest(requestPath) {
 function isPublicInteractivePage(requestPath) {
   const route = normalizeRoutePath(requestPath);
   return route === "/"
-    || route === "/index.html";
+    || route === "/index.html"
+    // Chemistry clips has its own PIN gate (lib/chemistry-pin-session.js),
+    // not the platform login -- see the module's design decision to keep
+    // the shop-floor tablet on a shared PIN rather than a per-user account.
+    || route === "/modules/chemistry-clips"
+    || route === "/chemistry-clips.html";
 }
 
 function normalizeRoutePath(requestPath) {
@@ -2916,7 +2923,8 @@ function resolveStaticPath(requestPath) {
     "/modules/automation":          "automation.html",
     "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/business-metrics":    "business-metrics.html",
-    "/admin/users":                 "admin-users.html"
+    "/admin/users":                 "admin-users.html",
+    "/modules/chemistry-clips":     "chemistry-clips.html"
   };
   if (pageRoutes[route]) {
     return path.join(publicDir, pageRoutes[route]);

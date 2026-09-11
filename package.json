@@ -13,6 +13,8 @@
     "rx:sync-catalog": "node scripts/sync-rx-catalog.js",
     "rx:verify-catalog": "node scripts/verify-rx-catalog.js",
     "rx:sync-task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-rx-catalog-sync-task.ps1",
+    "chemistry:sync-catalog": "node scripts/sync-chemistry-catalog.js",
+    "chemistry:sync-task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-chemistry-catalog-sync-task.ps1",
     "qbo:invoice-sync": "node scripts/sync-qbo-invoices.js",
     "qbo:customer-mappings:seed": "node scripts/seed-qbo-customer-mappings.js",
     "qbo:invoice-sync:apply": "node scripts/sync-qbo-invoices.js --apply",

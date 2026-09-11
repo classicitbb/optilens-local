@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Chemistrie Clips - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles/tokens.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <link rel="stylesheet" href="/styles/pages/chemistry-clips.css">
+</head>
+<body class="cc-body">
+
+  <!-- ── PIN gate ──────────────────────────────────────────────────────── -->
+  <section id="ccPinScreen" class="cc-pin-screen">
+    <div class="cc-pin-card">
+      <h1>Chemistrie Clips</h1>
+      <p id="ccPinIntro" class="cc-muted">Enter the shop PIN to continue.</p>
+      <form id="ccPinForm" autocomplete="off">
+        <input id="ccPinInput" class="cc-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+               placeholder="PIN" autocomplete="off" required>
+        <button type="submit" class="cc-btn cc-btn-primary">Unlock</button>
+      </form>
+      <p id="ccPinError" class="cc-error" role="alert" hidden></p>
+      <details id="ccPinSetupDetails" class="cc-pin-setup" hidden>
+        <summary>First time here? Set the shop PIN</summary>
+        <form id="ccPinSetupForm" autocomplete="off">
+          <input id="ccPinSetupInput" class="cc-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                 placeholder="New PIN (4+ digits)" autocomplete="off" minlength="4" required>
+          <button type="submit" class="cc-btn cc-btn-secondary">Set PIN</button>
+        </form>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── Main app (hidden until unlocked) ────────────────────────────────── -->
+  <div id="ccApp" class="cc-app" hidden>
+    <header class="cc-header">
+      <div class="cc-header-title">
+        <span class="cc-header-icon" aria-hidden="true">👓</span>
+        <span>Chemistrie Clips</span>
+      </div>
+      <div class="cc-header-actions">
+        <button id="ccNewOrderBtn" type="button" class="cc-btn cc-btn-primary">New order</button>
+        <button id="ccLockBtn" type="button" class="cc-btn cc-btn-ghost" title="Lock this tablet">Lock</button>
+      </div>
+    </header>
+
+    <!-- ── Records view ─────────────────────────────────────────────────── -->
+    <section id="ccListView" class="cc-view">
+      <div class="cc-search-row">
+        <input id="ccSearchInput" type="search" placeholder="Search patient name, tray #, or job/invoice #" autocomplete="off">
+        <button id="ccSearchBtn" type="button" class="cc-btn cc-btn-secondary">Search</button>
+      </div>
+      <p id="ccListStatus" class="cc-muted" role="status"></p>
+      <div class="cc-table-wrap">
+        <table class="cc-table" id="ccOrdersTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Patient</th>
+              <th>Job #</th>
+              <th>Tray #</th>
+              <th>Base</th>
+              <th>Bridge</th>
+              <th>Magnet</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="ccOrdersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Order form view ──────────────────────────────────────────────── -->
+    <section id="ccFormView" class="cc-view" hidden>
+      <div class="cc-form-toolbar">
+        <button id="ccBackBtn" type="button" class="cc-btn cc-btn-ghost">&larr; Back to records</button>
+        <span id="ccFormStatusBadge" class="cc-badge"></span>
+      </div>
+
+      <p id="ccFormMessage" class="cc-message" role="status" hidden></p>
+
+      <form id="ccOrderForm">
+        <fieldset class="cc-fieldset">
+          <legend>Order</legend>
+          <div class="cc-grid">
+            <label>Patient name*
+              <input name="patientName" type="text" required autocomplete="off">
+            </label>
+            <label>Job / invoice #
+              <input name="jobNumber" type="text" autocomplete="off">
+            </label>
+            <label>Tray # <small class="cc-muted">(search only — discarded after shipping)</small>
+              <input name="trayNumber" type="text" autocomplete="off">
+            </label>
+            <label>Optician
+              <input name="optician" type="text" autocomplete="off">
+            </label>
+            <label>Date
+              <input name="orderDate" type="date">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="cc-fieldset">
+          <legend>Clip parameters</legend>
+          <div class="cc-grid">
+            <label>Base curve
+              <select name="baseCurve">
+                <option value="">—</option>
+                <option>2</option><option>4</option><option>5</option><option>6</option>
+              </select>
+            </label>
+            <label>Lens color
+              <input name="lensColor" type="text" autocomplete="off">
+            </label>
+            <label>Lens material
+              <input name="lensMaterial" type="text" autocomplete="off" placeholder="CR / HI / PL / 1.74">
+            </label>
+            <label>Bridge color
+              <input name="bridgeColor" type="text" autocomplete="off">
+            </label>
+            <label>Bridge size (mm)
+              <input name="bridgeSizeMm" type="number" step="0.5" min="0">
+            </label>
+            <label>Magnet color
+              <input name="magnetColor" type="text" autocomplete="off">
+            </label>
+            <label>Magnet separation (mm)
+              <input name="magnetSeparationMm" type="number" step="0.5" min="0">
+            </label>
+            <label>Upsize amount
+              <input name="upsizeAmount" type="number" step="0.5">
+            </label>
+            <label>Edge work
+              <input name="edgeWork" type="text" autocomplete="off">
+            </label>
+            <label>Round / square
+              <select name="roundSquare">
+                <option value="">—</option>
+                <option>Round</option><option>Square</option><option>Tri</option>
+              </select>
+            </label>
+          </div>
+          <div class="cc-checkrow">
+            <label><input type="checkbox" name="clipOnly"> Clip only</label>
+            <label><input type="checkbox" name="redrillOnly"> Redrill only</label>
+            <label><input type="checkbox" name="permanentCrystal"> Permanent crystal</label>
+            <label><input type="checkbox" name="magneticCrystal"> Magnetic crystal</label>
+          </div>
+          <label class="cc-full">Comments
+            <textarea name="comments" rows="2"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="cc-fieldset">
+          <legend>Inventory used</legend>
+          <p class="cc-muted cc-small">Scan a barcode into the field below (works with a USB/Bluetooth scanner — it types the SKU and presses Enter), or add a part manually. Case and cloth are added automatically to new orders.</p>
+          <div class="cc-item-add-row">
+            <input id="ccScanInput" type="text" placeholder="Scan or type SKU, then Enter" autocomplete="off" inputmode="numeric">
+            <select id="ccItemRoleSelect">
+              <option value="lens">Lens</option>
+              <option value="bridge">Bridge</option>
+              <option value="magnet">Magnet</option>
+              <option value="bushing">Bushing</option>
+              <option value="spacer">Spacer</option>
+              <option value="case">Case</option>
+              <option value="cloth">Cloth</option>
+              <option value="other">Other</option>
+            </select>
+            <input id="ccItemQtyInput" type="number" value="1" min="0.5" step="0.5" style="width:5em">
+            <button id="ccAddItemBtn" type="button" class="cc-btn cc-btn-secondary">Add</button>
+          </div>
+          <p id="ccScanMessage" class="cc-scan-message" role="status"></p>
+          <ul class="cc-item-list" id="ccItemList"></ul>
+        </fieldset>
+
+        <fieldset class="cc-fieldset">
+          <legend>Fitting checklist</legend>
+          <label><input type="checkbox" name="fitChecked"> Fit checked and complete</label>
+          <label class="cc-full">Fitting notes
+            <textarea name="fitNotes" rows="2"></textarea>
+          </label>
+        </fieldset>
+
+        <div class="cc-form-actions">
+          <button type="submit" class="cc-btn cc-btn-primary">Save draft</button>
+          <button id="ccLockOrderBtn" type="button" class="cc-btn cc-btn-secondary" hidden>Lock order</button>
+          <button id="ccUnlockOrderBtn" type="button" class="cc-btn cc-btn-ghost" hidden>Unlock to edit</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="/chemistry-clips.js"></script>
+</body>
+</html>
