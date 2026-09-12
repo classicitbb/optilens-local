@@ -449,7 +449,7 @@
     const btn = document.getElementById("ccThemeToggle");
     if (!btn) return;
     const isDark = theme === "dark";
-    btn.textContent = isDark ? "âï¸" : "ð";
+    btn.textContent = isDark ? "☀️" : "🌙";
     btn.setAttribute("aria-pressed", String(isDark));
     btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
   }
