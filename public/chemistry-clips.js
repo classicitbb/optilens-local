@@ -13,6 +13,7 @@
 
   const els = {};
 
+  applyTheme();
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
@@ -29,10 +30,11 @@
     [
       "ccPinScreen", "ccPinIntro", "ccPinForm", "ccPinInput", "ccPinError",
       "ccPinSetupDetails", "ccPinSetupForm", "ccPinSetupInput",
-      "ccApp", "ccNewOrderBtn", "ccLockBtn",
+      "ccApp", "ccNewOrderBtn", "ccThemeToggle", "ccLockBtn",
       "ccListView", "ccSearchInput", "ccSearchBtn", "ccListStatus", "ccOrdersBody",
       "ccFormView", "ccBackBtn", "ccFormStatusBadge", "ccFormMessage", "ccOrderForm",
       "ccScanInput", "ccItemRoleSelect", "ccItemQtyInput", "ccAddItemBtn",
+      "ccLensSelect", "ccBridgeSelect", "ccMagnetSelect", "ccSpacerSelect",
       "ccScanMessage", "ccItemList", "ccLockOrderBtn", "ccUnlockOrderBtn"
     ].forEach((id) => { els[id] = document.getElementById(id); });
   }
@@ -131,8 +133,14 @@
       window.location.reload();
     });
 
-    els.ccNewOrderBtn.addEventListener("click", () => {
+    els.ccThemeToggle.addEventListener("click", () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      setTheme(isDark ? "light" : "dark");
+    });
+
+    els.ccNewOrderBtn.addEventListener("click", async () => {
       showFormView();
+      await ensureCatalogOptionsLoaded();
       loadOrderIntoForm(null);
     });
 
@@ -146,10 +154,11 @@
       if (event.key === "Enter") { event.preventDefault(); refreshOrderList(); }
     });
 
-    els.ccOrdersBody.addEventListener("click", (event) => {
+    els.ccOrdersBody.addEventListener("click", async (event) => {
       const row = event.target.closest("tr[data-order-id]");
       if (!row) return;
       showFormView();
+      await ensureCatalogOptionsLoaded();
       loadOrderIntoForm(row.dataset.orderId);
     });
 
@@ -173,6 +182,15 @@
       } catch (error) {
         showFormMessage(error.message, true);
       }
+    });
+
+    [
+      ["lens", els.ccLensSelect],
+      ["bridge", els.ccBridgeSelect],
+      ["magnet", els.ccMagnetSelect],
+      ["spacer", els.ccSpacerSelect]
+    ].forEach(([role, selectEl]) => {
+      selectEl.addEventListener("change", () => handlePartSelectChange(role, selectEl));
     });
 
     els.ccLockOrderBtn.addEventListener("click", async () => {
@@ -264,8 +282,7 @@
 
   const FORM_FIELDS = [
     "patientName", "jobNumber", "trayNumber", "optician", "orderDate",
-    "baseCurve", "lensColor", "lensMaterial", "bridgeColor", "bridgeSizeMm",
-    "magnetColor", "magnetSeparationMm", "upsizeAmount", "edgeWork", "roundSquare",
+    "baseCurve", "upsizeAmount", "edgeWork", "roundSquare",
     "comments", "fitNotes"
   ];
   const FORM_CHECK_FIELDS = ["clipOnly", "redrillOnly", "permanentCrystal", "magneticCrystal", "fitChecked"];
@@ -321,6 +338,10 @@
     els.ccItemRoleSelect.disabled = disableItemControls;
     els.ccItemQtyInput.disabled = disableItemControls;
     els.ccAddItemBtn.disabled = disableItemControls;
+    els.ccLensSelect.disabled = disableItemControls;
+    els.ccBridgeSelect.disabled = disableItemControls;
+    els.ccMagnetSelect.disabled = disableItemControls;
+    els.ccSpacerSelect.disabled = disableItemControls;
 
     const submitButton = els.ccOrderForm.querySelector('button[type="submit"]');
     if (submitButton) submitButton.hidden = !!locked;
@@ -371,6 +392,7 @@
         ${locked ? "" : `<button type="button" class="cc-item-remove" data-remove-item="${escapeHtml(item.orderItemId)}" aria-label="Remove">✕</button>`}
       </li>
     `).join("") || `<li class="cc-muted">No items recorded yet.</li>`;
+    syncPartSelectsFromOrder();
   }
 
   async function addItem(entryMethod) {
@@ -401,6 +423,105 @@
   function showScanMessage(message, isError) {
     els.ccScanMessage.textContent = message || "";
     els.ccScanMessage.classList.toggle("cc-error", !!isError);
+  }
+
+  // ââ Theme ââââââââââââââââââââââââââââââââââââ
+  // Shares the same localStorage key and document.documentElement.dataset.theme
+  // hook as shared.js's shell toggle, so the choice is consistent with the rest
+  // of the app even though this standalone page doesn't load shared.js.
+  const THEME_KEY = "optilens.theme";
+
+  function applyTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* storage unavailable */ }
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = saved || (prefersDark ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+    updateThemeToggleBtn(theme);
+  }
+
+  function setTheme(theme) {
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage unavailable; won't persist */ }
+    applyTheme();
+  }
+
+  function updateThemeToggleBtn(theme) {
+    const btn = document.getElementById("ccThemeToggle");
+    if (!btn) return;
+    const isDark = theme === "dark";
+    btn.textContent = isDark ? "âï¸" : "ð";
+    btn.setAttribute("aria-pressed", String(isDark));
+    btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  }
+
+  // ── Clip part pickers (lens/bridge/magnet/spacer) ───────────────────
+  // These are real Innovations catalog SKUs (see lib/chemistry.js's
+  // getClipPartOptions), not free-standing attributes -- picking one adds it
+  // to the order's inventory-used list the same way a barcode scan would.
+  async function ensureCatalogOptionsLoaded() {
+    if (state.catalogOptions) return;
+    try {
+      state.catalogOptions = await api("/api/chemistry/catalog/options");
+    } catch (error) {
+      state.catalogOptions = { lens: [], bridge: [], magnet: [], spacer: [] };
+      showFormMessage(`Could not load part catalog: ${error.message}`, true);
+      return;
+    }
+    populatePartSelect(els.ccLensSelect, state.catalogOptions.lens, true);
+    populatePartSelect(els.ccBridgeSelect, state.catalogOptions.bridge, false);
+    populatePartSelect(els.ccMagnetSelect, state.catalogOptions.magnet, false);
+    populatePartSelect(els.ccSpacerSelect, state.catalogOptions.spacer, false);
+  }
+
+  function populatePartSelect(selectEl, items, groupByCategory) {
+    const optionHtml = (item) => `<option value="${escapeHtml(item.sku)}">${escapeHtml(item.name)}</option>`;
+    let html = '<option value="">— None —</option>';
+    if (groupByCategory) {
+      const byCategory = new Map();
+      for (const item of items) {
+        if (!byCategory.has(item.category)) byCategory.set(item.category, []);
+        byCategory.get(item.category).push(item);
+      }
+      for (const [category, catItems] of byCategory) {
+        html += `<optgroup label="${escapeHtml(category)}">${catItems.map(optionHtml).join("")}</optgroup>`;
+      }
+    } else {
+      html += items.map(optionHtml).join("");
+    }
+    selectEl.innerHTML = html;
+  }
+
+  function findOrderItemByRole(role) {
+    const items = (state.currentOrder && state.currentOrder.items) || [];
+    return items.find((item) => item.itemRole === role);
+  }
+
+  function syncPartSelectsFromOrder() {
+    const roleSelects = { lens: els.ccLensSelect, bridge: els.ccBridgeSelect, magnet: els.ccMagnetSelect, spacer: els.ccSpacerSelect };
+    for (const [role, selectEl] of Object.entries(roleSelects)) {
+      const item = findOrderItemByRole(role);
+      selectEl.value = item ? item.sku : "";
+    }
+  }
+
+  async function handlePartSelectChange(role, selectEl) {
+    if (!state.currentOrderId) return;
+    const newSku = selectEl.value;
+    const existing = findOrderItemByRole(role);
+    try {
+      if (existing) {
+        state.currentOrder = await api(`/api/chemistry/orders/${state.currentOrderId}/items/${existing.orderItemId}`, { method: "DELETE" });
+      }
+      if (newSku) {
+        state.currentOrder = await api(`/api/chemistry/orders/${state.currentOrderId}/items`, {
+          method: "POST",
+          body: { sku: newSku, itemRole: role, quantity: 1, entryMethod: "manual", operator: currentOperator() }
+        });
+      }
+    } catch (error) {
+      showFormMessage(error.message, true);
+    }
+    renderItemList();
   }
 
   function escapeHtml(value) {
