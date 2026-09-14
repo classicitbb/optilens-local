@@ -25,6 +25,8 @@ The application, private app database, source database, and Host Monitor are onl
 
 Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and reports both Progressive and Bifocal volume. The authoritative host checkout already contained the correction; its focused regression and full test suite passed, a controlled restart was issued, and the final health harness reported all systems online on 2026-08-31. External Edge reaches the live application but is currently at its sign-in page, so authenticated rendered verification remains pending.
 
+Business Metrics Inventory now opens read-only detail lists from Not moving, Units moved, and Items tracked. Zero-cost inventory rows identify misc SKU values in the `OPC R / SKU` column and open a cached item-properties view; zero-cost invoice rows open a read-only invoice audit with every visible line's price, cost, revenue, and margin. Wide drawers become full-screen before horizontal scrolling. These local changes have not been deployed or authenticated-browser verified.
+
 Credentials Vault deletion now persists an operator-selected removal without template reseeding on a later read, lock, or unlock. Supplier Automation now exposes protected action/exception detail routes, actionable mapping deep links, and a daily unresolved-items digest path. The digest is fail-closed: it remains disabled unless the explicit digest flag and Email-vault SMTP fields are configured; it sends only to the configured mailbox account and self-marked messages are ignored by the IMAP poller. New migration `041-supplier-exception-digests.sql` is registered but has not been applied. No SMTP delivery or source status write-back was enabled.
 
 The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The local Credentials Vault now offers a dedicated `Source MSSQL Writer (Innovations)` SQL Server entry and configuration resolves it without falling back to the read identity. The change is not deployed; write-back remains unavailable until an operator stores that entry and separately authorizes the enable flag and status allowlist.
@@ -61,6 +63,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 
 - `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
 - `test/business-metrics-overview.test.js`: regression guard for Fulfillment order type and OPC matching.
+- `lib/metrics/drill.js`, `lib/metrics/inventory.js`, `public/business-metrics-inventory.js`, `public/business-metrics-shared.js`, and `public/styles/pages/business-metrics.css`: inventory headline/item drills, invoice audit drill, misc SKU visibility, and full-screen wide drawers.
 
 - `lib/credential-vault.js` and `public/credentials.html`: intentional vault deletions survive reload/lock cycles and revert visibly if persistence fails.
 - `lib/operations/service.js`, `lib/operations/routes.js`, `public/supplier-email.*`, and `public/styles/pages/automation.css`: protected action/exception details and deep links to direct mapping or message remediation.
@@ -92,6 +95,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 
 - Read-only live MSSQL check confirmed `OrderType = 6` is `Fulfillment` and contains matching Progressive and Bifocal OPC stock-lens volume in the active analytics window; legacy 3/9 types contained none.
 - `node --test test/business-metrics-overview.test.js` — 20 passed.
+- `node --test test/business-metrics-overview.test.js` — 23 passed; `npm run check` and changed-file `node --check` passed. A full `npm test` started cleanly but did not finish within the 30-second local runner limit.
 - Host deployment check: the correction commit is an ancestor of the authoritative checkout; host `npm test` — 4 passed; a controlled `npm run app:restart` was issued; `node scripts/monitor-harness.js verify` — all systems online.
 - `node --check lib/metrics/inventory-trends.js`, `node --check lib/metrics/context.js`, `node --check public/business-metrics-inventory.js`, and `git diff --check` — passed.
 - Direct live `getAddPowerTrends(24)` check — Progressive 9,874 units and Bifocal 5,331 units across all 11 add buckets.
@@ -154,6 +158,9 @@ When work is incomplete, record:
 
 - Blocker: the external Edge session is at OptiLens Local sign-in; no authenticated session is available for rendered verification.
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
+
+- Approval required: deploy the local Business Metrics inventory audit and drill changes through the guarded update workflow, then run health verification. This is a production application-code deployment; it does not write Innovations data.
+- Next action: after deployment approval, in authenticated external Edge or Chrome open Inventory, drill Not moving, Units moved, and Items tracked, then open a zero-cost item and a zero-cost invoice row to confirm the full-screen drawer and read-only details.
 
 - Approval required: deploy the local Delivery Export density/accessibility change and run the guarded health verification before treating it as live. The local external-Edge fixture proves rendering and keyboard behavior but not the deployed authenticated page.
 - Next action: after deployment approval, apply the feature branch through the guarded update workflow, run `node scripts/monitor-harness.js verify`, then repeat the shipment search and keyboard-selection check in authenticated external Edge or Chrome.
