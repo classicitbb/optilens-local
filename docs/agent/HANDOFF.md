@@ -2,7 +2,7 @@
 
 - Repository: `classicitbb/optilens-local`
 - Status: In progress — invoice-line gateway implementation complete locally; deployment and live read verification pending
-- Last synchronized: 2026-09-01
+- Last synchronized: 2026-09-14
 
 ## Objective and current state
 
@@ -30,6 +30,8 @@ Credentials Vault deletion now persists an operator-selected removal without tem
 The Automation capability overview is now a collapsed native accordion. Source status write-back requires a separate least-privilege source writer, an explicit enabled flag, and a non-empty CurrentStatusID allowlist before it can connect or write. The local Credentials Vault now offers a dedicated `Source MSSQL Writer (Innovations)` SQL Server entry and configuration resolves it without falling back to the read identity. The change is not deployed; write-back remains unavailable until an operator stores that entry and separately authorizes the enable flag and status allowlist.
 
 Delivery Export now uses one current-shipment universal search, compact invoice controls, per-shipment defaults, and an accessible resizable shipment split. Shipment prep has a page-header search, explicit active selection, and a viewport-filling preview. Commercial Invoice now defaults freight to 62, packages to 1, and delivery terms to Free on Board; uses a single pounds/kilos gross-weight input persisted as kilograms; defaults Customer order no. to the primary contact; traces shipment tracking before reference fallbacks; and labels stock/fulfillment commodity specifications. Read-only source and local checks found six zero-item rows in the local mirror while the current source had none; current empty Innovations mirrors are now omitted from the operational list without deleting local history. The commodity default no longer prepends PO text, and shipping marks are regenerated as seller / buyer account / shipment ID.
+
+Shipment prep's master-detail workspace now uses square, shadow-free panels and table containers with consistent one-pixel grid rules. Its current-shipment toolbar is a single compact row with 34-pixel controls and a screen-reader-preserved search label. Shipment rows are native buttons with visible keyboard focus, dark-mode selection contrast, and focus restoration after rerendering. This change is local only and has not been deployed.
 
 Commercial Invoice now classifies a lens as finished spectacles (`90049000`, displayed as `9004.90.00.000`) when the source price-list item is marked edged or any invoice line records billed edging (including the established trigger rows). The source query uses a one-row aggregate lookup per invoice line, avoiding duplicate invoice rows when multiple price-list records share an ID. This local change is not deployed.
 
@@ -70,6 +72,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `.env.example` and `test/operations-source-status-writeback.test.js`: document and test the required writer and allowlist gates.
 - `lib/config.js` and `public/credentials.html`: Credentials Vault source-writer template and resolver, without read-identity fallback.
 - `public/delivery-export.html`, `public/delivery-export.js`, and `public/styles/components.css`: redesigned shipment search, compact commercial-invoice workspace, shipment-defaults launcher/tab, tooltip, package dropdown, and accessible divider.
+- `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, and `test/delivery-export-current-shipments.test.js`: square dense shipment-prep tables/panels, slim current-shipment toolbar, semantic column headers, and keyboard-operable shipment rows with retained focus.
 - `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, and `test/commercial-invoice-defaults.test.js`: shipment-prep reconciliation plus commercial-invoice defaults, tracking fallback, stock-order wording, declaration display, unit conversion, and focused coverage.
 - `lib/beswift-co.js` and `test/commercial-invoice-defaults.test.js`: source-backed edged-work tariff classification and regression coverage.
 - `lib/delivery.js`, `lib/source-innovations.js`, `server.js`, and `lib/beswift-co.js`: zero-item mirror suppression, read-only universal source search, clean shipping-marks format, and lens/item descriptions without a PO prefix.
@@ -109,6 +112,8 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `node --test test/delivery-document-preview.test.js test/innovations-sync-log.test.js test/update-manager.test.js test/git-update-checker.test.js` — 17 passed after merging the monitor-sync-error branch and current remote master.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
+- `node --check public/delivery-export.js`; `node --test test/delivery-export-current-shipments.test.js test/design-system.test.js` — 8 passed. An isolated local fixture in external Edge confirmed the compact square layout, direct sequential typing, dark-mode selected-row contrast, and Enter-key selection with focus retained. No live data or write action was used.
+- `npm run check` and `npm test` — passed; full suite 177/177.
 - `node --test test/commercial-invoice-defaults.test.js` — 3 passed; `node --check lib/beswift-co.js` and `git diff --check` — passed.
 - `node --check server.js`, `node --check public/delivery-export.js`, and `node --test --test-name-pattern="commercial invoice" test/delivery-document-preview.test.js` — passed (2 tests). `node scripts/monitor-harness.js verify` — all systems online. The full document-preview file still has two pre-existing CRLF-sensitive reusable-helper assertions; its two Commercial Invoice tests pass.
 - Delivery Export has not yet been browser-verified in an authenticated external Edge/Chrome session.
@@ -149,6 +154,9 @@ When work is incomplete, record:
 
 - Blocker: the external Edge session is at OptiLens Local sign-in; no authenticated session is available for rendered verification.
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
+
+- Approval required: deploy the local Delivery Export density/accessibility change and run the guarded health verification before treating it as live. The local external-Edge fixture proves rendering and keyboard behavior but not the deployed authenticated page.
+- Next action: after deployment approval, apply the feature branch through the guarded update workflow, run `node scripts/monitor-harness.js verify`, then repeat the shipment search and keyboard-selection check in authenticated external Edge or Chrome.
 
 - Current test-system authorization: the user explicitly authorized autonomous controlled testing for this Innovations file-drop scenario. It does not authorize production changes, credentials/permission changes, or non-test external sends.
 - Current state: one controlled file-drop is pending watcher ingestion. The test helper now awaits and reports the watcher outcome reliably.

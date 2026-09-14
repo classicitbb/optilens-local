@@ -204,7 +204,7 @@ function renderShipmentRows(selector, sessions, emptyText) {
     const id = escapeHtml(session.shipment_session_id);
     const selected = moduleState.selectedSessionId === session.shipment_session_id;
     return `
-      <article class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}"${selected ? ' aria-current="true"' : ""}>
+      <button type="button" class="shipment-list-row ${selected ? "selected" : ""}" data-session-id="${id}"${selected ? ' aria-current="true"' : ""}>
         <strong>${escapeHtml(session.customer_name || session.customer_account || "Unassigned customer")}</strong>
         <span>${escapeHtml(session.customer_account || "")}</span>
         <span>${escapeHtml(session.shipping_method_name || "")}</span>
@@ -215,7 +215,7 @@ function renderShipmentRows(selector, sessions, emptyText) {
         <span>${escapeHtml(session.source_shipment_id || "")}</span>
         <span>${escapeHtml(session.source_shipment_batch_id || "")}</span>
         <span>${escapeHtml(session.shipment_bin || "")}</span>
-      </article>`;
+      </button>`;
   }).join("") || `<p class="shipment-empty">${escapeHtml(emptyText)}</p>`;
 }
 
@@ -1128,6 +1128,9 @@ async function refreshShipmentSessions(options = {}) {
 async function selectShipmentSession(sessionId) {
   moduleState.selectedSessionId = sessionId;
   renderShipmentSessions();
+  [...document.querySelectorAll(".shipment-list-row[data-session-id]")]
+    .find((row) => row.dataset.sessionId === sessionId)
+    ?.focus({ preventScroll: true });
   await loadSelectedShipmentItems();
 }
 
