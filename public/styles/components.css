@@ -603,14 +603,16 @@ th {
 }
 
 .delivery-export-page .module-main {
+  margin: 0;
+  max-width: none;
   padding: 0;
 }
 
 .delivery-export-page .module-workspace {
   min-height: calc(100vh - 56px);
-  border-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   /* The sticky invoice checklist needs a non-clipping ancestor, and the shared
      workspace card clips by default. The panels on this page already clip their
      own overflowing tables, so the card does not have to. */
@@ -2369,6 +2371,14 @@ textarea.ci-line-input {
   border-top: 1px solid var(--line);
 }
 
+/* The signed-in launch pad is content on the canvas, not another card. */
+.signed-in .welcome-banner {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 /* ════════════════════════════════════════════════════════
    ANALYTICS / STATUS BAND
 ════════════════════════════════════════════════════════ */
@@ -2854,7 +2864,7 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 @media (max-width: 620px) { .ci-entry-intro { display: grid; } .ci-entry-grid { grid-template-columns: 1fr; } .ci-entry-field-wide { grid-column: auto; } .ci-entry-totals { grid-template-columns: 1fr; } }
 
 /* Shipment details and charges are a distinct entry section, not a paper-invoice header. */
-#commercialInvoice .co-draft-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--bg-elevated); }
+#commercialInvoice .co-draft-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 0; background: var(--bg-elevated); }
 #commercialInvoice .co-draft-controls-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; grid-column: 1 / -1; }
 #commercialInvoice .co-draft-controls-head h3 { margin: 0 0 3px; color: var(--ink); font-size: 16px; }
 #commercialInvoice .co-draft-controls-head p { margin: 0; color: var(--muted); font-size: 12px; }

@@ -51,3 +51,23 @@ test("automation and integration capability icons use system variants instead of
       `${page} must not embed palette values in component markup`);
   }
 });
+
+test("delivery, launch-pad, pricing, and shell refinements retain their intended presentation hooks", () => {
+  const components = read("public/styles/components.css");
+  const shell = read("public/styles/shell.css");
+  const shared = read("public/shared.js");
+  const pricing = read("public/tools/pricing-automation/pricing.css");
+  const pricingMarkup = read("public/tools/pricing-automation/index.html");
+
+  assert.match(components, /\.delivery-export-page \.module-main \{[\s\S]*max-width: none;/);
+  assert.match(components, /\.delivery-export-page \.module-workspace \{[\s\S]*border: 0;[\s\S]*border-radius: 0;/);
+  assert.match(components, /\.signed-in \.welcome-banner \{[\s\S]*background: transparent;[\s\S]*box-shadow: none;/);
+  assert.match(components, /#commercialInvoice \.co-draft-controls \{[\s\S]*padding: 12px;/);
+  assert.match(shell, /\.search-overlay \{[\s\S]*background: transparent;[\s\S]*backdrop-filter: none;/);
+  assert.match(shell, /\.search-palette \{[\s\S]*border-radius: 0 0 5px 5px;/);
+  assert.match(shell, /\.launcher-panel \.launcher-tile \{[\s\S]*background: transparent;/);
+  assert.match(pricingMarkup, /<body class="pricing-automation-page">/);
+  assert.match(pricing, /\.matrix-hdr h3 \{ color: #fff;/);
+  assert.match(pricing, /body\.pricing-automation-page \.pl-topbar \.pl-btn \{/);
+  assert.doesNotMatch(shared, /function open\(\)  \{ overlay\.hidden = false; input\?\.focus\(\); renderResults\(""\); document\.body\.style\.overflow/);
+});

@@ -86,6 +86,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
 - `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, `public/styles/system.css`, and `test/commercial-invoice-defaults.test.js`: square shared tabs/workspace and job list; calculated invoice amounts; authoritative edging tariff; and regenerated certificate line payloads for new job snapshots.
+- `public/styles/components.css`, `public/styles/shell.css`, `public/shared.js`, `public/tools/pricing-automation/index.html`, `public/tools/pricing-automation/pricing.css`, and `test/design-system.test.js`: edge-to-edge Delivery Export shell with padded shipment fields; flat signed-in launch-pad greeting; compact public/admin-style launcher; non-modal header search dropdown; and readable Pricing group titles with a consistent action toolbar.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 - `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
 - `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
@@ -139,6 +140,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - Guarded maintenance update — smoke check passed; service restart passed; `data/update-state.json` recorded `completed`; `data/update-status.json` recorded `succeeded`; `data/local-update.log` ends with `Update completed.`; loopback update check reported no available updates; Host Monitor process was relaunched. The advisory `npm test` result was 165 passed / 2 failed (the unrelated innovations-sync-log and rx-generator assertions described above).
 - `node --test test/delivery-document-preview.test.js test/rx-generator.test.js test/innovations-sync-log.test.js` — 27 passed.
 - `npm test` — 176 passed, 0 failed.
+- `node --check public/shared.js`; `node --check public/delivery-export.js`; `node --test test/design-system.test.js test/commercial-invoice-defaults.test.js test/delivery-document-preview.test.js`; `npm run check`; and `git diff --check` — passed after the Delivery Export, Launch Pad, shared shell, and Pricing refinements.
 
 ## Required handoff fields
 
@@ -171,6 +173,9 @@ When work is incomplete, record:
 
 - Approval required: deploy the local Delivery Export tab/invoice/fill-job refinement through the guarded update workflow, then run health verification. This changes production application code but does not submit a BeSwift fill job or write source data.
 - Next action: after deployment approval, in authenticated external Edge or Chrome directly type a certificate-line price and quantity, verify its calculated amount/total and saved preview after reload, then queue only a test draft and inspect its snapshot without claiming or running the extension job.
+
+- Approval required: deploy the local Delivery Export, Launch Pad, shared-shell, and Pricing presentation refinements through the guarded update workflow, then run health verification. This changes production application code only; it does not write business data or submit a BeSwift job.
+- Next action: after deployment approval, inspect the Delivery Export workspace edge-to-edge at desktop width, the signed-in Launch Pad banner, Pricing action toolbar and matrix group title, then open the launcher and search dropdown in authenticated external Edge or Chrome.
 
 - Current test-system authorization: the user explicitly authorized autonomous controlled testing for this Innovations file-drop scenario. It does not authorize production changes, credentials/permission changes, or non-test external sends.
 - Current state: one controlled file-drop is pending watcher ingestion. The test helper now awaits and reports the watcher outcome reliably.
