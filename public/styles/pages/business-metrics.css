@@ -114,6 +114,7 @@
 
 .ov-scrim { position:fixed; inset:0; background:rgba(11,30,53,.42); z-index:80; }
 .ov-drawer { position:fixed; top:0; right:0; bottom:0; width:fit-content; min-width:min(760px, 96vw); max-width:96vw; background:var(--bg); border-left:1px solid var(--line); z-index:81; display:flex; flex-direction:column; box-shadow:var(--shadow-hover); }
+.ov-drawer.ov-drawer-fullscreen { left:0; width:100vw; max-width:none; }
 .ov-drawer-head { padding:14px 18px 10px; border-bottom:1px solid var(--line); background:var(--surface); }
 .ov-crumb { display:flex; align-items:center; gap:6px; font-size:.74rem; color:var(--muted); margin-bottom:6px; flex-wrap:wrap; }
 .ov-crumb button { border:0; background:transparent; font:inherit; font-size:.74rem; color:var(--blue); cursor:pointer; padding:0; text-decoration:underline; }

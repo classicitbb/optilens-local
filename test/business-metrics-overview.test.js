@@ -6,6 +6,7 @@ const path = require("node:path");
 const { periodRange, PERIODS } = require("../lib/metrics/summary");
 const { DRILL_KINDS } = require("../lib/metrics/drill");
 const { DETAIL_SECTIONS } = require("../lib/metrics/detail");
+const { INVENTORY_DRILLS } = require("../lib/metrics/inventory");
 const {
   buildConformanceQuery, buildGapsQuery, buildFarmoutLabsQuery,
   TEMPLATE_PRICE_LIST_ID, SUPPLIER_COST_GROUP, COST_LIST_CHECKS
@@ -290,6 +291,46 @@ test("stock-lens add trends use fulfilment invoices and their OPCs", () => {
     "stock-lens sales must resolve the invoiced SKU through all OPC fields");
   assert.match(context, /Fulfillment orders \(OrderType 6\)/,
     "the Business Metrics explanation must describe the population it reports");
+});
+
+test("zero-cost invoice rows lead to a read-only invoice audit", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "drill.js"), "utf8");
+  const zeroCost = source.slice(source.indexOf('async "zero-cost-lines"'), source.indexOf('async "invoice-audit"'));
+
+  assert.ok(DRILL_KINDS.includes("invoice-audit"), "invoice audit drill must be routed");
+  assert.match(zeroCost, /next:\s*\{\s*kind:\s*"invoice-audit",\s*carry:\s*\["invoiceId"\]/,
+    "a zero-cost line must open the invoice audit for its invoice");
+  assert.match(source, /async "invoice-audit"[\s\S]*?FROM dbo\.InvoiceLines d/,
+    "invoice audit must return the invoice's visible lines");
+});
+
+test("inventory headline cards and exception rows have registered detail paths", () => {
+  const inventoryUi = readPublic("business-metrics-inventory.js");
+  const inventorySource = fs.readFileSync(path.join(__dirname, "..", "lib", "metrics", "inventory.js"), "utf8");
+
+  for (const kind of ["inventory-moved", "inventory-tracked", "inventory-item"]) {
+    assert.ok(Object.hasOwn(INVENTORY_DRILLS, kind), `${kind} must be registered`);
+  }
+  assert.match(inventoryUi, /stat\("Units moved",[\s\S]*?"inventory-moved"\)/,
+    "Units moved tile must open its contributing items");
+  assert.match(inventoryUi, /stat\("Items tracked",[\s\S]*?"inventory-tracked"\)/,
+    "Items tracked tile must open its contributing items");
+  assert.match(inventoryUi, /inventory-speed\?class=non_mover/,
+    "Not moving tile must open its non-movers");
+  assert.match(inventorySource, /label: "OPC R \/ SKU"/,
+    "misc stock must have a visible SKU location in exception drawers");
+  assert.match(inventorySource, /itemKind: kind, skuR: kind === "misc" \? item\.sku/,
+    "misc exception rows must populate that SKU location");
+  assert.match(inventorySource, /next: \{ kind: "inventory-item", carry: \["itemKind", "key"\] \}/,
+    "item rows must open their linked inventory properties");
+});
+
+test("wide drill tables switch the drawer to full-screen before scrolling", () => {
+  const shared = readPublic("business-metrics-shared.js");
+  const styles = fs.readFileSync(path.join(PUBLIC, "styles", "pages", "business-metrics.css"), "utf8");
+
+  assert.match(shared, /drawer\.classList\.toggle\("ov-drawer-fullscreen", fullscreen\)/);
+  assert.match(styles, /\.ov-drawer\.ov-drawer-fullscreen \{ left:0; width:100vw; max-width:none; \}/);
 });
 
 test("sales figures come from the journal, never from tax-inclusive invoice totals", () => {

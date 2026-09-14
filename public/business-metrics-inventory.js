@@ -130,10 +130,11 @@
 
   /* ─────────── render helpers ─────────── */
 
-  function stat(label, value, detail) {
-    return '<div class="ov-stat"><span class="ov-tile-label">' + esc(label) + "</span>" +
+  function stat(label, value, detail, drill) {
+    var tag = drill ? "button" : "div";
+    return '<' + tag + (drill ? ' type="button" class="ov-tile" data-drill="' + esc(drill) + '"' : ' class="ov-stat"') + '><span class="ov-tile-label">' + esc(label) + "</span>" +
       '<span class="ov-tile-value">' + value + "</span>" +
-      (detail ? '<span class="ov-tile-foot">' + detail + "</span>" : "") + "</div>";
+      (detail ? '<span class="ov-tile-foot">' + detail + "</span>" : "") + '</' + tag + ">";
   }
 
   function panel(title, sub, body) {
@@ -259,9 +260,9 @@
 
     out += '<div class="ov-tiles ov-fade">' +
       stat("Stock value", money(h.totalStockValue), intf(h.stockedItems) + " stocked items") +
-      stat("Not moving", money(h.nonMoverValue), h.nonMoverShareOfValue + "% of value") +
-      stat("Units moved", intf(h.unitsMoved), "last " + intf(months) + " months") +
-      stat("Items tracked", intf(h.trackedItems), "stocked or moved") +
+      stat("Not moving", money(h.nonMoverValue), h.nonMoverShareOfValue + "% of value", "inventory-speed?class=non_mover") +
+      stat("Units moved", intf(h.unitsMoved), "last " + intf(months) + " months", "inventory-moved") +
+      stat("Items tracked", intf(h.trackedItems), "stocked or moved", "inventory-tracked") +
       "</div>";
 
     out += '<div class="ov-fade" style="margin-bottom:12px">' + exceptionRail(inv) + "</div>";

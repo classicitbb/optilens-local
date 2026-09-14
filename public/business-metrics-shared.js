@@ -295,7 +295,14 @@
 
       var horizontalChrome = body.offsetWidth - body.clientWidth;
       var desired = Math.max(760, table.scrollWidth + horizontalChrome);
-      drawer.style.width = Math.ceil(Math.min(window.innerWidth * 0.96, desired)) + "px";
+      // Use the whole viewport before asking an operator to scroll a wide audit
+      // table. A table wider than the viewport still scrolls horizontally, but
+      // only after the drawer is genuinely full-screen.
+      var fullscreen = desired > window.innerWidth * 0.9;
+      drawer.classList.toggle("ov-drawer-fullscreen", fullscreen);
+      drawer.style.width = fullscreen
+        ? ""
+        : Math.ceil(Math.min(window.innerWidth * 0.96, desired)) + "px";
     });
   }
 

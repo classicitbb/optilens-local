@@ -35,3 +35,19 @@ test("shipment prep uses one universal current-search control rather than manual
   assert.doesNotMatch(markup, /id="fromDateInput"/);
   assert.doesNotMatch(markup, /id="toDateInput"/);
 });
+
+test("shipment prep keeps dense square tables keyboard operable", () => {
+  const markup = read("public/delivery-export.html");
+  const client = read("public/delivery-export.js");
+  const styles = read("public/styles/components.css");
+
+  assert.match(markup, /class="shipment-search-label">Find a current shipment/);
+  assert.match(markup, /<th scope="col">Order ID<\/th>/);
+  assert.match(client, /<button type="button" class="shipment-list-row/);
+  assert.doesNotMatch(client, /<article class="shipment-list-row/);
+  assert.match(client, /\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(styles, /\.delivery-export-page \.shipment-prep-toolbar[\s\S]*?padding: 4px 8px;/);
+  assert.match(styles, /\.shipment-search-field input[\s\S]*?border-radius: 0;/);
+  assert.match(styles, /\.shipment-list-row:focus-visible/);
+  assert.match(styles, /\.delivery-export-page \.shipment-detail-panel \.table-wrap[\s\S]*?border-radius: 0;/);
+});

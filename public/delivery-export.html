@@ -35,8 +35,9 @@
 
       <section class="workflow-panel active" id="shipmentPrep">
         <div class="access-toolbar shipment-prep-toolbar">
-          <label class="shipment-search-field">Find a current shipment
-            <input id="shipmentSearchInput" type="search" placeholder="Patient, shipment ID, invoice ID, Rx number, customer or account" aria-label="Universal shipment search" autocomplete="off">
+          <label class="shipment-search-field">
+            <span class="shipment-search-label">Find a current shipment</span>
+            <input id="shipmentSearchInput" type="search" placeholder="Patient, shipment ID, invoice ID, Rx number, customer or account" autocomplete="off">
           </label>
           <div class="shipment-current-scope" aria-label="Current shipment scope">
             <span class="material-symbols-outlined" aria-hidden="true">today</span>
@@ -97,13 +98,13 @@
               <table class="shipment-items-table">
                 <thead>
                   <tr>
-                    <th>Order ID</th>
-                    <th>Order Type</th>
-                    <th>Rx Number</th>
-                    <th>Shipment ID</th>
-                    <th>Bill To Account</th>
-                    <th>Patient</th>
-                    <th>Shipped Time</th>
+                    <th scope="col">Order ID</th>
+                    <th scope="col">Order Type</th>
+                    <th scope="col">Rx Number</th>
+                    <th scope="col">Shipment ID</th>
+                    <th scope="col">Bill To Account</th>
+                    <th scope="col">Patient</th>
+                    <th scope="col">Shipped Time</th>
                   </tr>
                 </thead>
                 <tbody id="shipmentItemsRows">
