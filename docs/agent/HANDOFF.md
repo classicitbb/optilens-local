@@ -1,12 +1,12 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — host-monitor recovery requires service-control authority; invoice-line gateway implementation complete locally; deployment and live read verification pending
+- Status: In progress — invoice-line gateway implementation complete locally; deployment and live read verification pending
 - Last synchronized: 2026-09-14
 
 ## Objective and current state
 
-Host Monitor recovery was investigated on 2026-09-14. The native monitor process and OptiLens health endpoint are online, and the Innovations sync has subsequently reported a successful scheduled run. The durable restart state remains failed because `scripts/restart-app.ps1` forwarded its child-script arguments incorrectly; that forwarding is corrected in the local checkout. A single guarded restart after the correction reached `stop-app.ps1`, but Windows denied stopping the existing OptiLens Local service even when invoked through the approved host-context command. Do not repeat restart or repair attempts. The scoped fix has not been deployed. The host monitor process is visible to a direct PowerShell read, but the local sandbox blocks Node from spawning its child PowerShell inspection command, so harness verification must be rerun in a session without that sandbox restriction after service-control access is restored.
+Host Monitor recovery and the available runtime update completed on 2026-09-14. The previous service wrapper was stuck while accepting no control messages, and its interrupted dependency recovery left production modules incomplete. The verified wrapper and child process were released, production dependencies were rebuilt deterministically, and the registered service returned healthy. The guarded updater then passed its smoke check and full suite (184/184), restarted OptiLens Local successfully, relaunched the Host Monitor, and recorded a completed durable restart state. The final monitor harness verified all systems online; no update remains available.
 
 Delivery Export refinements are complete locally and await deployment plus authenticated external-browser verification. Shared workflow/settings tabs now use top-only rounded corners with active tabs joined to their panels while utility icons remain rounded controls. The Commercial Invoice action sequence is `1 - Prepare Draft`, `2 - Save Draft`, `Print / PDF`, `3 - Queue Fill Job`; shipment/invoice outer containers are square and flush; and fill jobs render as a separator-based rectangular list. Invoice amounts are calculated from quantity × unit price and are read-only. Save and Queue now recompose certificate-eligible invoice items from persisted line overrides, so edited descriptions, customs details, quantity, and price enter every new BeSwift job snapshot; existing job snapshots remain immutable. Edged items enforce `90049000` (displayed as `9004.90.00.000`) despite historical manual HS or amount overrides. Focused invoice/document/design tests (17) and `npm run check` passed; the full `npm test` runner started with four passing assistant tests but did not reach a final result before the local 30-second command limit. No deployment, live-data write, or browser fill job was performed.
 
@@ -156,10 +156,6 @@ When work is incomplete, record:
 - One exact executable next action.
 
 ## Blocker and next action
-
-- Blocker: the current session is denied permission to stop the OptiLens Local Windows service. Consequently the restart-state record remains failed even though the health endpoint and native Host Monitor process are online.
-- Approval required: an administrator/service-control session to run one guarded restart; do not make service ACL, credential, or scheduled-task changes as part of this recovery.
-- Next action: from an approved elevated host session, run `npm run app:restart`, then `node scripts/monitor-harness.js verify`; confirm `data/service-restart-state.json` reports `completed` before clearing this handoff entry.
 
 - Blocker: read-only Innovations source verification fails with `Login failed for user 'sql_reporting'. Reason: The password of the account has expired.`
 - Approval required: deploy the scoped OptiLens gateway and hosted portal changes, then use a valid least-privilege read credential to run one customer-scoped invoice-line read and an authenticated external Edge/Chrome portal check. No production deployment or credential change was authorized in this task.
