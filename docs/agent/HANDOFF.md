@@ -6,6 +6,8 @@
 
 ## Objective and current state
 
+Delivery Export refinements are complete locally and await deployment plus authenticated external-browser verification. Shared workflow/settings tabs now use top-only rounded corners with active tabs joined to their panels while utility icons remain rounded controls. The Commercial Invoice action sequence is `1 - Prepare Draft`, `2 - Save Draft`, `Print / PDF`, `3 - Queue Fill Job`; shipment/invoice outer containers are square and flush; and fill jobs render as a separator-based rectangular list. Invoice amounts are calculated from quantity × unit price and are read-only. Save and Queue now recompose certificate-eligible invoice items from persisted line overrides, so edited descriptions, customs details, quantity, and price enter every new BeSwift job snapshot; existing job snapshots remain immutable. Edged items enforce `90049000` (displayed as `9004.90.00.000`) despite historical manual HS or amount overrides. Focused invoice/document/design tests (17) and `npm run check` passed; the full `npm test` runner started with four passing assistant tests but did not reach a final result before the local 30-second command limit. No deployment, live-data write, or browser fill job was performed.
+
 Restart progress and the CVWeb alias-tombstone receiver fix are implemented locally but not deployed. `scripts/restart-app.ps1` now writes atomic `data/service-restart-state.json` progress plus `data/logs/service-restart.log`, prevents overlapping runs with a bounded mutex, and finishes only after `/api/health/live` identifies `optilens-local`. The native Host Monitor reads those files directly once per second across the Node outage, shows a labelled `server.err.log` tail, and uses the same window for Restart and Super-user Fix errors. The running monitor executable was locked during rebuild; source compiled successfully to a temporary executable, so rebuild/relaunch remains an explicit host-maintenance action. CVWeb now updates inactive alias tombstones without inserting incomplete catalog rows, and the local sender test guards the minimal tombstone shape. Focused CVWeb and local sender tests passed; no external Edge deployment, committed sync, or controlled live restart was performed.
 
 
@@ -83,6 +85,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `server.js`, `public/delivery-export.js`, and `test/delivery-document-preview.test.js`: explicit Barbados-dollar (`BBD $`) labels for Commercial Invoice printed/PDF amounts, totals, and workspace price columns.
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
+- `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, `public/styles/system.css`, and `test/commercial-invoice-defaults.test.js`: square shared tabs/workspace and job list; calculated invoice amounts; authoritative edging tariff; and regenerated certificate line payloads for new job snapshots.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 - `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
 - `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
@@ -116,6 +119,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `node --test test/delivery-document-preview.test.js test/innovations-sync-log.test.js test/update-manager.test.js test/git-update-checker.test.js` — 17 passed after merging the monitor-sync-error branch and current remote master.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
+- `node --check lib/beswift-co.js`; `node --check public/delivery-export.js`; `node --test test/commercial-invoice-defaults.test.js test/delivery-document-preview.test.js test/design-system.test.js`; `npm run check`; and `git diff --check` — passed. `npm test` began with 4 passing tests but did not finish before the local runner's 30-second limit.
 - `node --check public/delivery-export.js`; `node --test test/delivery-export-current-shipments.test.js test/design-system.test.js` — 8 passed. An isolated local fixture in external Edge confirmed the compact square layout, direct sequential typing, dark-mode selected-row contrast, and Enter-key selection with focus retained. No live data or write action was used.
 - `npm run check` and `npm test` — passed; full suite 177/177.
 - `node --test test/commercial-invoice-defaults.test.js` — 3 passed; `node --check lib/beswift-co.js` and `git diff --check` — passed.
@@ -164,6 +168,9 @@ When work is incomplete, record:
 
 - Approval required: deploy the local Delivery Export density/accessibility change and run the guarded health verification before treating it as live. The local external-Edge fixture proves rendering and keyboard behavior but not the deployed authenticated page.
 - Next action: after deployment approval, apply the feature branch through the guarded update workflow, run `node scripts/monitor-harness.js verify`, then repeat the shipment search and keyboard-selection check in authenticated external Edge or Chrome.
+
+- Approval required: deploy the local Delivery Export tab/invoice/fill-job refinement through the guarded update workflow, then run health verification. This changes production application code but does not submit a BeSwift fill job or write source data.
+- Next action: after deployment approval, in authenticated external Edge or Chrome directly type a certificate-line price and quantity, verify its calculated amount/total and saved preview after reload, then queue only a test draft and inspect its snapshot without claiming or running the extension job.
 
 - Current test-system authorization: the user explicitly authorized autonomous controlled testing for this Innovations file-drop scenario. It does not authorize production changes, credentials/permission changes, or non-test external sends.
 - Current state: one controlled file-drop is pending watcher ingestion. The test helper now awaits and reports the watcher outcome reliably.

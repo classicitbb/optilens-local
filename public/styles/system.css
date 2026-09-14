@@ -273,10 +273,10 @@ tbody tr:hover { background: color-mix(in srgb, var(--color-interactive) 4%, tra
   border-color: var(--color-border);
 }
 
-.workflow-tabs button,
+.workflow-tabs button:not(.workflow-tab-refresh):not(.workflow-tab-settings),
 .settings-tabs button,
 .workbench-nav button {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   color: var(--color-text-muted);
   font-size: .8125rem;
   font-weight: 700;
@@ -286,7 +286,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--color-interactive) 4%, tra
 .settings-tabs button.active,
 .workbench-nav button.active {
   background: var(--color-surface);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
   color: var(--color-interactive);
 }
 

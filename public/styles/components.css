@@ -668,6 +668,7 @@ th {
 
 .workflow-tabs button.active {
   border-color: var(--line);
+  margin-bottom: -1px;
   background: var(--surface);
   color: var(--ink);
 }
@@ -1234,16 +1235,17 @@ th {
 
 .co-job-list {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 0;
+  padding: 0;
 }
 
 .co-job-row {
   display: grid;
   gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px;
   background: var(--bg-elevated);
 }
 
@@ -1658,6 +1660,7 @@ textarea.ci-line-input {
 
 .settings-tabs button.active {
   border-color: var(--line);
+  margin-bottom: -1px;
   background: var(--surface);
   color: var(--ink);
 }
@@ -2801,10 +2804,10 @@ textarea.ci-line-input {
 .item-settings-table th:nth-child(1) { width: 82px; }.item-settings-table th:nth-child(2) { width: 190px; }.item-settings-table th:nth-child(3) { width: 180px; }.item-settings-table th:nth-child(4) { width: 120px; }.item-settings-table th:nth-child(5) { width: 130px; }.item-settings-table th:nth-child(6) { width: 95px; }.item-settings-table th:nth-child(7) { width: 260px; }
 .item-settings-table td { vertical-align: top; padding: 8px; }.item-settings-table input:not([type="checkbox"]) { width: 100%; min-height: 36px; box-sizing: border-box; }.item-setting-source { overflow-wrap: anywhere; line-height: 1.4; }
 @media (max-width: 680px) { .shipment-modal .auth-panel { width: calc(100vw - 24px); } .delivery-settings-panel { width: calc(100vw - 24px) !important; } .modal-form-actions { justify-content: stretch; } .modal-form-actions .button { flex: 1; } }
-.commercial-invoice-entry { padding: 14px; background: var(--surface); }
-.ci-entry-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-.ci-entry-main { display: grid; gap: 14px; min-width: 0; }
-.ci-entry-intro, .ci-entry-section { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
+.commercial-invoice-entry { padding: 0; border-radius: 0; background: var(--surface); }
+.ci-entry-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-items: start; }
+.ci-entry-main { display: grid; gap: 0; min-width: 0; }
+.ci-entry-intro, .ci-entry-section { border: 1px solid var(--line); border-radius: 0; background: var(--bg-elevated); }
 .ci-entry-intro { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 14px; }
 .ci-entry-intro h3, .ci-entry-section h3 { margin: 2px 0 4px; color: var(--ink); font-size: 16px; }
 .ci-entry-intro p:not(.eyebrow), .ci-entry-section-head p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
@@ -2825,7 +2828,7 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 .ci-entry-jump { width: 100%; border: 0; text-align: left; cursor: pointer; font: inherit; }
 .ci-entry-jump:hover, .ci-entry-jump:focus-visible { background: #eaf6fb; outline: 2px solid color-mix(in srgb, var(--blue) 35%, transparent); outline-offset: 1px; }
 .ci-entry-field-wide { grid-column: span 2; }
-.ci-entry-lines-section { overflow: hidden; }
+.ci-entry-lines-section { overflow: hidden; border-radius: 0; }
 .ci-entry-table-wrap { overflow-x: auto; }
 .ci-entry-items { min-width: 920px; margin: 0; border: 0; font-size: 12px; }
 .ci-entry-items th { padding: 9px 6px; font-size: 10px; }
@@ -2851,7 +2854,7 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 @media (max-width: 620px) { .ci-entry-intro { display: grid; } .ci-entry-grid { grid-template-columns: 1fr; } .ci-entry-field-wide { grid-column: auto; } .ci-entry-totals { grid-template-columns: 1fr; } }
 
 /* Shipment details and charges are a distinct entry section, not a paper-invoice header. */
-#commercialInvoice .co-draft-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 12px 14px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elevated); }
+#commercialInvoice .co-draft-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 0; background: var(--bg-elevated); }
 #commercialInvoice .co-draft-controls-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; grid-column: 1 / -1; }
 #commercialInvoice .co-draft-controls-head h3 { margin: 0 0 3px; color: var(--ink); font-size: 16px; }
 #commercialInvoice .co-draft-controls-head p { margin: 0; color: var(--muted); font-size: 12px; }
