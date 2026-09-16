@@ -205,7 +205,20 @@ export function createDefaultSettings() {
       brokeragePerPair: 0.5,
     },
     hiddenGroups: [],
+    addons: ADDONS.map((addon) => ({ ...addon })),
   };
+}
+
+// AR coatings and lens treatments are priced per pricelist (USD, added to the
+// base lens price). A list saved before they were editable gets the defaults.
+export function normalizeAddons(value) {
+  if (!Array.isArray(value)) return ADDONS.map((addon) => ({ ...addon }));
+  return value
+    .filter((addon) => addon && typeof addon === "object")
+    .map((addon) => ({
+      label: String(addon.label == null ? "" : addon.label),
+      price: Math.max(0, Number(addon.price) || 0),
+    }));
 }
 
 export function createDefaultOverrides() {
@@ -252,6 +265,7 @@ export function normalizeSettings(value) {
   if (!Array.isArray(merged.priority)) merged.priority = DEFAULT_PRIORITY.slice();
   if (!Array.isArray(merged.excluded)) merged.excluded = [];
   if (!Array.isArray(merged.hiddenGroups)) merged.hiddenGroups = [];
+  merged.addons = normalizeAddons(value.addons);
   return merged;
 }
 
@@ -259,6 +273,7 @@ export function ensureSettingsShape() {
   if (!Array.isArray(state.settings.hiddenGroups)) state.settings.hiddenGroups = [];
   if (!Array.isArray(state.settings.priority)) state.settings.priority = DEFAULT_PRIORITY.slice();
   if (!Array.isArray(state.settings.excluded)) state.settings.excluded = [];
+  if (!Array.isArray(state.settings.addons)) state.settings.addons = normalizeAddons(state.settings.addons);
   state.overrides = normalizeOverrides(state.overrides);
 }
 

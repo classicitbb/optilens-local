@@ -727,3 +727,12 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   /* Don't orphan section headers */
   .pl-sec-hdr { page-break-after: avoid; }
 }
+
+/* Editable AR coatings & lens treatments */
+.addons-card .matrix-hdr { cursor: default; }
+table.addons-matrix th:nth-child(2) { width: 120px; }
+table.addons-matrix th:nth-child(3), table.addons-matrix td.addon-remove-cell { width: 44px; text-align: center; }
+.addon-label { width: 100%; max-width: 420px; padding: 4px 6px; border: 1.5px solid var(--pl-border); border-radius: 5px; font-size: 12px; font-family: inherit; background: transparent; color: inherit; }
+.addon-label:focus { outline: none; border-color: var(--pl-teal); }
+table.addons-matrix .price-input { width: 90px; }
+.addons-card .legend { font-size: 11px; }

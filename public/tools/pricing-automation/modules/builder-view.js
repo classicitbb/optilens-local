@@ -1,6 +1,5 @@
 import {
   $,
-  ADDONS,
   app,
   currencyRate,
   escapeAttr,
@@ -20,6 +19,7 @@ import {
   TIER_ORDER,
   toast,
   toDisplay,
+  toUSD,
   TREATMENT_ORDER,
   visibleTreatments,
 } from "./state.js";
@@ -116,6 +116,7 @@ export async function supplierToggleExcludeAndReprice(name) {
 }
 
 export function buildMatrix() {
+  buildAddonsMatrix();
   const container = $("matrix-container");
   if (!container) return;
   container.innerHTML = "";
@@ -248,6 +249,52 @@ export function buildMatrix() {
   if (app.refreshAudit) app.refreshAudit();
 }
 
+export function buildAddonsMatrix() {
+  const container = $("addons-container");
+  if (!container) return;
+  const addons = state.settings.addons || [];
+  const rows = addons.map((addon, index) => `
+    <tr>
+      <td class="row-label"><input class="addon-input addon-label" type="text" data-addon-index="${index}" data-addon-field="label" value="${escapeAttr(addon.label)}" placeholder="Coating or treatment" aria-label="Treatment name ${index + 1}"></td>
+      <td><div class="price-input-row"><input class="addon-input price-input" type="number" min="0" step="0.01" data-addon-index="${index}" data-addon-field="price" value="${toDisplay(addon.price).toFixed(2)}" aria-label="Price for ${escapeAttr(addon.label || `treatment ${index + 1}`)}"></div></td>
+      <td class="addon-remove-cell"><button class="mini exc" type="button" data-action="remove-addon" data-index="${index}" title="Remove" aria-label="Remove ${escapeAttr(addon.label || `treatment ${index + 1}`)}">✕</button></td>
+    </tr>`).join("");
+  container.innerHTML = `
+    <div class="matrix-card addons-card">
+      <div class="matrix-hdr">
+        <h3>AR Coatings &amp; Lens Treatments</h3>
+        <small>${escapeHtml(sym())} · add to base price · saved with this pricelist</small>
+      </div>
+      <table class="matrix addons-matrix">
+        <thead><tr><th class="label-col">Coating / treatment</th><th>Price (${escapeHtml(state.currency)})</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="3" class="pl-dash">No coatings or treatments on this pricelist.</td></tr>'}</tbody>
+      </table>
+      <div class="legend"><button class="pl-btn pl-btn-secondary" type="button" data-action="add-addon">+ Add coating / treatment</button></div>
+    </div>`;
+}
+
+export function onAddonEdit(index, field, value) {
+  const addon = state.settings.addons?.[Number(index)];
+  if (!addon) return;
+  if (field === "label") addon.label = String(value).trim();
+  if (field === "price") {
+    addon.price = Math.max(0, toUSD(Number(value) || 0));
+    const input = document.querySelector(`.addon-input[data-addon-index="${Number(index)}"][data-addon-field="price"]`);
+    if (input) input.value = toDisplay(addon.price).toFixed(2);
+  }
+}
+
+export function addAddon() {
+  state.settings.addons.push({ label: "", price: 0 });
+  buildAddonsMatrix();
+  document.querySelector(`.addon-label[data-addon-index="${state.settings.addons.length - 1}"]`)?.focus();
+}
+
+export function removeAddon(index) {
+  state.settings.addons.splice(Number(index), 1);
+  buildAddonsMatrix();
+}
+
 export function toggleCollapse(treatment) {
   state.collapsed[treatment] = !state.collapsed[treatment];
   buildMatrix();
@@ -263,7 +310,7 @@ export function collapseAll(collapsed) {
 export function showPreview(forPrint = false) {
   const unsafe = app.unsafePriceEntries();
   if (unsafe.length) {
-    revealBlockedPriceEntry();
+    app.revealBlockedPriceEntry();
     toast(`Cannot preview: ${unsafe.length} price${unsafe.length === 1 ? "" : "s"} below margin floor`);
     return;
   }
@@ -321,7 +368,7 @@ export function showPreview(forPrint = false) {
   });
   if (!sections) sections = '<div class="pl-empty-state">No prices set yet — run Auto-Price first.</div>';
 
-  const addonRows = ADDONS.map((addon) =>
+  const addonRows = (state.settings.addons || []).filter((addon) => addon.label).map((addon) =>
     `<div class="pl-addon-row"><span>${escapeHtml(addon.label)}</span><span><strong>${sym()}${toDisplay(addon.price).toFixed(2)}</strong></span></div>`
   ).join("");
 
@@ -344,10 +391,10 @@ export function showPreview(forPrint = false) {
       ${customerLine}
       ${sections}
 
-      <div class="pl-section" style="page-break-inside:avoid">
+      ${addonRows ? `<div class="pl-section" style="page-break-inside:avoid">
         <div class="pl-sec-hdr"><span>AR Coatings & Lens Treatments</span><span class="pl-sec-sub">${sym()} · add to base price</span></div>
         <div class="pl-addons-grid">${addonRows}</div>
-      </div>
+      </div>` : ""}
 
       <div class="pl-doc-footer">
         <span>All prices in <strong>${escapeHtml(state.currency)}</strong>. Subject to change without notice. Confirm availability at time of order.</span>
@@ -364,13 +411,17 @@ export function closePreview() {
 }
 
 Object.assign(app, {
+  addAddon,
+  buildAddonsMatrix,
   buildGroupPanel,
   buildMatrix,
   buildSupplierPanel,
   closePreview,
   collapseAll,
+  onAddonEdit,
   onCustomerChange,
   populateCustomers,
+  removeAddon,
   showPreview,
   supplierMoveAndReprice,
   supplierToggleExcludeAndReprice,
