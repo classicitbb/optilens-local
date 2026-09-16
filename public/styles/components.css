@@ -1131,6 +1131,27 @@ th {
   margin: 0;
 }
 
+.co-warning-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.co-warning-link:hover,
+.co-warning-link:focus-visible {
+  color: var(--color-interactive);
+}
+
+.item-settings-table tr.is-target td {
+  background: var(--badge-warn-bg);
+}
+
 .co-draft-controls {
   display: grid;
   grid-template-columns: repeat(7, minmax(92px, 1fr));

@@ -23,6 +23,7 @@ const moduleState = {
   coAutosaveQueued: false,
   coAutoPreparedSessionIds: new Set(),
   coGrossWeightKg: "",
+  unclassifiedItems: [],
   authorisationImageDataUrl: ""
 };
 
@@ -89,6 +90,10 @@ function wireActions() {
   document.querySelector("#queueCoJobBtn")?.addEventListener("click", queueCoJob);
   document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
+  document.querySelector("#coWarnings")?.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-classify-item]");
+    if (link) openItemDefaultsFor(link.dataset.classifyItem);
+  });
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
   document.querySelector("#printCommercialInvoiceBottomBtn")?.addEventListener("click", printCommercialInvoice);
   document.querySelector("#saveCoDraftBottomBtn")?.addEventListener("click", saveCoDraft);
@@ -434,11 +439,31 @@ function wireShipmentDivider() {
   });
 }
 
+const UNCLASSIFIED_ITEM_WARNING = /^New item not yet classified\b.*?\bfor:\s*(.+)$/;
+
 function renderCoWarnings(warnings) {
   const target = document.querySelector("#coWarnings");
   if (!target) return;
+  moduleState.unclassifiedItems = [];
   target.hidden = !warnings.length;
-  target.innerHTML = warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("");
+  target.innerHTML = warnings.map((warning) => {
+    const itemName = String(warning).match(UNCLASSIFIED_ITEM_WARNING)?.[1]?.trim();
+    if (!itemName) return `<p>${escapeHtml(warning)}</p>`;
+    if (!moduleState.unclassifiedItems.includes(itemName)) moduleState.unclassifiedItems.push(itemName);
+    // Unclassified items open straight to their Item defaults row so the HS
+    // code can be entered without hunting through the settings table.
+    return `<p><button type="button" class="co-warning-link" data-classify-item="${escapeHtml(itemName)}" title="Classify ${escapeHtml(itemName)} in Item defaults">${escapeHtml(warning)}</button></p>`;
+  }).join("");
+}
+
+function openItemDefaultsFor(itemName) {
+  openDeliverySettings("itemDefaults");
+  const row = [...document.querySelectorAll("[data-item-setting]")].find((candidate) => candidate.dataset.itemName === itemName);
+  if (!row) return;
+  document.querySelectorAll(".item-settings-table tr.is-target").forEach((candidate) => candidate.classList.remove("is-target"));
+  row.classList.add("is-target");
+  row.scrollIntoView({ block: "center" });
+  row.querySelector('[data-setting-field="hsCode"]')?.focus({ preventScroll: true });
 }
 
 function renderCoJobs() {
@@ -842,7 +867,14 @@ function renderCiComplianceSlot(compliance) {
 function renderItemDefaults() {
   const target = document.querySelector("#itemDefaultsRows");
   if (!target) return;
-  const items = moduleState.invoicePreview?.items || [];
+  const items = [...(moduleState.invoicePreview?.items || [])];
+  // An unclassified item can be folded into a grouped line (e.g. a stock
+  // order), so give every flagged item its own editable row.
+  for (const name of moduleState.unclassifiedItems || []) {
+    if (!items.some((item) => (item.catalogName || item.specification || item.sourceName) === name)) {
+      items.push({ catalogName: name, sourceName: name });
+    }
+  }
   target.innerHTML = items.map((item, index) => {
     const key = item.catalogName || item.specification || item.sourceName || item.ref || `Item ${index + 1}`;
     return `
