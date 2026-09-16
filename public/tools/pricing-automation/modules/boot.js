@@ -253,6 +253,11 @@ function wireEvents() {
 
   document.addEventListener("keydown", (event) => {
     const target = event.target;
+    if ((event.key === "Enter" || event.key === " ") && target.matches(".matrix-hdr[data-action]")) {
+      event.preventDefault();
+      runAction(target).catch((error) => toast(error.message || "Action failed"));
+      return;
+    }
     if (target.id === "audit-wholesale-input" || target.id === "audit-retail-input") {
       app.auditDraftKeydown(event);
       return;

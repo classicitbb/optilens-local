@@ -29,3 +29,12 @@ test("builder renders an editable coatings matrix under the lens grid and previe
   assert.doesNotMatch(builder, /\bADDONS\b/);
   assert.match(boot, /target\.matches\("\.addon-input"\)[\s\S]*?app\.onAddonEdit/);
 });
+
+test("coatings card is a keyboard-operable accordion that starts collapsed", () => {
+  const builder = read("public/tools/pricing-automation/modules/builder-view.js");
+  const boot = read("public/tools/pricing-automation/modules/boot.js");
+  assert.match(builder, /const addonsCollapsed = \(\) => state\.collapsed\[ADDONS_COLLAPSE_KEY\] !== false;/);
+  assert.match(builder, /aria-expanded="\$\{!isCollapsed\}" data-action="toggle-collapse" data-treatment="\$\{ADDONS_COLLAPSE_KEY\}"/);
+  assert.match(builder, /state\.collapsed\[ADDONS_COLLAPSE_KEY\] = collapsed;/);
+  assert.match(boot, /target\.matches\("\.matrix-hdr\[data-action\]"\)/);
+});
