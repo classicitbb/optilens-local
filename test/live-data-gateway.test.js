@@ -8,7 +8,7 @@ test('gateway exposes only approved reads', () => {
   assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_invoice', 'innovations.customer_orders', 'optilens.customer_deliveries']);
 });
 
-test('order payload exposes only the portal order-list fields', () => {
+test('order payload exposes the portal order-list fields needed for a customer to find an order', () => {
   assert.deepEqual(orderPayload({
     order_id: 9,
     invoice_id: 53,
@@ -21,6 +21,7 @@ test('order payload exposes only the portal order-list fields', () => {
     rx_number: 'RX-99',
     patient: 'PATIENT ONE',
   }), {
+    order_id: 9,
     invoice_id: 53,
     amount: 125.5,
     rx_number: 'RX-99',

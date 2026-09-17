@@ -15,6 +15,20 @@ Restart progress and the CVWeb alias-tombstone receiver fix are implemented loca
 
 The portal invoice-line dialog had an approved cloud request path but the private OptiLens gateway did not implement or advertise `innovations.customer_invoice`, producing the empty state in the portal. `lib/live-data-gateway.js` now validates the invoice ID, verifies that it belongs to a non-hidden item on a non-void posted statement owned by the requested customer, and returns only non-suppressed `InvoiceLines` with description, quantity, unit price, and amount. Live order status now includes a posted invoice ID/total; delivery items retain their invoice ID/total so the portal can display prices and open invoice lines per job. The source-schema verification could not run because the configured read-only reporting account reports that its password has expired. No source, cloud, or host writes were made.
 
+The paired portal search refinement is complete locally and awaits the normal
+frontend/private-gateway release. `innovations.customer_orders` now returns the
+already customer-authorized `order_id`, allowing the shared portal search to
+match patient, Rx, or order number across both order status and delivery cards;
+a unique delivery opens and flashes. `test/live-data-gateway.test.js` and
+`test/delivery-export-current-shipments.test.js` pass (16/16), and the full
+Local suite passes (189/189). The commercial-invoice date rule is already
+implemented and tested: it uses `Shipments.ShippedTime`, falling back to the
+app session's `closed_at`, never a grouped invoice date. No deployment,
+restart, source read, or business-data write occurred. Next action: after
+explicit release approval, deploy the paired Local gateway and CV Web frontend,
+then use authenticated external Edge or Chrome to type a known patient, Rx,
+and order ID and verify matching delivery auto-expands and flashes.
+
 Innovations file-drop configuration is now available in Credentials Vault → Other → **Add Innovations incoming folder**. A non-empty `Incoming folder` value overrides only the RX/stock-order incoming destination at runtime; an empty or absent entry retains the existing RX configuration as the safe fallback. This applies consistently to staged RX releases, website-submitted RX file drops, and stock-order releases. Local syntax checks and 20 focused RX/Credentials tests passed. No vault setting, file drop, host restart, deployment, or external submission was performed.
 
 The configured Innovations incoming-folder vault entry resolves at runtime for both RX and stock-order release paths. A host-level non-mutating metadata check confirmed that the destination is reachable. Both the RX and stock-submission workers are registered, ready, and completed their latest scheduled runs successfully. The earlier sandbox-only `EPERM` result was execution confinement rather than an application or folder-permission failure. A single explicitly marked controlled stock file was staged and released successfully; after the normal initial watcher window it remained present and was not renamed as rejected, so delivery is proven but watcher ingestion is still pending.
