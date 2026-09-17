@@ -23,6 +23,7 @@ const moduleState = {
   coAutosaveQueued: false,
   coAutoPreparedSessionIds: new Set(),
   coGrossWeightKg: "",
+  unclassifiedItems: [],
   authorisationImageDataUrl: ""
 };
 
@@ -89,6 +90,10 @@ function wireActions() {
   document.querySelector("#queueCoJobBtn")?.addEventListener("click", queueCoJob);
   document.querySelector("#saveCustomerParamsBtn")?.addEventListener("click", saveCustomerParams);
   document.querySelector("#saveItemDefaultsBtn")?.addEventListener("click", saveItemDefaults);
+  document.querySelector("#coWarnings")?.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-classify-item]");
+    if (link) openItemDefaultsFor(link.dataset.classifyItem);
+  });
   document.querySelector("#printCommercialInvoiceBtn")?.addEventListener("click", printCommercialInvoice);
   document.querySelector("#printCommercialInvoiceBottomBtn")?.addEventListener("click", printCommercialInvoice);
   document.querySelector("#saveCoDraftBottomBtn")?.addEventListener("click", saveCoDraft);
@@ -434,11 +439,31 @@ function wireShipmentDivider() {
   });
 }
 
+const UNCLASSIFIED_ITEM_WARNING = /^New item not yet classified\b.*?\bfor:\s*(.+)$/;
+
 function renderCoWarnings(warnings) {
   const target = document.querySelector("#coWarnings");
   if (!target) return;
+  moduleState.unclassifiedItems = [];
   target.hidden = !warnings.length;
-  target.innerHTML = warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("");
+  target.innerHTML = warnings.map((warning) => {
+    const itemName = String(warning).match(UNCLASSIFIED_ITEM_WARNING)?.[1]?.trim();
+    if (!itemName) return `<p>${escapeHtml(warning)}</p>`;
+    if (!moduleState.unclassifiedItems.includes(itemName)) moduleState.unclassifiedItems.push(itemName);
+    // Unclassified items open straight to their Item defaults row so the HS
+    // code can be entered without hunting through the settings table.
+    return `<p><button type="button" class="co-warning-link" data-classify-item="${escapeHtml(itemName)}" title="Classify ${escapeHtml(itemName)} in Item defaults">${escapeHtml(warning)}</button></p>`;
+  }).join("");
+}
+
+function openItemDefaultsFor(itemName) {
+  openDeliverySettings("itemDefaults");
+  const row = [...document.querySelectorAll("[data-item-setting]")].find((candidate) => candidate.dataset.itemName === itemName);
+  if (!row) return;
+  document.querySelectorAll(".item-settings-table tr.is-target").forEach((candidate) => candidate.classList.remove("is-target"));
+  row.classList.add("is-target");
+  row.scrollIntoView({ block: "center" });
+  row.querySelector('[data-setting-field="hsCode"]')?.focus({ preventScroll: true });
 }
 
 function renderCoJobs() {
@@ -483,11 +508,11 @@ function renderCommercialInvoicePreview() {
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
       <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.invoiceNumber || "")}" aria-label="Invoice number" readonly tabindex="-1"></td>
       <td class="ci-spec"><input class="ci-line-input" data-ci-field="specification" value="${escapeHtml(item.specification || "")}" title="${escapeHtml(item.specification || "")}" aria-label="Specification"></td>
-      <td><input class="ci-line-input" data-ci-field="hsCode" value="${escapeHtml(item.hsCode || "")}" aria-label="HS code"></td>
+      <td><input class="ci-line-input"${item.edged ? " readonly tabindex=\"-1\" title=\"Edged work is classified as finished spectacles (9004.90.00.000).\"" : " data-ci-field=\"hsCode\""} value="${escapeHtml(item.hsCode || "")}" aria-label="HS code"></td>
       <td><input class="ci-line-input" data-ci-field="origin" value="${escapeHtml(item.origin || "")}" aria-label="Origin"></td>
       <td><input class="ci-line-input ci-line-small" data-ci-field="quantity" value="${escapeHtml(item.quantity ?? "")}" aria-label="Quantity"></td>
       <td><input class="ci-line-input ci-line-money" data-ci-field="unitPrice" value="${escapeHtml(formatPlainMoney(item.unitPrice))}" aria-label="Unit price"></td>
-      <td><input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount"></td>
+      <td><input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1"></td>
       <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1"></td>
     </tr>
   `).join("");
@@ -722,12 +747,13 @@ function wireCommercialInvoiceHeaderEditing() {
   });
 }
 
-// Line edits (qty/unit price/amount) previously only recalculated after an
+// Line edits previously only recalculated after an
 // explicit Save round-tripped through the server — an operator editing a
 // commercial-invoice line saw a stale Amount/Sub Total/Invoice Total until
 // they clicked Save elsewhere. This recomputes in the DOM immediately, then
 // debounces a real save so the correction persists (2026-08-13, shipment 11357).
 let ciLinesSaveTimer = null;
+let ciLinesSaveChain = Promise.resolve();
 
 function wireCommercialInvoiceLineEditing() {
   const target = document.querySelector("#commercialInvoicePreview");
@@ -759,7 +785,7 @@ function parseMoneyInput(value) {
 function recalcCommercialInvoiceLineAmount(row) {
   const qtyInput = row.querySelector('[data-ci-field="quantity"]');
   const priceInput = row.querySelector('[data-ci-field="unitPrice"]');
-  const amountInput = row.querySelector('[data-ci-field="amount"]');
+  const amountInput = row.querySelector('[aria-label="Amount (calculated)"]');
   if (!qtyInput || !priceInput || !amountInput) return;
   const amount = round2(parseMoneyInput(qtyInput.value) * parseMoneyInput(priceInput.value));
   amountInput.value = formatPlainMoney(amount);
@@ -768,7 +794,7 @@ function recalcCommercialInvoiceLineAmount(row) {
 function recalcCommercialInvoiceTotalsFromDom() {
   const totals = moduleState.invoicePreview?.totals;
   if (!totals) return;
-  const subTotal = [...document.querySelectorAll('[data-ci-line] [data-ci-field="amount"]')]
+  const subTotal = [...document.querySelectorAll('[data-ci-line] [aria-label="Amount (calculated)"]')]
     .reduce((sum, input) => sum + parseMoneyInput(input.value), 0);
   totals.subTotal = round2(subTotal);
   totals.invoiceTotal = round2(totals.subTotal + Number(totals.packaging || 0) + Number(totals.freight || 0)
@@ -841,7 +867,14 @@ function renderCiComplianceSlot(compliance) {
 function renderItemDefaults() {
   const target = document.querySelector("#itemDefaultsRows");
   if (!target) return;
-  const items = moduleState.invoicePreview?.items || [];
+  const items = [...(moduleState.invoicePreview?.items || [])];
+  // An unclassified item can be folded into a grouped line (e.g. a stock
+  // order), so give every flagged item its own editable row.
+  for (const name of moduleState.unclassifiedItems || []) {
+    if (!items.some((item) => (item.catalogName || item.specification || item.sourceName) === name)) {
+      items.push({ catalogName: name, sourceName: name });
+    }
+  }
   target.innerHTML = items.map((item, index) => {
     const key = item.catalogName || item.specification || item.sourceName || item.ref || `Item ${index + 1}`;
     return `
@@ -1343,7 +1376,7 @@ async function saveCoDraft(options = {}) {
 async function queueCoJob() {
   const app = moduleState.coApplication;
   if (!app) return;
-  await saveCoDraft();
+  if (!await saveCoDraft()) return;
   const current = moduleState.coApplication;
   const data = await postJson(`/api/delivery/co-applications/${encodeURIComponent(current.coApplicationId)}/automation-jobs`, {}).catch((error) => {
     setCoMessage(error.message, true);
@@ -1386,12 +1419,20 @@ function readCommercialInvoiceLines() {
 }
 
 async function saveCommercialInvoiceLines(options = {}) {
-  const session = getSelectedSession();
-  const lines = readCommercialInvoiceLines();
-  if (!session || !lines.length) return true;
-  await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/lines`, { lines });
-  if (options.reloadPreview !== false) await loadCommercialInvoicePreview();
-  return true;
+  if (ciLinesSaveTimer) {
+    clearTimeout(ciLinesSaveTimer);
+    ciLinesSaveTimer = null;
+  }
+  const save = ciLinesSaveChain.catch(() => {}).then(async () => {
+    const session = getSelectedSession();
+    const lines = readCommercialInvoiceLines();
+    if (!session || !lines.length) return true;
+    await putJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/lines`, { lines });
+    if (options.reloadPreview !== false) await loadCommercialInvoicePreview();
+    return true;
+  });
+  ciLinesSaveChain = save;
+  return save;
 }
 
 function readCoItems() {

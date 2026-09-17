@@ -66,10 +66,10 @@ function Test-OptiLensHealth {
 }
 
 function Invoke-LoggedScript {
-    param([string] $Name, [string[]] $Arguments = @())
+    param([string] $Name)
     $script = Join-Path $PSScriptRoot $Name
     Write-RestartLog "[$Name] starting"
-    & $script @Arguments 2>&1 | ForEach-Object { Write-RestartLog "[$Name] $_" }
+    & $script -ProjectRoot $ProjectRoot -Port $Port 2>&1 | ForEach-Object { Write-RestartLog "[$Name] $_" }
     if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
     Write-RestartLog "[$Name] completed"
 }
@@ -101,10 +101,10 @@ try {
 
     Remove-Item -LiteralPath (Join-Path $ProjectRoot "data\service-stop.requested") -Force -ErrorAction SilentlyContinue
     Write-RestartState "running" "stopping" 35 "Stopping OptiLens Local."
-    Invoke-LoggedScript "stop-app.ps1" @("-ProjectRoot", $ProjectRoot, "-Port", [string] $Port)
+    Invoke-LoggedScript "stop-app.ps1"
 
     Write-RestartState "running" "starting" 60 "Starting OptiLens Local."
-    Invoke-LoggedScript "start-app.ps1" @("-ProjectRoot", $ProjectRoot, "-Port", [string] $Port)
+    Invoke-LoggedScript "start-app.ps1"
 
     Write-RestartState "running" "waiting_for_health" 80 "Waiting for OptiLens Local health check."
     $healthy = $false

@@ -543,13 +543,12 @@ function wireSearch() {
   if (!overlay) return;
   const searchHref = trigger?.dataset.searchHref || "";
 
-  function open()  { overlay.hidden = false; input?.focus(); renderResults(""); document.body.style.overflow = "hidden"; }
+  function open()  { overlay.hidden = false; input?.focus(); renderResults(""); }
   function close() { 
     overlay.classList.add("closing");
     setTimeout(() => {
       overlay.hidden = true;  
       overlay.classList.remove("closing");
-      document.body.style.overflow = ""; 
       if (input) input.value = ""; 
     }, 200);
   }

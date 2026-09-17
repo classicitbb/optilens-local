@@ -8,5 +8,6 @@
       "port": 8080,
       "autoPort": true
     }
-  ]
+  ],
+  "autoVerify": true
 }

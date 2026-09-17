@@ -128,6 +128,76 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 .pl-btn-gold:hover { filter: brightness(1.06); box-shadow: 0 4px 6px rgba(11, 30, 53, 0.1); transform: translateY(-1px); }
 .pl-btn-danger { background: var(--pl-danger); color: #fff; font-size: 10.5px; padding: 4px 8px; box-shadow: 0 1px 3px rgba(11, 30, 53, 0.12); }
 
+/* Builder actions share one compact toolbar language.  These selectors are
+   intentionally scoped to win over the later shared-system button defaults. */
+body.pricing-automation-page .pl-topbar {
+  gap: 6px;
+  min-height: 52px;
+  padding: 6px 10px;
+}
+
+body.pricing-automation-page .pl-topbar h2 {
+  min-width: 122px;
+  font-size: 14px;
+}
+
+body.pricing-automation-page .pl-topbar .editing-pill {
+  margin-right: auto;
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn {
+  align-items: center;
+  border: 1px solid var(--pl-border);
+  border-radius: 5px;
+  box-shadow: none;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  transform: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn-secondary {
+  background: var(--pl-card);
+  color: var(--pl-text);
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn-primary,
+body.pricing-automation-page .pl-topbar .pl-btn-teal {
+  background: var(--pl-teal);
+  border-color: var(--pl-teal);
+  color: #fff;
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn-gold {
+  background: var(--pl-gold);
+  border-color: var(--pl-gold);
+  color: #fff;
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn:hover:not(:disabled) {
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn-primary:hover:not(:disabled),
+body.pricing-automation-page .pl-topbar .pl-btn-teal:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pl-teal) 88%, #000);
+  border-color: color-mix(in srgb, var(--pl-teal) 88%, #000);
+}
+
+body.pricing-automation-page .pl-topbar .pl-btn-gold:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pl-gold) 88%, #000);
+  border-color: color-mix(in srgb, var(--pl-gold) 88%, #000);
+}
+
+@media (max-width: 900px) {
+  body.pricing-automation-page .pl-topbar { align-items: flex-start; }
+  body.pricing-automation-page .pl-topbar h2 { min-width: auto; }
+}
+
 /* Scrollable content */
 .pl-content { flex: 1; overflow-y: auto; padding: 12px 14px; min-height: 0; }
 
@@ -150,7 +220,7 @@ body { display: flex; flex-direction: column; font-family: 'Plus Jakarta Sans', 
 .matrix-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(11, 30, 53, 0.12); }
 [data-theme="dark"] .matrix-card { background: #14304f; border-color: #1e3a5c; }
 .matrix-hdr { background: linear-gradient(135deg, var(--pl-navy) 0%, var(--pl-navy2) 100%); color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-.matrix-hdr h3 { font-size: 13px; font-weight: 700; margin: 0; }
+.matrix-hdr h3 { color: #fff; font-size: 13px; font-weight: 700; margin: 0; }
 .matrix-hdr small { font-size: 8.5px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.4px; }
 .chev { display: inline-block; width: 11px; font-size: 9px; }
 
@@ -657,3 +727,12 @@ table.pl-table td strong { font-size: 10.5px; font-weight: 700; color: #0B1E35; 
   /* Don't orphan section headers */
   .pl-sec-hdr { page-break-after: avoid; }
 }
+
+/* Editable AR coatings & lens treatments */
+.addons-card .matrix-hdr:focus-visible { outline: 2px solid var(--pl-teal); outline-offset: -2px; }
+table.addons-matrix th:nth-child(2) { width: 120px; }
+table.addons-matrix th:nth-child(3), table.addons-matrix td.addon-remove-cell { width: 44px; text-align: center; }
+.addon-label { width: 100%; max-width: 420px; padding: 4px 6px; border: 1.5px solid var(--pl-border); border-radius: 5px; font-size: 12px; font-family: inherit; background: transparent; color: inherit; }
+.addon-label:focus { outline: none; border-color: var(--pl-teal); }
+table.addons-matrix .price-input { width: 90px; }
+.addons-card .legend { font-size: 11px; }

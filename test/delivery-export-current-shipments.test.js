@@ -36,6 +36,21 @@ test("shipment prep uses one universal current-search control rather than manual
   assert.doesNotMatch(markup, /id="toDateInput"/);
 });
 
+test("commercial invoice is dated by shipment closure, not the grouped invoice dates", () => {
+  const source = read("lib/beswift-co.js");
+  assert.match(source, /function shipmentClosedDate\(header, session\)[\s\S]*?header\?\.ShippedTime[\s\S]*?session\?\.closed_at/);
+  assert.equal((source.match(/invoiceDate: shipmentClosedDate\(h, session\)/g) || []).length, 3);
+  assert.doesNotMatch(source, /invoiceDates/);
+});
+
+test("unclassified item warnings open Item defaults at the flagged item", () => {
+  const client = read("public/delivery-export.js");
+  assert.match(client, /class="co-warning-link" data-classify-item=/);
+  assert.match(client, /openDeliverySettings\("itemDefaults"\)/);
+  assert.match(client, /data-setting-field="hsCode"\]'\)\?\.focus/);
+  assert.match(client, /for \(const name of moduleState\.unclassifiedItems/);
+});
+
 test("shipment prep keeps dense square tables keyboard operable", () => {
   const markup = read("public/delivery-export.html");
   const client = read("public/delivery-export.js");

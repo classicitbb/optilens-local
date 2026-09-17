@@ -6,10 +6,28 @@
 
 ## Objective and current state
 
+Host Monitor recovery and the available runtime update completed on 2026-09-14. The previous service wrapper was stuck while accepting no control messages, and its interrupted dependency recovery left production modules incomplete. The verified wrapper and child process were released, production dependencies were rebuilt deterministically, and the registered service returned healthy. The guarded updater then passed its smoke check and full suite (184/184), restarted OptiLens Local successfully, relaunched the Host Monitor, and recorded a completed durable restart state. The final monitor harness verified all systems online; no update remains available.
+
+Delivery Export refinements are complete locally and await deployment plus authenticated external-browser verification. Shared workflow/settings tabs now use top-only rounded corners with active tabs joined to their panels while utility icons remain rounded controls. The Commercial Invoice action sequence is `1 - Prepare Draft`, `2 - Save Draft`, `Print / PDF`, `3 - Queue Fill Job`; shipment/invoice outer containers are square and flush; and fill jobs render as a separator-based rectangular list. Invoice amounts are calculated from quantity × unit price and are read-only. Save and Queue now recompose certificate-eligible invoice items from persisted line overrides, so edited descriptions, customs details, quantity, and price enter every new BeSwift job snapshot; existing job snapshots remain immutable. Edged items enforce `90049000` (displayed as `9004.90.00.000`) despite historical manual HS or amount overrides. Focused invoice/document/design tests (17) and `npm run check` passed; the full `npm test` runner started with four passing assistant tests but did not reach a final result before the local 30-second command limit. No deployment, live-data write, or browser fill job was performed.
+
 Restart progress and the CVWeb alias-tombstone receiver fix are implemented locally but not deployed. `scripts/restart-app.ps1` now writes atomic `data/service-restart-state.json` progress plus `data/logs/service-restart.log`, prevents overlapping runs with a bounded mutex, and finishes only after `/api/health/live` identifies `optilens-local`. The native Host Monitor reads those files directly once per second across the Node outage, shows a labelled `server.err.log` tail, and uses the same window for Restart and Super-user Fix errors. The running monitor executable was locked during rebuild; source compiled successfully to a temporary executable, so rebuild/relaunch remains an explicit host-maintenance action. CVWeb now updates inactive alias tombstones without inserting incomplete catalog rows, and the local sender test guards the minimal tombstone shape. Focused CVWeb and local sender tests passed; no external Edge deployment, committed sync, or controlled live restart was performed.
 
 
 The portal invoice-line dialog had an approved cloud request path but the private OptiLens gateway did not implement or advertise `innovations.customer_invoice`, producing the empty state in the portal. `lib/live-data-gateway.js` now validates the invoice ID, verifies that it belongs to a non-hidden item on a non-void posted statement owned by the requested customer, and returns only non-suppressed `InvoiceLines` with description, quantity, unit price, and amount. Live order status now includes a posted invoice ID/total; delivery items retain their invoice ID/total so the portal can display prices and open invoice lines per job. The source-schema verification could not run because the configured read-only reporting account reports that its password has expired. No source, cloud, or host writes were made.
+
+The paired portal search refinement is complete locally and awaits the normal
+frontend/private-gateway release. `innovations.customer_orders` now returns the
+already customer-authorized `order_id`, allowing the shared portal search to
+match patient, Rx, or order number across both order status and delivery cards;
+a unique delivery opens and flashes. `test/live-data-gateway.test.js` and
+`test/delivery-export-current-shipments.test.js` pass (16/16), and the full
+Local suite passes (189/189). The commercial-invoice date rule is already
+implemented and tested: it uses `Shipments.ShippedTime`, falling back to the
+app session's `closed_at`, never a grouped invoice date. No deployment,
+restart, source read, or business-data write occurred. Next action: after
+explicit release approval, deploy the paired Local gateway and CV Web frontend,
+then use authenticated external Edge or Chrome to type a known patient, Rx,
+and order ID and verify matching delivery auto-expands and flashes.
 
 Innovations file-drop configuration is now available in Credentials Vault → Other → **Add Innovations incoming folder**. A non-empty `Incoming folder` value overrides only the RX/stock-order incoming destination at runtime; an empty or absent entry retains the existing RX configuration as the safe fallback. This applies consistently to staged RX releases, website-submitted RX file drops, and stock-order releases. Local syntax checks and 20 focused RX/Credentials tests passed. No vault setting, file drop, host restart, deployment, or external submission was performed.
 
@@ -24,6 +42,8 @@ The local test-suite regressions reported by the 2026-09-02 updater are repaired
 The application, private app database, source database, and Host Monitor are online. The health screen still correctly reports the scheduled Innovations-to-Classic-Visions sync as failed. Its latest committed run completed all other entities but rejected one contact with a null mandatory `country` field and one lens alias with a null mandatory `material_code` field at the receiver. Do not supply guessed values or retry this external write until a data-remediation rule or source correction is approved.
 
 Business Metrics' add-power `Sold as stock lenses` channel uses the live Innovations `Fulfillment` order type (`OrderType = 6`) rather than the legacy `Stock` / `Stock Debit` types (3/9). The former types yielded no current stock-lens volume, while fulfillment invoices contain the relevant OPC SKU lines. The source query continues to resolve all right, left, and pair OPC fields and reports both Progressive and Bifocal volume. The authoritative host checkout already contained the correction; its focused regression and full test suite passed, a controlled restart was issued, and the final health harness reported all systems online on 2026-08-31. External Edge reaches the live application but is currently at its sign-in page, so authenticated rendered verification remains pending.
+
+Business Metrics Inventory now opens read-only detail lists from Not moving, Units moved, and Items tracked. Zero-cost inventory rows identify misc SKU values in the `OPC R / SKU` column and open a cached item-properties view; zero-cost invoice rows open a read-only invoice audit with every visible line's price, cost, revenue, and margin. Wide drawers become full-screen before horizontal scrolling. These local changes have not been deployed or authenticated-browser verified.
 
 Credentials Vault deletion now persists an operator-selected removal without template reseeding on a later read, lock, or unlock. Supplier Automation now exposes protected action/exception detail routes, actionable mapping deep links, and a daily unresolved-items digest path. The digest is fail-closed: it remains disabled unless the explicit digest flag and Email-vault SMTP fields are configured; it sends only to the configured mailbox account and self-marked messages are ignored by the IMAP poller. New migration `041-supplier-exception-digests.sql` is registered but has not been applied. No SMTP delivery or source status write-back was enabled.
 
@@ -61,6 +81,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 
 - `lib/metrics/inventory-trends.js`, `lib/metrics/context.js`, and `public/business-metrics-inventory.js`: classify invoiced stock lenses through Fulfillment and describe that classification accurately.
 - `test/business-metrics-overview.test.js`: regression guard for Fulfillment order type and OPC matching.
+- `lib/metrics/drill.js`, `lib/metrics/inventory.js`, `public/business-metrics-inventory.js`, `public/business-metrics-shared.js`, and `public/styles/pages/business-metrics.css`: inventory headline/item drills, invoice audit drill, misc SKU visibility, and full-screen wide drawers.
 
 - `lib/credential-vault.js` and `public/credentials.html`: intentional vault deletions survive reload/lock cycles and revert visibly if persistence fails.
 - `lib/operations/service.js`, `lib/operations/routes.js`, `public/supplier-email.*`, and `public/styles/pages/automation.css`: protected action/exception details and deep links to direct mapping or message remediation.
@@ -80,6 +101,8 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `server.js`, `public/delivery-export.js`, and `test/delivery-document-preview.test.js`: explicit Barbados-dollar (`BBD $`) labels for Commercial Invoice printed/PDF amounts, totals, and workspace price columns.
 - `test/delivery-export-current-shipments.test.js`: guards the zero-row query and universal-search coverage.
 - `lib/delivery.js`, `server.js`, and `test/delivery-export-current-shipments.test.js`: deployed source-backed shipment counts, stale mirrored-row exclusion, and regression coverage on `codex/fix-shipment-screen-source-currentness`.
+- `lib/beswift-co.js`, `public/delivery-export.html`, `public/delivery-export.js`, `public/styles/components.css`, `public/styles/system.css`, and `test/commercial-invoice-defaults.test.js`: square shared tabs/workspace and job list; calculated invoice amounts; authoritative edging tariff; and regenerated certificate line payloads for new job snapshots.
+- `public/styles/components.css`, `public/styles/shell.css`, `public/shared.js`, `public/tools/pricing-automation/index.html`, `public/tools/pricing-automation/pricing.css`, and `test/design-system.test.js`: edge-to-edge Delivery Export shell with padded shipment fields; flat signed-in launch-pad greeting; compact public/admin-style launcher; non-modal header search dropdown; and readable Pricing group titles with a consistent action toolbar.
 - `server.js` and `scripts/OptiLensHostMonitorLauncher.cs`: update-in-progress handling no longer presents `An update is already being applied.` as a failed update request.
 - `scripts/apply-local-update.ps1`, `server.js`, `public/shared.js`, and `public/styles/shell.css`: durable updater progress state, website progress bar/live log, and cross-restart update status.
 - `server.js`: clear a scheduled update if its detached runner never creates durable progress state, allowing a safe retry instead of an indefinite false in-progress lock.
@@ -92,6 +115,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 
 - Read-only live MSSQL check confirmed `OrderType = 6` is `Fulfillment` and contains matching Progressive and Bifocal OPC stock-lens volume in the active analytics window; legacy 3/9 types contained none.
 - `node --test test/business-metrics-overview.test.js` — 20 passed.
+- `node --test test/business-metrics-overview.test.js` — 23 passed; `npm run check` and changed-file `node --check` passed. A full `npm test` started cleanly but did not finish within the 30-second local runner limit.
 - Host deployment check: the correction commit is an ancestor of the authoritative checkout; host `npm test` — 4 passed; a controlled `npm run app:restart` was issued; `node scripts/monitor-harness.js verify` — all systems online.
 - `node --check lib/metrics/inventory-trends.js`, `node --check lib/metrics/context.js`, `node --check public/business-metrics-inventory.js`, and `git diff --check` — passed.
 - Direct live `getAddPowerTrends(24)` check — Progressive 9,874 units and Bifocal 5,331 units across all 11 add buckets.
@@ -112,6 +136,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - `node --test test/delivery-document-preview.test.js test/innovations-sync-log.test.js test/update-manager.test.js test/git-update-checker.test.js` — 17 passed after merging the monitor-sync-error branch and current remote master.
 - External Edge opened the local application, but it redirected to sign-in; no authenticated browser interaction was performed.
 - `node --test test/commercial-invoice-defaults.test.js test/delivery-export-current-shipments.test.js` — 6 passed.
+- `node --check lib/beswift-co.js`; `node --check public/delivery-export.js`; `node --test test/commercial-invoice-defaults.test.js test/delivery-document-preview.test.js test/design-system.test.js`; `npm run check`; and `git diff --check` — passed. `npm test` began with 4 passing tests but did not finish before the local runner's 30-second limit.
 - `node --check public/delivery-export.js`; `node --test test/delivery-export-current-shipments.test.js test/design-system.test.js` — 8 passed. An isolated local fixture in external Edge confirmed the compact square layout, direct sequential typing, dark-mode selected-row contrast, and Enter-key selection with focus retained. No live data or write action was used.
 - `npm run check` and `npm test` — passed; full suite 177/177.
 - `node --test test/commercial-invoice-defaults.test.js` — 3 passed; `node --check lib/beswift-co.js` and `git diff --check` — passed.
@@ -131,6 +156,7 @@ RX alias cloud synchronization now keeps an acknowledged local alias snapshot. O
 - Guarded maintenance update — smoke check passed; service restart passed; `data/update-state.json` recorded `completed`; `data/update-status.json` recorded `succeeded`; `data/local-update.log` ends with `Update completed.`; loopback update check reported no available updates; Host Monitor process was relaunched. The advisory `npm test` result was 165 passed / 2 failed (the unrelated innovations-sync-log and rx-generator assertions described above).
 - `node --test test/delivery-document-preview.test.js test/rx-generator.test.js test/innovations-sync-log.test.js` — 27 passed.
 - `npm test` — 176 passed, 0 failed.
+- `node --check public/shared.js`; `node --check public/delivery-export.js`; `node --test test/design-system.test.js test/commercial-invoice-defaults.test.js test/delivery-document-preview.test.js`; `npm run check`; and `git diff --check` — passed after the Delivery Export, Launch Pad, shared shell, and Pricing refinements.
 
 ## Required handoff fields
 
@@ -155,8 +181,17 @@ When work is incomplete, record:
 - Blocker: the external Edge session is at OptiLens Local sign-in; no authenticated session is available for rendered verification.
 - Next action: sign in to OptiLens Local in Edge, then open Business Metrics → Inventory and confirm `Sold as stock lenses` displays Fulfillment OPC volume for Progressive and Bifocal.
 
+- Approval required: deploy the local Business Metrics inventory audit and drill changes through the guarded update workflow, then run health verification. This is a production application-code deployment; it does not write Innovations data.
+- Next action: after deployment approval, in authenticated external Edge or Chrome open Inventory, drill Not moving, Units moved, and Items tracked, then open a zero-cost item and a zero-cost invoice row to confirm the full-screen drawer and read-only details.
+
 - Approval required: deploy the local Delivery Export density/accessibility change and run the guarded health verification before treating it as live. The local external-Edge fixture proves rendering and keyboard behavior but not the deployed authenticated page.
 - Next action: after deployment approval, apply the feature branch through the guarded update workflow, run `node scripts/monitor-harness.js verify`, then repeat the shipment search and keyboard-selection check in authenticated external Edge or Chrome.
+
+- Approval required: deploy the local Delivery Export tab/invoice/fill-job refinement through the guarded update workflow, then run health verification. This changes production application code but does not submit a BeSwift fill job or write source data.
+- Next action: after deployment approval, in authenticated external Edge or Chrome directly type a certificate-line price and quantity, verify its calculated amount/total and saved preview after reload, then queue only a test draft and inspect its snapshot without claiming or running the extension job.
+
+- Approval required: deploy the local Delivery Export, Launch Pad, shared-shell, and Pricing presentation refinements through the guarded update workflow, then run health verification. This changes production application code only; it does not write business data or submit a BeSwift job.
+- Next action: after deployment approval, inspect the Delivery Export workspace edge-to-edge at desktop width, the signed-in Launch Pad banner, Pricing action toolbar and matrix group title, then open the launcher and search dropdown in authenticated external Edge or Chrome.
 
 - Current test-system authorization: the user explicitly authorized autonomous controlled testing for this Innovations file-drop scenario. It does not authorize production changes, credentials/permission changes, or non-test external sends.
 - Current state: one controlled file-drop is pending watcher ingestion. The test helper now awaits and reports the watcher outcome reliably.
