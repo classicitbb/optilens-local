@@ -221,3 +221,21 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(migration, /created_by_user_id uniqueidentifier NOT NULL/);
   assert.match(migration, /rx_capture\.order_events/);
 });
+
+test("Milestone 2 keeps approval, immutable staging, and Innovations release as separate boundaries", () => {
+  const root = path.join(__dirname, "..");
+  const routes = fs.readFileSync(path.join(root, "lib", "rx-capture", "routes.js"), "utf8");
+  const service = fs.readFileSync(path.join(root, "lib", "rx-capture", "service.js"), "utf8");
+  const migration = fs.readFileSync(path.join(root, "database", "044-rx-capture-milestone-2.sql"), "utf8");
+  const client = fs.readFileSync(path.join(root, "public", "rx-capture.js"), "utf8");
+
+  assert.match(routes, /rx-capture\.approve/);
+  assert.match(routes, /rx-capture\.stage/);
+  assert.match(routes, /review-queue/);
+  assert.match(service, /A different authorized employee must approve/);
+  assert.match(service, /order_generations/);
+  assert.match(service, /content integrity check failed/);
+  assert.doesNotMatch(service, /rxGenerator\.release/);
+  assert.match(migration, /UQ_rx_capture_generations_order/);
+  assert.match(client, /not been released to Innovations/);
+});

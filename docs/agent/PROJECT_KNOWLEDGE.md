@@ -29,7 +29,8 @@
 - RX Capture records and non-clinical audit metadata live in the private app database under the `rx_capture` schema. Order reads and updates are owner-scoped in Milestone 1.
 - RX Capture treats blank ADD, prism, and base cells as intentionally absent optional data, not missing data. ADD becomes required only when the extracted lens type/design explicitly indicates a multifocal family; illegible marks remain uncertain for employee review.
 - RX Capture review displays extracted lens fields and optional frame details. Missing frame/lens metadata does not block review; an absent frame state defaults explicitly to `TO_BE_TRACED`, with measurements left null until a real trace replaces them.
-- Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. It does not approve, serialize, stage, release, or write Innovations data.
+- Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. Milestone 2 adds exact configuration, separate-reviewer approval, immutable `.rx` generation, and local staging. It does not release or write Innovations data.
+- `lib/rx-capture/order-builder.js` is the deterministic bridge from a fully reviewed normalized order plus exact source selections to the existing proven `.rx` renderer. It rejects unresolved fields, fuzzy catalogue choices, and inferred frame trace data.
 
 ## Knowledge maintenance
 

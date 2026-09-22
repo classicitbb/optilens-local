@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, canWrite: false };
+  const state = { orders: [], current: null, pollTimer: null, canWrite: false, canApprove: false, canStage: false, userId: null };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -43,7 +43,10 @@
     try {
       const auth = await api("/api/auth/me");
       $("#currentUser").textContent = auth.user?.displayName || auth.user?.username || "";
+      state.userId = auth.user?.userId || null;
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
+      state.canApprove = (auth.user?.permissions || []).includes("rx-capture.approve");
+      state.canStage = (auth.user?.permissions || []).includes("rx-capture.stage");
       $("#newRxButton").hidden = !state.canWrite;
       $("#saveReviewButton").hidden = !state.canWrite;
       wireEvents();
@@ -57,6 +60,7 @@
   function wireEvents() {
     $("#newRxButton").addEventListener("click", () => showScreen("captureScreen"));
     $("#refreshOrdersButton").addEventListener("click", loadOrders);
+    $("#refreshReviewQueueButton").addEventListener("click", loadReviewQueue);
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", async () => {
       stopPolling();
       showScreen("ordersScreen");
@@ -70,7 +74,10 @@
     $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
     $("#captureForm").addEventListener("submit", submitCapture);
     $("#reviewForm").addEventListener("submit", saveReview);
+    $("#resolutionForm").addEventListener("submit", saveResolution);
     $("#reprocessButton").addEventListener("click", reprocess);
+    $("#approveOrderButton").addEventListener("click", approveOrder);
+    $("#stageOrderButton").addEventListener("click", stageOrder);
     document.querySelectorAll("[data-path]").forEach((input) => input.addEventListener("input", () => resolveIssue(input.dataset.path)));
   }
 
@@ -80,9 +87,19 @@
     const list = $("#ordersList");
     list.replaceChildren(...state.orders.map(orderButton));
     $("#ordersEmpty").hidden = state.orders.length > 0;
+    if (state.canApprove) await loadReviewQueue();
   }
 
-  function orderButton(order) {
+  async function loadReviewQueue() {
+    if (!state.canApprove) return;
+    const payload = await api("/api/rx-capture/review-queue");
+    const orders = payload.orders || [];
+    $("#reviewQueuePanel").hidden = false;
+    $("#reviewQueueList").replaceChildren(...orders.map((order) => orderButton(order, () => showOrder(order))));
+    $("#reviewQueueEmpty").hidden = orders.length > 0;
+  }
+
+  function orderButton(order, onClick = () => openOrder(order.id)) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "order-row";
@@ -97,7 +114,7 @@
     meta.className = "order-meta";
     meta.textContent = formatDate(order.createdAt);
     button.append(patient, status, meta);
-    button.addEventListener("click", () => openOrder(order.id));
+    button.addEventListener("click", onClick);
     return button;
   }
 
@@ -143,6 +160,7 @@
 
   async function showOrder(order) {
     state.current = order;
+    const canEdit = state.canWrite && String(order.createdByUserId || "").toLowerCase() === String(state.userId || "").toLowerCase();
     showScreen("reviewScreen");
     $("#reviewStatus").dataset.status = order.status;
     $("#reviewStatus").textContent = statusLabel(order.status);
@@ -153,8 +171,12 @@
     $("#failedMessage").textContent = order.normalizedOrder
       ? `${failureMessage} The last saved values remain available below for review.`
       : failureMessage;
-    $("#reprocessButton").hidden = !state.canWrite;
+    $("#reprocessButton").hidden = !canEdit;
+    $("#saveReviewButton").hidden = !canEdit;
+    document.querySelectorAll("#reviewForm [data-path]").forEach((input) => { input.disabled = !canEdit; });
     if (order.normalizedOrder) renderOrder(order.normalizedOrder);
+    renderResolution(order, canEdit);
+    renderApprovalActions(order);
     stopPolling();
     if (order.status === "PROCESSING") state.pollTimer = setTimeout(pollCurrentOrder, 1800);
   }
@@ -180,6 +202,28 @@
     for (const path of effectiveMissingFields(order)) fieldForPath(path)?.classList.add("missing");
     for (const path of order.uncertainFields || []) fieldForPath(path)?.classList.add("uncertain");
     renderIssues(order);
+  }
+
+  function renderResolution(order, canEdit) {
+    const canConfigure = canEdit && order.status === "READY_FOR_REVIEW";
+    $("#resolutionForm").hidden = !canConfigure;
+    if (!canConfigure) return;
+    const values = order.resolution || {};
+    for (const field of $("#resolutionForm").elements) {
+      if (!field.name) continue;
+      if (field.name === "addonSkus") field.value = (values.addonSkus || []).join(", ");
+      else field.value = values[field.name] ?? "";
+    }
+  }
+
+  function renderApprovalActions(order) {
+    const visible = (state.canApprove && order.status === "READY_FOR_REVIEW") || (state.canStage && order.status === "RX_GENERATED") || order.status === "STAGED";
+    $("#approvalActions").hidden = !visible;
+    if (!visible) return;
+    $("#approveOrderButton").hidden = !(state.canApprove && order.status === "READY_FOR_REVIEW");
+    $("#stageOrderButton").hidden = !(state.canStage && order.status === "RX_GENERATED");
+    if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"}. It has not been released to Innovations.`;
+    else $("#approvalMessage").textContent = "Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.";
   }
 
   function renderIssues(order) {
@@ -250,6 +294,57 @@
       await showOrder(payload.order);
     } catch (error) {
       showNotice(error.message, true);
+    }
+  }
+
+  async function saveResolution(event) {
+    event.preventDefault();
+    if (!state.current) return;
+    const form = new FormData($("#resolutionForm"));
+    const resolution = Object.fromEntries(form.entries());
+    resolution.addonSkus = String(resolution.addonSkus || "").split(",").map((value) => value.trim()).filter(Boolean);
+    const button = $("#saveResolutionButton");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/resolution`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution })
+      });
+      await showOrder(payload.order);
+      showNotice("Production configuration saved. It is ready for a separate reviewer.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function approveOrder() {
+    if (!state.current) return;
+    const button = $("#approveOrderButton");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/approve`, { method: "POST" });
+      await showOrder(payload.order);
+      showNotice("Approved payload generated. It is not staged or released.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function stageOrder() {
+    if (!state.current) return;
+    const button = $("#stageOrderButton");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/stage`, { method: "POST" });
+      await showOrder(payload.order);
+      showNotice("Approved RX staged locally. It has not been released to Innovations.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
     }
   }
 

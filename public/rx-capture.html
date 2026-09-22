@@ -42,6 +42,18 @@
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
         <div id="ordersList" class="orders-list" role="list"></div>
       </section>
+
+      <section id="reviewQueuePanel" class="orders-panel review-queue" aria-labelledby="reviewQueueTitle" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Reviewer access</p>
+            <h2 id="reviewQueueTitle">APPROVAL QUEUE</h2>
+          </div>
+          <button id="refreshReviewQueueButton" class="icon-button" type="button" aria-label="Refresh approval queue">↻</button>
+        </div>
+        <div id="reviewQueueEmpty" class="empty-state">No RX Capture orders are awaiting review.</div>
+        <div id="reviewQueueList" class="orders-list" role="list"></div>
+      </section>
     </section>
 
     <section id="captureScreen" class="screen" aria-labelledby="captureTitle">
@@ -179,6 +191,39 @@
 
         <button id="saveReviewButton" class="primary-button wide" type="submit">SAVE REVIEW</button>
       </form>
+
+      <form id="resolutionForm" class="review-form" hidden>
+        <section class="review-card">
+          <div class="section-title-row">
+            <h2>Production configuration</h2>
+            <span class="optional-badge">Exact source selections</span>
+          </div>
+          <p class="section-help">Choose only known account, catalogue, and frame values. Saving this configuration does not generate, stage, or release a file.</p>
+          <div class="field-grid two">
+            <label>Customer number<input name="customerNumber" autocomplete="off" required></label>
+            <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
+            <label>Ship name<input name="shipName" autocomplete="off" required></label>
+            <label>Exact 13-digit lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required></label>
+            <label>Coating SKU <span class="field-optional">optional</span><input name="coatingSku" autocomplete="off"></label>
+            <label>Add-on SKUs <span class="field-optional">optional</span><input name="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
+            <label>Frame mode<select name="frameMode"><option value="uncut">Uncut</option><option value="edged">Edged / enclosed</option></select></label>
+            <label>Frame mounting code<input name="frameMounting" value="1" autocomplete="off" required></label>
+            <label>Remote operator <span class="field-optional">optional</span><input name="remoteOperator" autocomplete="off" placeholder="Uses configured default when blank"></label>
+            <label>Lab number <span class="field-optional">optional</span><input name="labNum" autocomplete="off" placeholder="Uses configured default when blank"></label>
+          </div>
+        </section>
+        <section class="review-card"><label>Production instructions <span class="field-optional">optional</span><textarea name="instructions" rows="3"></textarea></label></section>
+        <button id="saveResolutionButton" class="primary-button wide" type="submit">SAVE CONFIGURATION</button>
+      </form>
+
+      <section id="approvalActions" class="review-card approval-actions" hidden>
+        <h2>Reviewer actions</h2>
+        <p id="approvalMessage" class="section-help">Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.</p>
+        <div class="action-row">
+          <button id="approveOrderButton" class="primary-button" type="button">APPROVE &amp; GENERATE</button>
+          <button id="stageOrderButton" class="secondary-button" type="button">STAGE APPROVED RX</button>
+        </div>
+      </section>
     </section>
   </main>
   <script src="/rx-capture.js" defer></script>
