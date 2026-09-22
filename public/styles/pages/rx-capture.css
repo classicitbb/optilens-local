@@ -15,8 +15,9 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); }
-button, input, textarea { font: inherit; }
+button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 
 .rx-topbar {
@@ -111,9 +112,13 @@ button { cursor: pointer; }
 .field-grid { display: grid; gap: 12px; }
 .field-grid.two, .field-grid.three { grid-template-columns: 1fr; }
 label { color: var(--muted); font-size: .78rem; font-weight: 700; }
-input, textarea { display: block; width: 100%; margin-top: 6px; border: 1px solid #b9c7d2; border-radius: 8px; background: white; color: var(--ink); padding: 11px 10px; min-height: 44px; }
+input, textarea, select { display: block; width: 100%; margin-top: 6px; border: 1px solid #b9c7d2; border-radius: 8px; background: white; color: var(--ink); padding: 11px 10px; min-height: 44px; }
 textarea { resize: vertical; }
-input:focus, textarea:focus { outline: 3px solid rgb(15 124 134 / .18); border-color: var(--teal); }
+input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / .18); border-color: var(--teal); }
+.section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.section-title-row h2 { margin-bottom: 0; }
+.section-help { margin: 8px 0 14px; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+.optional-badge { border-radius: 999px; padding: 5px 8px; background: #edf4f7; color: var(--teal-dark); font-size: .68rem; font-weight: 800; white-space: nowrap; }
 .rx-grid { display: grid; grid-template-columns: minmax(74px, .75fr) 1fr 1fr; gap: 8px; align-items: center; margin-top: 8px; }
 .rx-grid-header { margin: 0; text-align: center; color: var(--navy); }
 .rx-grid input { margin: 0; min-width: 0; }

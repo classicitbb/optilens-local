@@ -127,6 +127,46 @@
           </div>
         </section>
 
+        <section class="review-card">
+          <div class="section-title-row">
+            <h2>Lens information</h2>
+            <span class="optional-badge">Extracted / optional</span>
+          </div>
+          <p class="section-help">Anything visible on the prescription is shown here. Catalogue selection and final lens validation come later.</p>
+          <div class="field-grid two">
+            <label data-field-wrap="lensRequest.lensType">Lens type<input data-path="lensRequest.lensType" autocomplete="off"></label>
+            <label data-field-wrap="lensRequest.design">Design<input data-path="lensRequest.design" autocomplete="off"></label>
+            <label data-field-wrap="lensRequest.material">Material<input data-path="lensRequest.material" autocomplete="off"></label>
+            <label data-field-wrap="lensRequest.option">Option<input data-path="lensRequest.option" autocomplete="off"></label>
+            <label data-field-wrap="lensRequest.coating">Coating<input data-path="lensRequest.coating" autocomplete="off"></label>
+          </div>
+        </section>
+
+        <section class="review-card">
+          <div class="section-title-row">
+            <h2>Frame</h2>
+            <span class="optional-badge">Optional</span>
+          </div>
+          <p class="section-help">Defaults to “To be traced.” Leave measurements blank until the actual frame trace replaces them.</p>
+          <div class="field-grid three">
+            <label data-field-wrap="frame.status">Frame workflow
+              <select data-path="frame.status">
+                <option value="TO_BE_TRACED">To be traced</option>
+                <option value="MEASURED">Measurements available</option>
+                <option value="UNCUT">Uncut / no frame trace</option>
+              </select>
+            </label>
+            <label data-field-wrap="frame.model">Model<input data-path="frame.model" placeholder="From frame / trace"></label>
+            <label data-field-wrap="frame.color">Color<input data-path="frame.color" placeholder="From frame / trace"></label>
+            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.segHeightOd">OD segment height<input data-path="frame.segHeightOd" inputmode="decimal" placeholder="Optional"></label>
+            <label data-field-wrap="frame.segHeightOs">OS segment height<input data-path="frame.segHeightOs" inputmode="decimal" placeholder="Optional"></label>
+          </div>
+        </section>
+
         <section id="issuesCard" class="issues-card" hidden>
           <h2>Needs attention</h2>
           <p>Highlighted fields were missing or uncertain. Enter what you can verify from the source.</p>

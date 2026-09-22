@@ -95,6 +95,23 @@ test("an illegible optional field remains uncertain instead of being silently di
   assert.equal(result.hasIssues, true);
 });
 
+test("frame and lens detail omissions stay optional while frame workflow defaults to tracing", () => {
+  const order = normalizeOpticalOrder({
+    patient: { name: "TEST PATIENT" },
+    prescription: { od: { sphere: "-1.00" }, os: { sphere: "-1.00" } },
+    pd: { binocular: 62 },
+    missingFields: [
+      "frame.supplied", "frame.model", "frame.color", "frame.a", "frame.b",
+      "frame.dbl", "frame.ed", "frame.segHeightOd", "frame.segHeightOs",
+      "lensRequest.design", "lensRequest.option"
+    ]
+  });
+
+  assert.equal(order.frame.status, "TO_BE_TRACED");
+  assert.equal(order.frame.supplied, true);
+  assert.deepEqual(unresolvedFields(order).missingFields, []);
+});
+
 test("strict extraction schema requires each normalized section", () => {
   const schema = extractionJsonSchema();
   assert.equal(schema.additionalProperties, false);
@@ -184,11 +201,18 @@ test("page and server integration preserve full-screen, authenticated camera cap
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
   const auth = fs.readFileSync(path.join(root, "lib", "auth.js"), "utf8");
   const service = fs.readFileSync(path.join(root, "lib", "rx-capture", "service.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "public", "styles", "pages", "rx-capture.css"), "utf8");
   const migration = fs.readFileSync(path.join(root, "database", "043-rx-capture.sql"), "utf8");
 
   assert.match(html, /accept="image\/\*" capture="environment"/);
+  assert.match(html, /Lens information/);
+  assert.match(html, /data-path="lensRequest\.lensType"/);
+  assert.match(html, /data-path="frame\.status"/);
+  assert.match(html, /To be traced/);
+  assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.doesNotMatch(html, /shared\.js/);
   assert.doesNotMatch(client, /createObjectURL/);
+  assert.match(client, /The last saved values remain available below for review/);
   assert.match(server, /handleRxCaptureRoute/);
   assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
   assert.match(auth, /code: "rx-capture"/);

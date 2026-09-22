@@ -22,7 +22,21 @@
     "pd.od": "OD PD",
     "pd.os": "OS PD",
     "pd.nearOd": "Near OD PD",
-    "pd.nearOs": "Near OS PD"
+    "pd.nearOs": "Near OS PD",
+    "lensRequest.lensType": "Lens type",
+    "lensRequest.design": "Lens design",
+    "lensRequest.material": "Lens material",
+    "lensRequest.option": "Lens option",
+    "lensRequest.coating": "Lens coating",
+    "frame.status": "Frame workflow",
+    "frame.model": "Frame model",
+    "frame.color": "Frame color",
+    "frame.a": "Frame A",
+    "frame.b": "Frame B",
+    "frame.dbl": "Frame DBL",
+    "frame.ed": "Frame ED",
+    "frame.segHeightOd": "OD segment height",
+    "frame.segHeightOs": "OS segment height"
   };
 
   async function init() {
@@ -134,8 +148,11 @@
     $("#reviewStatus").textContent = statusLabel(order.status);
     $("#processingPanel").hidden = order.status !== "PROCESSING";
     $("#failedPanel").hidden = order.status !== "FAILED";
-    $("#reviewForm").hidden = !order.normalizedOrder || ["PROCESSING", "FAILED"].includes(order.status);
-    $("#failedMessage").textContent = order.errorMessage || "Try the extraction again or create a new capture.";
+    $("#reviewForm").hidden = !order.normalizedOrder || order.status === "PROCESSING";
+    const failureMessage = order.errorMessage || "Try the extraction again or create a new capture.";
+    $("#failedMessage").textContent = order.normalizedOrder
+      ? `${failureMessage} The last saved values remain available below for review.`
+      : failureMessage;
     $("#reprocessButton").hidden = !state.canWrite;
     if (order.normalizedOrder) renderOrder(order.normalizedOrder);
     stopPolling();
@@ -153,18 +170,21 @@
   }
 
   function renderOrder(order) {
+    order.frame ||= {};
+    order.frame.status ||= "TO_BE_TRACED";
+    if (order.frame.supplied == null) order.frame.supplied = order.frame.status !== "UNCUT";
     document.querySelectorAll("[data-path]").forEach((input) => {
       input.value = valueAtPath(order, input.dataset.path) ?? "";
       input.classList.remove("missing", "uncertain");
     });
-    for (const path of order.missingFields || []) fieldForPath(path)?.classList.add("missing");
+    for (const path of effectiveMissingFields(order)) fieldForPath(path)?.classList.add("missing");
     for (const path of order.uncertainFields || []) fieldForPath(path)?.classList.add("uncertain");
     renderIssues(order);
   }
 
   function renderIssues(order) {
     const issues = [
-      ...(order.missingFields || []).map((path) => ({ path, kind: "Missing" })),
+      ...effectiveMissingFields(order).map((path) => ({ path, kind: "Missing" })),
       ...(order.uncertainFields || []).map((path) => ({ path, kind: "Uncertain" }))
     ];
     $("#issuesCard").hidden = issues.length === 0;
@@ -173,6 +193,21 @@
       item.textContent = `${issue.kind}: ${pathLabels[issue.path] || issue.path}`;
       return item;
     }));
+  }
+
+  function effectiveMissingFields(order) {
+    return (order.missingFields || []).filter((path) => {
+      if (/^(frame|lensRequest)\./.test(path)) return false;
+      if (/^prescription\.(od|os)\.(prism|base)$/.test(path)) return false;
+      if (/^prescription\.(od|os)\.add$/.test(path)) return requiresAddPower(order);
+      return true;
+    });
+  }
+
+  function requiresAddPower(order) {
+    const description = [order.lensRequest?.lensType, order.lensRequest?.design].filter(Boolean).join(" ");
+    if (/\b(single[ -]?vision|sv)\b/i.test(description)) return false;
+    return /\b(progressive|bifocal|trifocal|multifocal|occupational)\b/i.test(description);
   }
 
   function resolveIssue(path) {
@@ -190,6 +225,7 @@
     if (!state.current?.normalizedOrder) return;
     const order = JSON.parse(JSON.stringify(state.current.normalizedOrder));
     document.querySelectorAll("[data-path]").forEach((input) => setAtPath(order, input.dataset.path, input.value.trim() || null));
+    order.frame.supplied = order.frame.status !== "UNCUT";
     const button = $("#saveReviewButton");
     button.disabled = true;
     try {
