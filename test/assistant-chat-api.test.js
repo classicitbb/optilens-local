@@ -1,6 +1,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { loadProviderConfig, saveProviderConfig, getAssistantStatus, executeAction, ACTION_TOOLS } = require("../lib/metrics/assistant");
+const fs = require("node:fs");
+const path = require("node:path");
 
 test("loadProviderConfig returns default or configured values", async () => {
   const config = await loadProviderConfig();
@@ -28,4 +30,11 @@ test("ACTION_TOOLS registry exposes valid system tools", () => {
   assert.ok("navigate_to" in ACTION_TOOLS);
   assert.ok("check_system_health" in ACTION_TOOLS);
   assert.ok("get_inventory_recommendations" in ACTION_TOOLS);
+});
+
+test("Chat API configuration exposes a GPT-5.6 Luna preset", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "public", "business-metrics-inventory.js"), "utf8");
+  assert.match(page, /value="openai-luna"/);
+  assert.match(page, /GPT-5\.6 Luna/);
+  assert.match(page, /modelInput\) modelInput\.value = "gpt-5\.6-luna"/);
 });

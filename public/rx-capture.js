@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, canWrite: false, canApprove: false, canStage: false, userId: null };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canApprove: false, canStage: false, userId: null, username: "" };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -44,6 +44,7 @@
       const auth = await api("/api/auth/me");
       $("#currentUser").textContent = auth.user?.displayName || auth.user?.username || "";
       state.userId = auth.user?.userId || null;
+      state.username = auth.user?.username || auth.user?.displayName || "";
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
       state.canApprove = (auth.user?.permissions || []).includes("rx-capture.approve");
       state.canStage = (auth.user?.permissions || []).includes("rx-capture.stage");
@@ -72,6 +73,7 @@
     });
     $("#primaryImage").addEventListener("change", () => previewFile("primaryImage", "primaryPreview", "primaryFileName"));
     $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
+    $("#customerSearch").addEventListener("input", searchCustomers);
     $("#captureForm").addEventListener("submit", submitCapture);
     $("#reviewForm").addEventListener("submit", saveReview);
     $("#resolutionForm").addEventListener("submit", saveResolution);
@@ -85,7 +87,7 @@
     const payload = await api("/api/rx-capture/orders?limit=30");
     state.orders = payload.orders || [];
     const list = $("#ordersList");
-    list.replaceChildren(...state.orders.map(orderButton));
+    list.replaceChildren(...state.orders.map((order) => orderButton(order)));
     $("#ordersEmpty").hidden = state.orders.length > 0;
     if (state.canApprove) await loadReviewQueue();
   }
@@ -122,6 +124,7 @@
     event.preventDefault();
     const primary = $("#primaryImage").files[0];
     const secondary = $("#secondaryImage").files[0];
+    if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
     if (!primary) return showNotice("Choose a prescription image first.", true);
     const button = $("#submitCaptureButton");
     button.disabled = true;
@@ -135,9 +138,10 @@
       const payload = await api("/api/rx-capture/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images })
+        body: JSON.stringify({ images, customer: state.selectedCustomer })
       });
       $("#captureForm").reset();
+      clearSelectedCustomer();
       clearPreview("primaryPreview", "primaryFileName");
       clearPreview("secondaryPreview", "secondaryFileName");
       await showOrder(payload.order);
@@ -175,7 +179,7 @@
     $("#saveReviewButton").hidden = !canEdit;
     document.querySelectorAll("#reviewForm [data-path]").forEach((input) => { input.disabled = !canEdit; });
     if (order.normalizedOrder) renderOrder(order.normalizedOrder);
-    renderResolution(order, canEdit);
+    await renderResolution(order, canEdit);
     renderApprovalActions(order);
     stopPolling();
     if (order.status === "PROCESSING") state.pollTimer = setTimeout(pollCurrentOrder, 1800);
@@ -204,15 +208,31 @@
     renderIssues(order);
   }
 
-  function renderResolution(order, canEdit) {
-    const canConfigure = canEdit && order.status === "READY_FOR_REVIEW";
+  async function renderResolution(order, canEdit) {
+    const canConfigure = canEdit && order.status === "READY_FOR_REVIEW" && Boolean(order.reviewConfirmedAt);
     $("#resolutionForm").hidden = !canConfigure;
     if (!canConfigure) return;
     const values = order.resolution || {};
     for (const field of $("#resolutionForm").elements) {
       if (!field.name) continue;
       if (field.name === "addonSkus") field.value = (values.addonSkus || []).join(", ");
+      else if (field.name === "remoteOperator") field.value = state.username;
+      else if (field.name === "customerNumber") field.value = order.customer?.account || values.customerNumber || "";
       else field.value = values[field.name] ?? "";
+    }
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/alias-suggestion`);
+      const suggestion = payload.suggestion || {};
+      const field = $("#resolutionForm").elements.lensAlias;
+      if (suggestion.status === "suggested" && !field.value) field.value = suggestion.suggestedAlias || "";
+      const notice = $("#aliasSuggestion");
+      const candidates = (suggestion.candidates || []).map((item) => item.alias).join(", ");
+      notice.textContent = suggestion.status === "suggested"
+        ? `Suggested alias ${suggestion.suggestedAlias}: ${suggestion.reason}`
+        : `${suggestion.reason || "Choose an exact catalogue alias."}${candidates ? ` Candidates: ${candidates}.` : ""}`;
+      notice.hidden = false;
+    } catch (error) {
+      showNotice(error.message, true);
     }
   }
 
@@ -269,6 +289,8 @@
     if (!state.current?.normalizedOrder) return;
     const order = JSON.parse(JSON.stringify(state.current.normalizedOrder));
     document.querySelectorAll("[data-path]").forEach((input) => setAtPath(order, input.dataset.path, input.value.trim() || null));
+    order.patient.name = normalizePatientName(order.patient.name);
+    fieldForPath("patient.name").value = order.patient.name || "";
     order.frame.supplied = order.frame.status !== "UNCUT";
     const button = $("#saveReviewButton");
     button.disabled = true;
@@ -411,6 +433,7 @@
 
   function showScreen(id) {
     screens.forEach((screen) => screen.classList.toggle("active", screen.id === id));
+    document.body.dataset.screen = id;
     window.scrollTo({ top: 0, behavior: "instant" });
     $("#globalStatus").hidden = true;
   }
@@ -449,6 +472,77 @@
   function formatDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  async function searchCustomers() {
+    const query = $("#customerSearch").value.trim();
+    state.selectedCustomer = null;
+    renderSelectedCustomer();
+    clearTimeout(state.customerTimer);
+    if (query.length < 2) return renderCustomerResults([]);
+    state.customerTimer = setTimeout(async () => {
+      try {
+        const payload = await api(`/api/rx-capture/customers?q=${encodeURIComponent(query)}`);
+        if ($("#customerSearch").value.trim() === query) renderCustomerResults(payload.customers || []);
+      } catch (error) {
+        renderCustomerResults([]);
+        showNotice(error.message, true);
+      }
+    }, 180);
+  }
+
+  function renderCustomerResults(customers) {
+    const results = $("#customerResults");
+    results.replaceChildren(...customers.map((customer) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "customer-result";
+      button.setAttribute("role", "option");
+      button.innerHTML = "";
+      const name = document.createElement("strong");
+      name.textContent = customer.name;
+      const detail = document.createElement("small");
+      detail.textContent = `${customer.account} · ID ${customer.id}`;
+      button.append(name, detail);
+      button.addEventListener("click", () => {
+        state.selectedCustomer = customer;
+        $("#customerSearch").value = customer.name;
+        renderSelectedCustomer();
+        renderCustomerResults([]);
+      });
+      return button;
+    }));
+    results.hidden = customers.length === 0;
+  }
+
+  function renderSelectedCustomer() {
+    const selected = $("#selectedCustomer");
+    if (!state.selectedCustomer) {
+      selected.textContent = "Search and select the customer before taking the prescription photo.";
+      selected.classList.remove("is-selected");
+      return;
+    }
+    selected.textContent = `Selected: ${state.selectedCustomer.name} (${state.selectedCustomer.account}, ID ${state.selectedCustomer.id})`;
+    selected.classList.add("is-selected");
+  }
+
+  function clearSelectedCustomer() {
+    state.selectedCustomer = null;
+    renderCustomerResults([]);
+    renderSelectedCustomer();
+  }
+
+  function normalizePatientName(value) {
+    const name = String(value || "").trim().replace(/\s+/g, " ");
+    if (!name) return null;
+    if (name.includes(",")) {
+      const [last, ...first] = name.split(",");
+      return first.join(" ").trim() ? `${last.trim()}, ${first.join(" ").trim()}` : last.trim();
+    }
+    const parts = name.split(" ");
+    if (parts.length < 2) return name;
+    const last = parts.pop();
+    return `${last}, ${parts.join(" ")}`;
   }
 
   async function api(url, options = {}) {

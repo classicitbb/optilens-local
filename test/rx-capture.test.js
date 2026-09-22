@@ -11,6 +11,7 @@ const {
 } = require("../lib/rx-capture/normalized-order");
 const { extractPrescriptionFromImages, loadRxAiConfig } = require("../lib/rx-capture/openai-extractor");
 const { parseImages, publicOrder } = require("../lib/rx-capture/service");
+const { resolveLensAlias } = require("../lib/rx-capture/alias-resolver");
 
 test("normalizes optical order values without inventing prescription data", () => {
   const order = normalizeOpticalOrder({
@@ -31,6 +32,25 @@ test("normalizes optical order values without inventing prescription data", () =
   assert.deepEqual(order.missingFields, ["prescription.os.axis"]);
   assert.deepEqual(order.uncertainFields, ["prescription.od.cylinder"]);
   assert.equal(order.prescription.od.add, null);
+});
+
+test("normalizes unpunctuated patient names to last-name-first", () => {
+  const order = normalizeOpticalOrder({ patient: { name: "Jordan Alexis Smith" } });
+  assert.equal(order.patient.name, "Smith, Jordan Alexis");
+  assert.equal(normalizeOpticalOrder({ patient: { name: "Smith, Jordan Alexis" } }).patient.name, "Smith, Jordan Alexis");
+});
+
+test("lens alias resolution defaults unspecified photochromic color to gray and clear to SR-coated", () => {
+  const catalog = [
+    { alias: "0000000000001", mfType: "Single Vision", materialDescription: "Photochromic 1.56", styleDescription: "Regular", colorDescription: "Gray SRC" },
+    { alias: "0000000000002", mfType: "Single Vision", materialDescription: "Photochromic 1.56", styleDescription: "Regular", colorDescription: "Brown SRC" },
+    { alias: "0000000000003", mfType: "Single Vision", materialDescription: "Plastic 1.56", styleDescription: "Regular", colorDescription: "SRCoated" },
+    { alias: "0000000000004", mfType: "Single Vision", materialDescription: "Plastic 1.56", styleDescription: "Regular", colorDescription: "Clear AR" }
+  ];
+  const transitions = resolveLensAlias({ lensRequest: { lensType: "Single Vision", material: "1.56", option: "Transitions" } }, catalog);
+  const clear = resolveLensAlias({ lensRequest: { lensType: "Single Vision", material: "1.56" } }, catalog);
+  assert.equal(transitions.suggestedAlias, "0000000000001");
+  assert.equal(clear.suggestedAlias, "0000000000003");
 });
 
 test("marks only unresolved extracted fields as needing information", () => {
@@ -209,15 +229,23 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /data-path="lensRequest\.lensType"/);
   assert.match(html, /data-path="frame\.status"/);
   assert.match(html, /To be traced/);
+  assert.match(html, /id="customerSearch"/);
+  assert.match(html, /class="rx-table"/);
+  assert.match(html, /data-path="frame\.segHeightOd"/);
+  assert.doesNotMatch(html, /Structured review/);
+  assert.match(html, /Employee prescription intake — photograph a prescription/);
+  assert.doesNotMatch(html, /id="ordersTitle"/);
   assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.doesNotMatch(html, /shared\.js/);
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
+  assert.match(client, /reviewConfirmedAt/);
   assert.match(server, /handleRxCaptureRoute/);
   assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
   assert.match(auth, /code: "rx-capture"/);
   assert.match(service, /WHERE created_by_user_id = @user_id/);
   assert.match(service, /capture_order_id = @capture_order_id AND created_by_user_id = @user_id/);
+  assert.match(service, /review_confirmed_at/);
   assert.match(migration, /created_by_user_id uniqueidentifier NOT NULL/);
   assert.match(migration, /rx_capture\.order_events/);
 });
@@ -238,4 +266,11 @@ test("Milestone 2 keeps approval, immutable staging, and Innovations release as 
   assert.doesNotMatch(service, /rxGenerator\.release/);
   assert.match(migration, /UQ_rx_capture_generations_order/);
   assert.match(client, /not been released to Innovations/);
+});
+
+test("recent orders pass a click listener rather than Array.map callback metadata", () => {
+  const client = fs.readFileSync(path.join(__dirname, "..", "public", "rx-capture.js"), "utf8");
+
+  assert.match(client, /state\.orders\.map\(\(order\) => orderButton\(order\)\)/);
+  assert.doesNotMatch(client, /state\.orders\.map\(orderButton\)/);
 });

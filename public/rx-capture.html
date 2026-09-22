@@ -10,7 +10,8 @@
 </head>
 <body>
   <header class="rx-topbar">
-    <div>
+    <div class="rx-brand">
+      <button id="mobileBackButton" class="mobile-back-button" type="button" data-back aria-label="Back to recent orders">←</button>
       <span class="rx-mark" aria-hidden="true">RX</span>
       <strong>RX Capture</strong>
     </div>
@@ -23,11 +24,9 @@
   <main class="rx-app">
     <div id="globalStatus" class="notice" role="status" aria-live="polite" hidden></div>
 
-    <section id="ordersScreen" class="screen active" aria-labelledby="ordersTitle">
+    <section id="ordersScreen" class="screen active" aria-label="RX Capture">
       <div class="hero">
-        <p class="eyebrow">Employee prescription intake</p>
-        <h1 id="ordersTitle">RX CAPTURE</h1>
-        <p>Photograph a prescription, review every extracted value, and correct anything uncertain.</p>
+        <p>Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
         <button id="newRxButton" class="primary-button" type="button">+ NEW RX</button>
       </div>
 
@@ -64,6 +63,13 @@
         <p>Use a clear, well-lit image. Keep the full prescription inside the frame.</p>
       </div>
       <form id="captureForm" class="capture-card">
+        <section class="customer-picker" aria-labelledby="captureCustomerLabel">
+          <label id="captureCustomerLabel" for="customerSearch">Customer
+            <input id="customerSearch" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required>
+          </label>
+          <p id="selectedCustomer" class="selected-customer">Search and select the customer before taking the prescription photo.</p>
+          <div id="customerResults" class="customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
+        </section>
         <label class="file-card" for="primaryImage">
           <span class="camera-icon" aria-hidden="true">⌁</span>
           <strong>Prescription image</strong>
@@ -88,13 +94,12 @@
     </section>
 
     <section id="reviewScreen" class="screen" aria-labelledby="reviewTitle">
-      <button class="back-button" type="button" data-back>← Recent orders</button>
-      <div class="page-heading review-heading">
-        <div>
-          <p class="eyebrow">Structured review</p>
-          <h1 id="reviewTitle">Check extracted values</h1>
-        </div>
+      <div class="review-topline">
+        <button class="back-button" type="button" data-back>← Recent orders</button>
         <span id="reviewStatus" class="status-pill"></span>
+      </div>
+      <div class="page-heading review-heading">
+        <h1 id="reviewTitle">Check extracted values</h1>
       </div>
 
       <div id="processingPanel" class="processing-panel" hidden>
@@ -117,25 +122,42 @@
           </div>
         </section>
 
-        <section class="review-card prescription-card">
-          <div class="rx-grid rx-grid-header" aria-hidden="true"><span></span><strong>OD</strong><strong>OS</strong></div>
-          <div class="rx-grid"><label>Sphere</label><input data-path="prescription.od.sphere" inputmode="decimal"><input data-path="prescription.os.sphere" inputmode="decimal"></div>
-          <div class="rx-grid"><label>Cylinder</label><input data-path="prescription.od.cylinder" inputmode="decimal"><input data-path="prescription.os.cylinder" inputmode="decimal"></div>
-          <div class="rx-grid"><label>Axis</label><input data-path="prescription.od.axis" inputmode="numeric" type="number" min="1" max="180"><input data-path="prescription.os.axis" inputmode="numeric" type="number" min="1" max="180"></div>
-          <div class="rx-grid"><label>ADD</label><input data-path="prescription.od.add" inputmode="decimal"><input data-path="prescription.os.add" inputmode="decimal"></div>
-          <div class="rx-grid"><label>Prism</label><input data-path="prescription.od.prism"><input data-path="prescription.os.prism"></div>
-          <div class="rx-grid"><label>Base</label><input data-path="prescription.od.base"><input data-path="prescription.os.base"></div>
+        <section class="review-card frame-card">
+          <div class="section-title-row">
+            <h2>Frame</h2>
+            <span class="optional-badge">Optional</span>
+          </div>
+          <div class="field-grid three">
+            <label data-field-wrap="frame.status">Workflow
+              <select data-path="frame.status">
+                <option value="TO_BE_TRACED">To be traced</option>
+                <option value="MEASURED">Measurements available</option>
+                <option value="UNCUT">Uncut / no frame trace</option>
+              </select>
+            </label>
+            <label data-field-wrap="frame.model">Model<input data-path="frame.model" placeholder="From frame / trace"></label>
+            <label data-field-wrap="frame.color">Color<input data-path="frame.color" placeholder="From frame / trace"></label>
+            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="From trace"></label>
+          </div>
         </section>
 
-        <section class="review-card">
-          <h2>PD</h2>
-          <div class="field-grid three">
-            <label data-field-wrap="pd.binocular">Binocular<input data-path="pd.binocular" inputmode="decimal"></label>
-            <label data-field-wrap="pd.od">OD<input data-path="pd.od" inputmode="decimal"></label>
-            <label data-field-wrap="pd.os">OS<input data-path="pd.os" inputmode="decimal"></label>
-            <label data-field-wrap="pd.nearOd">Near OD<input data-path="pd.nearOd" inputmode="decimal"></label>
-            <label data-field-wrap="pd.nearOs">Near OS<input data-path="pd.nearOs" inputmode="decimal"></label>
-            <label data-field-wrap="pd.type">Type<input data-path="pd.type" placeholder="Binocular / monocular"></label>
+        <section class="review-card prescription-card">
+          <h2>Prescription</h2>
+          <div class="rx-table-wrap">
+            <table class="rx-table">
+              <thead><tr><th scope="col">Eye</th><th scope="col">Sphere</th><th scope="col">Cylinder</th><th scope="col">Axis</th><th scope="col">ADD</th><th scope="col">Dist PD</th><th scope="col">Near PD</th><th scope="col">OC HT</th><th scope="col">Prism</th><th scope="col">Base</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">OD <small>right</small></th><td><input aria-label="OD sphere" data-path="prescription.od.sphere" inputmode="decimal"></td><td><input aria-label="OD cylinder" data-path="prescription.od.cylinder" inputmode="decimal"></td><td><input aria-label="OD axis" data-path="prescription.od.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><input aria-label="OD ADD" data-path="prescription.od.add" inputmode="decimal"></td><td><input aria-label="OD distance PD" data-path="pd.od" inputmode="decimal"></td><td><input aria-label="OD near PD" data-path="pd.nearOd" inputmode="decimal"></td><td><input aria-label="OD optical center height" data-path="frame.segHeightOd" inputmode="decimal"></td><td><input aria-label="OD prism" data-path="prescription.od.prism"></td><td><input aria-label="OD base" data-path="prescription.od.base"></td></tr>
+                <tr><th scope="row">OS <small>left</small></th><td><input aria-label="OS sphere" data-path="prescription.os.sphere" inputmode="decimal"></td><td><input aria-label="OS cylinder" data-path="prescription.os.cylinder" inputmode="decimal"></td><td><input aria-label="OS axis" data-path="prescription.os.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><input aria-label="OS ADD" data-path="prescription.os.add" inputmode="decimal"></td><td><input aria-label="OS distance PD" data-path="pd.os" inputmode="decimal"></td><td><input aria-label="OS near PD" data-path="pd.nearOs" inputmode="decimal"></td><td><input aria-label="OS optical center height" data-path="frame.segHeightOs" inputmode="decimal"></td><td><input aria-label="OS prism" data-path="prescription.os.prism"></td><td><input aria-label="OS base" data-path="prescription.os.base"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="rx-table-meta">
+            <label data-field-wrap="pd.binocular">Binocular PD<input data-path="pd.binocular" inputmode="decimal"></label>
+            <label data-field-wrap="pd.type">PD type<input data-path="pd.type" placeholder="Binocular / monocular"></label>
           </div>
         </section>
 
@@ -151,31 +173,6 @@
             <label data-field-wrap="lensRequest.material">Material<input data-path="lensRequest.material" autocomplete="off"></label>
             <label data-field-wrap="lensRequest.option">Option<input data-path="lensRequest.option" autocomplete="off"></label>
             <label data-field-wrap="lensRequest.coating">Coating<input data-path="lensRequest.coating" autocomplete="off"></label>
-          </div>
-        </section>
-
-        <section class="review-card">
-          <div class="section-title-row">
-            <h2>Frame</h2>
-            <span class="optional-badge">Optional</span>
-          </div>
-          <p class="section-help">Defaults to “To be traced.” Leave measurements blank until the actual frame trace replaces them.</p>
-          <div class="field-grid three">
-            <label data-field-wrap="frame.status">Frame workflow
-              <select data-path="frame.status">
-                <option value="TO_BE_TRACED">To be traced</option>
-                <option value="MEASURED">Measurements available</option>
-                <option value="UNCUT">Uncut / no frame trace</option>
-              </select>
-            </label>
-            <label data-field-wrap="frame.model">Model<input data-path="frame.model" placeholder="From frame / trace"></label>
-            <label data-field-wrap="frame.color">Color<input data-path="frame.color" placeholder="From frame / trace"></label>
-            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.segHeightOd">OD segment height<input data-path="frame.segHeightOd" inputmode="decimal" placeholder="Optional"></label>
-            <label data-field-wrap="frame.segHeightOs">OS segment height<input data-path="frame.segHeightOs" inputmode="decimal" placeholder="Optional"></label>
           </div>
         </section>
 
@@ -199,8 +196,9 @@
             <span class="optional-badge">Exact source selections</span>
           </div>
           <p class="section-help">Choose only known account, catalogue, and frame values. Saving this configuration does not generate, stage, or release a file.</p>
+          <p id="aliasSuggestion" class="alias-suggestion" hidden></p>
           <div class="field-grid two">
-            <label>Customer number<input name="customerNumber" autocomplete="off" required></label>
+            <label>Customer number<input name="customerNumber" autocomplete="off" required readonly></label>
             <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
             <label>Ship name<input name="shipName" autocomplete="off" required></label>
             <label>Exact 13-digit lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required></label>
@@ -208,7 +206,7 @@
             <label>Add-on SKUs <span class="field-optional">optional</span><input name="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
             <label>Frame mode<select name="frameMode"><option value="uncut">Uncut</option><option value="edged">Edged / enclosed</option></select></label>
             <label>Frame mounting code<input name="frameMounting" value="1" autocomplete="off" required></label>
-            <label>Remote operator <span class="field-optional">optional</span><input name="remoteOperator" autocomplete="off" placeholder="Uses configured default when blank"></label>
+            <label>Remote operator<input name="remoteOperator" autocomplete="off" readonly></label>
             <label>Lab number <span class="field-optional">optional</span><input name="labNum" autocomplete="off" placeholder="Uses configured default when blank"></label>
           </div>
         </section>

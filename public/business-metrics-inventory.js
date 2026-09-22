@@ -731,7 +731,8 @@
           '<div class="inv-config-field">' +
             '<label for="cfgProvider">Provider Preset</label>' +
             '<select id="cfgProvider">' +
-              '<option value="openai"' + (curProv === "openai" ? " selected" : "") + '>OpenAI API (gpt-4o-mini / gpt-4o)</option>' +
+              '<option value="openai-luna"' + (curProv === "openai-luna" ? " selected" : "") + '>OpenAI API — GPT-5.6 Luna</option>' +
+              '<option value="openai"' + (curProv === "openai" ? " selected" : "") + '>OpenAI API (custom model)</option>' +
               '<option value="gemini"' + (curProv === "gemini" ? " selected" : "") + '>Google Gemini API (gemini-2.5-flash)</option>' +
               '<option value="ollama"' + (curProv === "ollama" ? " selected" : "") + '>Local Ollama (localhost:11434)</option>' +
               '<option value="litellm"' + (curProv === "litellm" ? " selected" : "") + '>LiteLLM Proxy (localhost:4000)</option>' +
@@ -744,7 +745,7 @@
           '</div>' +
           '<div class="inv-config-field">' +
             '<label for="cfgModel">Model Name</label>' +
-            '<input type="text" id="cfgModel" value="' + esc(curMod) + '" placeholder="e.g. gpt-4o-mini or qwen2.5-coder:7b">' +
+            '<input type="text" id="cfgModel" value="' + esc(curMod) + '" placeholder="e.g. gpt-5.6-luna or qwen2.5-coder:7b">' +
           '</div>' +
           '<div class="inv-config-field">' +
             '<label for="cfgApiKey">API Key (Optional for local Ollama)</label>' +
@@ -990,9 +991,12 @@
         var p = cfgProvSelect.value;
         var urlInput = host.querySelector("#cfgBaseUrl");
         var modelInput = host.querySelector("#cfgModel");
-        if (p === "openai") {
+        if (p === "openai-luna") {
           if (urlInput) urlInput.value = "https://api.openai.com/v1";
-          if (modelInput) modelInput.value = "gpt-4o-mini";
+          if (modelInput) modelInput.value = "gpt-5.6-luna";
+        } else if (p === "openai") {
+          if (urlInput) urlInput.value = "https://api.openai.com/v1";
+          if (modelInput) modelInput.value = "gpt-5.6-luna";
         } else if (p === "gemini") {
           if (urlInput) urlInput.value = "https://generativelanguage.googleapis.com/v1beta/openai";
           if (modelInput) modelInput.value = "gemini-2.5-flash";

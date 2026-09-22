@@ -1061,7 +1061,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
-  if (await handleRxCaptureRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleRxCaptureRoute({ req, res, url, handleApi, readJsonBody, requirePermission, searchCustomers: listCustomers })) return;
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
