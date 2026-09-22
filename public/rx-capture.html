@@ -12,7 +12,7 @@
   <header class="rx-topbar">
     <div class="rx-brand">
       <button id="mobileBackButton" class="mobile-back-button" type="button" data-back aria-label="Back to recent orders">←</button>
-      <span class="rx-mark" aria-hidden="true">RX</span>
+      <a class="rx-mark" href="/" aria-label="Return to home">RX</a>
       <strong>RX Capture</strong>
     </div>
     <div class="rx-account">
@@ -26,8 +26,8 @@
 
     <section id="ordersScreen" class="screen active" aria-label="RX Capture">
       <div class="hero">
-        <p>Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
         <button id="newRxButton" class="primary-button" type="button">+ NEW RX</button>
+        <p>Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
       </div>
 
       <section class="orders-panel" aria-labelledby="recentTitle">
@@ -39,7 +39,7 @@
           <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders">↻</button>
         </div>
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
-        <div id="ordersList" class="orders-list" role="list"></div>
+        <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
       </section>
 
       <section id="reviewQueuePanel" class="orders-panel review-queue" aria-labelledby="reviewQueueTitle" hidden>
@@ -51,7 +51,7 @@
           <button id="refreshReviewQueueButton" class="icon-button" type="button" aria-label="Refresh approval queue">↻</button>
         </div>
         <div id="reviewQueueEmpty" class="empty-state">No RX Capture orders are awaiting review.</div>
-        <div id="reviewQueueList" class="orders-list" role="list"></div>
+        <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="reviewQueueList"></tbody></table></div>
       </section>
     </section>
 
@@ -177,8 +177,8 @@
         </section>
 
         <section id="issuesCard" class="issues-card" hidden>
-          <h2>Needs attention</h2>
-          <p>Highlighted fields were missing or uncertain. Enter what you can verify from the source.</p>
+          <h2>Experimental incomplete-order review</h2>
+          <p>Missing or uncertain fields do not block transmission in this experiment. The order can be augmented later as information becomes available.</p>
           <ul id="issuesList"></ul>
         </section>
 

@@ -100,27 +100,37 @@
     const payload = await api("/api/rx-capture/review-queue");
     const orders = payload.orders || [];
     $("#reviewQueuePanel").hidden = false;
-    $("#reviewQueueList").replaceChildren(...orders.map((order) => orderButton(order, () => showOrder(order))));
+    $("#reviewQueueList").replaceChildren(...orders.map((order) => orderRow(order, () => showOrder(order))));
     $("#reviewQueueEmpty").hidden = orders.length > 0;
   }
 
-  function orderButton(order, onClick = () => openOrder(order.id)) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "order-row";
-    button.setAttribute("role", "listitem");
+  function orderRow(order, onClick = () => openOrder(order.id)) {
+    const row = document.createElement("tr");
+    row.className = "order-row";
     const patient = document.createElement("strong");
     patient.textContent = order.patientName || "Patient not identified";
+    const patientCell = document.createElement("td");
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "order-link";
+    openButton.append(patient);
     const status = document.createElement("span");
     status.className = "status-pill";
     status.dataset.status = order.status;
     status.textContent = statusLabel(order.status);
-    const meta = document.createElement("span");
-    meta.className = "order-meta";
-    meta.textContent = formatDate(order.createdAt);
-    button.append(patient, status, meta);
-    button.addEventListener("click", onClick);
-    return button;
+    const dateCell = document.createElement("td");
+    dateCell.className = "order-meta";
+    dateCell.textContent = formatDate(order.createdAt);
+    const statusCell = document.createElement("td");
+    statusCell.append(status);
+    patientCell.append(openButton);
+    row.append(patientCell, dateCell, statusCell);
+    openButton.addEventListener("click", onClick);
+    return row;
+  }
+
+  function orderButton(order, onClick) {
+    return orderRow(order, onClick);
   }
 
   async function submitCapture(event) {
