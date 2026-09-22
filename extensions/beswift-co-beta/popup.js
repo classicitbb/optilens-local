@@ -1,3 +1,5 @@
+document.querySelector("#version").textContent = `v${chrome.runtime.getManifest().version}`;
+
 const baseInput = document.querySelector("#baseUrl");
 const claimInput = document.querySelector("#claimCode");
 const startBtn = document.querySelector("#startBtn");

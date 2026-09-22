@@ -1,20 +1,34 @@
+html {
+  background: transparent;
+}
+
 body {
   width: 320px;
   margin: 0;
   font: 13px "Segoe UI", Arial, sans-serif;
   color: #0b1e35;
-  background: #f4f2ed;
+  background: transparent;
 }
 
 main {
   display: grid;
   gap: 10px;
   padding: 14px;
+  background: #f4f2ed;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(11, 30, 53, 0.18);
 }
 
 h1 {
   margin: 0;
   font-size: 17px;
+}
+
+.version {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7a8ea3;
+  vertical-align: middle;
 }
 
 label {
