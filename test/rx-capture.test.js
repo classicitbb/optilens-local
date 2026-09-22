@@ -47,6 +47,54 @@ test("marks only unresolved extracted fields as needing information", () => {
   assert.equal(result.hasIssues, true);
 });
 
+test("single-vision blank ADD, prism, and base cells are optional rather than missing", () => {
+  const order = emptyNormalizedOrder();
+  order.patient.name = "TEST PATIENT";
+  order.prescription.od.sphere = "-1.00";
+  order.prescription.os.sphere = "-1.25";
+  order.pd.binocular = "62";
+  order.lensRequest.lensType = "Single Vision Lenses";
+  order.missingFields = [
+    "prescription.od.add",
+    "prescription.os.add",
+    "prescription.od.prism",
+    "prescription.od.base",
+    "prescription.os.prism",
+    "prescription.os.base"
+  ];
+
+  const result = unresolvedFields(order);
+  assert.deepEqual(result.missingFields, []);
+  assert.equal(result.hasIssues, false);
+});
+
+test("multifocal prescriptions still require ADD while optional prism and base remain blank", () => {
+  const order = emptyNormalizedOrder();
+  order.patient.name = "TEST PATIENT";
+  order.prescription.od.sphere = "+1.00";
+  order.prescription.os.sphere = "+1.00";
+  order.pd.binocular = "64";
+  order.lensRequest.design = "Progressive multifocal";
+  order.missingFields = ["prescription.od.prism", "prescription.os.base"];
+
+  const result = unresolvedFields(order);
+  assert.deepEqual(result.missingFields, ["prescription.od.add", "prescription.os.add"]);
+});
+
+test("an illegible optional field remains uncertain instead of being silently discarded", () => {
+  const order = emptyNormalizedOrder();
+  order.patient.name = "TEST PATIENT";
+  order.prescription.od.sphere = "-1.00";
+  order.prescription.os.sphere = "-1.00";
+  order.pd.binocular = "60";
+  order.lensRequest.lensType = "Single Vision";
+  order.uncertainFields = ["prescription.od.add", "prescription.os.prism", "prescription.os.base"];
+
+  const result = unresolvedFields(order);
+  assert.deepEqual(result.uncertainFields, order.uncertainFields);
+  assert.equal(result.hasIssues, true);
+});
+
 test("strict extraction schema requires each normalized section", () => {
   const schema = extractionJsonSchema();
   assert.equal(schema.additionalProperties, false);

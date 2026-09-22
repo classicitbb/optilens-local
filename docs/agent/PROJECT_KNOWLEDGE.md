@@ -27,6 +27,7 @@
 - `/rx-capture` is a full-screen, authenticated mobile intake page inside the existing Node HTTP process.
 - `lib/rx-capture/normalized-order.js` is the source-neutral boundary shared by photo capture and future manual/customer/API entry paths.
 - RX Capture records and non-clinical audit metadata live in the private app database under the `rx_capture` schema. Order reads and updates are owner-scoped in Milestone 1.
+- RX Capture treats blank ADD, prism, and base cells as intentionally absent optional data, not missing data. ADD becomes required only when the extracted lens type/design explicitly indicates a multifocal family; illegible marks remain uncertain for employee review.
 - Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. It does not approve, serialize, stage, release, or write Innovations data.
 
 ## Knowledge maintenance
