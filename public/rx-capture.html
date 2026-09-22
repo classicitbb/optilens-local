@@ -217,6 +217,11 @@
       <section id="approvalActions" class="review-card approval-actions" hidden>
         <h2>Reviewer actions</h2>
         <p id="approvalMessage" class="section-help">Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.</p>
+        <ol class="approval-steps" aria-label="RX file workflow">
+          <li id="approvalStepGenerated"><strong>Approve &amp; generate</strong><span>Creates the immutable RX payload.</span></li>
+          <li id="approvalStepStaged"><strong>Stage approved RX</strong><span>Writes the verified file to local staging.</span></li>
+          <li id="approvalStepReleased"><strong>Release to Innovations</strong><span>Sends it only after a separate authorized action; an archive copy remains.</span></li>
+        </ol>
         <div class="action-row">
           <button id="approveOrderButton" class="primary-button" type="button">APPROVE &amp; GENERATE</button>
           <button id="stageOrderButton" class="secondary-button" type="button">STAGE APPROVED RX</button>

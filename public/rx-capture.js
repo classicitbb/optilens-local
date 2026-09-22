@@ -107,6 +107,9 @@
   function orderRow(order, onClick = () => openOrder(order.id)) {
     const row = document.createElement("tr");
     row.className = "order-row";
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", `Open ${order.patientName || "prescription"}`);
     const patient = document.createElement("strong");
     patient.textContent = order.patientName || "Patient not identified";
     const patientCell = document.createElement("td");
@@ -125,7 +128,17 @@
     statusCell.append(status);
     patientCell.append(openButton);
     row.append(patientCell, dateCell, statusCell);
-    openButton.addEventListener("click", onClick);
+    row.addEventListener("click", onClick);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onClick();
+      }
+    });
+    openButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onClick();
+    });
     return row;
   }
 
@@ -278,9 +291,17 @@
     $("#approveOrderButton").hidden = !(state.canApprove && order.status === "READY_FOR_REVIEW");
     $("#stageOrderButton").hidden = !(state.canStage && order.status === "RX_GENERATED");
     $("#releaseOrderButton").hidden = !(state.canRelease && order.status === "STAGED");
+    const steps = ["approvalStepGenerated", "approvalStepStaged", "approvalStepReleased"];
+    const completed = order.status === "RELEASED" ? 3 : order.status === "STAGED" ? 2 : order.status === "RX_GENERATED" ? 1 : 0;
+    steps.forEach((id, index) => {
+      const step = $(`#${id}`);
+      step.classList.toggle("complete", index < completed);
+      step.classList.toggle("current", index === completed && order.status !== "RELEASED");
+    });
     if (order.status === "RELEASED") $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
-    else if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"}. It has not been released to Innovations.`;
-    else $("#approvalMessage").textContent = "Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.";
+    else if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"} in the local RX staging folder. It is waiting for an authorized release; nothing has been sent to Innovations yet.`;
+    else if (order.status === "RX_GENERATED") $("#approvalMessage").textContent = `Generated ${order.generatedFilename || "an immutable RX payload"}. The next step is local staging, which creates the file for review; it is not released automatically.`;
+    else $("#approvalMessage").textContent = "Approval creates an immutable RX payload. The visible steps below show when it is generated, written to local staging, and finally released to Innovations.";
   }
 
   function renderIssues(order) {
