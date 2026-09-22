@@ -2031,11 +2031,15 @@ const server = http.createServer(async (req, res) => {
   if (extensionStatusMatch && req.method === "POST") {
     return handleApi(res, async () => {
       const job = await updateBeSwiftAutomationJobStatus(extensionStatusMatch[1], await readJsonBody(req));
-      if (job.status === "filled_review") {
+      // Archive the commercial invoice at whichever terminal state the run
+      // reached. A run that goes on to submit never reports "filled_review", so
+      // matching on that alone would silently skip the archive for exactly the
+      // certificates that made it furthest.
+      if (["filled_review", "submitted", "paid"].includes(job.status)) {
         const application = await getApplicationById(job.coApplicationId);
         const preview = await getCommercialInvoicePreview(application.shipmentSessionId);
         const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
-        await appendDocumentArchive({ preview, html, status: "filled_review", actorUserId: null, sourceAuditKey: job.automationJobId });
+        await appendDocumentArchive({ preview, html, status: job.status, actorUserId: null, sourceAuditKey: job.automationJobId });
       }
       return { job };
     });

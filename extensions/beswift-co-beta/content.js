@@ -1,4 +1,18 @@
 (function () {
+  // Divides every artificial delay in the fill. The per-field pacing below was
+  // tuned one field at a time against the live portal, so it is scaled as a
+  // whole rather than re-tuned: the proportions that work stay, the run just
+  // gets shorter. Read from chrome.storage.local at the start of each run
+  // (the popup's Fill speed control), so a run that turns flaky can be put
+  // back to 1x without a code change or a reload.
+  //
+  // Measured on job 7C4FB596 (2026-09-22, 2 items): 107s of header, 57s per
+  // item, almost all of it these delays plus one CDP round trip per typed
+  // character. At 2x with bulk text insert that run would be ~100s instead of
+  // ~230s.
+  const DEFAULT_FILL_SPEED = 2;
+  let fillSpeed = DEFAULT_FILL_SPEED;
+
   const HUMAN_DELAY = {
     clickMin: 220,
     clickMax: 620,
@@ -57,10 +71,12 @@
     // Wire up the data-driven positional hints (#2) and expose ctx to the
     // reconciliation/learning helpers so they can append to the job log_json.
     fillCtx = ctx;
+    fillSpeed = await loadFillSpeed();
     indexSuggested.clear();
     optionIndexHints = { ...OPTION_INDEX_HINTS_FALLBACK, ...(payload.optionIndexHints || {}) };
     await ensureOnCertificateForm();
-    await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
+    await report(ctx.baseUrl, ctx.job.automationJobId, "filling",
+      `Signed in. Filling available fields (fill speed ${fillSpeed}x).`);
     await fillHeader(ctx, payload);
     // Blank-field sweep (refinement 2026-08-08): re-read the header's typed
     // text fields against the payload before the mandatory review pause, so a
@@ -84,11 +100,40 @@
     }
     await pauseForInteraction(ctx, headerPauseReason, headerBlanks.length ? findByAny([headerBlanks[0].label]) : undefined, headerPauseMeta);
     await fillItems(ctx, payload);
-    await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
-    // Detach chrome.debugger now that pickByLabel is done using it — leaves
-    // the tab in a normal, non-debugged state (removing Chrome's "this
-    // extension started debugging this browser" banner) before handing the
-    // certificate back to a human for review/submit.
+    await checkpoint(ctx, `Items complete (${(payload.items || []).length} line(s)). Waiting on the review decision.`);
+    // Review gate. Submitting registers the application with the certifying
+    // authority and makes it payable, so it never happens on its own — the
+    // operator asks for it here, having just looked at the filled form. A
+    // resume that carries no choice with it (popup button, right-click menu)
+    // falls through to "finish", which is exactly the old behaviour.
+    const choice = await pauseForInteraction(
+      ctx,
+      "Items complete — review the whole certificate now. \"Verify & submit\" runs Form Action → Verify Document, "
+        + "shows you what BeSwift says, and only then offers to Submit. Finishing here leaves the certificate "
+        + "filled and unsubmitted for you to handle yourself.",
+      undefined,
+      {},
+      {
+        actions: [
+          { id: "submit", label: "Verify & submit certificate", primary: true, go: true },
+          { id: "finish", label: "Finish here — I will submit" }
+        ],
+        defaultOutcome: "finish"
+      }
+    );
+    if (choice === "submit") {
+      await submitCertificate(ctx);
+      return;
+    }
+    await finishWithoutSubmitting(ctx, "Form fill complete. Review and submit manually.");
+  }
+
+  // Ends the run at the old terminal state: filled, reviewed, not submitted.
+  // Detaches chrome.debugger now that pickByLabel is done with it, which
+  // removes Chrome's "this extension started debugging this browser" banner
+  // before the certificate is handed back to a human.
+  async function finishWithoutSubmitting(ctx, message) {
+    await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", message);
     chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
     showBanner("OptiLens BeSwift fill complete. Review the certificate before submitting.");
   }
@@ -475,6 +520,784 @@
     await checkpoint(ctx, `All ${items.length} item(s) processed.`);
   }
 
+  // ---------------------------------------------------------------------------
+  // Submit stage — opt-in, operator-triggered, never automatic.
+  //
+  // BeSwift's own sequence (eCOO Trader's Guide, "Form Actions"): Form Action
+  // or task bar → Verify Document → read the verification result → Form Action
+  // → Submit → Proceed on the confirmation → the system generates the
+  // Registration Reference, which is the number the payment run needs.
+  //
+  // Deliberately not fully autonomous. The verification result is free text
+  // this code has never seen, and a submit is irreversible and chargeable, so
+  // the run shows the operator what BeSwift actually said and waits for a
+  // second, explicit go-ahead before it clicks Submit. Every control it cannot
+  // find becomes a pause asking for that one click by hand, rather than a dead
+  // run — same pattern as the item dialog.
+  // ---------------------------------------------------------------------------
+  const FORM_ACTION_LABELS = ["form action", "form actions", "task bar", "actions"];
+
+  async function submitCertificate(ctx) {
+    const payload = (ctx.payload && ctx.payload.payload) || {};
+    await checkpoint(ctx, "Submit stage: Form Action → Verify Document.");
+    const verify = await runFormAction("Verify Document");
+    if (!verify.clicked) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Verify Document on this page. Run Verify Document yourself from the "
+          + "Form Action menu (or the task bar, upper right), then Resume.",
+        undefined,
+        { field: "Form Action → Verify Document", expected: "Verify Document menu item" }
+      );
+    }
+    const verdict = verify.message;
+    await checkpoint(
+      ctx,
+      `Verify Document result: ${verdict || "(no message captured — read it on the page)"}`,
+      { confirmationAnswered: verify.confirmed }
+    );
+
+    const go = await pauseForInteraction(
+      ctx,
+      `BeSwift said: ${verdict || "(no message captured — read the verification result on the page)"} — `
+        + "submitting registers the application with the certifying authority and makes it payable. "
+        + "Submit only if the verification is clean.",
+      undefined,
+      { field: "Verify Document", expected: "no outstanding requirements", actual: verdict || "" },
+      {
+        actions: [
+          { id: "submit", label: "Submit now", primary: true, go: true },
+          { id: "stop", label: "Stop — do not submit" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (go !== "submit") {
+      await finishWithoutSubmitting(ctx, "Operator stopped before submit. Certificate is filled but not submitted.");
+      return;
+    }
+
+    await checkpoint(ctx, "Submit stage: Form Action → Submit.");
+    // Everything that already looks like a document reference, captured BEFORE
+    // the submit, so the applicant reference sitting in the page header cannot
+    // be mistaken for the registration reference the submit generates.
+    const knownReferences = collectReferenceCandidates(payload);
+    const submitted = await runFormAction("Submit");
+    if (!submitted.clicked) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Submit. Choose Submit yourself from the Form Action menu, confirm with "
+          + "Proceed, then Resume so the registration reference gets recorded.",
+        undefined,
+        { field: "Form Action → Submit", expected: "Submit menu item" }
+      );
+    } else if (!submitted.confirmed) {
+      await pauseForInteraction(
+        ctx,
+        "Submit was clicked but the confirmation box could not be answered from here"
+          + `${submitted.message ? ` (BeSwift showed: ${submitted.message})` : ""}. Confirm the submission on the `
+          + "page, then Resume so the registration reference gets recorded.",
+        undefined,
+        { field: "Submit confirmation", expected: "Proceed / Yes", actual: submitted.message || "" }
+      );
+    } else if (submitted.message) {
+      await checkpoint(ctx, `Submit result: ${submitted.message}`);
+    }
+
+    const reference = await waitFor(() => readRegistrationReference(knownReferences), 45000, 750);
+    if (reference) {
+      await checkpoint(ctx, `Submitted. Registration reference ${reference}.`, { registrationReference: reference });
+    } else {
+      await checkpoint(ctx, "Submitted, but no registration reference could be read from the page — take it from "
+        + "the application header before paying.");
+    }
+
+    // Payment is a separate BeSwift module (Online Payment → Online Payment
+    // Order) and, for the card itself, a separate site. The order itself is now
+    // driven from here; the card is not, and never will be.
+    const next = await pauseForInteraction(
+      ctx,
+      `Certificate submitted${reference ? ` as ${reference}` : ""}. The payment order can be raised from here: `
+        + "Trader TIN, this LPCO application, an EZpay payment method, Verify Document, then Pay Now — which "
+        + "opens the card window for you to type the card into yourself. Nothing is paid without two more "
+        + "explicit go-aheads.",
+      undefined,
+      {},
+      {
+        actions: [
+          { id: "pay", label: "Raise the payment order", primary: true, go: true },
+          { id: "capture", label: "Record my payment run" },
+          { id: "done", label: "Done" }
+        ],
+        defaultOutcome: "done"
+      }
+    );
+
+    if (next === "pay") {
+      await payCertificate(ctx, reference);
+      return;
+    }
+
+    await reportDetailed(
+      ctx.baseUrl,
+      ctx.job.automationJobId,
+      "submitted",
+      reference ? `Certificate submitted. Registration reference ${reference}.` : "Certificate submitted.",
+      { registrationReference: reference || null }
+    );
+    chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+    if (next === "capture") startPaymentCapture(ctx, reference);
+    else showPinned("done", `Certificate submitted${reference ? ` as ${reference}` : ""}. Pay it from Online Payment → Online Payment Order.`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Payment order stage — raises the BeSwift Online Payment Order for a
+  // submitted certificate and takes it as far as Pay Now, where BeSwift opens
+  // the card window and a human takes over.
+  //
+  // Built from three recorded operator runs (2026-09-22, co_fill_resolutions
+  // source 'payment-capture'), not from the user guide's prose. What those runs
+  // actually showed: the order lives at the hash route #/accounting/wpos/new
+  // and is reached with no page load; Trader TIN is a labelled autocomplete
+  // ("1000006494000 - Classic Visions Limited"); the certificate is attached
+  // through an "Add LPCO Applications" dialog whose rows carry a checkbox
+  // rather than the serial-number fields the guide describes; the method goes
+  // in through "Add Payment Method" with Type = EZpay; and every dialog save
+  // and Form Action is confirmed with a Yes.
+  //
+  // The generated ids in those recordings (input-2350, input-2536) change on
+  // every load, so nothing here matches on them — labels and button text only,
+  // the same way the certificate fill works. Every step that cannot find its
+  // control pauses for one manual click instead of failing the run.
+  //
+  // Two operator go-aheads stand between arriving here and money moving: one
+  // on the assembled order with the amount shown, one on the verification
+  // result before Pay Now.
+  // ---------------------------------------------------------------------------
+  const PAYMENT_ORDER_ROUTE = "#/accounting/wpos/new";
+
+  async function payCertificate(ctx, reference) {
+    const payload = (ctx.payload && ctx.payload.payload) || {};
+    const pay = payload.payment || {};
+    await checkpoint(ctx, `Payment stage: opening the online payment order for ${reference || "this certificate"}.`);
+
+    if (!await openPaymentOrder()) {
+      await pauseForInteraction(
+        ctx,
+        "Could not open the payment order form. Go to Online Payment → Online Payment Order yourself, then Resume.",
+        undefined,
+        { field: "Online Payment Order", expected: PAYMENT_ORDER_ROUTE }
+      );
+    }
+
+    await pickTraderTin(ctx, pay);
+    await addLpcoApplication(ctx, reference);
+    await addEzpayMethod(ctx);
+
+    const amount = readAmountPayable();
+    await checkpoint(ctx, `Payment order assembled. Amount payable: ${amount || "(not read from the page)"}.`,
+      { registrationReference: reference || null, amountPayable: amount || null });
+
+    const go = await pauseForInteraction(
+      ctx,
+      `Payment order for ${reference || "this certificate"} is assembled. Amount payable: `
+        + `${amount || "read it off the page — it could not be captured"}. Check the application and the amount. `
+        + "Continuing runs Verify Document and then shows you the result before anything is paid.",
+      undefined,
+      { field: "Amount payable", expected: amount || "", section: "Payment order" },
+      {
+        actions: [
+          { id: "verify", label: "Verify the payment order", primary: true, go: true },
+          { id: "stop", label: "Stop — I will finish it" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (go !== "verify") return finishPaymentStage(ctx, reference, "Operator stopped before verifying the payment order.");
+
+    const verified = await runFormAction("Verify Document");
+    await checkpoint(ctx, `Payment order verification: ${verified.message || "(no message captured)"}`,
+      { confirmationAnswered: verified.confirmed });
+
+    const payNow = await pauseForInteraction(
+      ctx,
+      `BeSwift said: ${verified.message || "(no message captured — read the verification result on the page)"} — `
+        + `Pay Now opens the card window for ${amount || "the amount above"}. The card is typed by you, there, `
+        + "and nothing about it is read or recorded by this extension.",
+      undefined,
+      { field: "Payment order verification", actual: verified.message || "" },
+      {
+        actions: [
+          { id: "pay", label: "Pay Now", primary: true, go: true },
+          { id: "stop", label: "Stop — do not pay" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (payNow !== "pay") return finishPaymentStage(ctx, reference, "Operator stopped before Pay Now.");
+
+    // Ask the worker to follow the window BeSwift is about to open. Nothing of
+    // ours runs inside it — see the note on watchPaymentWindow in background.js.
+    watchPaymentWindowRelay(ctx.baseUrl, ctx.job.automationJobId);
+    const handoff = await runFormAction("Pay Now");
+    if (!handoff.clicked) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Pay Now. Choose Pay Now yourself, then Resume once the card window is open.",
+        undefined,
+        { field: "Form Action → Pay Now", expected: "Pay Now menu item" }
+      );
+    }
+    await checkpoint(ctx, "Pay Now clicked — handed off to the card window.");
+
+    const outcome = await pauseForInteraction(
+      ctx,
+      "The card window should now be open. Complete the payment there — Checkout as Guest, Next, then the card "
+        + "and billing details, Submit, Yes Continue. Come back here and say how it went so the job records it. "
+        + "If the window did not appear, check for a blocked pop-up in the address bar.",
+      undefined,
+      { section: "Payment", field: "Card window" },
+      {
+        actions: [
+          { id: "paid", label: "Payment completed", primary: true, go: true },
+          { id: "unpaid", label: "Not paid" }
+        ],
+        defaultOutcome: "unpaid"
+      }
+    );
+
+    if (outcome === "paid") {
+      await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paid",
+        `Payment completed for ${reference || "the certificate"}${amount ? ` (${amount})` : ""}.`,
+        { registrationReference: reference || null, amountPayable: amount || null });
+      chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+      showPinned("done", `Paid${reference ? ` — ${reference}` : ""}. The certificate moves to Paid once BeSwift settles it.`);
+      return;
+    }
+    return finishPaymentStage(ctx, reference, "Card window opened but the payment was not completed.");
+  }
+
+  // Ends the payment stage without a payment: the certificate is still
+  // submitted, which is the terminal state that matters downstream.
+  async function finishPaymentStage(ctx, reference, message) {
+    await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "submitted",
+      `${message} Certificate ${reference || "(reference not captured)"} is submitted and unpaid.`,
+      { registrationReference: reference || null });
+    chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+    showPinned("info", `${message} Certificate ${reference || ""} is submitted and still needs paying.`);
+  }
+
+  // The left menu was recorded as three clicks through a hamburger, but the
+  // destination is an ordinary hash route in the same SPA, so go straight
+  // there: fewer controls to miss, and no page load to survive.
+  async function openPaymentOrder() {
+    if (location.hash.startsWith(PAYMENT_ORDER_ROUTE)) return true;
+    location.hash = PAYMENT_ORDER_ROUTE;
+    const arrived = await waitFor(() => findByAny(["trader tin"]), 15000, 300);
+    if (arrived) return true;
+    // Fall back to the menu path the recordings actually show.
+    const menu = findVisibleClickableByText("Online Payment");
+    if (menu) {
+      await clickControl(menu);
+      const order = await waitFor(() => findVisibleClickableByText("Online Payment Order"), 6000, 250);
+      if (order) await clickControl(order);
+    }
+    return Boolean(await waitFor(() => findByAny(["trader tin"]), 15000, 300));
+  }
+
+  // Trader TIN is not the applicant TIN from the certificate: the recorded run
+  // picked "1000006494000 - Classic Visions Limited". Try the configured
+  // number, then the company name, then — if the list holds exactly one
+  // option — that one, which is the same ladder the Applicant TIN pick uses.
+  async function pickTraderTin(ctx, pay) {
+    for (const candidate of [pay.traderTin, pay.traderName]) {
+      if (!candidate) continue;
+      if (await pickByLabel("Trader TIN", candidate)) {
+        await checkpoint(ctx, `Trader TIN set from "${candidate}".`);
+        return true;
+      }
+    }
+    if (await pickFirstOptionByLabel("Trader TIN")) {
+      await checkpoint(ctx, "Trader TIN set from the only option in the list.");
+      return true;
+    }
+    await pauseForFieldFix(ctx, findByAny(["trader tin"]), "Trader TIN", pay.traderTin || pay.traderName || "",
+      "Pick the trader yourself, then Resume.");
+    return false;
+  }
+
+  // "Add LPCO Applications" opens a dialog. The recordings show a checkbox
+  // being ticked in it rather than the serial year / code / number fields the
+  // ePayment guide describes, so both shapes are handled: tick the row that
+  // carries this certificate's reference, or key the serial in if that is what
+  // the dialog asks for.
+  async function addLpcoApplication(ctx, reference) {
+    const dialog = await openNamedDialog(ctx, "Add LPCO Applications", ["add lpco application", "add lpco applications"]);
+    if (!dialog) {
+      await pauseForInteraction(
+        ctx,
+        `Could not open the Add LPCO Applications dialog. Add ${reference || "the certificate"} to the order `
+          + "yourself, then Resume.",
+        undefined,
+        { field: "Add LPCO Applications", expected: reference || "" }
+      );
+      return;
+    }
+
+    const serialField = findByAny(["serial number"], dialog);
+    if (serialField) {
+      const parts = splitRegistrationReference(reference);
+      await setByLabel("Serial Year", parts.year, dialog);
+      await pickByLabel("Serial Code", parts.code, dialog);
+      await setByLabel("Serial Number", parts.serial, dialog);
+      await checkpoint(ctx, `LPCO application keyed in as ${parts.year}/${parts.code}-${parts.serial}.`);
+    } else if (!await tickApplicationRow(dialog, reference)) {
+      await pauseForInteraction(
+        ctx,
+        `Could not find ${reference || "this certificate"} in the list of payable applications. Tick the right `
+          + "row yourself, then Resume.",
+        undefined,
+        { field: "LPCO application row", expected: reference || "" }
+      );
+    } else {
+      await checkpoint(ctx, `LPCO application ${reference} ticked in the list.`);
+    }
+
+    await saveDialog(ctx, dialog, "Add LPCO Applications");
+  }
+
+  async function addEzpayMethod(ctx) {
+    const dialog = await openNamedDialog(ctx, "Add Payment Method", ["add payment method"]);
+    if (!dialog) {
+      await pauseForInteraction(
+        ctx,
+        "Could not open the Add Payment Method dialog. Add an EZpay payment method yourself, then Resume.",
+        undefined,
+        { field: "Add Payment Method", expected: "EZpay" }
+      );
+      return;
+    }
+    if (!await pickByLabel("Type", "EZpay", dialog)) {
+      await pauseForFieldFix(ctx, findByAny(["type"], dialog), "Type", "EZpay",
+        "Pick EZpay in the open dialog, then Resume.");
+    }
+    await checkpoint(ctx, "Payment method set to EZpay.");
+    await saveDialog(ctx, dialog, "Add Payment Method");
+  }
+
+  // The dialogs on this page are opened by a button whose label is the action
+  // itself, and the recordings show operators hitting either the label or its
+  // icon — findVisibleClickableByText resolves both, since the icon's button
+  // carries the same text.
+  async function openNamedDialog(ctx, buttonText, alternatives = []) {
+    for (const text of [buttonText, ...alternatives]) {
+      const button = findVisibleClickableByText(text);
+      if (!button) continue;
+      await clickControl(button);
+      const dialog = await waitFor(() => document.querySelector(".v-dialog--active"), 8000, 250);
+      if (dialog) return dialog;
+    }
+    return null;
+  }
+
+  // Saving a dialog here is the check at the top of it, and BeSwift then asks
+  // "are you sure" — recorded as a v-icon click followed by a "Yes".
+  async function saveDialog(ctx, dialog, name) {
+    const save = findDialogSaveControl(dialog);
+    if (!save) {
+      await pauseForInteraction(
+        ctx,
+        `Could not find the save control on the ${name} dialog. Save it yourself, then Resume.`,
+        undefined,
+        { field: `${name} save`, expected: "check / save icon" }
+      );
+      return;
+    }
+    await clickControl(save);
+    const yes = await waitFor(
+      () => findVisibleClickableByText("Yes") || findVisibleClickableByText("Proceed"),
+      6000,
+      200
+    );
+    if (yes) await clickControl(yes);
+    await waitFor(() => !isVisibleElement(dialog), 12000, 300);
+    await checkpoint(ctx, `${name}: saved.`);
+  }
+
+  // The check/tick at the top of a Vuetify dialog is an icon button with no
+  // text, so it cannot be found the way every other control here is. Match the
+  // icon classes BeSwift uses for it, preferring one in the dialog's own header.
+  function findDialogSaveControl(dialog) {
+    const icons = [...dialog.querySelectorAll("button, .v-btn, .v-icon")]
+      .filter((el) => isVisibleElement(el) && !el.disabled);
+    const isCheck = (el) => /check|content-save|\bsave\b|done/i.test(
+      `${el.getAttribute("class") || ""} ${el.getAttribute("aria-label") || ""} ${el.textContent || ""}`
+    );
+    return icons.find(isCheck) || icons.find((el) => /save|ok/i.test(el.textContent || "")) || null;
+  }
+
+  function tickApplicationRow(dialog, reference) {
+    const needle = String(reference || "").trim().toLowerCase();
+    if (!needle) return Promise.resolve(false);
+    const rows = [...dialog.querySelectorAll("tbody tr, .v-list-item, .v-data-table__wrapper tbody tr")];
+    const row = rows.find((el) => String(el.innerText || "").toLowerCase().includes(needle));
+    if (!row) return Promise.resolve(false);
+    const box = row.querySelector("input[type='checkbox'], .v-input--selection-controls__ripple, .v-simple-checkbox");
+    if (!box) return Promise.resolve(false);
+    return clickControl(box).then(() => true);
+  }
+
+  // "2026/CER-1234" -> { year: "2026", code: "CER", serial: "1234" }.
+  function splitRegistrationReference(reference) {
+    const match = String(reference || "").match(/(\d{4})\/([A-Z]{2,4})-(\d+)/);
+    if (!match) return { year: String(new Date().getFullYear()), code: "CER", serial: String(reference || "").trim() };
+    return { year: match[1], code: match[2], serial: match[3] };
+  }
+
+  // The amount BeSwift returns to the order once the method is added. Read for
+  // the operator to check against the certificate's fees before paying, and
+  // recorded on the job.
+  function readAmountPayable() {
+    for (const label of ["amount payable", "total amount", "amount due", "amount"]) {
+      const el = findByAny([label]);
+      const value = el ? String(el.value || "").trim() : "";
+      if (value) return value;
+    }
+    return "";
+  }
+
+  function watchPaymentWindowRelay(baseUrl, jobId) {
+    try {
+      chrome.runtime.sendMessage({ type: "watchPaymentWindow", baseUrl, jobId }, () => void chrome.runtime.lastError);
+    } catch {
+      // Best effort: losing the watcher costs a log line, not the payment.
+    }
+  }
+
+  // Every Form Action operation in BeSwift asks before it runs — "You are about
+  // to perform 'Verify Document'. Are you sure you want to proceed? No / Yes"
+  // — and only reports its outcome once that is answered. The stage's first
+  // live run (job 7C4FB596, 2026-09-22) read that confirmation box back as if
+  // it were the verification result, and the operation itself never ran. So the
+  // question is now recognised, answered, and the real outcome read from
+  // whatever BeSwift shows afterwards.
+  const CONFIRMATION_PATTERN = /are you sure|about to perform|want to proceed/i;
+
+  async function runFormAction(actionName) {
+    const before = snapshotOutcomeNodes();
+    if (!await clickFormAction(actionName)) return { clicked: false, confirmed: false, message: "" };
+
+    const dialog = await waitFor(() => newOutcomeNode(before), 6000, 200);
+    if (!dialog) return { clicked: true, confirmed: false, message: "" };
+    const question = outcomeText(dialog);
+    if (!CONFIRMATION_PATTERN.test(question)) {
+      // Some operations report straight back without asking.
+      return { clicked: true, confirmed: true, message: question };
+    }
+
+    const yes = findVisibleClickableByText("Yes", dialog)
+      || findVisibleClickableByText("Proceed", dialog)
+      || findVisibleClickableByText("Ok", dialog);
+    if (!yes) {
+      pushFeed(`Form Action → ${actionName}: confirmation box has no Yes/Proceed button to click.`, "warn");
+      return { clicked: true, confirmed: false, message: question };
+    }
+    await clickControl(yes);
+
+    const answered = snapshotOutcomeNodes();
+    let message = await readActionOutcome(12000, answered);
+    if (!message) {
+      // BeSwift may reuse the same dialog element for the result, in which case
+      // a node "we have not seen before" never appears. Fall back to whatever
+      // is on screen, as long as it is no longer the question just answered.
+      const current = visibleOutcomeText();
+      if (current && current !== question) message = current;
+    }
+    return { clicked: true, confirmed: true, message };
+  }
+
+  // Clicks a named operation from BeSwift's Form Action menu / task bar. Some
+  // operations render inline on the task bar, so try a direct hit first and
+  // only open the menu when the operation is not already on screen.
+  async function clickFormAction(actionName, timeoutMs = 8000) {
+    let target = findVisibleClickableByText(actionName);
+    if (!target) {
+      const toggle = FORM_ACTION_LABELS.map((label) => findVisibleClickableByText(label)).find(Boolean);
+      if (toggle) {
+        await clickControl(toggle);
+        await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+      }
+      target = await waitFor(() => findVisibleClickableByText(actionName), timeoutMs, 250);
+    }
+    if (!target) {
+      pushFeed(`Form Action → ${actionName}: no matching control found on the page.`, "warn");
+      return false;
+    }
+    await clickControl(target);
+    await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+    return true;
+  }
+
+  // CDP click with a DOM-click fallback. The debugger can be gone by this
+  // point (detached after the fill, or dismissed by the operator), and menu
+  // items and plain buttons do not need the synthetic input events that the
+  // Vuetify autocompletes do.
+  async function clickControl(el) {
+    try {
+      await cdpClickElement(el);
+    } catch (error) {
+      pushFeed(`CDP click unavailable (${error.message}) — used a DOM click.`, "warn");
+      el.click();
+      await humanDelay(HUMAN_DELAY.clickMin, HUMAN_DELAY.clickMax);
+    }
+    return true;
+  }
+
+  // Any visible, enabled, clickable thing whose own text reads as `text`.
+  // Form Action operations render as buttons, links, Vuetify list items or
+  // ARIA menu items depending on where they appear, so all of those count.
+  // Our own panel is excluded, or a button label inside it could be mistaken
+  // for a page control.
+  function findVisibleClickableByText(text, root = document) {
+    const needle = String(text || "").trim().toLowerCase();
+    if (!needle) return null;
+    const nodes = [...root.querySelectorAll(
+      "button, a, [role='menuitem'], [role='button'], .v-list-item, .v-btn, .v-tab"
+    )];
+    const visible = nodes.filter((el) => !el.closest(`#${TOAST_ID}`) && !el.disabled && isVisibleElement(el));
+    const label = (el) => String(el.textContent || el.getAttribute("aria-label") || "")
+      .replace(/\s+/g, " ").trim().toLowerCase();
+    return visible.find((el) => label(el) === needle)
+      // A near-exact containment match catches "Submit " with an icon glyph or a
+      // trailing count, without letting "Submit Query Response" answer for
+      // "Submit".
+      || visible.find((el) => {
+        const value = label(el);
+        return value.includes(needle) && value.length <= needle.length + 12;
+      })
+      || null;
+  }
+
+  // Whatever BeSwift put on screen in response to the last action — a dialog,
+  // a snackbar, or an inline alert. Returned verbatim rather than matched
+  // against a success/failure pattern: these strings have never been seen from
+  // code, so the operator reads them, not a regex.
+  const OUTCOME_SELECTOR = ".v-dialog--active, .v-snack--active, .v-alert, [role='alertdialog'], [role='alert']";
+
+  function snapshotOutcomeNodes() {
+    return new Set([...document.querySelectorAll(OUTCOME_SELECTOR)]);
+  }
+
+  async function readActionOutcome(timeoutMs, before = new Set()) {
+    return outcomeText(await waitFor(() => newOutcomeNode(before), timeoutMs, 300));
+  }
+
+  function newOutcomeNode(before) {
+    const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
+      .filter((el) => !before.has(el) && !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
+    return found.at(-1) || null;
+  }
+
+  function visibleOutcomeText() {
+    const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
+      .filter((el) => !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
+    return outcomeText(found.at(-1) || null);
+  }
+
+  function outcomeText(node) {
+    if (!node) return "";
+    return String(node.innerText || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  }
+
+  // The Registration Reference BeSwift generates on submit — the serial the
+  // payment order is raised against. The first live run of this stage read back
+  // "2026/SHP-11674", which is the APPLICANT reference and had been in the page
+  // header since the form opened. So everything reference-shaped is collected
+  // before the submit and excluded afterwards, and a labelled field is
+  // preferred over a scrape of the page text.
+  const REFERENCE_PATTERN = /\b\d{4}\/[A-Z]{2,4}-\d{2,8}\b/g;
+
+  function collectReferenceCandidates(payload) {
+    const known = new Set();
+    const add = (value) => {
+      const text = String(value || "").trim().toLowerCase();
+      if (text) known.add(text);
+    };
+    add(payload.applicantReference);
+    for (const match of String(document.body?.innerText || "").matchAll(REFERENCE_PATTERN)) add(match[0]);
+    for (const label of REGISTRATION_LABELS) {
+      const el = findByAny([label]);
+      if (el) add(el.value);
+    }
+    return known;
+  }
+
+  const REGISTRATION_LABELS = ["registration reference", "registration number", "registration ref"];
+
+  function readRegistrationReference(known = new Set()) {
+    for (const label of REGISTRATION_LABELS) {
+      const el = findByAny([label]);
+      const value = el ? String(el.value || "").trim() : "";
+      if (value && !known.has(value.toLowerCase())) return value;
+    }
+    for (const match of String(document.body?.innerText || "").matchAll(REFERENCE_PATTERN)) {
+      if (!known.has(match[0].toLowerCase())) return match[0];
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Payment-run recorder — opt-in, offered once, after a successful submit.
+  //
+  // BeSwift's payment module has never been driven from code, and guessing
+  // selectors at a live payment portal is not something to do speculatively.
+  // So instead of a half-written automation, this records WHICH controls the
+  // operator uses while they pay by hand, and files the recording against the
+  // job. The next iteration writes the automation against real controls.
+  //
+  // It records control identity only — tag, role, classes, label and visible
+  // text. It never records a value the operator typed, and anything that reads
+  // as a payment instrument (card number, CVV, expiry, cardholder name) is not
+  // even described. Card entry stays manual by design; see
+  // docs/beswift-payment-automation.md.
+  //
+  // Scope note: this content script only runs on the BeSwift portals, so the
+  // recording covers the BeSwift payment order and stops at the hand-off to
+  // EZpay. The card page is never observed at all.
+  // ---------------------------------------------------------------------------
+  const CARD_FIELD_PATTERN = /card|cvv|cvc|security\s*code|expir|cardholder|holder name|\bpan\b/i;
+  const CAPTURE_FLUSH_MS = 6000;
+  const CAPTURE_MAX_MS = 20 * 60 * 1000;
+  let paymentCapture = null;
+
+  function startPaymentCapture(ctx, reference) {
+    if (paymentCapture) return;
+    paymentCapture = { ctx, reference: reference || null, steps: [], pending: [], flushTimer: null, stopTimer: null };
+    document.addEventListener("click", onCaptureEvent, true);
+    document.addEventListener("focusin", onCaptureEvent, true);
+    window.addEventListener("beforeunload", onCaptureUnload);
+    paymentCapture.stopTimer = setTimeout(() => stopPaymentCapture("time limit reached"), CAPTURE_MAX_MS);
+    renderCapturePanel(reference);
+    pushFeed("Payment-run recording started — controls only, never what you type.", "info");
+  }
+
+  function stopPaymentCapture(reason) {
+    if (!paymentCapture) return;
+    const capture = paymentCapture;
+    document.removeEventListener("click", onCaptureEvent, true);
+    document.removeEventListener("focusin", onCaptureEvent, true);
+    window.removeEventListener("beforeunload", onCaptureUnload);
+    clearTimeout(capture.flushTimer);
+    clearTimeout(capture.stopTimer);
+    flushPaymentCapture();
+    paymentCapture = null;
+    pushFeed(`Payment-run recording stopped (${reason}) — ${capture.steps.length} step(s) captured.`, "info");
+    showPinned("done", `Payment-run recording stopped. ${capture.steps.length} step(s) filed against this job.`);
+  }
+
+  function onCaptureUnload() {
+    flushPaymentCapture();
+  }
+
+  function onCaptureEvent(event) {
+    const el = event.target;
+    if (!el || !el.tagName) return;
+    const isField = /^(input|textarea|select)$/i.test(el.tagName);
+    if (event.type === "focusin" && !isField) return;
+    recordCaptureStep(event.type === "focusin" ? "field" : "click", el, isField);
+  }
+
+  function recordCaptureStep(kind, el, isField) {
+    if (!paymentCapture) return;
+    if (el.closest?.(`#${TOAST_ID}`)) return; // our own panel is not part of the run
+    const control = describeControl(el, isField);
+    const previous = paymentCapture.steps.at(-1);
+    // Focus/click on the same control in a row is one step, not three.
+    if (previous && previous.kind === kind && previous.control === control.control) return;
+    const step = { n: paymentCapture.steps.length + 1, at: new Date().toISOString(), kind, ...control };
+    paymentCapture.steps.push(step);
+    paymentCapture.pending.push(step);
+    scheduleCaptureFlush();
+  }
+
+  // A compact, reproducible description of one control: enough for automation
+  // to find it again, and nothing that could carry an entered value.
+  function describeControl(el, isField) {
+    const route = `${location.pathname}${location.hash}`.slice(0, 120);
+    const labels = isField ? labelTextsForInput(el).join(" | ") : "";
+    const text = String(el.getAttribute?.("aria-label") || el.textContent || "")
+      .replace(/\s+/g, " ").trim().slice(0, 80);
+    const identity = `${text} ${labels} ${el.name || ""} ${el.id || ""} ${el.getAttribute?.("autocomplete") || ""}`;
+    if (isField && CARD_FIELD_PATTERN.test(identity)) {
+      // A payment-instrument field is logged as having happened and nothing
+      // else — not its label, not its name, certainly not its value.
+      return { route, control: "(payment instrument field — not described)", redacted: true };
+    }
+    // getAttribute, not className: on an SVG node (an icon inside a button)
+    // className is an SVGAnimatedString and stringifies to "[object ...]".
+    const classes = String(el.getAttribute?.("class") || "").split(/\s+/).filter(Boolean).slice(0, 3).join(".");
+    const control = [
+      el.tagName.toLowerCase(),
+      el.id ? `#${el.id}` : "",
+      classes ? `.${classes}` : "",
+      el.getAttribute?.("role") ? `[role=${el.getAttribute("role")}]` : "",
+      text ? ` "${text}"` : "",
+      labels ? ` label="${labels.slice(0, 80)}"` : ""
+    ].join("");
+    return { route, control: control.slice(0, 300), redacted: false };
+  }
+
+  function scheduleCaptureFlush() {
+    if (!paymentCapture || paymentCapture.flushTimer) return;
+    paymentCapture.flushTimer = setTimeout(() => {
+      if (paymentCapture) paymentCapture.flushTimer = null;
+      flushPaymentCapture();
+    }, CAPTURE_FLUSH_MS);
+  }
+
+  // Filed as a fill-resolution row with source "payment-capture" — the same
+  // durable, queryable table the operator's fix notes go to, so mining a
+  // recorded run needs no new plumbing.
+  function flushPaymentCapture() {
+    if (!paymentCapture || !paymentCapture.pending.length) return;
+    const batch = paymentCapture.pending.splice(0, paymentCapture.pending.length);
+    const { ctx, reference } = paymentCapture;
+    recordResolutionRelay(ctx.baseUrl, ctx.job.automationJobId, {
+      field: `Payment run steps ${batch[0].n}-${batch.at(-1).n}`,
+      section: batch[0].route,
+      expected: reference ? `Registration reference ${reference}` : "",
+      actual: "",
+      fix: "",
+      note: JSON.stringify(batch).slice(0, 4000),
+      source: "payment-capture"
+    }).catch((error) => pushFeed(`Payment-run batch not saved: ${error.message}`, "warn"));
+  }
+
+  function renderCapturePanel(reference) {
+    ensureToast();
+    toastPinnedEl.hidden = false;
+    toastPinnedEl.className = "olb-pinned olb-info";
+    toastPinnedEl.innerHTML = "";
+    const heading = document.createElement("div");
+    heading.style.fontWeight = "600";
+    heading.textContent = `Recording your payment run${reference ? ` for ${reference}` : ""}`;
+    const note = document.createElement("div");
+    note.className = "olb-note";
+    note.textContent = "Pay normally. Only which controls you use is recorded — never anything you type, and "
+      + "card fields are not described at all. Recording stops by itself when you leave BeSwift for EZpay.";
+    const actions = document.createElement("div");
+    actions.className = "olb-actions";
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "olb-btn ghost";
+    stop.textContent = "Stop recording";
+    stop.addEventListener("click", () => stopPaymentCapture("stopped by operator"));
+    actions.appendChild(stop);
+    toastPinnedEl.appendChild(heading);
+    toastPinnedEl.appendChild(note);
+    toastPinnedEl.appendChild(actions);
+  }
+
   // Commodity is BeSwift's HS-code lookup field. Root-caused live on production
   // (2026-08-06, shipment 11274): our catalog stores HS codes in two shapes —
   // bare 8-digit ("90015000") and dotted ("9001.50.00.000"). Only the bare form
@@ -697,6 +1520,10 @@
   // The active fill's ctx, so reconciliation/learning helpers can append to the
   // job log_json (not just the on-page feed). Set at the start of runFill.
   let fillCtx = null;
+  // Which button the operator pressed on the pause panel. Read (and cleared)
+  // by pauseForInteraction when the resume lands, so a pause can offer a real
+  // choice -- "resume", "submit", "stop" -- and not just "carry on".
+  let pauseOutcome = null;
   // Per-fill dedupe so a repeated field only logs one index suggestion.
   const indexSuggested = new Set();
 
@@ -1058,9 +1885,27 @@
     await cdpClickElement(el);
     selectElementText(el);
     await humanDelay(180, 420);
-    await cdpTypeText(value);
+    await insertOrType(el, String(value));
     el.dispatchEvent(new Event("change", { bubbles: true }));
     await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+  }
+
+  // One CDP round trip for the whole string instead of one per character. A
+  // plain text field only needs the resulting input event; the per-character
+  // pacing exists for the autocompletes, which still get it (tryTextPick types
+  // to filter the option list, and that filtering is the point).
+  //
+  // Verified against the field afterwards rather than assumed: an input mask, a
+  // maxlength, or a component that rebuilds itself on every keystroke would all
+  // show up as a value that did not land, and those fall back to typing it out
+  // character by character exactly as before.
+  async function insertOrType(el, value) {
+    await cdpInsertText(value);
+    await humanDelay(HUMAN_DELAY.typeMin, HUMAN_DELAY.typeMax);
+    if (valuesMatch(String(el.value || ""), value)) return;
+    pushFeed(`Bulk insert did not land for "${value}" — typing it out character by character.`, "warn");
+    selectElementText(el);
+    await cdpTypeText(value);
   }
 
   function selectElementText(el) {
@@ -1505,7 +2350,7 @@
   // design: a real human review step shouldn't be raced against a clock, but
   // this content-script instance is torn down for free if the tab
   // navigates/closes, so it can't leak beyond the page's own lifetime.
-  async function pauseForInteraction(ctx, reason, el, meta = {}) {
+  async function pauseForInteraction(ctx, reason, el, meta = {}, options = {}) {
     const pausedAt = new Date();
     if (el) highlightElement(el);
     await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paused", reason);
@@ -1515,7 +2360,11 @@
     // operator fixes the field on the page, records what was wrong, and clicks
     // Resume right here — no need to switch to the popup, which unloads on blur.
     // The popup Resume button and the right-click menu still work as fallbacks.
-    renderPausePanel(ctx, reason, meta);
+    pauseOutcome = null;
+    renderPausePanel(ctx, reason, meta, options);
+    // Force the panel open and pulse it, and flash the tab title if the
+    // operator has switched away. A pause nobody notices is a stalled run.
+    raiseAttention();
     for (;;) {
       await wait(2000);
       const job = await pollJobStatus(ctx.baseUrl, ctx.job.automationJobId);
@@ -1525,8 +2374,14 @@
       if (resumed || job.status === "filling") {
         if (el) unhighlightElement(el);
         hidePinned();
-        pushFeed(`Resumed — continuing: ${reason}`, "info");
-        return;
+        clearAttention();
+        // A resume from the popup or the right-click menu carries no choice
+        // with it, so those fall back to the caller's stated default — which
+        // for anything consequential is the do-nothing option.
+        const outcome = pauseOutcome || options.defaultOutcome || "resume";
+        pauseOutcome = null;
+        pushFeed(`Resumed (${outcome}) — continuing: ${reason}`, "info");
+        return outcome;
       }
     }
   }
@@ -1621,6 +2476,10 @@
   const STYLE_ID = "optilens-beswift-style";
   let toastFeedEl = null;
   let toastPinnedEl = null;
+  // Kept so the attention pass can force the panel open / opaque without
+  // needing the operator to have clicked anything first.
+  let toastCollapseBtn = null;
+  let toastOpacityBtn = null;
 
   function ensureToastStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -1667,6 +2526,20 @@
       #${TOAST_ID} .olb-btn.primary{background:#f97316;color:#111827}
       #${TOAST_ID} .olb-btn.ghost{background:transparent;color:#fed7aa;border:1px solid #c2410c}
       #${TOAST_ID} .olb-note{color:#94a3b8;font-size:11px;margin-top:2px}
+      #${TOAST_ID} .olb-btn.go{background:#16a34a;color:#f0fdf4}
+      #${TOAST_ID} .olb-btn:disabled{opacity:.6;cursor:default}
+      #${TOAST_ID} .olb-disclosure{background:transparent;border:0;color:#fed7aa;cursor:pointer;
+        font:11px Segoe UI,Arial,sans-serif;padding:5px 0 0;text-align:left;text-decoration:underline}
+      /* Attention state -- the panel pulses amber so a stopped fill is visible
+         from across the room instead of sitting silently. Reduced-motion gets
+         the same amber ring without the animation. */
+      @keyframes olb-attn{
+        0%,100%{box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 0 rgba(249,115,22,0)}
+        50%{box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 7px rgba(249,115,22,.55)}}
+      #${TOAST_ID}.olb-attention{border-color:#f97316;animation:olb-attn 1.05s ease-in-out infinite}
+      #${TOAST_ID}.olb-attention .olb-head{background:#7c2d12;color:#fed7aa}
+      @media (prefers-reduced-motion:reduce){
+        #${TOAST_ID}.olb-attention{animation:none;box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 5px rgba(249,115,22,.6)}}
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -1705,6 +2578,8 @@
     document.body.appendChild(root);
     toastPinnedEl = pinned;
     toastFeedEl = feed;
+    toastCollapseBtn = collapseBtn;
+    toastOpacityBtn = opacityBtn;
 
     wireToastControls(root, head, opacityBtn, collapseBtn);
     loadToastState(root, opacityBtn, collapseBtn);
@@ -1753,17 +2628,11 @@
     });
 
     collapseBtn.addEventListener("click", () => {
-      const collapsed = root.classList.toggle("olb-collapsed");
-      collapseBtn.textContent = collapsed ? "▸" : "▾";
-      toastState.collapsed = collapsed;
-      saveToastState();
+      setToastCollapsed(root, !root.classList.contains("olb-collapsed"));
     });
 
     opacityBtn.addEventListener("click", () => {
-      const on = root.classList.toggle("olb-transparent");
-      opacityBtn.classList.toggle("on", on);
-      toastState.transparent = on;
-      saveToastState();
+      setToastTransparent(root, !root.classList.contains("olb-transparent"));
     });
 
     // Persist the size the operator drags the native resize grip to.
@@ -1796,11 +2665,14 @@
           root.style.left = `${Math.min(s.left, window.innerWidth - 60)}px`;
           root.style.top = `${Math.min(s.top, window.innerHeight - 30)}px`;
         }
-        if (s.collapsed) {
+        // An attention raise may already have forced the panel open before
+        // chrome.storage answered; the stored state must not slam it shut
+        // again while the fill is waiting on somebody.
+        if (s.collapsed && !attention.active) {
           root.classList.add("olb-collapsed");
           collapseBtn.textContent = "▸";
         }
-        if (s.transparent) {
+        if (s.transparent && !attention.active) {
           root.classList.add("olb-transparent");
           opacityBtn.classList.add("on");
         }
@@ -1816,6 +2688,111 @@
     } catch {
       // best-effort persistence only
     }
+  }
+
+  // Collapse/transparency go through these so the attention pass can override
+  // them for the duration of a pause (persist:false) without overwriting the
+  // layout the operator chose. An operator toggle DURING a pause is a real
+  // preference, so it updates what gets restored afterwards too.
+  function setToastCollapsed(root, collapsed, { persist = true } = {}) {
+    root.classList.toggle("olb-collapsed", Boolean(collapsed));
+    if (toastCollapseBtn) toastCollapseBtn.textContent = collapsed ? "▸" : "▾";
+    if (!persist) return;
+    toastState.collapsed = Boolean(collapsed);
+    if (attention.active && attention.restore) attention.restore.collapsed = Boolean(collapsed);
+    saveToastState();
+  }
+
+  function setToastTransparent(root, transparent, { persist = true } = {}) {
+    root.classList.toggle("olb-transparent", Boolean(transparent));
+    if (toastOpacityBtn) toastOpacityBtn.classList.toggle("on", Boolean(transparent));
+    if (!persist) return;
+    toastState.transparent = Boolean(transparent);
+    if (attention.active && attention.restore) attention.restore.transparent = Boolean(transparent);
+    saveToastState();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Attention -- "the fill has stopped and cannot continue until you look".
+  // A pause used to be silent: if the panel was collapsed, or the operator had
+  // switched to another tab, the run just sat there until somebody thought to
+  // check on it, and the only tell was maximising the panel by hand. Raising
+  // attention forces the panel open and opaque, pulses it, and flashes the tab
+  // title while the tab is in the background. Everything it changed is put back
+  // exactly as it was when the pause clears.
+  // ---------------------------------------------------------------------------
+  const ATTENTION_TITLE = "⚠ OptiLens needs you";
+  const attention = { active: false, restore: null, timer: null, pageTitle: null, flashed: false };
+
+  function raiseAttention() {
+    const root = ensureToast();
+    if (!attention.active) {
+      attention.restore = { collapsed: toastState.collapsed, transparent: toastState.transparent };
+      attention.active = true;
+    }
+    setToastCollapsed(root, false, { persist: false });
+    setToastTransparent(root, false, { persist: false });
+    bringToastOnScreen(root);
+    root.classList.add("olb-attention");
+    document.addEventListener("visibilitychange", onAttentionVisibility);
+    startTitleFlash();
+  }
+
+  function clearAttention() {
+    document.removeEventListener("visibilitychange", onAttentionVisibility);
+    stopTitleFlash();
+    if (!attention.active) return;
+    const root = document.getElementById(TOAST_ID);
+    const restore = attention.restore || {};
+    attention.active = false;
+    attention.restore = null;
+    if (!root) return;
+    root.classList.remove("olb-attention");
+    setToastCollapsed(root, Boolean(restore.collapsed), { persist: false });
+    setToastTransparent(root, Boolean(restore.transparent), { persist: false });
+  }
+
+  function onAttentionVisibility() {
+    if (document.hidden && attention.active) startTitleFlash();
+    else stopTitleFlash();
+  }
+
+  // Flashing the tab title is the only "flash the tab" signal a content script
+  // can raise from inside the page. It only runs while the tab is in the
+  // background -- a tab already on screen has the pulsing panel on it. The SPA
+  // rewrites document.title on route changes, so the real title is re-read
+  // every tick instead of being captured once.
+  function startTitleFlash() {
+    if (attention.timer || !document.hidden) return;
+    attention.pageTitle = document.title;
+    attention.timer = setInterval(() => {
+      if (document.title !== ATTENTION_TITLE) attention.pageTitle = document.title;
+      document.title = attention.flashed ? attention.pageTitle : ATTENTION_TITLE;
+      attention.flashed = !attention.flashed;
+    }, 900);
+  }
+
+  function stopTitleFlash() {
+    if (attention.timer) {
+      clearInterval(attention.timer);
+      attention.timer = null;
+    }
+    if (attention.pageTitle && document.title === ATTENTION_TITLE) document.title = attention.pageTitle;
+    attention.flashed = false;
+  }
+
+  // A panel parked off-screen (dragged away, or the window was resized since)
+  // cannot signal anything, so an attention raise pulls it back to its default
+  // corner. Only when it is genuinely off-screen -- a panel the operator can
+  // still see stays where they put it.
+  function bringToastOnScreen(root) {
+    const rect = root.getBoundingClientRect();
+    const offScreen = rect.bottom < 40 || rect.top > window.innerHeight - 24
+      || rect.right < 60 || rect.left > window.innerWidth - 60;
+    if (!offScreen) return;
+    root.style.left = "auto";
+    root.style.right = "16px";
+    root.style.top = "16px";
   }
 
   // Appends one line to the rolling feed with an optional compact summary of the
@@ -1886,12 +2863,18 @@
     showPinned(kind, message);
   }
 
-  // Renders the operator error + resolution capture form inside the pinned slot
-  // while paused. Fields prefill from the paused field's known label/expected
-  // value. Returns a Promise that resolves once the operator submits (resume) —
-  // the resolution is posted first (if anything was entered), then the job is
-  // resumed; the surrounding pause loop notices the status flip and continues.
-  function renderPausePanel(ctx, reason, meta = {}) {
+  // Renders the pause panel inside the pinned slot: the reason, then the
+  // buttons that get the run moving again, then — folded away — the error +
+  // resolution capture form.
+  //
+  // The form used to sit between the reason and the buttons, which made every
+  // pause look like a five-field data-entry chore when the honest answer is
+  // usually "I looked at it, carry on". Recording a fix is worth doing when
+  // there IS a fix, so it stays one click away, but it is never in the path of
+  // resuming. `options.actions` lets a pause offer real choices (review →
+  // submit, verify → submit/stop); the chosen id is what pauseForInteraction
+  // returns.
+  function renderPausePanel(ctx, reason, meta = {}, options = {}) {
     ensureToast();
     toastPinnedEl.hidden = false;
     toastPinnedEl.className = "olb-pinned olb-pause";
@@ -1902,46 +2885,68 @@
     heading.style.fontWeight = "600";
     toastPinnedEl.appendChild(heading);
 
+    const choices = Array.isArray(options.actions) && options.actions.length
+      ? options.actions
+      : [{ id: "resume", label: "Resume", primary: true }];
+
+    const actions = document.createElement("div");
+    actions.className = "olb-actions";
+    const buttons = choices.map((choice) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `olb-btn ${choice.primary ? (choice.go ? "go" : "primary") : "ghost"}`;
+      btn.textContent = choice.label;
+      actions.appendChild(btn);
+      return { btn, choice };
+    });
+    toastPinnedEl.appendChild(actions);
+
+    const disclosure = document.createElement("button");
+    disclosure.type = "button";
+    disclosure.className = "olb-disclosure";
+    disclosure.textContent = "Record what went wrong (optional) \u25be";
+    toastPinnedEl.appendChild(disclosure);
+
     const form = document.createElement("div");
     form.className = "olb-form";
+    form.hidden = true;
     const field = mkField("Field", meta.field || "");
     const expected = mkField("Expected value", meta.expected || "");
-    const actual = mkField("What it actually had", "");
+    const actual = mkField("What it actually had", meta.actual || "");
     const fix = mkArea("What you did to fix it");
-    const note = mkArea("Notes / root cause (optional)");
+    const note = mkArea("Notes / root cause");
     form.appendChild(field.wrap);
     form.appendChild(expected.wrap);
     form.appendChild(actual.wrap);
     form.appendChild(fix.wrap);
     form.appendChild(note.wrap);
-
-    const actions = document.createElement("div");
-    actions.className = "olb-actions";
-    const resumeBtn = document.createElement("button");
-    resumeBtn.className = "olb-btn primary";
-    resumeBtn.type = "button";
-    resumeBtn.textContent = "Save fix & Resume";
-    const skipBtn = document.createElement("button");
-    skipBtn.className = "olb-btn ghost";
-    skipBtn.type = "button";
-    skipBtn.textContent = "Resume without note";
-    actions.appendChild(resumeBtn);
-    actions.appendChild(skipBtn);
+    toastPinnedEl.appendChild(form);
 
     const hint = document.createElement("div");
     hint.className = "olb-note";
-    hint.textContent = "Fix the field on the page first, then record what was wrong so it can be refined later.";
-
-    toastPinnedEl.appendChild(form);
-    toastPinnedEl.appendChild(actions);
+    hint.hidden = true;
+    hint.textContent = "Fix the field on the page first, then record what was wrong so it can be refined later. "
+      + "Whatever is filled in here is saved when you resume.";
     toastPinnedEl.appendChild(hint);
 
-    const submit = async (withNote) => {
-      resumeBtn.disabled = true;
-      skipBtn.disabled = true;
-      resumeBtn.textContent = "Resuming…";
+    disclosure.addEventListener("click", () => {
+      const open = form.hidden;
+      form.hidden = !open;
+      hint.hidden = !open;
+      disclosure.textContent = open
+        ? "Record what went wrong (optional) \u25b4"
+        : "Record what went wrong (optional) \u25be";
+      if (open) field.input.focus();
+    });
+
+    const submit = async (choice, btn) => {
+      for (const b of buttons) b.btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = "Resuming…";
+      // The note is saved whenever the operator actually wrote one — opening
+      // the form is what signals intent, not which button they end on.
       try {
-        if (withNote) {
+        if (!form.hidden) {
           const payload = {
             field: field.input.value.trim(),
             section: meta.section || "",
@@ -1958,19 +2963,23 @@
         // Don't block resume on a failed note write — surface it and continue.
         pushFeed(`Resolution note not saved: ${error.message}`, "warn");
       }
+      // Set before the relay: the pause loop reads this the moment the server
+      // reports the resume, and that can land before this handler returns.
+      pauseOutcome = choice.id;
       try {
-        await resumeJobRelay(ctx.baseUrl, ctx.job.automationJobId, withNote ? "Resumed with operator resolution." : "Resumed by operator.");
+        await resumeJobRelay(ctx.baseUrl, ctx.job.automationJobId, `Resumed by operator (${choice.id}).`);
       } catch (error) {
         // The pause loop's own poll will also catch a server-side resume; if the
         // relay failed, re-enable so the operator can retry.
+        pauseOutcome = null;
         pushFeed(`Resume failed: ${error.message}`, "warn");
-        resumeBtn.disabled = false;
-        skipBtn.disabled = false;
-        resumeBtn.textContent = "Save fix & Resume";
+        for (const b of buttons) b.btn.disabled = false;
+        btn.textContent = originalLabel;
       }
     };
-    resumeBtn.addEventListener("click", () => submit(true));
-    skipBtn.addEventListener("click", () => submit(false));
+    for (const { btn, choice } of buttons) {
+      btn.addEventListener("click", () => submit(choice, btn));
+    }
   }
 
   function mkField(labelText, value) {
@@ -2024,7 +3033,23 @@
   }
 
   function humanDelay(minMs, maxMs) {
-    return wait(randomDelayMs(minMs, maxMs));
+    return wait(Math.round(randomDelayMs(minMs, maxMs) / fillSpeed));
+  }
+
+  // Clamped to 1x-4x: below 1 would be slower than the tuned pacing (just use
+  // 1), and above 4 the portal's own async lookups become the limit anyway, so
+  // a bad value there would only buy flakiness.
+  function loadFillSpeed() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(["fillSpeed"], (data) => {
+          const value = Number(data && data.fillSpeed);
+          resolve(Number.isFinite(value) && value >= 1 && value <= 4 ? value : DEFAULT_FILL_SPEED);
+        });
+      } catch {
+        resolve(DEFAULT_FILL_SPEED);
+      }
+    });
   }
 
   function randomDelayMs(minMs, maxMs) {

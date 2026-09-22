@@ -72,3 +72,67 @@ worker (`reportStatus`, `pollJobStatus`, `recordResolution`, `resumeJob`). The
 BeSwift portal is HTTPS, so a direct `fetch()` from the content script to an
 `http://` OptiLens origin would be blocked as mixed content; the worker is not
 subject to that restriction. Keep new server calls on the relay path.
+
+## Run stages
+
+1. **Sign in** — three page loads, orchestrated by `background.js`.
+2. **Header fill** — Applicant / Exporter / Importer / Producer / Consignee /
+   Transport / Invoice, then a blank-field sweep and a mandatory review pause.
+3. **Item fill** — one dialog per customs line, resuming past lines already
+   saved on the form.
+4. **Review gate** — the run stops and asks. *Finish here* ends at
+   `filled_review`, exactly as it always did. *Verify & submit* continues.
+5. **Verify & submit** — Form Action → Verify Document, the verification
+   message is shown back verbatim, and only a second explicit go-ahead clicks
+   Submit → Proceed. The Registration Reference is read off the page and
+   reported with the terminal `submitted` status.
+6. **Payment order** — offered after a submit. Opens `#/accounting/wpos/new`,
+   picks the Trader TIN, attaches this certificate through the Add LPCO
+   Applications dialog, adds an EZpay payment method, reads the amount payable
+   back, and stops. Built from three recorded operator runs, not from the
+   guide's prose — see `docs/beswift-payment-automation.md`.
+7. **Pay Now** — a second go-ahead, after the verification result is shown with
+   the amount. BeSwift then opens the card window; the service worker brings it
+   to the front and records its origin, and the fill waits on the BeSwift side
+   for the operator to say whether it was paid (`paid` / `submitted`).
+
+The card is never typed by this extension, and the card window's origin is not
+in `host_permissions`, so nothing of ours runs in it. Recording an operator's
+own payment run is still offered too, for learning the parts not yet driven.
+
+A resume that carries no choice with it — the popup button, the right-click
+menu — always takes the conservative branch (`finish`, `stop`). Submission is
+irreversible and chargeable; it only happens when somebody asks for it on the
+panel.
+
+## Fill speed
+
+Every artificial delay in the fill is divided by `fillSpeed`, read from
+`chrome.storage.local` at the start of each run and set from the popup. The
+default is **2x**. The per-field pacing was tuned one field at a time against
+the live portal, so it is scaled as a whole rather than re-tuned — the
+proportions that work stay, the run just gets shorter.
+
+Plain text fields are also filled with one CDP `insertText` for the whole
+string instead of one call per character, verified against the field afterwards
+and falling back to character-by-character typing if the value did not land.
+The autocompletes still type character by character, because that filtering is
+the point.
+
+Baseline, job `7C4FB596` (2026-09-22, two items, 1x and per-character typing):
+107s of header, ~57s per item, ~230s of machine time in all.
+
+If a run starts missing fields, put the speed back to 1x in the popup before
+anything else — the pacing exists for BeSwift's own async lookups.
+
+## Attention signal
+
+Any pause raises attention: the on-page panel is forced open and opaque, pulled
+back on screen if it was parked off it, and pulsed amber; while the tab is in
+the background the tab title flashes. Everything is restored to the operator's
+own layout when the pause clears. Before this, a pause on a collapsed panel or a
+backgrounded tab was silent and the run just sat there.
+
+The pause panel leads with the buttons. The error/resolution capture form is
+folded behind "Record what went wrong (optional)" and is never in the way of
+resuming; anything typed into it is saved when the run resumes.

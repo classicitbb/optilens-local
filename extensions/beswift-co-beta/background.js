@@ -21,6 +21,81 @@ chrome.contextMenus.removeAll(() => {
 const tabJobs = new Map();
 
 // ---------------------------------------------------------------------------
+// Payment window watcher.
+//
+// BeSwift's Pay Now hands off by opening a NEW window, and no content script of
+// ours runs inside it: the payment site is not in host_permissions, on purpose,
+// because that window is where the card is typed. The worker can still SEE the
+// window through the "tabs" permission, which is enough to do the three things
+// that actually help — bring it to the front so it is not lost behind the
+// browser, record where the hand-off went, and tell the job when it closes.
+//
+// Only the ORIGIN of that window is ever recorded, never the full URL: a
+// payment hand-off URL carries an order token in its query string and that does
+// not belong in a job log. The origin is what a later build would need before
+// it could assist on the non-card parts of that page at all, and adding it to
+// host_permissions is a deliberate, separate decision.
+// ---------------------------------------------------------------------------
+const paymentWatch = new Map(); // opener tabId -> { baseUrl, jobId, tabId, origin }
+
+function watchPaymentWindow({ baseUrl, jobId, openerTabId }) {
+  paymentWatch.set(openerTabId, { baseUrl, jobId, tabId: null, origin: null });
+}
+
+chrome.tabs.onCreated.addListener((tab) => {
+  const watch = paymentWatch.get(tab.openerTabId);
+  if (!watch || watch.tabId) return;
+  watch.tabId = tab.id;
+  // Pop-ups can open behind the window that spawned them, and an unnoticed
+  // payment window is the same stalled-run problem the on-page attention
+  // signal solves for pauses.
+  if (tab.windowId !== undefined) {
+    chrome.windows.update(tab.windowId, { focused: true }, () => void chrome.runtime.lastError);
+  }
+  if (tab.url) notePaymentOrigin(watch, tab.url);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (!changeInfo.url) return;
+  for (const watch of paymentWatch.values()) {
+    if (watch.tabId === tabId) notePaymentOrigin(watch, changeInfo.url);
+  }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  for (const [openerTabId, watch] of paymentWatch.entries()) {
+    if (watch.tabId !== tabId) continue;
+    paymentWatch.delete(openerTabId);
+    notePaymentEvent(watch, "Payment window closed", watch.origin);
+  }
+});
+
+function notePaymentOrigin(watch, url) {
+  let origin = "";
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return; // about:blank and friends — nothing worth recording
+  }
+  if (!origin || origin === "null" || origin === watch.origin) return;
+  watch.origin = origin;
+  notePaymentEvent(watch, "Payment window opened", origin);
+}
+
+// Filed as a capture row rather than a job status update: the job's own status
+// belongs to the fill, and a window event must never knock a finished run back
+// into "filling".
+function notePaymentEvent(watch, what, origin) {
+  if (!watch.baseUrl || !watch.jobId) return;
+  recordFillResolution(watch.baseUrl, watch.jobId, {
+    field: what,
+    section: origin || "unknown origin",
+    note: JSON.stringify({ at: new Date().toISOString(), what, origin: origin || null }),
+    source: "payment-capture"
+  }).catch(() => {}); // best effort — the payment matters, the log line does not
+}
+
+// ---------------------------------------------------------------------------
 // Auto-drive harness (beta only, opt-in via the popup's "Auto-drive" toggle or
 // chrome.storage.local.autoDrive). Polls the OptiLens server for a queued job
 // and starts it without a popup click, closing the previous run's BeSwift tab
@@ -177,6 +252,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
+  }
+  if (message?.type === "watchPaymentWindow") {
+    const tabId = sender.tab?.id;
+    if (tabId) watchPaymentWindow({ baseUrl: message.baseUrl, jobId: message.jobId, openerTabId: tabId });
+    sendResponse({ ok: Boolean(tabId) });
+    return false;
   }
   if (message?.type === "cdpDetach") {
     const tabId = sender.tab?.id;

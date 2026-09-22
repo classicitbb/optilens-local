@@ -16,6 +16,16 @@ const resNote = document.querySelector("#resNote");
 let pollTimer = null;
 
 const autoDriveInput = document.querySelector("#autoDrive");
+const fillSpeedInput = document.querySelector("#fillSpeed");
+
+// Divides every artificial delay in the fill (content.js reads it at the start
+// of each run). 2x is the default; drop it back to 1x if a run starts missing
+// fields, since the portal's own async lookups are what the pacing is for.
+fillSpeedInput.addEventListener("change", () => {
+  const fillSpeed = Number(fillSpeedInput.value) || 2;
+  chrome.storage.local.set({ fillSpeed });
+  statusEl.textContent = `Fill speed ${fillSpeed}x — applies to the next run.`;
+});
 
 // Auto-drive: background.js polls /api/beswift-extension/next-job on an alarm
 // and starts whatever job is queued, so an agent can create a job server-side
@@ -29,9 +39,10 @@ autoDriveInput.addEventListener("change", () => {
     : "Auto-drive off.";
 });
 
-chrome.storage.local.get(["baseUrl", "lastAutomationJobId", "autoDrive"], (data) => {
+chrome.storage.local.get(["baseUrl", "lastAutomationJobId", "autoDrive", "fillSpeed"], (data) => {
   if (data.baseUrl) baseInput.value = data.baseUrl;
   autoDriveInput.checked = Boolean(data.autoDrive);
+  fillSpeedInput.value = String(data.fillSpeed || 2);
   // The extension popup unloads whenever it loses focus (normal Chrome
   // behavior) — the fill/pause loop lives on in content.js/the server
   // regardless, so reopening the popup just needs to pick the live status
