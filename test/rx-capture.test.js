@@ -9,7 +9,7 @@ const {
   normalizeOpticalOrder,
   unresolvedFields
 } = require("../lib/rx-capture/normalized-order");
-const { extractPrescriptionFromImages } = require("../lib/rx-capture/openai-extractor");
+const { extractPrescriptionFromImages, loadRxAiConfig } = require("../lib/rx-capture/openai-extractor");
 const { parseImages, publicOrder } = require("../lib/rx-capture/service");
 
 test("normalizes optical order values without inventing prescription data", () => {
@@ -79,6 +79,27 @@ test("OpenAI extraction sends images server-side with strict schema and storage 
   assert.equal(request.body.text.format.strict, true);
   assert.match(request.body.input[0].content[1].image_url, /^data:image\/jpeg;base64,/);
   assert.equal(result.patient.name, "HUNTE, RUSSELL");
+});
+
+test("RX extraction prefers the Credentials Vault key over a stale environment key", () => {
+  const config = loadRxAiConfig({
+    env: {
+      OPENAI_API_KEY: "stale-environment-key",
+      OPENAI_BASE_URL: "https://stale.example/v1",
+      ASSISTANT_MODEL: "stale-model"
+    },
+    vault: {
+      apiKey: "vault-key",
+      baseUrl: "https://api.openai.com/v1/",
+      model: "gpt-5.6-luna"
+    }
+  });
+
+  assert.deepEqual(config, {
+    apiKey: "vault-key",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-5.6-luna"
+  });
 });
 
 test("image intake accepts supported image data and rejects HEIC without a converter", () => {

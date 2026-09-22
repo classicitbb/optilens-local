@@ -14,7 +14,7 @@ This public file records boundaries, not private topology.
 ## RX Capture image extraction
 
 - The server calls the configured OpenAI Responses-compatible endpoint with one or two image inputs and a strict normalized-order JSON Schema.
-- Credentials resolve server-side from `OPENAI_API_KEY` or the existing assistant/OpenAI Credentials Vault entry. The browser never receives the key.
+- Credentials resolve server-side from the existing assistant/OpenAI Credentials Vault entry, with `OPENAI_API_KEY` retained only as a legacy fallback. The browser never receives the key.
 - RX-specific non-secret configuration names are `OPENAI_RX_MODEL`, `OPENAI_RX_BASE_URL`, and `RX_CAPTURE_RETAIN_IMAGES`.
 - Requests set provider storage off. Local temporary images are removed after successful extraction unless retention is deliberately enabled.
 - A live extraction is billable and must not be used as a harmless connector check. Verify configuration without logging secret values; perform a real-image call only with explicit authorization and suitable patient-data approval.
