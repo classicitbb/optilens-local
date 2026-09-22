@@ -24,4 +24,4 @@ node --check public/rx-capture.js
 git diff --check
 ```
 
-Deployment requires separate authorization because it applies migration `044-rx-capture-milestone-2.sql` and changes application authorization. Before any staged-file acceptance test, use a synthetic non-production order and do not call an RX release endpoint.
+Assigned repository build work has standing authorization for the guarded deployment, app-database migration, restart, and health verification. Before any staged-file acceptance test, use a synthetic non-production order. An actual external file release remains a controlled business action and must be in the assigned task scope.
