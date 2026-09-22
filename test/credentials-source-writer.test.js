@@ -40,6 +40,18 @@ test("Credentials Vault provides a non-secret Innovations incoming-folder overri
   assert.match(page, /label: "Incoming folder", val: "", secret: false/);
 });
 
+test("Credentials Vault provides a dedicated OpenAI API entry", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "public", "credentials.html"), "utf8");
+  const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
+  assert.match(page, /id="addOpenAiApiEntryBtn"/);
+  assert.match(page, /name: "OpenAI API", type: "API Keys"/);
+  assert.match(page, /label: "Provider", val: "openai", secret: false/);
+  assert.match(page, /label: "Model", val: "gpt-5\.6-luna", secret: false/);
+  assert.match(page, /label: "API Key", val: "", secret: true/);
+  assert.match(server, /authorization: `Bearer \$\{apiKey\}`/);
+  assert.match(server, /fetch\(`\$\{base\}\/models`/);
+});
+
 test("Innovations incoming-folder override is optional and uses the saved non-secret field", () => {
   assert.equal(innovationsIncomingFolderFromVault(() => null), null);
   assert.equal(innovationsIncomingFolderFromVault(() => ({

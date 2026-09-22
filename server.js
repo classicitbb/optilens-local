@@ -760,7 +760,23 @@ async function checkApiKeyVaultEntry(entry) {
   if (!/^https?:\/\//i.test(base)) {
     return entryConnectivity(entry, "warning", "Base URL not testable", `'${base}' is not an http(s) URL, so the key cannot be verified.`);
   }
+  const isOpenAi = fields.provider === "openai"
+    || /openai/i.test(String(entry?.name || ""))
+    || /^https:\/\/api\.openai\.com(?:\/v1)?$/i.test(base);
   try {
+    if (isOpenAi) {
+      const res = await fetch(`${base}/models`, {
+        headers: { authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (res.ok) {
+        return entryConnectivity(entry, "online", "Key accepted", "OpenAI accepted this credential.");
+      }
+      if (res.status === 401) {
+        return entryConnectivity(entry, "error", "Key rejected", "OpenAI returned 401 — this key is invalid or has been revoked.");
+      }
+      return entryConnectivity(entry, "warning", `HTTP ${res.status}`, `OpenAI responded ${res.status}; the key could not be confirmed.`);
+    }
     const res = await fetch(`${base}/catalog?limit=1`, {
       headers: { "x-api-key": apiKey },
       signal: AbortSignal.timeout(8000),
