@@ -28,3 +28,9 @@ docs/rx-capture/*.jpg
 docs/rx-capture/*.jpeg
 docs/rx-capture/*.png
 docs/rx-capture/*.heic
+
+# Edge's --pack-extension emits <dir>.crx and <dir>.pem beside the packed folder
+# when it is run against the repo copy instead of a staging copy. Neither belongs
+# in Git, and a stray .pem is a private signing key.
+extensions/*.crx
+extensions/*.pem
