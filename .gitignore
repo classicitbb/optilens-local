@@ -22,3 +22,9 @@ output/
 public/extensions/*.crx
 public/extensions/*-updates.xml
 docs/setup.md
+
+# Private RX Capture sample photos contain patient data and must remain host-local.
+docs/rx-capture/*.jpg
+docs/rx-capture/*.jpeg
+docs/rx-capture/*.png
+docs/rx-capture/*.heic
