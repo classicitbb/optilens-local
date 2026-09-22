@@ -2621,7 +2621,21 @@ textarea.ci-line-input {
 }
 
 .app-access-band {
-  margin-top: 18px;
+  margin: 18px clamp(14px, 3vw, 36px) 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.signed-in main > .band:not(.app-access-band) {
+  margin-inline: clamp(14px, 3vw, 36px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .app-access-grid {
