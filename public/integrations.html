@@ -30,7 +30,7 @@
 
       <nav class="workflow-tabs" aria-label="Integration tabs">
         <button class="active" type="button" data-tab="sources">Data sources</button>
-        <button type="button" data-tab="fileShares">File shares</button>
+        <button type="button" data-tab="fileShares">Innovations Sync</button>
       </nav>
 
       <section class="workflow-panel active" id="sources">
@@ -57,7 +57,27 @@
       </section>
 
       <section class="workflow-panel" id="fileShares">
-        <div class="placeholder-pane">File share monitoring and folder-based ingestion will be configured here once the integration layer is active.</div>
+        <section class="file-drop-workspace" aria-labelledby="fileDropTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Innovations Sync</p>
+              <h2 id="fileDropTitle">File-drop destinations</h2>
+            </div>
+            <span id="fileDropAccess" class="badge planned">Loading access…</span>
+          </div>
+          <p class="section-help">Routes are operational settings, not credentials. Add one active absolute folder path per customer and purpose; the most specific customer route wins, then the default route. The legacy configured incoming folder remains the fallback until a route is added.</p>
+          <form id="fileDropForm" class="file-drop-form">
+            <input type="hidden" name="destinationId">
+            <label>Destination name<input name="destinationName" autocomplete="off" required placeholder="e.g. EFI RX incoming"></label>
+            <label>Purpose<input name="purposeCode" autocomplete="off" required value="rx_capture" pattern="[a-z0-9_-]+" placeholder="rx_capture"></label>
+            <label>Customer account <span class="field-optional">optional default when blank</span><input name="customerAccount" autocomplete="off" placeholder="e.g. customer account"></label>
+            <label class="file-drop-path">Absolute folder path<input name="folderPath" autocomplete="off" required placeholder="\\\\server\\share\\folder or C:\\folder"></label>
+            <label class="file-drop-active"><input type="checkbox" name="isActive" checked> Active route</label>
+            <div class="file-drop-actions"><button class="primary-button" type="submit">SAVE DESTINATION</button><button id="clearFileDropForm" class="secondary-button" type="button">NEW ROUTE</button></div>
+          </form>
+          <p id="fileDropNotice" class="file-drop-notice" hidden></p>
+          <div id="fileDropList" class="file-drop-list" aria-live="polite"></div>
+        </section>
       </section>
     </section>
   </main>
@@ -93,6 +113,85 @@
       }
       refreshHeaderIndicators();
       setInterval(refreshHeaderIndicators, 30000);
+    })();
+
+    (function () {
+      const form = document.getElementById("fileDropForm");
+      const list = document.getElementById("fileDropList");
+      const notice = document.getElementById("fileDropNotice");
+      const access = document.getElementById("fileDropAccess");
+      let canManage = false;
+
+      const api = async (url, options = {}) => {
+        const response = await fetch(url, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Request failed (${response.status}).`);
+        return payload;
+      };
+      const message = (text, failed = false) => { notice.textContent = text; notice.classList.toggle("error", failed); notice.hidden = false; };
+      const reset = () => { form.reset(); form.elements.destinationId.value = ""; form.elements.purposeCode.value = "rx_capture"; form.elements.isActive.checked = true; };
+
+      function routeCard(route) {
+        const card = document.createElement("article");
+        card.className = "file-drop-route";
+        const heading = document.createElement("h3");
+        heading.textContent = route.destinationName;
+        const scope = document.createElement("p");
+        scope.textContent = `${route.purposeCode} · ${route.customerAccount ? `Customer ${route.customerAccount}` : "Default route"}`;
+        const path = document.createElement("code");
+        path.textContent = route.folderPath;
+        const status = document.createElement("span");
+        status.className = `badge ${route.isActive ? "ready-for-import" : "planned"}`;
+        status.textContent = route.isActive ? "Active" : "Inactive";
+        const actions = document.createElement("div");
+        actions.className = "file-drop-route-actions";
+        const edit = document.createElement("button");
+        edit.type = "button"; edit.className = "secondary-button"; edit.textContent = "EDIT";
+        edit.disabled = !canManage;
+        edit.addEventListener("click", () => {
+          for (const key of ["destinationId", "destinationName", "purposeCode", "customerAccount", "folderPath"]) form.elements[key].value = route[key] || "";
+          form.elements.isActive.checked = route.isActive;
+          form.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        const test = document.createElement("button");
+        test.type = "button"; test.className = "secondary-button"; test.textContent = "TEST PATH";
+        test.disabled = !canManage;
+        test.addEventListener("click", async () => {
+          test.disabled = true; test.textContent = "TESTING…";
+          try { const result = await api(`/api/integrations/file-drop-destinations/${encodeURIComponent(route.destinationId)}/test`, { method: "POST", body: "{}" }); message(`${route.destinationName}: ${result.detail}`, !result.ok); }
+          catch (error) { message(error.message, true); }
+          finally { test.disabled = !canManage; test.textContent = "TEST PATH"; }
+        });
+        actions.append(edit, test); card.append(heading, scope, path, status, actions);
+        return card;
+      }
+
+      async function loadRoutes() {
+        const payload = await api("/api/integrations/file-drop-destinations");
+        const routes = payload.destinations || [];
+        list.replaceChildren(...routes.map(routeCard));
+        if (!routes.length) list.textContent = "No route is configured. RX Capture will keep using its existing default until you add one.";
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!canManage) return;
+        const data = Object.fromEntries(new FormData(form).entries());
+        data.isActive = form.elements.isActive.checked;
+        try { await api("/api/integrations/file-drop-destinations", { method: "POST", body: JSON.stringify(data) }); message("Destination saved. Test the path before releasing an RX."); reset(); await loadRoutes(); }
+        catch (error) { message(error.message, true); }
+      });
+      document.getElementById("clearFileDropForm").addEventListener("click", reset);
+      (async () => {
+        try {
+          const auth = await api("/api/auth/me");
+          canManage = (auth.user?.permissions || []).includes("integrations.manage");
+          access.textContent = canManage ? "Manage routes" : "Read-only";
+          access.className = `badge ${canManage ? "ready-for-import" : "planned"}`;
+          form.querySelectorAll("input, button").forEach((element) => { if (element.id !== "clearFileDropForm") element.disabled = !canManage; });
+          await loadRoutes();
+        } catch (error) { message(error.message, true); access.textContent = "Unavailable"; }
+      })();
     })();
   </script>
 </body>

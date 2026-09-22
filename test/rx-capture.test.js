@@ -53,6 +53,17 @@ test("lens alias resolution defaults unspecified photochromic color to gray and 
   assert.equal(clear.suggestedAlias, "0000000000003");
 });
 
+test("lens alias candidates exclude inactive records and never treat a coating as a lens option", () => {
+  const catalog = [
+    { alias: "0000000000001", mfType: "Progressive", materialDescription: "Plastic 1.50", styleDescription: "Progressive", colorDescription: "SRCoated", active: true },
+    { alias: "0000000000002", mfType: "Progressive", materialDescription: "Plastic 1.50", styleDescription: "Progressive", colorDescription: "Blue", active: false },
+    { alias: "0000000000003", mfType: "Single Vision", materialDescription: "Plastic 1.50", styleDescription: "Single Vision", colorDescription: "Blue", active: true }
+  ];
+  const result = resolveLensAlias({ lensRequest: { lensType: "Multifocal", design: "Progressive", material: "1.50", option: "", coating: "Blue Blocker" } }, catalog);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.alias), ["0000000000001"]);
+  assert.match(result.candidates[0].label, /Progressive.*Plastic 1\.50.*SRCoated/);
+});
+
 test("marks only unresolved extracted fields as needing information", () => {
   const order = emptyNormalizedOrder();
   order.patient.name = "Patient One";
@@ -250,22 +261,31 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(migration, /rx_capture\.order_events/);
 });
 
-test("Milestone 2 keeps approval, immutable staging, and Innovations release as separate boundaries", () => {
+test("RX Capture keeps approval, immutable staging, and authorized Innovations release as separate boundaries", () => {
   const root = path.join(__dirname, "..");
   const routes = fs.readFileSync(path.join(root, "lib", "rx-capture", "routes.js"), "utf8");
   const service = fs.readFileSync(path.join(root, "lib", "rx-capture", "service.js"), "utf8");
+  const delivery = fs.readFileSync(path.join(root, "lib", "rx-capture", "file-delivery.js"), "utf8");
   const migration = fs.readFileSync(path.join(root, "database", "044-rx-capture-milestone-2.sql"), "utf8");
+  const releaseMigration = fs.readFileSync(path.join(root, "database", "046-rx-capture-milestone-4-release.sql"), "utf8");
+  const html = fs.readFileSync(path.join(root, "public", "rx-capture.html"), "utf8");
   const client = fs.readFileSync(path.join(root, "public", "rx-capture.js"), "utf8");
 
   assert.match(routes, /rx-capture\.approve/);
   assert.match(routes, /rx-capture\.stage/);
+  assert.match(routes, /rx-capture\.release/);
+  assert.match(routes, /requireQueuePermission/);
   assert.match(routes, /review-queue/);
   assert.match(service, /A different authorized employee must approve/);
   assert.match(service, /order_generations/);
-  assert.match(service, /content integrity check failed/);
+  assert.match(delivery, /content integrity check failed/);
   assert.doesNotMatch(service, /rxGenerator\.release/);
+  assert.match(service, /RX_RELEASED_TO_INNOVATIONS/);
   assert.match(migration, /UQ_rx_capture_generations_order/);
+  assert.match(releaseMigration, /rx-capture\.release/);
   assert.match(client, /not been released to Innovations/);
+  assert.match(html, /RELEASE TO INNOVATIONS/);
+  assert.match(html, /Review \/ release access/);
 });
 
 test("recent orders pass a click listener rather than Array.map callback metadata", () => {

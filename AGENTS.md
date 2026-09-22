@@ -48,7 +48,8 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 - Use the guarded remote editing/deployment flow; do not edit multiple checkouts.
 - Run relevant syntax checks and `npm test`; finish deployments with the documented health verification.
 - Do not repeatedly restart or reset after a failed recovery. Preserve logs and report the failure.
-- Scheduled synchronizations and source-system writes are outside routine standing authorization.
+- The business owner grants standing authority for assigned repository build tasks: run tests, apply app-database migrations, use the guarded deployment/restart flow, and complete health verification without waiting for a separate deployment or migration approval. Preserve the normal safeguards, audit trail, and failure reporting.
+- Scheduled synchronizations, source-system writes, credential/permission changes, external sends, and financial actions remain separately controlled unless the assigned task expressly includes them.
 
 ## Scope
 

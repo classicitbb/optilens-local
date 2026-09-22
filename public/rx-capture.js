@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canApprove: false, canStage: false, userId: null, username: "" };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canApprove: false, canStage: false, canRelease: false, canQueue: false, userId: null, username: "" };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -48,6 +48,8 @@
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
       state.canApprove = (auth.user?.permissions || []).includes("rx-capture.approve");
       state.canStage = (auth.user?.permissions || []).includes("rx-capture.stage");
+      state.canRelease = (auth.user?.permissions || []).includes("rx-capture.release");
+      state.canQueue = state.canApprove || state.canStage || state.canRelease;
       $("#newRxButton").hidden = !state.canWrite;
       $("#saveReviewButton").hidden = !state.canWrite;
       wireEvents();
@@ -80,6 +82,7 @@
     $("#reprocessButton").addEventListener("click", reprocess);
     $("#approveOrderButton").addEventListener("click", approveOrder);
     $("#stageOrderButton").addEventListener("click", stageOrder);
+    $("#releaseOrderButton").addEventListener("click", releaseOrder);
     document.querySelectorAll("[data-path]").forEach((input) => input.addEventListener("input", () => resolveIssue(input.dataset.path)));
   }
 
@@ -89,11 +92,11 @@
     const list = $("#ordersList");
     list.replaceChildren(...state.orders.map((order) => orderButton(order)));
     $("#ordersEmpty").hidden = state.orders.length > 0;
-    if (state.canApprove) await loadReviewQueue();
+    if (state.canQueue) await loadReviewQueue();
   }
 
   async function loadReviewQueue() {
-    if (!state.canApprove) return;
+    if (!state.canQueue) return;
     const payload = await api("/api/rx-capture/review-queue");
     const orders = payload.orders || [];
     $("#reviewQueuePanel").hidden = false;
@@ -224,12 +227,34 @@
       const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/alias-suggestion`);
       const suggestion = payload.suggestion || {};
       const field = $("#resolutionForm").elements.lensAlias;
-      if (suggestion.status === "suggested" && !field.value) field.value = suggestion.suggestedAlias || "";
       const notice = $("#aliasSuggestion");
-      const candidates = (suggestion.candidates || []).map((item) => item.alias).join(", ");
-      notice.textContent = suggestion.status === "suggested"
-        ? `Suggested alias ${suggestion.suggestedAlias}: ${suggestion.reason}`
-        : `${suggestion.reason || "Choose an exact catalogue alias."}${candidates ? ` Candidates: ${candidates}.` : ""}`;
+      notice.replaceChildren();
+      const summary = document.createElement("p");
+      summary.textContent = suggestion.reason || "Choose an active catalogue lens.";
+      notice.append(summary);
+      if (suggestion.status === "suggested" && suggestion.suggestedAlias && !field.value) field.value = suggestion.suggestedAlias;
+      const candidates = suggestion.candidates || [];
+      if (candidates.length) {
+        const list = document.createElement("div");
+        list.className = "alias-candidates";
+        for (const candidate of candidates) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "alias-candidate";
+          const label = document.createElement("strong");
+          label.textContent = candidate.label || [candidate.type, candidate.material, candidate.design, candidate.color].filter(Boolean).join(" · ");
+          const hint = document.createElement("small");
+          hint.textContent = "Use this active catalogue lens";
+          button.append(label, hint);
+          button.addEventListener("click", () => {
+            field.value = candidate.alias;
+            summary.textContent = `Selected: ${label.textContent}. The exact alias has been filled for this production configuration.`;
+            list.querySelectorAll(".alias-candidate").forEach((item) => item.classList.toggle("selected", item === button));
+          });
+          list.append(button);
+        }
+        notice.append(list);
+      }
       notice.hidden = false;
     } catch (error) {
       showNotice(error.message, true);
@@ -237,12 +262,14 @@
   }
 
   function renderApprovalActions(order) {
-    const visible = (state.canApprove && order.status === "READY_FOR_REVIEW") || (state.canStage && order.status === "RX_GENERATED") || order.status === "STAGED";
+    const visible = (state.canApprove && order.status === "READY_FOR_REVIEW") || (state.canStage && order.status === "RX_GENERATED") || (state.canRelease && order.status === "STAGED") || order.status === "RELEASED";
     $("#approvalActions").hidden = !visible;
     if (!visible) return;
     $("#approveOrderButton").hidden = !(state.canApprove && order.status === "READY_FOR_REVIEW");
     $("#stageOrderButton").hidden = !(state.canStage && order.status === "RX_GENERATED");
-    if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"}. It has not been released to Innovations.`;
+    $("#releaseOrderButton").hidden = !(state.canRelease && order.status === "STAGED");
+    if (order.status === "RELEASED") $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
+    else if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"}. It has not been released to Innovations.`;
     else $("#approvalMessage").textContent = "Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.";
   }
 
@@ -363,6 +390,22 @@
       const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/stage`, { method: "POST" });
       await showOrder(payload.order);
       showNotice("Approved RX staged locally. It has not been released to Innovations.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function releaseOrder() {
+    if (!state.current) return;
+    if (!window.confirm("Release this approved staged RX file to Innovations? An archived copy will be retained.")) return;
+    const button = $("#releaseOrderButton");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/release`, { method: "POST" });
+      await showOrder(payload.order);
+      showNotice("Approved RX released to Innovations and archived.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {

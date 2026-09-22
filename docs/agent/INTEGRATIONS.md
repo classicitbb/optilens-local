@@ -8,7 +8,7 @@ This public file records boundaries, not private topology.
 - Keep credentials and private infrastructure details in approved secret/configuration systems.
 - Keep customer-safe hosted behavior separate from private operational access.
 - Use versioned contracts, idempotency, bounded retries, audit context, and reconciliation.
-- Pause for production or source-system writes, external sends, security/authorization changes, credential changes, destructive actions, and access expansion.
+- For assigned repository build tasks, production application deployment, app-database migrations, restart, and health verification are standing-authorized. Source-system writes, external sends, credential/permission changes, destructive actions, and access expansion remain separately controlled unless the task expressly includes them.
 - Record new non-sensitive connector names and contract ownership here; record private access details only in the approved secure system.
 
 ## RX Capture image extraction

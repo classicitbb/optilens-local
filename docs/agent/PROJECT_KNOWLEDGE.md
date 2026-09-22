@@ -29,8 +29,9 @@
 - RX Capture records and non-clinical audit metadata live in the private app database under the `rx_capture` schema. Order reads and updates are owner-scoped in Milestone 1.
 - RX Capture treats blank ADD, prism, and base cells as intentionally absent optional data, not missing data. ADD becomes required only when the extracted lens type/design explicitly indicates a multifocal family; illegible marks remain uncertain for employee review.
 - RX Capture review displays extracted lens fields and optional frame details. Missing frame/lens metadata does not block review; an absent frame state defaults explicitly to `TO_BE_TRACED`, with measurements left null until a real trace replaces them.
-- Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. Milestone 2 adds exact configuration, separate-reviewer approval, immutable `.rx` generation, and local staging. It does not release or write Innovations data.
+- Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. The intake owner can complete every correction and review step. Milestone 2 adds exact configuration, separate-reviewer approval, immutable `.rx` generation, and local staging. Milestone 4 adds a separately permissioned `rx-capture.release` action that hash-verifies one staged file, archives it, atomically writes it to the configured Innovations incoming folder, and records the release audit event.
 - `lib/rx-capture/order-builder.js` is the deterministic bridge from a fully reviewed normalized order plus exact source selections to the existing proven `.rx` renderer. It rejects unresolved fields, fuzzy catalogue choices, and inferred frame trace data.
+- Active file-drop destinations are operational routing records managed in Integrations → Innovations Sync. They can be customer- and purpose-scoped; a matching customer route overrides the default route, while the legacy configured incoming folder remains a fallback. Credentials Vault remains for credentials, not a growing set of routing rules.
 
 ## Knowledge maintenance
 

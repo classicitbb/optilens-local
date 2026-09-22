@@ -187,6 +187,7 @@ const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
 const { getSetting, setSetting } = require("./lib/app-settings");
 const { recordAuditEvent } = require("./lib/audit");
+const { service: fileDropDestinations } = require("./lib/file-drop-destinations");
 const { handleOperationsRoute } = require("./lib/operations/routes");
 const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
@@ -2576,6 +2577,32 @@ const server = http.createServer(async (req, res) => {
         // innovations-sync.js for why (avoids emailing every customer at once).
         suppressStatementEmails: !!body.suppressStatementEmails,
       });
+    });
+  }
+
+  if (url.pathname === "/api/integrations/file-drop-destinations" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return { destinations: await fileDropDestinations.listDestinations() };
+    });
+  }
+
+  if (url.pathname === "/api/integrations/file-drop-destinations" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "integrations.manage");
+      const destination = await fileDropDestinations.saveDestination(await readJsonBody(req), actor);
+      await recordAuditEvent({ moduleCode: "integrations", actorUserId: actor.userId, eventType: "file_drop_destination.saved", entityType: "file_drop_destination", entityId: destination.destinationId, eventData: { purposeCode: destination.purposeCode, customerAccount: destination.customerAccount, isActive: destination.isActive } });
+      return { destination };
+    }, 201);
+  }
+
+  const fileDropTestMatch = url.pathname.match(/^\/api\/integrations\/file-drop-destinations\/([^/]+)\/test$/);
+  if (fileDropTestMatch && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "integrations.manage");
+      const result = await fileDropDestinations.testDestination(decodeURIComponent(fileDropTestMatch[1]));
+      await recordAuditEvent({ moduleCode: "integrations", actorUserId: actor.userId, eventType: "file_drop_destination.tested", entityType: "file_drop_destination", entityId: result.destinationId, eventData: { ok: result.ok } });
+      return result;
     });
   }
 

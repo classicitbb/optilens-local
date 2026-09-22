@@ -45,7 +45,7 @@
       <section id="reviewQueuePanel" class="orders-panel review-queue" aria-labelledby="reviewQueueTitle" hidden>
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Reviewer access</p>
+            <p class="eyebrow">Review / release access</p>
             <h2 id="reviewQueueTitle">APPROVAL QUEUE</h2>
           </div>
           <button id="refreshReviewQueueButton" class="icon-button" type="button" aria-label="Refresh approval queue">↻</button>
@@ -196,7 +196,7 @@
             <span class="optional-badge">Exact source selections</span>
           </div>
           <p class="section-help">Choose only known account, catalogue, and frame values. Saving this configuration does not generate, stage, or release a file.</p>
-          <p id="aliasSuggestion" class="alias-suggestion" hidden></p>
+          <div id="aliasSuggestion" class="alias-suggestion" hidden></div>
           <div class="field-grid two">
             <label>Customer number<input name="customerNumber" autocomplete="off" required readonly></label>
             <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
@@ -220,6 +220,7 @@
         <div class="action-row">
           <button id="approveOrderButton" class="primary-button" type="button">APPROVE &amp; GENERATE</button>
           <button id="stageOrderButton" class="secondary-button" type="button">STAGE APPROVED RX</button>
+          <button id="releaseOrderButton" class="primary-button" type="button">RELEASE TO INNOVATIONS</button>
         </div>
       </section>
     </section>
