@@ -79,6 +79,41 @@ they live on EZpay, which this extension deliberately does not run on. Adding
 EZpay to `host_permissions` to save four clicks either side of a card entry is
 not a trade worth making.
 
+## Form Actions ask first
+
+Learned from the submit stage's first live run (job `7C4FB596`): every Form
+Action operation raises its own confirmation box — *"You are about to perform
+'Verify Document'. Are you sure you want to proceed? No / Yes"* — and the
+operation does not run until that is answered. The first build read the
+question back as if it were the verification result. `runFormAction` now
+recognises the question, clicks Yes, and reads the outcome from what follows.
+
+Expect the same on the payment order's **Verify Document** and **Pay Now**.
+
+## First recorded run (2026-09-22)
+
+The recorder works; the first run stopped after six steps, which is already
+enough to confirm the shape:
+
+| # | Kind | Route | Control |
+| --- | --- | --- | --- |
+| 1 | click | `/#/lpco/certificates/new` | `div.v-overlay__scrim` |
+| 2 | click | `/#/lpco/certificates/new` | `div.v-list-item__title` "Online Payment" |
+| 3 | click | `/#/lpco/certificates/new` | `div.v-list-item__title.text-caption` "Online Payment Order" |
+| 4 | field | `/#/accounting/wpos/new` | `input#input-1954` label="Trader TIN" |
+| 5 | click | `/#/accounting/wpos/new` | `div.v-input__append-inner` |
+| 6 | click | `/#/accounting/wpos/new` | `i.v-icon.notranslate.mdi` |
+
+So: the payment order lives at `/#/accounting/wpos/new`, it is reached through
+the left menu without a page load (the content script survives), and Trader TIN
+is an ordinary labelled input that `findByAny(["trader tin"])` will resolve.
+The generated ids (`input-1954`) are not stable across loads — match on the
+label, as the certificate fill already does.
+
+What is still needed is a run carried through to Pay Now: the Add LPCO
+Application dialog, the serial year / code / number fields, the Add Payment
+Method dialog, and the Form Action items on that page.
+
 ## What is still missing
 
 Every step above is a *documented* step, not an observed control. The guide

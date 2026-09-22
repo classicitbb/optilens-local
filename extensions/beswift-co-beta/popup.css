@@ -23,7 +23,8 @@ label {
   font-weight: 700;
 }
 
-input {
+input,
+select {
   min-height: 34px;
   border: 1px solid #cdd5df;
   border-radius: 8px;

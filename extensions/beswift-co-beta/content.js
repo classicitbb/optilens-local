@@ -1,4 +1,18 @@
 (function () {
+  // Divides every artificial delay in the fill. The per-field pacing below was
+  // tuned one field at a time against the live portal, so it is scaled as a
+  // whole rather than re-tuned: the proportions that work stay, the run just
+  // gets shorter. Read from chrome.storage.local at the start of each run
+  // (the popup's Fill speed control), so a run that turns flaky can be put
+  // back to 1x without a code change or a reload.
+  //
+  // Measured on job 7C4FB596 (2026-09-22, 2 items): 107s of header, 57s per
+  // item, almost all of it these delays plus one CDP round trip per typed
+  // character. At 2x with bulk text insert that run would be ~100s instead of
+  // ~230s.
+  const DEFAULT_FILL_SPEED = 2;
+  let fillSpeed = DEFAULT_FILL_SPEED;
+
   const HUMAN_DELAY = {
     clickMin: 220,
     clickMax: 620,
@@ -57,10 +71,12 @@
     // Wire up the data-driven positional hints (#2) and expose ctx to the
     // reconciliation/learning helpers so they can append to the job log_json.
     fillCtx = ctx;
+    fillSpeed = await loadFillSpeed();
     indexSuggested.clear();
     optionIndexHints = { ...OPTION_INDEX_HINTS_FALLBACK, ...(payload.optionIndexHints || {}) };
     await ensureOnCertificateForm();
-    await report(ctx.baseUrl, ctx.job.automationJobId, "filling", "Signed in. Filling available fields.");
+    await report(ctx.baseUrl, ctx.job.automationJobId, "filling",
+      `Signed in. Filling available fields (fill speed ${fillSpeed}x).`);
     await fillHeader(ctx, payload);
     // Blank-field sweep (refinement 2026-08-08): re-read the header's typed
     // text fields against the payload before the mandatory review pause, so a
@@ -522,12 +538,10 @@
   const FORM_ACTION_LABELS = ["form action", "form actions", "task bar", "actions"];
 
   async function submitCertificate(ctx) {
+    const payload = (ctx.payload && ctx.payload.payload) || {};
     await checkpoint(ctx, "Submit stage: Form Action → Verify Document.");
-    // Snapshot the alerts already on the page so the verification result is
-    // read from what BeSwift puts up NEXT, not from a banner that was sitting
-    // there before anything was clicked.
-    const before = snapshotOutcomeNodes();
-    if (!await clickFormAction("Verify Document")) {
+    const verify = await runFormAction("Verify Document");
+    if (!verify.clicked) {
       await pauseForInteraction(
         ctx,
         "Could not find Form Action → Verify Document on this page. Run Verify Document yourself from the "
@@ -536,8 +550,12 @@
         { field: "Form Action → Verify Document", expected: "Verify Document menu item" }
       );
     }
-    const verdict = await readActionOutcome(10000, before);
-    await checkpoint(ctx, `Verify Document result: ${verdict || "(no message captured — read it on the page)"}`);
+    const verdict = verify.message;
+    await checkpoint(
+      ctx,
+      `Verify Document result: ${verdict || "(no message captured — read it on the page)"}`,
+      { confirmationAnswered: verify.confirmed }
+    );
 
     const go = await pauseForInteraction(
       ctx,
@@ -560,7 +578,12 @@
     }
 
     await checkpoint(ctx, "Submit stage: Form Action → Submit.");
-    if (!await clickFormAction("Submit")) {
+    // Everything that already looks like a document reference, captured BEFORE
+    // the submit, so the applicant reference sitting in the page header cannot
+    // be mistaken for the registration reference the submit generates.
+    const knownReferences = collectReferenceCandidates(payload);
+    const submitted = await runFormAction("Submit");
+    if (!submitted.clicked) {
       await pauseForInteraction(
         ctx,
         "Could not find Form Action → Submit. Choose Submit yourself from the Form Action menu, confirm with "
@@ -568,27 +591,20 @@
         undefined,
         { field: "Form Action → Submit", expected: "Submit menu item" }
       );
-    } else {
-      // Confirmation box — "Select Proceed from Confirmation box that appears".
-      const proceed = await waitFor(
-        () => findVisibleClickableByText("Proceed") || findVisibleClickableByText("Yes"),
-        12000,
-        250
+    } else if (!submitted.confirmed) {
+      await pauseForInteraction(
+        ctx,
+        "Submit was clicked but the confirmation box could not be answered from here"
+          + `${submitted.message ? ` (BeSwift showed: ${submitted.message})` : ""}. Confirm the submission on the `
+          + "page, then Resume so the registration reference gets recorded.",
+        undefined,
+        { field: "Submit confirmation", expected: "Proceed / Yes", actual: submitted.message || "" }
       );
-      if (proceed) {
-        await clickControl(proceed);
-      } else {
-        await pauseForInteraction(
-          ctx,
-          "Submit was clicked but no Proceed confirmation could be found. Confirm the submission on the page, "
-            + "then Resume.",
-          undefined,
-          { field: "Submit confirmation", expected: "Proceed" }
-        );
-      }
+    } else if (submitted.message) {
+      await checkpoint(ctx, `Submit result: ${submitted.message}`);
     }
 
-    const reference = await waitFor(() => readRegistrationReference(), 45000, 750);
+    const reference = await waitFor(() => readRegistrationReference(knownReferences), 45000, 750);
     if (reference) {
       await checkpoint(ctx, `Submitted. Registration reference ${reference}.`, { registrationReference: reference });
     } else {
@@ -628,6 +644,48 @@
     chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
     if (next === "capture") startPaymentCapture(ctx, reference);
     else showPinned("done", `Certificate submitted${reference ? ` as ${reference}` : ""}. Pay it from Online Payment → Online Payment Order.`);
+  }
+
+  // Every Form Action operation in BeSwift asks before it runs — "You are about
+  // to perform 'Verify Document'. Are you sure you want to proceed? No / Yes"
+  // — and only reports its outcome once that is answered. The stage's first
+  // live run (job 7C4FB596, 2026-09-22) read that confirmation box back as if
+  // it were the verification result, and the operation itself never ran. So the
+  // question is now recognised, answered, and the real outcome read from
+  // whatever BeSwift shows afterwards.
+  const CONFIRMATION_PATTERN = /are you sure|about to perform|want to proceed/i;
+
+  async function runFormAction(actionName) {
+    const before = snapshotOutcomeNodes();
+    if (!await clickFormAction(actionName)) return { clicked: false, confirmed: false, message: "" };
+
+    const dialog = await waitFor(() => newOutcomeNode(before), 6000, 200);
+    if (!dialog) return { clicked: true, confirmed: false, message: "" };
+    const question = outcomeText(dialog);
+    if (!CONFIRMATION_PATTERN.test(question)) {
+      // Some operations report straight back without asking.
+      return { clicked: true, confirmed: true, message: question };
+    }
+
+    const yes = findVisibleClickableByText("Yes", dialog)
+      || findVisibleClickableByText("Proceed", dialog)
+      || findVisibleClickableByText("Ok", dialog);
+    if (!yes) {
+      pushFeed(`Form Action → ${actionName}: confirmation box has no Yes/Proceed button to click.`, "warn");
+      return { clicked: true, confirmed: false, message: question };
+    }
+    await clickControl(yes);
+
+    const answered = snapshotOutcomeNodes();
+    let message = await readActionOutcome(12000, answered);
+    if (!message) {
+      // BeSwift may reuse the same dialog element for the result, in which case
+      // a node "we have not seen before" never appears. Fall back to whatever
+      // is on screen, as long as it is no longer the question just answered.
+      const current = visibleOutcomeText();
+      if (current && current !== question) message = current;
+    }
+    return { clicked: true, confirmed: true, message };
   }
 
   // Clicks a named operation from BeSwift's Form Action menu / task bar. Some
@@ -672,10 +730,10 @@
   // ARIA menu items depending on where they appear, so all of those count.
   // Our own panel is excluded, or a button label inside it could be mistaken
   // for a page control.
-  function findVisibleClickableByText(text) {
+  function findVisibleClickableByText(text, root = document) {
     const needle = String(text || "").trim().toLowerCase();
     if (!needle) return null;
-    const nodes = [...document.querySelectorAll(
+    const nodes = [...root.querySelectorAll(
       "button, a, [role='menuitem'], [role='button'], .v-list-item, .v-btn, .v-tab"
     )];
     const visible = nodes.filter((el) => !el.closest(`#${TOAST_ID}`) && !el.disabled && isVisibleElement(el));
@@ -703,26 +761,61 @@
   }
 
   async function readActionOutcome(timeoutMs, before = new Set()) {
-    const node = await waitFor(() => {
-      const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
-        .filter((el) => !before.has(el) && !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
-      return found.at(-1) || null;
-    }, timeoutMs, 300);
+    return outcomeText(await waitFor(() => newOutcomeNode(before), timeoutMs, 300));
+  }
+
+  function newOutcomeNode(before) {
+    const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
+      .filter((el) => !before.has(el) && !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
+    return found.at(-1) || null;
+  }
+
+  function visibleOutcomeText() {
+    const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
+      .filter((el) => !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
+    return outcomeText(found.at(-1) || null);
+  }
+
+  function outcomeText(node) {
     if (!node) return "";
     return String(node.innerText || "").replace(/\s+/g, " ").trim().slice(0, 400);
   }
 
   // The Registration Reference BeSwift generates on submit — the serial the
-  // payment order is raised against. Read from the form field when there is
-  // one, otherwise from the page text (year/code-serial, e.g. 2026/CER-1234).
-  function readRegistrationReference() {
-    for (const label of ["registration reference", "registration number", "registration ref"]) {
+  // payment order is raised against. The first live run of this stage read back
+  // "2026/SHP-11674", which is the APPLICANT reference and had been in the page
+  // header since the form opened. So everything reference-shaped is collected
+  // before the submit and excluded afterwards, and a labelled field is
+  // preferred over a scrape of the page text.
+  const REFERENCE_PATTERN = /\b\d{4}\/[A-Z]{2,4}-\d{2,8}\b/g;
+
+  function collectReferenceCandidates(payload) {
+    const known = new Set();
+    const add = (value) => {
+      const text = String(value || "").trim().toLowerCase();
+      if (text) known.add(text);
+    };
+    add(payload.applicantReference);
+    for (const match of String(document.body?.innerText || "").matchAll(REFERENCE_PATTERN)) add(match[0]);
+    for (const label of REGISTRATION_LABELS) {
+      const el = findByAny([label]);
+      if (el) add(el.value);
+    }
+    return known;
+  }
+
+  const REGISTRATION_LABELS = ["registration reference", "registration number", "registration ref"];
+
+  function readRegistrationReference(known = new Set()) {
+    for (const label of REGISTRATION_LABELS) {
       const el = findByAny([label]);
       const value = el ? String(el.value || "").trim() : "";
-      if (value) return value;
+      if (value && !known.has(value.toLowerCase())) return value;
     }
-    const match = String(document.body?.innerText || "").match(/\b\d{4}\/[A-Z]{2,4}-\d{2,8}\b/);
-    return match ? match[0] : null;
+    for (const match of String(document.body?.innerText || "").matchAll(REFERENCE_PATTERN)) {
+      if (!known.has(match[0].toLowerCase())) return match[0];
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -1464,9 +1557,27 @@
     await cdpClickElement(el);
     selectElementText(el);
     await humanDelay(180, 420);
-    await cdpTypeText(value);
+    await insertOrType(el, String(value));
     el.dispatchEvent(new Event("change", { bubbles: true }));
     await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+  }
+
+  // One CDP round trip for the whole string instead of one per character. A
+  // plain text field only needs the resulting input event; the per-character
+  // pacing exists for the autocompletes, which still get it (tryTextPick types
+  // to filter the option list, and that filtering is the point).
+  //
+  // Verified against the field afterwards rather than assumed: an input mask, a
+  // maxlength, or a component that rebuilds itself on every keystroke would all
+  // show up as a value that did not land, and those fall back to typing it out
+  // character by character exactly as before.
+  async function insertOrType(el, value) {
+    await cdpInsertText(value);
+    await humanDelay(HUMAN_DELAY.typeMin, HUMAN_DELAY.typeMax);
+    if (valuesMatch(String(el.value || ""), value)) return;
+    pushFeed(`Bulk insert did not land for "${value}" — typing it out character by character.`, "warn");
+    selectElementText(el);
+    await cdpTypeText(value);
   }
 
   function selectElementText(el) {
@@ -2594,7 +2705,23 @@
   }
 
   function humanDelay(minMs, maxMs) {
-    return wait(randomDelayMs(minMs, maxMs));
+    return wait(Math.round(randomDelayMs(minMs, maxMs) / fillSpeed));
+  }
+
+  // Clamped to 1x-4x: below 1 would be slower than the tuned pacing (just use
+  // 1), and above 4 the portal's own async lookups become the limit anyway, so
+  // a bad value there would only buy flakiness.
+  function loadFillSpeed() {
+    return new Promise((resolve) => {
+      try {
+        chrome.storage.local.get(["fillSpeed"], (data) => {
+          const value = Number(data && data.fillSpeed);
+          resolve(Number.isFinite(value) && value >= 1 && value <= 4 ? value : DEFAULT_FILL_SPEED);
+        });
+      } catch {
+        resolve(DEFAULT_FILL_SPEED);
+      }
+    });
   }
 
   function randomDelayMs(minMs, maxMs) {

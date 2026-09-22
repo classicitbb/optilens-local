@@ -96,6 +96,26 @@ menu — always takes the conservative branch (`finish`, `stop`). Submission is
 irreversible and chargeable; it only happens when somebody asks for it on the
 panel.
 
+## Fill speed
+
+Every artificial delay in the fill is divided by `fillSpeed`, read from
+`chrome.storage.local` at the start of each run and set from the popup. The
+default is **2x**. The per-field pacing was tuned one field at a time against
+the live portal, so it is scaled as a whole rather than re-tuned — the
+proportions that work stay, the run just gets shorter.
+
+Plain text fields are also filled with one CDP `insertText` for the whole
+string instead of one call per character, verified against the field afterwards
+and falling back to character-by-character typing if the value did not land.
+The autocompletes still type character by character, because that filtering is
+the point.
+
+Baseline, job `7C4FB596` (2026-09-22, two items, 1x and per-character typing):
+107s of header, ~57s per item, ~230s of machine time in all.
+
+If a run starts missing fields, put the speed back to 1x in the popup before
+anything else — the pacing exists for BeSwift's own async lookups.
+
 ## Attention signal
 
 Any pause raises attention: the on-page panel is forced open and opaque, pulled
