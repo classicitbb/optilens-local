@@ -2621,8 +2621,8 @@ textarea.ci-line-input {
 }
 
 .app-access-band {
-  margin: 18px clamp(14px, 3vw, 36px) 24px;
-  padding: 0;
+  margin: 18px clamp(14px, 5.5vw, 70px) 24px;
+  padding: 15px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2630,7 +2630,7 @@ textarea.ci-line-input {
 }
 
 .signed-in main > .band:not(.app-access-band) {
-  margin-inline: clamp(14px, 3vw, 36px);
+  margin-inline: clamp(14px, 5.5vw, 70px);
   padding: 0;
   border: 0;
   border-radius: 0;
