@@ -1,0 +1,331 @@
+(() => {
+  const state = { orders: [], current: null, pollTimer: null, canWrite: false };
+  const $ = (selector) => document.querySelector(selector);
+  const screens = [...document.querySelectorAll(".screen")];
+  const pathLabels = {
+    "patient.name": "Patient name",
+    "patient.reference": "Patient reference",
+    "prescription.od.sphere": "OD sphere",
+    "prescription.od.cylinder": "OD cylinder",
+    "prescription.od.axis": "OD axis",
+    "prescription.od.add": "OD ADD",
+    "prescription.od.prism": "OD prism",
+    "prescription.od.base": "OD base",
+    "prescription.os.sphere": "OS sphere",
+    "prescription.os.cylinder": "OS cylinder",
+    "prescription.os.axis": "OS axis",
+    "prescription.os.add": "OS ADD",
+    "prescription.os.prism": "OS prism",
+    "prescription.os.base": "OS base",
+    "pd.type": "PD type",
+    "pd.binocular": "Binocular PD",
+    "pd.od": "OD PD",
+    "pd.os": "OS PD",
+    "pd.nearOd": "Near OD PD",
+    "pd.nearOs": "Near OS PD"
+  };
+
+  async function init() {
+    try {
+      const auth = await api("/api/auth/me");
+      $("#currentUser").textContent = auth.user?.displayName || auth.user?.username || "";
+      state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
+      $("#newRxButton").hidden = !state.canWrite;
+      $("#saveReviewButton").hidden = !state.canWrite;
+      wireEvents();
+      await loadOrders();
+    } catch (error) {
+      if (error.status === 401) location.assign("/");
+      else showNotice(error.message, true);
+    }
+  }
+
+  function wireEvents() {
+    $("#newRxButton").addEventListener("click", () => showScreen("captureScreen"));
+    $("#refreshOrdersButton").addEventListener("click", loadOrders);
+    document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", async () => {
+      stopPolling();
+      showScreen("ordersScreen");
+      await loadOrders();
+    }));
+    $("#logoutButton").addEventListener("click", async () => {
+      await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+      location.assign("/");
+    });
+    $("#primaryImage").addEventListener("change", () => previewFile("primaryImage", "primaryPreview", "primaryFileName"));
+    $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
+    $("#captureForm").addEventListener("submit", submitCapture);
+    $("#reviewForm").addEventListener("submit", saveReview);
+    $("#reprocessButton").addEventListener("click", reprocess);
+    document.querySelectorAll("[data-path]").forEach((input) => input.addEventListener("input", () => resolveIssue(input.dataset.path)));
+  }
+
+  async function loadOrders() {
+    const payload = await api("/api/rx-capture/orders?limit=30");
+    state.orders = payload.orders || [];
+    const list = $("#ordersList");
+    list.replaceChildren(...state.orders.map(orderButton));
+    $("#ordersEmpty").hidden = state.orders.length > 0;
+  }
+
+  function orderButton(order) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "order-row";
+    button.setAttribute("role", "listitem");
+    const patient = document.createElement("strong");
+    patient.textContent = order.patientName || "Patient not identified";
+    const status = document.createElement("span");
+    status.className = "status-pill";
+    status.dataset.status = order.status;
+    status.textContent = statusLabel(order.status);
+    const meta = document.createElement("span");
+    meta.className = "order-meta";
+    meta.textContent = formatDate(order.createdAt);
+    button.append(patient, status, meta);
+    button.addEventListener("click", () => openOrder(order.id));
+    return button;
+  }
+
+  async function submitCapture(event) {
+    event.preventDefault();
+    const primary = $("#primaryImage").files[0];
+    const secondary = $("#secondaryImage").files[0];
+    if (!primary) return showNotice("Choose a prescription image first.", true);
+    const button = $("#submitCaptureButton");
+    button.disabled = true;
+    button.textContent = "PREPARING IMAGE…";
+    try {
+      const images = [];
+      for (const file of [primary, secondary].filter(Boolean)) {
+        images.push({ name: file.name, dataUrl: await imageDataUrl(file) });
+      }
+      button.textContent = "SUBMITTING…";
+      const payload = await api("/api/rx-capture/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images })
+      });
+      $("#captureForm").reset();
+      clearPreview("primaryPreview", "primaryFileName");
+      clearPreview("secondaryPreview", "secondaryFileName");
+      await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "SUBMIT FOR EXTRACTION";
+    }
+  }
+
+  async function openOrder(id) {
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(id)}`);
+      await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  async function showOrder(order) {
+    state.current = order;
+    showScreen("reviewScreen");
+    $("#reviewStatus").dataset.status = order.status;
+    $("#reviewStatus").textContent = statusLabel(order.status);
+    $("#processingPanel").hidden = order.status !== "PROCESSING";
+    $("#failedPanel").hidden = order.status !== "FAILED";
+    $("#reviewForm").hidden = !order.normalizedOrder || ["PROCESSING", "FAILED"].includes(order.status);
+    $("#failedMessage").textContent = order.errorMessage || "Try the extraction again or create a new capture.";
+    $("#reprocessButton").hidden = !state.canWrite;
+    if (order.normalizedOrder) renderOrder(order.normalizedOrder);
+    stopPolling();
+    if (order.status === "PROCESSING") state.pollTimer = setTimeout(pollCurrentOrder, 1800);
+  }
+
+  async function pollCurrentOrder() {
+    if (!state.current) return;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}`);
+      await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  function renderOrder(order) {
+    document.querySelectorAll("[data-path]").forEach((input) => {
+      input.value = valueAtPath(order, input.dataset.path) ?? "";
+      input.classList.remove("missing", "uncertain");
+    });
+    for (const path of order.missingFields || []) fieldForPath(path)?.classList.add("missing");
+    for (const path of order.uncertainFields || []) fieldForPath(path)?.classList.add("uncertain");
+    renderIssues(order);
+  }
+
+  function renderIssues(order) {
+    const issues = [
+      ...(order.missingFields || []).map((path) => ({ path, kind: "Missing" })),
+      ...(order.uncertainFields || []).map((path) => ({ path, kind: "Uncertain" }))
+    ];
+    $("#issuesCard").hidden = issues.length === 0;
+    $("#issuesList").replaceChildren(...issues.map((issue) => {
+      const item = document.createElement("li");
+      item.textContent = `${issue.kind}: ${pathLabels[issue.path] || issue.path}`;
+      return item;
+    }));
+  }
+
+  function resolveIssue(path) {
+    if (!state.current?.normalizedOrder) return;
+    const input = fieldForPath(path);
+    if (!input || !String(input.value).trim()) return;
+    state.current.normalizedOrder.missingFields = (state.current.normalizedOrder.missingFields || []).filter((item) => item !== path);
+    state.current.normalizedOrder.uncertainFields = (state.current.normalizedOrder.uncertainFields || []).filter((item) => item !== path);
+    input.classList.remove("missing", "uncertain");
+    renderIssues(state.current.normalizedOrder);
+  }
+
+  async function saveReview(event) {
+    event.preventDefault();
+    if (!state.current?.normalizedOrder) return;
+    const order = JSON.parse(JSON.stringify(state.current.normalizedOrder));
+    document.querySelectorAll("[data-path]").forEach((input) => setAtPath(order, input.dataset.path, input.value.trim() || null));
+    const button = $("#saveReviewButton");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ normalizedOrder: order })
+      });
+      await showOrder(payload.order);
+      showNotice("Review saved.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function reprocess() {
+    if (!state.current) return;
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/reprocess`, { method: "POST" });
+      await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  async function imageDataUrl(file) {
+    if (file.size > 18 * 1024 * 1024) throw new Error("Choose an image smaller than 18 MB.");
+    const sourceUrl = await fileToDataUrl(file);
+    try {
+      const image = await loadImage(sourceUrl);
+      const maxDimension = 2200;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d", { alpha: false });
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", .9);
+    } catch {
+      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+        throw new Error("This phone could not convert that image. Use a JPEG or PNG photo.");
+      }
+      return sourceUrl;
+    }
+  }
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = url;
+    });
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function previewFile(inputId, previewId, nameId) {
+    const file = $(`#${inputId}`).files[0];
+    const preview = $(`#${previewId}`);
+    if (!file) return clearPreview(previewId, nameId);
+    $(`#${nameId}`).textContent = file.name;
+    try {
+      preview.src = await fileToDataUrl(file);
+      preview.hidden = false;
+    } catch {
+      preview.hidden = true;
+    }
+  }
+
+  function clearPreview(previewId, nameId) {
+    const preview = $(`#${previewId}`);
+    preview.removeAttribute("src");
+    preview.hidden = true;
+    $(`#${nameId}`).textContent = "";
+  }
+
+  function showScreen(id) {
+    screens.forEach((screen) => screen.classList.toggle("active", screen.id === id));
+    window.scrollTo({ top: 0, behavior: "instant" });
+    $("#globalStatus").hidden = true;
+  }
+
+  function showNotice(message, isError = false) {
+    const notice = $("#globalStatus");
+    notice.textContent = message;
+    notice.className = `notice${isError ? " error" : ""}`;
+    notice.hidden = false;
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) clearTimeout(state.pollTimer);
+    state.pollTimer = null;
+  }
+
+  function valueAtPath(object, path) {
+    return path.split(".").reduce((value, key) => value?.[key], object);
+  }
+
+  function setAtPath(object, path, value) {
+    const keys = path.split(".");
+    const final = keys.pop();
+    const target = keys.reduce((current, key) => current[key], object);
+    target[final] = path.endsWith(".axis") && value !== null ? Number(value) : value;
+  }
+
+  function fieldForPath(path) {
+    return [...document.querySelectorAll("[data-path]")].find((input) => input.dataset.path === path) || null;
+  }
+
+  function statusLabel(status) {
+    return String(status || "NEW").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function formatDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  async function api(url, options = {}) {
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...options });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(payload.error || `Request failed (${response.status}).`), { status: response.status });
+    return payload;
+  }
+
+  init();
+})();

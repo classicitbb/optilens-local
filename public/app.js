@@ -67,6 +67,14 @@ const fallbackModules = [
     href: "/modules/automation",
     summary: "Local LLM and rule-based automation tools routed through audited platform APIs.",
     icon: "bolt"
+  },
+  {
+    id: "rx-capture",
+    name: "RX Capture",
+    status: "first-build",
+    href: "/rx-capture",
+    summary: "Photograph prescriptions and review normalized optical order data.",
+    icon: "document_scanner"
   }
 ];
 
@@ -118,7 +126,8 @@ const moduleAccessRules = {
   "delivery-export": ["delivery.read", "delivery.write"],
   "pricing-automation": ["pricing.read", "pricing.write"],
   "integrations": ["integrations.read", "integrations.manage"],
-  "automation": ["automation.read", "automation.manage"]
+  "automation": ["automation.read", "automation.manage"],
+  "rx-capture": ["rx-capture.read", "rx-capture.write"]
 };
 
 // NOTE: The launcher and search are owned entirely by shared.js (LAUNCHER_APPS /
@@ -424,7 +433,8 @@ function moduleIcon(moduleId) {
     "delivery-export": "inventory_2",
     "pricing-automation": "price_change",
     "integrations": "link",
-    "automation": "bolt"
+    "automation": "bolt",
+    "rx-capture": "document_scanner"
   };
   return icons[moduleId] || "apps";
 }

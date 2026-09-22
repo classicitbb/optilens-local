@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1e35">
+  <title>RX Capture</title>
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles/pages/rx-capture.css">
+</head>
+<body>
+  <header class="rx-topbar">
+    <div>
+      <span class="rx-mark" aria-hidden="true">RX</span>
+      <strong>RX Capture</strong>
+    </div>
+    <div class="rx-account">
+      <span id="currentUser"></span>
+      <button id="logoutButton" class="link-button" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="rx-app">
+    <div id="globalStatus" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <section id="ordersScreen" class="screen active" aria-labelledby="ordersTitle">
+      <div class="hero">
+        <p class="eyebrow">Employee prescription intake</p>
+        <h1 id="ordersTitle">RX CAPTURE</h1>
+        <p>Photograph a prescription, review every extracted value, and correct anything uncertain.</p>
+        <button id="newRxButton" class="primary-button" type="button">+ NEW RX</button>
+      </div>
+
+      <section class="orders-panel" aria-labelledby="recentTitle">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Your submissions</p>
+            <h2 id="recentTitle">MY RECENT ORDERS</h2>
+          </div>
+          <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders">↻</button>
+        </div>
+        <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
+        <div id="ordersList" class="orders-list" role="list"></div>
+      </section>
+    </section>
+
+    <section id="captureScreen" class="screen" aria-labelledby="captureTitle">
+      <button class="back-button" type="button" data-back>← Recent orders</button>
+      <div class="page-heading">
+        <p class="eyebrow">New prescription</p>
+        <h1 id="captureTitle">Photograph or upload</h1>
+        <p>Use a clear, well-lit image. Keep the full prescription inside the frame.</p>
+      </div>
+      <form id="captureForm" class="capture-card">
+        <label class="file-card" for="primaryImage">
+          <span class="camera-icon" aria-hidden="true">⌁</span>
+          <strong>Prescription image</strong>
+          <span>Take a photo or choose an image</span>
+          <input id="primaryImage" name="primaryImage" type="file" accept="image/*" capture="environment" required>
+          <img id="primaryPreview" alt="Prescription preview" hidden>
+          <small id="primaryFileName"></small>
+        </label>
+
+        <label class="file-card optional" for="secondaryImage">
+          <span class="camera-icon" aria-hidden="true">＋</span>
+          <strong>Second image <em>optional</em></strong>
+          <span>Add the reverse side or an order sheet</span>
+          <input id="secondaryImage" name="secondaryImage" type="file" accept="image/*" capture="environment">
+          <img id="secondaryPreview" alt="Second image preview" hidden>
+          <small id="secondaryFileName"></small>
+        </label>
+
+        <p class="privacy-note">Images are sent from this server for extraction and deleted locally after successful processing. All values still require employee review.</p>
+        <button id="submitCaptureButton" class="primary-button wide" type="submit">SUBMIT FOR EXTRACTION</button>
+      </form>
+    </section>
+
+    <section id="reviewScreen" class="screen" aria-labelledby="reviewTitle">
+      <button class="back-button" type="button" data-back>← Recent orders</button>
+      <div class="page-heading review-heading">
+        <div>
+          <p class="eyebrow">Structured review</p>
+          <h1 id="reviewTitle">Check extracted values</h1>
+        </div>
+        <span id="reviewStatus" class="status-pill"></span>
+      </div>
+
+      <div id="processingPanel" class="processing-panel" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <div><strong>Reading prescription</strong><p>This usually takes less than a minute. You can return to recent orders while it processes.</p></div>
+      </div>
+
+      <div id="failedPanel" class="failed-panel" hidden>
+        <strong>Extraction could not be completed</strong>
+        <p id="failedMessage"></p>
+        <button id="reprocessButton" class="secondary-button" type="button">TRY AGAIN</button>
+      </div>
+
+      <form id="reviewForm" class="review-form" hidden>
+        <section class="review-card">
+          <h2>Patient</h2>
+          <div class="field-grid two">
+            <label data-field-wrap="patient.name">Name<input data-path="patient.name" autocomplete="off"></label>
+            <label data-field-wrap="patient.reference">Reference<input data-path="patient.reference" autocomplete="off"></label>
+          </div>
+        </section>
+
+        <section class="review-card prescription-card">
+          <div class="rx-grid rx-grid-header" aria-hidden="true"><span></span><strong>OD</strong><strong>OS</strong></div>
+          <div class="rx-grid"><label>Sphere</label><input data-path="prescription.od.sphere" inputmode="decimal"><input data-path="prescription.os.sphere" inputmode="decimal"></div>
+          <div class="rx-grid"><label>Cylinder</label><input data-path="prescription.od.cylinder" inputmode="decimal"><input data-path="prescription.os.cylinder" inputmode="decimal"></div>
+          <div class="rx-grid"><label>Axis</label><input data-path="prescription.od.axis" inputmode="numeric" type="number" min="1" max="180"><input data-path="prescription.os.axis" inputmode="numeric" type="number" min="1" max="180"></div>
+          <div class="rx-grid"><label>ADD</label><input data-path="prescription.od.add" inputmode="decimal"><input data-path="prescription.os.add" inputmode="decimal"></div>
+          <div class="rx-grid"><label>Prism</label><input data-path="prescription.od.prism"><input data-path="prescription.os.prism"></div>
+          <div class="rx-grid"><label>Base</label><input data-path="prescription.od.base"><input data-path="prescription.os.base"></div>
+        </section>
+
+        <section class="review-card">
+          <h2>PD</h2>
+          <div class="field-grid three">
+            <label data-field-wrap="pd.binocular">Binocular<input data-path="pd.binocular" inputmode="decimal"></label>
+            <label data-field-wrap="pd.od">OD<input data-path="pd.od" inputmode="decimal"></label>
+            <label data-field-wrap="pd.os">OS<input data-path="pd.os" inputmode="decimal"></label>
+            <label data-field-wrap="pd.nearOd">Near OD<input data-path="pd.nearOd" inputmode="decimal"></label>
+            <label data-field-wrap="pd.nearOs">Near OS<input data-path="pd.nearOs" inputmode="decimal"></label>
+            <label data-field-wrap="pd.type">Type<input data-path="pd.type" placeholder="Binocular / monocular"></label>
+          </div>
+        </section>
+
+        <section id="issuesCard" class="issues-card" hidden>
+          <h2>Needs attention</h2>
+          <p>Highlighted fields were missing or uncertain. Enter what you can verify from the source.</p>
+          <ul id="issuesList"></ul>
+        </section>
+
+        <section class="review-card">
+          <label>Instructions<textarea data-path="instructions" rows="3"></textarea></label>
+        </section>
+
+        <button id="saveReviewButton" class="primary-button wide" type="submit">SAVE REVIEW</button>
+      </form>
+    </section>
+  </main>
+  <script src="/rx-capture.js" defer></script>
+</body>
+</html>

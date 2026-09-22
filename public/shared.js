@@ -11,6 +11,7 @@ const SHELL_APP_CATALOG = [
   { id: "pricing-automation", label: "Pricing",          meta: "Module",   icon: "price_change",  href: "/modules/pricing-automation", color: "#389457", permissions: ["pricing.read", "pricing.write"] },
   { id: "integrations",      label: "Integrations",      meta: "Module",   icon: "link",          href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
   { id: "automation",        label: "Automation",        meta: "Module",   icon: "bolt",          href: "/modules/automation",         color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
+  { id: "rx-capture",        label: "RX Capture",        meta: "Module",   icon: "document_scanner", href: "/rx-capture",                    color: "#0f7c86", permissions: ["rx-capture.read", "rx-capture.write"] },
   { id: "business-metrics",  label: "Business Metrics",  meta: "Module",   icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
   { id: "release-notes",     label: "Release Notes",     meta: "Roadmap",  icon: "history",       href: "/release-notes",              color: "#6d28d9", permissions: [] },
   { id: "users",             label: "Users",             meta: "Admin",    icon: "group",         href: "/admin/users",                color: "#0B1E35", permissions: ["users.manage"] },

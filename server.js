@@ -192,6 +192,7 @@ const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
+const { handleRxCaptureRoute } = require("./lib/rx-capture/routes");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1044,6 +1045,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
+  if (await handleRxCaptureRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
 
   // ── RX file generation ───────────────────────────────────────────────────
   // The serializer owns all line generation and filesystem access. These
@@ -2868,6 +2870,8 @@ function canAccessPage(requestPath, user) {
     "/modules/automation": ["automation.read", "automation.manage"],
     "/automation.html": ["automation.read", "automation.manage"],
     "/modules/automation/supplier-email": ["automation.read", "automation.manage"],
+    "/rx-capture": ["rx-capture.read", "rx-capture.write"],
+    "/rx-capture.html": ["rx-capture.read", "rx-capture.write"],
     "/modules/business-metrics": ["platform.admin"],
     "/business-metrics.html": ["platform.admin"]
   };
@@ -2923,6 +2927,7 @@ function resolveStaticPath(requestPath) {
     "/modules/automation":          "automation.html",
     "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/business-metrics":    "business-metrics.html",
+    "/rx-capture":                  "rx-capture.html",
     "/admin/users":                 "admin-users.html",
     "/modules/chemistry-clips":     "chemistry-clips.html"
   };
@@ -3036,12 +3041,12 @@ async function handleHtml(res, action, status = 200) {
   }
 }
 
-async function readJsonBody(req) {
+async function readJsonBody(req, maxBytes = 1024 * 1024) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 1024 * 1024) {
+    if (size > maxBytes) {
       const err = new Error("Request body is too large.");
       err.statusCode = 413;
       throw err;

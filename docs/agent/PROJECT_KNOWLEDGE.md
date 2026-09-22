@@ -22,6 +22,13 @@
 - Run `npm run check` and `npm test` for relevant code changes.
 - Use the documented guarded lifecycle and health-verification procedures for authorized host work.
 
+## RX Capture
+
+- `/rx-capture` is a full-screen, authenticated mobile intake page inside the existing Node HTTP process.
+- `lib/rx-capture/normalized-order.js` is the source-neutral boundary shared by photo capture and future manual/customer/API entry paths.
+- RX Capture records and non-clinical audit metadata live in the private app database under the `rx_capture` schema. Order reads and updates are owner-scoped in Milestone 1.
+- Milestone 1 stops at structured extraction, employee correction, persistence, and `NEEDS_INFO` / `READY_FOR_REVIEW` status. It does not approve, serialize, stage, release, or write Innovations data.
+
 ## Knowledge maintenance
 
 Update this file with public-safe, durable facts that help the next agent: repository layout, non-sensitive commands, module ownership, generated-file rules, and architectural decisions. Do not record infrastructure topology, credential details, live endpoints, internal identities, private paths, customer data, or secret values. Retrieve authorized operational context from configured tools and secure host documentation at execution time.

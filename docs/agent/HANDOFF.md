@@ -1,10 +1,18 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — invoice-line gateway implementation complete locally; deployment and live read verification pending
-- Last synchronized: 2026-09-14
+- Status: In progress — RX Capture Milestone 1 implemented locally; migration, deployment, and authenticated real-image verification pending
+- Last synchronized: 2026-09-22
 
 ## Objective and current state
+
+RX Capture Milestone 1 is implemented locally as an additive feature in the existing server. `/rx-capture` is a full-screen, mobile-first authenticated page with camera/file intake, optional second image, recent owner-scoped orders, processing/failure states, structured patient/OD/OS/ADD/PD review, direct editable correction, and missing/uncertain highlighting. The backend uses the existing app database, cookie session, module access model, and Credentials Vault. It sends images server-side to the configured OpenAI Responses endpoint with strict JSON Schema and `store: false`; the API key is never exposed to the browser. Local temporary images are deleted after successful processing by default. `lib/rx-capture/normalized-order.js` is deliberately source-neutral so future manual entry, customer portal, API, and test-generator inputs can feed the same order engine.
+
+Milestone 1 does not include approval, lens/coating/frame catalogue workflow, deterministic `.rx` serialization, staging, or Innovations release. No migration, application restart, deployment, vault readout, billable model call, source-system write, or real patient-image test was performed. The full repository suite passes 196/196; the focused RX Capture suite passes 7/7; `npm run check`, changed-file syntax checks, and `git diff --check` pass. The only observed diagnostic was Git being unable to read the user-global ignore file inside the restricted tool environment; it did not affect repository status or tests.
+
+RX Capture affected files are `database/043-rx-capture.sql`, `lib/rx-capture/*`, `public/rx-capture.html`, `public/rx-capture.js`, `public/styles/pages/rx-capture.css`, `test/rx-capture.test.js`, plus small registration/configuration changes in `server.js`, `lib/auth.js`, `lib/dashboard.js`, `lib/migrations.js`, `public/app.js`, `public/shared.js`, and `.env.example`.
+
+RX Capture approval required: authorize the normal guarded deployment/migration and an authenticated external Chrome/Edge test. A real extraction also sends sensitive patient image data to the configured provider and may be billable, so use an approved test image and explicit authorization. Exact next action after approval: deploy through the guarded update workflow, let migration `043-rx-capture.sql` apply, assign RX Capture access to a test employee, then directly photograph/type in external Chrome or Edge and verify create → processing → review → correction → reopen without invoking any Innovations release path.
 
 Host Monitor recovery and the available runtime update completed on 2026-09-14. The previous service wrapper was stuck while accepting no control messages, and its interrupted dependency recovery left production modules incomplete. The verified wrapper and child process were released, production dependencies were rebuilt deterministically, and the registered service returned healthy. The guarded updater then passed its smoke check and full suite (184/184), restarted OptiLens Local successfully, relaunched the Host Monitor, and recorded a completed durable restart state. The final monitor harness verified all systems online; no update remains available.
 
