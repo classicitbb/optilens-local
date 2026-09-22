@@ -1,20 +1,22 @@
-# BeSwift payment automation — target flow and what is still missing
+# BeSwift payment automation
 
-Captured 2026-09-22. Sources: `extensions/BeSWIFT EPayment User Guide.docx`,
-`extensions/BeSWIFT eCOO- Trader's Guide.docx`, and the beta extension's own
-live-run history.
+Captured 2026-09-22. Sources: three recorded operator payment runs
+(`delivery.co_fill_resolutions`, `source = 'payment-capture'`), the submit
+stage's first live run (job `7C4FB596`), `extensions/BeSWIFT EPayment User
+Guide.docx` and `extensions/BeSWIFT eCOO- Trader's Guide.docx`.
 
-The end state is one unattended run per shipment:
+One run per shipment:
 
 1. Fill the certificate — **done** (`fillHeader` / `fillItems`).
 2. Submit the certificate — **done** (`submitCertificate`, operator-triggered).
-3. Raise the payment order — **not built**.
-4. Fill the payment order — **not built**.
-5. Pay — **manual card entry, permanently**.
+3. Raise the payment order — **done** (`payCertificate`, operator-triggered).
+4. Pay Now → the card window opens — **done as a hand-off**; the worker follows
+   the window, brings it to the front and records its origin.
+5. Card entry — **manual, permanently.** See "The card boundary".
 
-Stages 1 and 2 are the automation. Stages 3 and 4 are writable once one live
-payment run has been recorded (see "What is still missing"). Stage 5 is not a
-gap to be closed; see "The card boundary".
+Nothing in stages 2–4 runs without an explicit operator go-ahead on the pause
+panel, and there are two of them between arriving at the payment order and
+money moving.
 
 ## The card boundary
 
@@ -24,115 +26,87 @@ names, and it will not be made to. The reasons are practical, not ceremonial:
 - Storing a card number anywhere in OptiLens — payload, `chrome.storage`, job
   log, resolution row — puts card data inside a system that has none of the
   handling obligations that come with it.
-- The card is entered on **EZpay**, a different site. It is not in the
-  extension's `host_permissions` or `content_scripts` matches, so no code of
-  ours runs there at all. That is the intended arrangement.
+- The card is entered on **EZpay**, in a window BeSwift opens separately. That
+  origin is not in the extension's `host_permissions` or `content_scripts`
+  matches, so no code of ours runs there at all. That is the arrangement, not
+  an oversight.
 - Everything up to the card page is repetitive data entry worth automating.
   Typing a card number once per shipment is not.
-
-So the automation's job ends at "the EZpay card form is open, with the right
-amount against the right certificate". A human types the card and clicks
-Submit → *Yes, Continue*.
 
 The payment-run recorder respects the same line: it records which controls the
 operator used, never a value they typed, and a field that reads as a payment
 instrument (`/card|cvv|cvc|security code|expir|cardholder|pan/`) is not even
 described — only that a redacted field was touched.
 
-## Stage 3–4: the documented BeSwift flow
+## What the recorded runs actually showed
 
-From the ePayment User Guide, with the automation notes that matter.
+Three runs on 2026-09-22. The generated ids in them (`input-2350`,
+`input-2536`, `input-2324`) change on every load, so nothing in the automation
+matches on them — labels and button text only.
 
-### Raise the payment order
+| What | Evidence |
+| --- | --- |
+| The payment order is at `#/accounting/wpos/new` | Route changed with no page load between steps 3 and 4 of run 1 |
+| It is reached from the left menu: hamburger → "Online Payment" → "Online Payment Order" | Runs 1–3, `div.v-list-item__title.text-caption` |
+| Trader TIN is a labelled autocomplete | `input "Trader TIN"`, option `div.v-list-item__title "1000006494000 - Classic Visions Limited"` |
+| The Trader TIN is **not** the certificate's applicant TIN | `1000006494000` here vs `1111000000013` on the certificate |
+| The certificate is attached through "Add LPCO Applications" | `span.text-capitalize "Add LPCO Applications"` |
+| That dialog ticks a checkbox rather than keying a serial | `div.v-input--selection-controls__ripple`, and no `field` events for serial year / code / number |
+| Payment method: "Add Payment Method" → Type → "EZpay" | `input "Type"`, option `div.v-list-item__title "EZpay"` |
+| Every dialog save is an icon click followed by a confirmation | `i.v-icon.notranslate.mdi` then `span "Yes"` |
 
-| # | Step | Automation note |
-| --- | --- | --- |
-| 1 | Left menu → expand **Online Payment** → **Online Payment Order** | A menu route, not the certificate form. Likely a hash route, so the content script survives it. |
-| 2 | Select the **Trader TIN** from the dropdown | Same Vuetify autocomplete pattern as Applicant TIN on the certificate — `pickByLabel` should apply. Trader name defaults in. |
-| 3 | Expand **LPCO Application** → **Add LPCO Application** | Opens a dialog, same shape as the item dialog — `openItemDialog`'s approach applies. |
-| 4 | Enter **serial year** | The registration year, e.g. `2026`. |
-| 5 | Select **serial code** (`CER`, `PER`) | `CER` for an eCOO certificate. |
-| 6 | Enter **serial number** and Tab | This is the Registration Reference number from submit. `submitCertificate` already reads and reports it as `registrationReference`, so the payment order can be raised from job state with no re-keying. |
-| 7 | Description / units / amount auto-populate | Read back and check against the fee the certificate showed — this is the natural place to catch a wrong serial. |
-| 8 | Save with the check at the top of the dialog | Same "save the dialog" pattern as an item line. |
+The automation follows that, not the guide's prose, with one deliberate
+departure: it sets `location.hash` to the route directly instead of driving the
+hamburger menu, because that is three fewer controls to miss. The menu path is
+still there as the fallback.
 
-### Add the payment method and verify
-
-| # | Step | Automation note |
-| --- | --- | --- |
-| 9 | **Payment Methods** → **Add Payment Method** | Dialog. |
-| 10 | Type = **EZpay**, save with the check top-right | Single fixed value. |
-| 11 | Payment type and amount payable return to the form | Read back; this is the amount about to be charged. Worth a checkpoint. |
-| 12 | Form Action → **Verify Document** → **Proceed** | Same Form Action machinery `clickFormAction` already drives on the certificate. |
-| 13 | Form Action → **Pay Now** | The point of no return for the automation — this leaves BeSwift. Should be an explicit operator go-ahead, same as Submit. |
-
-### EZpay (manual)
-
-14. **Checkout as Guest**
-15. Payment option tab → **Next**
-16. Card holder name, card number, expiry month/year, CVV — **typed by a human**
-17. Billing address, city, country, zip code
-18. **Submit** → **Yes, Continue** → success → **OK**
-
-Steps 14–15 and 17 are not card data and could in principle be automated, but
-they live on EZpay, which this extension deliberately does not run on. Adding
-EZpay to `host_permissions` to save four clicks either side of a card entry is
-not a trade worth making.
+The dialog shape is the one real disagreement with the guide, which describes
+typing a serial year, a serial code (`CER`/`PER`) and a serial number.
+`addLpcoApplication` handles both: if the dialog exposes a "Serial Number"
+field it keys the reference in, otherwise it ticks the row whose text carries
+the registration reference. If neither works it pauses for one manual tick.
 
 ## Form Actions ask first
 
 Learned from the submit stage's first live run (job `7C4FB596`): every Form
-Action operation raises its own confirmation box — *"You are about to perform
+Action operation raises its own confirmation — *"You are about to perform
 'Verify Document'. Are you sure you want to proceed? No / Yes"* — and the
-operation does not run until that is answered. The first build read the
-question back as if it were the verification result. `runFormAction` now
-recognises the question, clicks Yes, and reads the outcome from what follows.
+operation does not run until it is answered. The first build read the question
+back as if it were the verification result. `runFormAction` recognises the
+question, clicks Yes, and reads the outcome from what follows. The same applies
+to the payment order's Verify Document and to Pay Now.
 
-Expect the same on the payment order's **Verify Document** and **Pay Now**.
+## The card window
 
-## First recorded run (2026-09-22)
+Pay Now opens a new browser window. Because nothing of ours runs inside it, the
+service worker follows it through the `tabs` permission instead
+(`watchPaymentWindow` in `background.js`):
 
-The recorder works; the first run stopped after six steps, which is already
-enough to confirm the shape:
+- The window is brought to the front, since a pop-up that opens behind the
+  browser is the same stalled-run problem the on-page attention signal solves
+  for pauses.
+- Its **origin** is recorded as a `payment-capture` row. Only the origin — a
+  payment hand-off URL carries an order token in its query string, and that
+  does not belong in a job log.
+- Its closing is recorded too.
 
-| # | Kind | Route | Control |
-| --- | --- | --- | --- |
-| 1 | click | `/#/lpco/certificates/new` | `div.v-overlay__scrim` |
-| 2 | click | `/#/lpco/certificates/new` | `div.v-list-item__title` "Online Payment" |
-| 3 | click | `/#/lpco/certificates/new` | `div.v-list-item__title.text-caption` "Online Payment Order" |
-| 4 | field | `/#/accounting/wpos/new` | `input#input-1954` label="Trader TIN" |
-| 5 | click | `/#/accounting/wpos/new` | `div.v-input__append-inner` |
-| 6 | click | `/#/accounting/wpos/new` | `i.v-icon.notranslate.mdi` |
+Meanwhile the fill pauses on the BeSwift side with the attention signal up,
+asking the operator to say whether the payment went through, and reports the
+terminal status from their answer.
 
-So: the payment order lives at `/#/accounting/wpos/new`, it is reached through
-the left menu without a page load (the content script survives), and Trader TIN
-is an ordinary labelled input that `findByAny(["trader tin"])` will resolve.
-The generated ids (`input-1954`) are not stable across loads — match on the
-label, as the certificate fill already does.
+### What would come next, and why it has not been done
 
-What is still needed is a run carried through to Pay Now: the Add LPCO
-Application dialog, the serial year / code / number fields, the Add Payment
-Method dialog, and the Form Action items on that page.
+Assisting inside the card window — Checkout as Guest, Next, and the billing
+address block, none of which is card data — needs that origin added to
+`host_permissions` and `content_scripts`. That is a deliberate widening of
+where this extension runs, to a page adjacent to card entry, so it is a
+separate decision made with the origin in hand rather than guessed at. The
+first run on this build will record the origin; that is the input.
 
-## What is still missing
+Even then the card fields stay manual, and any content script on that page
+should carry the same payment-instrument denylist the recorder does.
 
-Every step above is a *documented* step, not an observed control. The guide
-describes menus and buttons in prose and pictures; it does not give selectors,
-and BeSwift's markup has already burned this project once (label-only fields
-that no attribute-based finder could see — see `labelTextsForInput`). Writing
-stages 3–4 from the prose would be guessing, at a live payment portal.
-
-So the missing input is **one recorded payment run**:
-
-1. Run a certificate through to submit with the beta extension.
-2. At the "Certificate submitted" pause, choose **Record my payment run**.
-3. Pay it by hand as normal.
-
-The recorder files batches as `delivery.co_fill_resolutions` rows with
-`source = 'payment-capture'`, each `note` holding a JSON array of steps:
-`{ n, at, kind, route, control }`, where `kind` is `click` or `field`, `route`
-is the SPA path/hash, and `control` is the tag, id, classes, role, visible text
-and label text of what was used. Read them back with:
+## Reading a recorded run
 
 ```sql
 SELECT created_at, field, section, note
@@ -141,20 +115,28 @@ WHERE source = N'payment-capture'
 ORDER BY created_at;
 ```
 
-Recording stops on its own when the operator leaves BeSwift for EZpay, when
-they press **Stop recording**, or after twenty minutes.
+Each `note` is a JSON array of `{ n, at, kind, route, control }`, where `kind`
+is `click` or `field`, `route` is the SPA path/hash, and `control` is the tag,
+id, classes, role, visible text and label text of what was used. Payment window
+events are filed in the same table with `field` = "Payment window opened" /
+"Payment window closed".
 
-With one recording in hand, stages 3–4 become the same kind of code as
-`fillHeader` — `setByLabel` / `pickByLabel` against known labels, dialogs opened
-and saved the way item lines already are, an operator go-ahead before **Pay
-Now**, and a pause with the attention signal when a control cannot be found.
+Recording is offered after a submit and stops on its own when the operator
+leaves BeSwift, presses **Stop recording**, or after twenty minutes.
 
 ## Job status vocabulary
 
-`submitted` is terminal, alongside `filled_review`, `error` and `cancelled`.
-A run that submits reports `submitted` with
-`details.registrationReference`; the commercial invoice is archived at either
-terminal state. There is no payment status yet — when stages 3–4 land, the
-obvious additions are `payment_raised` (order verified, before Pay Now) and
-`paid` (confirmed on return from EZpay), both non-terminal until the EZpay
-result is actually observed rather than assumed.
+| Status | Meaning | Terminal |
+| --- | --- | --- |
+| `filled_review` | Filled, reviewed, not submitted | yes |
+| `submitted` | Filed with the certifying authority, unpaid | yes |
+| `paid` | Operator confirmed the card window was paid | yes |
+
+Exactly one terminal status is reported per run, so the commercial-invoice
+archive in `server.js` fires once either way. `paid` carries
+`details.registrationReference` and `details.amountPayable`.
+
+BeSwift's own document status still moves to *Paid* on its side when the
+payment settles; `paid` here records what the operator saw, not what BeSwift
+posted. Reconciling the two would need a read of the application's status back
+from the portal, which nothing does yet.

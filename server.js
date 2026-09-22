@@ -2035,7 +2035,7 @@ const server = http.createServer(async (req, res) => {
       // reached. A run that goes on to submit never reports "filled_review", so
       // matching on that alone would silently skip the archive for exactly the
       // certificates that made it furthest.
-      if (job.status === "filled_review" || job.status === "submitted") {
+      if (["filled_review", "submitted", "paid"].includes(job.status)) {
         const application = await getApplicationById(job.coApplicationId);
         const preview = await getCommercialInvoicePreview(application.shipmentSessionId);
         const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });

@@ -613,26 +613,30 @@
     }
 
     // Payment is a separate BeSwift module (Online Payment → Online Payment
-    // Order) and, for the card itself, a separate site (EZpay). Nothing here
-    // drives either one yet — see docs/beswift-payment-automation.md. Offer to
-    // record the operator's own payment run so the real controls can be learned
-    // rather than guessed at a live payment portal.
+    // Order) and, for the card itself, a separate site. The order itself is now
+    // driven from here; the card is not, and never will be.
     const next = await pauseForInteraction(
       ctx,
-      `Certificate submitted${reference ? ` as ${reference}` : ""}. Next step is payment: Online Payment → `
-        + "Online Payment Order, add this LPCO application, add an EZpay payment method, Verify Document, "
-        + "Proceed, then Pay Now. That is still manual. Recording the run captures which controls you use "
-        + "(never anything you type) so it can be automated next.",
+      `Certificate submitted${reference ? ` as ${reference}` : ""}. The payment order can be raised from here: `
+        + "Trader TIN, this LPCO application, an EZpay payment method, Verify Document, then Pay Now — which "
+        + "opens the card window for you to type the card into yourself. Nothing is paid without two more "
+        + "explicit go-aheads.",
       undefined,
       {},
       {
         actions: [
-          { id: "capture", label: "Record my payment run", primary: true },
+          { id: "pay", label: "Raise the payment order", primary: true, go: true },
+          { id: "capture", label: "Record my payment run" },
           { id: "done", label: "Done" }
         ],
         defaultOutcome: "done"
       }
     );
+
+    if (next === "pay") {
+      await payCertificate(ctx, reference);
+      return;
+    }
 
     await reportDetailed(
       ctx.baseUrl,
@@ -644,6 +648,330 @@
     chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
     if (next === "capture") startPaymentCapture(ctx, reference);
     else showPinned("done", `Certificate submitted${reference ? ` as ${reference}` : ""}. Pay it from Online Payment → Online Payment Order.`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Payment order stage — raises the BeSwift Online Payment Order for a
+  // submitted certificate and takes it as far as Pay Now, where BeSwift opens
+  // the card window and a human takes over.
+  //
+  // Built from three recorded operator runs (2026-09-22, co_fill_resolutions
+  // source 'payment-capture'), not from the user guide's prose. What those runs
+  // actually showed: the order lives at the hash route #/accounting/wpos/new
+  // and is reached with no page load; Trader TIN is a labelled autocomplete
+  // ("1000006494000 - Classic Visions Limited"); the certificate is attached
+  // through an "Add LPCO Applications" dialog whose rows carry a checkbox
+  // rather than the serial-number fields the guide describes; the method goes
+  // in through "Add Payment Method" with Type = EZpay; and every dialog save
+  // and Form Action is confirmed with a Yes.
+  //
+  // The generated ids in those recordings (input-2350, input-2536) change on
+  // every load, so nothing here matches on them — labels and button text only,
+  // the same way the certificate fill works. Every step that cannot find its
+  // control pauses for one manual click instead of failing the run.
+  //
+  // Two operator go-aheads stand between arriving here and money moving: one
+  // on the assembled order with the amount shown, one on the verification
+  // result before Pay Now.
+  // ---------------------------------------------------------------------------
+  const PAYMENT_ORDER_ROUTE = "#/accounting/wpos/new";
+
+  async function payCertificate(ctx, reference) {
+    const payload = (ctx.payload && ctx.payload.payload) || {};
+    const pay = payload.payment || {};
+    await checkpoint(ctx, `Payment stage: opening the online payment order for ${reference || "this certificate"}.`);
+
+    if (!await openPaymentOrder()) {
+      await pauseForInteraction(
+        ctx,
+        "Could not open the payment order form. Go to Online Payment → Online Payment Order yourself, then Resume.",
+        undefined,
+        { field: "Online Payment Order", expected: PAYMENT_ORDER_ROUTE }
+      );
+    }
+
+    await pickTraderTin(ctx, pay);
+    await addLpcoApplication(ctx, reference);
+    await addEzpayMethod(ctx);
+
+    const amount = readAmountPayable();
+    await checkpoint(ctx, `Payment order assembled. Amount payable: ${amount || "(not read from the page)"}.`,
+      { registrationReference: reference || null, amountPayable: amount || null });
+
+    const go = await pauseForInteraction(
+      ctx,
+      `Payment order for ${reference || "this certificate"} is assembled. Amount payable: `
+        + `${amount || "read it off the page — it could not be captured"}. Check the application and the amount. `
+        + "Continuing runs Verify Document and then shows you the result before anything is paid.",
+      undefined,
+      { field: "Amount payable", expected: amount || "", section: "Payment order" },
+      {
+        actions: [
+          { id: "verify", label: "Verify the payment order", primary: true, go: true },
+          { id: "stop", label: "Stop — I will finish it" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (go !== "verify") return finishPaymentStage(ctx, reference, "Operator stopped before verifying the payment order.");
+
+    const verified = await runFormAction("Verify Document");
+    await checkpoint(ctx, `Payment order verification: ${verified.message || "(no message captured)"}`,
+      { confirmationAnswered: verified.confirmed });
+
+    const payNow = await pauseForInteraction(
+      ctx,
+      `BeSwift said: ${verified.message || "(no message captured — read the verification result on the page)"} — `
+        + `Pay Now opens the card window for ${amount || "the amount above"}. The card is typed by you, there, `
+        + "and nothing about it is read or recorded by this extension.",
+      undefined,
+      { field: "Payment order verification", actual: verified.message || "" },
+      {
+        actions: [
+          { id: "pay", label: "Pay Now", primary: true, go: true },
+          { id: "stop", label: "Stop — do not pay" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (payNow !== "pay") return finishPaymentStage(ctx, reference, "Operator stopped before Pay Now.");
+
+    // Ask the worker to follow the window BeSwift is about to open. Nothing of
+    // ours runs inside it — see the note on watchPaymentWindow in background.js.
+    watchPaymentWindowRelay(ctx.baseUrl, ctx.job.automationJobId);
+    const handoff = await runFormAction("Pay Now");
+    if (!handoff.clicked) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Pay Now. Choose Pay Now yourself, then Resume once the card window is open.",
+        undefined,
+        { field: "Form Action → Pay Now", expected: "Pay Now menu item" }
+      );
+    }
+    await checkpoint(ctx, "Pay Now clicked — handed off to the card window.");
+
+    const outcome = await pauseForInteraction(
+      ctx,
+      "The card window should now be open. Complete the payment there — Checkout as Guest, Next, then the card "
+        + "and billing details, Submit, Yes Continue. Come back here and say how it went so the job records it. "
+        + "If the window did not appear, check for a blocked pop-up in the address bar.",
+      undefined,
+      { section: "Payment", field: "Card window" },
+      {
+        actions: [
+          { id: "paid", label: "Payment completed", primary: true, go: true },
+          { id: "unpaid", label: "Not paid" }
+        ],
+        defaultOutcome: "unpaid"
+      }
+    );
+
+    if (outcome === "paid") {
+      await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paid",
+        `Payment completed for ${reference || "the certificate"}${amount ? ` (${amount})` : ""}.`,
+        { registrationReference: reference || null, amountPayable: amount || null });
+      chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+      showPinned("done", `Paid${reference ? ` — ${reference}` : ""}. The certificate moves to Paid once BeSwift settles it.`);
+      return;
+    }
+    return finishPaymentStage(ctx, reference, "Card window opened but the payment was not completed.");
+  }
+
+  // Ends the payment stage without a payment: the certificate is still
+  // submitted, which is the terminal state that matters downstream.
+  async function finishPaymentStage(ctx, reference, message) {
+    await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "submitted",
+      `${message} Certificate ${reference || "(reference not captured)"} is submitted and unpaid.`,
+      { registrationReference: reference || null });
+    chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+    showPinned("info", `${message} Certificate ${reference || ""} is submitted and still needs paying.`);
+  }
+
+  // The left menu was recorded as three clicks through a hamburger, but the
+  // destination is an ordinary hash route in the same SPA, so go straight
+  // there: fewer controls to miss, and no page load to survive.
+  async function openPaymentOrder() {
+    if (location.hash.startsWith(PAYMENT_ORDER_ROUTE)) return true;
+    location.hash = PAYMENT_ORDER_ROUTE;
+    const arrived = await waitFor(() => findByAny(["trader tin"]), 15000, 300);
+    if (arrived) return true;
+    // Fall back to the menu path the recordings actually show.
+    const menu = findVisibleClickableByText("Online Payment");
+    if (menu) {
+      await clickControl(menu);
+      const order = await waitFor(() => findVisibleClickableByText("Online Payment Order"), 6000, 250);
+      if (order) await clickControl(order);
+    }
+    return Boolean(await waitFor(() => findByAny(["trader tin"]), 15000, 300));
+  }
+
+  // Trader TIN is not the applicant TIN from the certificate: the recorded run
+  // picked "1000006494000 - Classic Visions Limited". Try the configured
+  // number, then the company name, then — if the list holds exactly one
+  // option — that one, which is the same ladder the Applicant TIN pick uses.
+  async function pickTraderTin(ctx, pay) {
+    for (const candidate of [pay.traderTin, pay.traderName]) {
+      if (!candidate) continue;
+      if (await pickByLabel("Trader TIN", candidate)) {
+        await checkpoint(ctx, `Trader TIN set from "${candidate}".`);
+        return true;
+      }
+    }
+    if (await pickFirstOptionByLabel("Trader TIN")) {
+      await checkpoint(ctx, "Trader TIN set from the only option in the list.");
+      return true;
+    }
+    await pauseForFieldFix(ctx, findByAny(["trader tin"]), "Trader TIN", pay.traderTin || pay.traderName || "",
+      "Pick the trader yourself, then Resume.");
+    return false;
+  }
+
+  // "Add LPCO Applications" opens a dialog. The recordings show a checkbox
+  // being ticked in it rather than the serial year / code / number fields the
+  // ePayment guide describes, so both shapes are handled: tick the row that
+  // carries this certificate's reference, or key the serial in if that is what
+  // the dialog asks for.
+  async function addLpcoApplication(ctx, reference) {
+    const dialog = await openNamedDialog(ctx, "Add LPCO Applications", ["add lpco application", "add lpco applications"]);
+    if (!dialog) {
+      await pauseForInteraction(
+        ctx,
+        `Could not open the Add LPCO Applications dialog. Add ${reference || "the certificate"} to the order `
+          + "yourself, then Resume.",
+        undefined,
+        { field: "Add LPCO Applications", expected: reference || "" }
+      );
+      return;
+    }
+
+    const serialField = findByAny(["serial number"], dialog);
+    if (serialField) {
+      const parts = splitRegistrationReference(reference);
+      await setByLabel("Serial Year", parts.year, dialog);
+      await pickByLabel("Serial Code", parts.code, dialog);
+      await setByLabel("Serial Number", parts.serial, dialog);
+      await checkpoint(ctx, `LPCO application keyed in as ${parts.year}/${parts.code}-${parts.serial}.`);
+    } else if (!await tickApplicationRow(dialog, reference)) {
+      await pauseForInteraction(
+        ctx,
+        `Could not find ${reference || "this certificate"} in the list of payable applications. Tick the right `
+          + "row yourself, then Resume.",
+        undefined,
+        { field: "LPCO application row", expected: reference || "" }
+      );
+    } else {
+      await checkpoint(ctx, `LPCO application ${reference} ticked in the list.`);
+    }
+
+    await saveDialog(ctx, dialog, "Add LPCO Applications");
+  }
+
+  async function addEzpayMethod(ctx) {
+    const dialog = await openNamedDialog(ctx, "Add Payment Method", ["add payment method"]);
+    if (!dialog) {
+      await pauseForInteraction(
+        ctx,
+        "Could not open the Add Payment Method dialog. Add an EZpay payment method yourself, then Resume.",
+        undefined,
+        { field: "Add Payment Method", expected: "EZpay" }
+      );
+      return;
+    }
+    if (!await pickByLabel("Type", "EZpay", dialog)) {
+      await pauseForFieldFix(ctx, findByAny(["type"], dialog), "Type", "EZpay",
+        "Pick EZpay in the open dialog, then Resume.");
+    }
+    await checkpoint(ctx, "Payment method set to EZpay.");
+    await saveDialog(ctx, dialog, "Add Payment Method");
+  }
+
+  // The dialogs on this page are opened by a button whose label is the action
+  // itself, and the recordings show operators hitting either the label or its
+  // icon — findVisibleClickableByText resolves both, since the icon's button
+  // carries the same text.
+  async function openNamedDialog(ctx, buttonText, alternatives = []) {
+    for (const text of [buttonText, ...alternatives]) {
+      const button = findVisibleClickableByText(text);
+      if (!button) continue;
+      await clickControl(button);
+      const dialog = await waitFor(() => document.querySelector(".v-dialog--active"), 8000, 250);
+      if (dialog) return dialog;
+    }
+    return null;
+  }
+
+  // Saving a dialog here is the check at the top of it, and BeSwift then asks
+  // "are you sure" — recorded as a v-icon click followed by a "Yes".
+  async function saveDialog(ctx, dialog, name) {
+    const save = findDialogSaveControl(dialog);
+    if (!save) {
+      await pauseForInteraction(
+        ctx,
+        `Could not find the save control on the ${name} dialog. Save it yourself, then Resume.`,
+        undefined,
+        { field: `${name} save`, expected: "check / save icon" }
+      );
+      return;
+    }
+    await clickControl(save);
+    const yes = await waitFor(
+      () => findVisibleClickableByText("Yes") || findVisibleClickableByText("Proceed"),
+      6000,
+      200
+    );
+    if (yes) await clickControl(yes);
+    await waitFor(() => !isVisibleElement(dialog), 12000, 300);
+    await checkpoint(ctx, `${name}: saved.`);
+  }
+
+  // The check/tick at the top of a Vuetify dialog is an icon button with no
+  // text, so it cannot be found the way every other control here is. Match the
+  // icon classes BeSwift uses for it, preferring one in the dialog's own header.
+  function findDialogSaveControl(dialog) {
+    const icons = [...dialog.querySelectorAll("button, .v-btn, .v-icon")]
+      .filter((el) => isVisibleElement(el) && !el.disabled);
+    const isCheck = (el) => /check|content-save|\bsave\b|done/i.test(
+      `${el.getAttribute("class") || ""} ${el.getAttribute("aria-label") || ""} ${el.textContent || ""}`
+    );
+    return icons.find(isCheck) || icons.find((el) => /save|ok/i.test(el.textContent || "")) || null;
+  }
+
+  function tickApplicationRow(dialog, reference) {
+    const needle = String(reference || "").trim().toLowerCase();
+    if (!needle) return Promise.resolve(false);
+    const rows = [...dialog.querySelectorAll("tbody tr, .v-list-item, .v-data-table__wrapper tbody tr")];
+    const row = rows.find((el) => String(el.innerText || "").toLowerCase().includes(needle));
+    if (!row) return Promise.resolve(false);
+    const box = row.querySelector("input[type='checkbox'], .v-input--selection-controls__ripple, .v-simple-checkbox");
+    if (!box) return Promise.resolve(false);
+    return clickControl(box).then(() => true);
+  }
+
+  // "2026/CER-1234" -> { year: "2026", code: "CER", serial: "1234" }.
+  function splitRegistrationReference(reference) {
+    const match = String(reference || "").match(/(\d{4})\/([A-Z]{2,4})-(\d+)/);
+    if (!match) return { year: String(new Date().getFullYear()), code: "CER", serial: String(reference || "").trim() };
+    return { year: match[1], code: match[2], serial: match[3] };
+  }
+
+  // The amount BeSwift returns to the order once the method is added. Read for
+  // the operator to check against the certificate's fees before paying, and
+  // recorded on the job.
+  function readAmountPayable() {
+    for (const label of ["amount payable", "total amount", "amount due", "amount"]) {
+      const el = findByAny([label]);
+      const value = el ? String(el.value || "").trim() : "";
+      if (value) return value;
+    }
+    return "";
+  }
+
+  function watchPaymentWindowRelay(baseUrl, jobId) {
+    try {
+      chrome.runtime.sendMessage({ type: "watchPaymentWindow", baseUrl, jobId }, () => void chrome.runtime.lastError);
+    } catch {
+      // Best effort: losing the watcher costs a log line, not the payment.
+    }
   }
 
   // Every Form Action operation in BeSwift asks before it runs — "You are about

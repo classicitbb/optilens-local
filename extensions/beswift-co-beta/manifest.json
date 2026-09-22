@@ -3,7 +3,7 @@
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwe0pb0xhL9Q2qfWOuI73eq6rDP7sX8w5FMNITuucb9lVid9rL+6H/UF+vKTLyOaURiCFPc2gkTIWegEuArUSyq9B/M46N5wLVdIx2wNL7DOfeITOv20O18urCrPGguti9lMYjuPBgeefWMYo3oxhQJsHT1KlooTANn53uZNy0kbYoyqtj0Ik4VoQmXgNNVc2Etq0znrU/9zNDRbaoKtlKjf/HbFYC1x/knj37NjnBFCXOJF9IAxxx0ZLPZ5ZdZuQacitW2M9zjG+iC8oFWPojFflV5w3/wi9qsVAlM3hpSS75wK92GbMDc8FaAzYKOYexJQMZ/+Y9yeRna+FRlmqMwIDAQAB",
   "update_url": "http://ino-3frc3q3/extensions/beswift-co-beta-updates.xml",
   "name": "OptiLens BeSwift CO (Beta)",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "BETA: Claims OptiLens BeSwift CO jobs and fills the BeSwift certificate form for operator review. Adds a rolling on-page progress feed, an attention signal when a run stops for input, an operator-triggered verify-and-submit stage, and operator error/resolution capture for AI refinement. Load side-by-side with the stable extension.",
   "action": {
     "default_title": "OptiLens BeSwift CO (Beta)",

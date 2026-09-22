@@ -86,10 +86,19 @@ subject to that restriction. Keep new server calls on the relay path.
    message is shown back verbatim, and only a second explicit go-ahead clicks
    Submit → Proceed. The Registration Reference is read off the page and
    reported with the terminal `submitted` status.
-6. **Payment** — not automated. See `docs/beswift-payment-automation.md`. After
-   a submit the run offers to *record* the operator's own payment run (which
-   controls were used, never any entered value) so the automation can be
-   written against real selectors.
+6. **Payment order** — offered after a submit. Opens `#/accounting/wpos/new`,
+   picks the Trader TIN, attaches this certificate through the Add LPCO
+   Applications dialog, adds an EZpay payment method, reads the amount payable
+   back, and stops. Built from three recorded operator runs, not from the
+   guide's prose — see `docs/beswift-payment-automation.md`.
+7. **Pay Now** — a second go-ahead, after the verification result is shown with
+   the amount. BeSwift then opens the card window; the service worker brings it
+   to the front and records its origin, and the fill waits on the BeSwift side
+   for the operator to say whether it was paid (`paid` / `submitted`).
+
+The card is never typed by this extension, and the card window's origin is not
+in `host_permissions`, so nothing of ours runs in it. Recording an operator's
+own payment run is still offered too, for learning the parts not yet driven.
 
 A resume that carries no choice with it — the popup button, the right-click
 menu — always takes the conservative branch (`finish`, `stop`). Submission is
