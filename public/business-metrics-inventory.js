@@ -267,10 +267,10 @@
 
     out += '<div class="ov-fade" style="margin-bottom:12px">' + exceptionRail(inv) + "</div>";
 
-    // What to do about it, before the analysis of why.
-    out += '<h3 style="margin:16px 0 8px;font-size:14px">What needs attention</h3>' +
-      '<div id="invRecs"></div>' +
-      '<div id="invAsk" style="margin:12px 0"></div>';
+    // Let operators research the live data before the recommendation rail.
+    out += '<div id="invAsk" style="margin:16px 0 12px"></div>' +
+      '<h3 style="margin:16px 0 8px;font-size:14px">What needs attention</h3>' +
+      '<div id="invRecs"></div>';
 
     // Speed: ordered categories, ordinal ramp, value on the bar.
     var speedRows = SPEED_ORDER.map(function (cls) {
@@ -695,8 +695,8 @@
       '</div>' +
       '<div class="inv-ask-row">' +
         '<div class="inv-ask-input-wrap">' +
-          '<input type="text" class="inv-ask-input" id="invAskInput" placeholder="Ask about these figures or click mic to speak…"' +
-            ' value="' + esc(ask.question) + '" aria-label="Ask a question about the inventory figures">' +
+          '<input type="text" class="inv-ask-input" id="invAskInput" placeholder="Ask anything about Innovations inventory or data…"' +
+            ' value="' + esc(ask.question) + '" aria-label="Ask a question about Innovations inventory or data">' +
           '<button type="button" class="inv-ask-mic-btn' + (ask.listening ? " is-listening" : "") + '" id="invAskMic"' +
             ' title="' + (ask.listening ? "Stop listening" : "Voice input (Mic & Transcription)") + '">' +
             MIC_ICON +
@@ -772,8 +772,12 @@
       if (ask.answer.answer) {
         out += '<div class="inv-ask-answer">' + esc(ask.answer.answer) + "</div>" +
           '<div class="inv-ask-meta">' +
-          esc("Answered from precomputed figures by " + (ask.answer.model || ask.answer.provider) +
-            ". No SQL was generated and nothing was written.") + "</div>";
+          esc(ask.answer.dataResearch
+            ? "Answered using " + (ask.answer.dataResearch.error ? "available context after a live lookup could not complete" : "bounded live Innovations research") + " by " + (ask.answer.model || ask.answer.provider) + "."
+            : "Answered from the visible data, Innova Training knowledge, or general knowledge by " + (ask.answer.model || ask.answer.provider) + ".") + "</div>";
+        if (ask.answer.artifactSuggestion) {
+          out += '<div class="inv-ask-meta">' + esc("Suggested " + String(ask.answer.artifactSuggestion.format || "report").toUpperCase() + " artifact: " + (ask.answer.artifactSuggestion.title || "Research results") + ".") + "</div>";
+        }
       } else {
         out += '<div class="inv-ask-answer">' + esc(ask.answer.note || "No answer available.") + "</div>" +
           '<div class="inv-ask-meta">' +

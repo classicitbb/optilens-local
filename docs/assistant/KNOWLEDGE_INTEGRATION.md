@@ -8,11 +8,17 @@
 
 ## What Was Built
 
-The OptiLens system assistant (`/api/assistant/ask`) is now grounded on the
-full **Innova-Training documentation repository**. On every `systemAsk()` call
-the assistant receives the complete operational knowledge of Classic Visions /
-Innovations LMS as a system-level context message — status codes, SQL syntax,
-customer data, API patterns, report IDs, AR snapshots, and how-to guides.
+The OptiLens system assistant (`/api/assistant/ask`) indexes the attached
+**Innova Training workspace** recursively. On every `systemAsk()` call it adds
+the question-relevant excerpts to the model context, so the full supported
+workspace is available without flooding a model's context window.
+
+For platform administrators, current Innovations questions can also use a
+bounded, audited, read-only MSSQL research pass. The model proposes one T-SQL
+`SELECT`/CTE, deterministic code rejects non-read-only syntax, the source
+reader clamps results to 500 rows and its normal 15-second request timeout,
+then the model answers from the returned rows. It never receives a database
+handle or write capability.
 
 A new endpoint (`GET /api/assistant/knowledge`) lets operators and agents
 inspect which documents are loaded, their sizes, and the cache age.
@@ -34,9 +40,9 @@ lib/metrics/assistant.js  →  systemAsk()
     │                                   key status IDs, API patterns, module URLs,
     │                                   output format rules, action block template)
     │
-    ├─ 2. buildKnowledgeContext()      ← lib/knowledge-base.js
-    │       Loads & concatenates Innova-Training/*.md files
-    │       Cached 5 min (in-memory). First call reads ~80 KB from disk.
+    ├─ 2. buildKnowledgeContext(question) ← lib/knowledge-base.js
+    │       Indexes supported Innova Training files recursively, then selects
+    │       relevant excerpts. Cached 5 min (in-memory).
     │
     ├─ 3. Route context               (current page, inventory summary if on metrics)
     │
@@ -46,6 +52,9 @@ lib/metrics/assistant.js  →  systemAsk()
     │
     ▼
 LLM (Ollama / OpenAI-compatible endpoint)
+    │
+    ├─ Optional administrator-only read-only data_query → Innovations MSSQL
+    │       → bounded rows → second answer pass
     │
     ▼
 Response: { answer, actionProposal }
@@ -61,8 +70,9 @@ Response: { answer, actionProposal }
 
 | File | Role |
 |---|---|
-| [`lib/knowledge-base.js`](../../lib/knowledge-base.js) | Loads Innova-Training docs, caches result, exposes `buildKnowledgeContext()` / `getKnowledgeStatus()` / `clearKnowledgeCache()` |
-| [`lib/metrics/assistant.js`](../../lib/metrics/assistant.js) | `systemAsk()` — builds LLM message array incl. knowledge injection. `SYSTEM_ASSISTANT_PROMPT` — rich static context. Exports `getKnowledgeStatus`. |
+| [`lib/knowledge-base.js`](../../lib/knowledge-base.js) | Recursively indexes supported attached-workspace files, selects relevant excerpts, and exposes `buildKnowledgeContext()` / `getKnowledgeStatus()` / `clearKnowledgeCache()` |
+| [`lib/assistant-data-research.js`](../../lib/assistant-data-research.js) | Validates one read-only statement, runs the bounded Innovations MSSQL research pass, and records its audit event. |
+| [`lib/metrics/assistant.js`](../../lib/metrics/assistant.js) | `systemAsk()` — builds LLM messages, routes data-first questions through the bounded research pass, and returns answer provenance. |
 | [`server.js`](../../server.js) | Registers routes: `POST /api/assistant/ask`, `GET /api/assistant/knowledge`, `GET /api/assistant/tools` |
 
 ### Frontend
@@ -84,36 +94,35 @@ Response: { answer, actionProposal }
 | `Innova-Training/source-context/innovations-knowledge.md` | Additional knowledge | 8 500 |
 | `Innova-Training/03-report-queries.md` | 80+ report SQL queries (190 KB — first 8 000 chars loaded) | 8 000 |
 
-Default path: `C:\Users\Administrator\Documents\GitHub\Innova-Training`
-Override via env: `INNOVA_TRAINING_PATH=<path>`
+Default path: the attached Innova Training workspace when it is available;
+the legacy training checkout is a fallback. Override via
+`INNOVA_TRAINING_PATH=<path>`.
 
 ---
 
 ## Key Constants (in `lib/knowledge-base.js`)
 
 ```js
-CACHE_TTL_MS = 5 * 60 * 1000   // 5-minute in-memory cache
-REPORT_QUERIES_EXCERPT_CHARS = 8000  // only first 8 KB of the 190 KB report file
+CACHE_TTL_MS = 5 * 60 * 1000     // 5-minute in-memory index cache
+CHUNK_CHARS = 6000               // per-file searchable excerpt size
+MAX_CONTEXT_CHARS = 42000        // selected context sent with one question
 ```
 
-Each entry in `KNOWLEDGE_FILES[]` has `{ file, label, maxChars }`. Adjust
-`maxChars` if a doc needs more context, but watch total token budget.
+Supported text, Word, and Excel files are discovered recursively. The question matcher
+selects the relevant chunks, so adding a supported file no longer requires a
+code change. Use `INNOVA_TRAINING_PATH` only when the attached workspace lives
+somewhere else.
 
 ---
 
 ## How to Add a New Training Document
 
-1. Drop the `.md` file into `C:\Users\Administrator\Documents\GitHub\Innova-Training\`
-   (or a subdirectory).
+1. Drop a supported text, `.docx`, or `.xlsx` file anywhere under the Innova Training
+   workspace.
 
-2. Add an entry to `KNOWLEDGE_FILES` in `lib/knowledge-base.js`:
-   ```js
-   { file: "my-new-doc.md", label: "My New Topic", maxChars: 8000 }
-   ```
+2. Restart the server (`npm run app:restart`) or wait 5 min for cache to expire.
 
-3. Restart the server (`npm run app:restart`) or wait 5 min for cache to expire.
-
-4. Verify via `GET /api/assistant/knowledge` — the new file should appear in
+3. Verify via `GET /api/assistant/knowledge` — the new file should appear in
    `files[]` with `found: true`.
 
 No changes to `assistant.js` or `server.js` are required.

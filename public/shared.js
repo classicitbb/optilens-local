@@ -1766,7 +1766,13 @@ async function sendGlobalAssistantQuestion() {
 
     GLOBAL_ASSISTANT_STATE.history.push({ role: "assistant", content: res.answer || "" });
 
-    appendAssistantMessage("ai", res.answer || "No response.", res.actionProposal);
+    var researchNote = res.dataResearch
+      ? `\n\n_Data source: ${res.dataResearch.error ? "live lookup unavailable" : `${res.dataResearch.source}; ${res.dataResearch.rowCount} row(s)${res.dataResearch.truncated ? ", truncated" : ""}`}_`
+      : "";
+    var artifactNote = res.artifactSuggestion
+      ? `\n\n_Artifact suggested: ${String(res.artifactSuggestion.format || "report").toUpperCase()} — ${res.artifactSuggestion.title || "Research results"}_`
+      : "";
+    appendAssistantMessage("ai", (res.answer || "No response.") + researchNote + artifactNote, res.actionProposal);
   } catch (err) {
     const loadingEl = document.getElementById(loadingId);
     if (loadingEl) loadingEl.remove();

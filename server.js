@@ -1682,21 +1682,21 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Ask a question about a section. Answers come from precomputed figures only —
-  // the model is handed a JSON document, never a database handle.
+  // Ask a question about a Business Metrics section. The assistant gets the
+  // visible context first and may run a bounded, audited live read for admins.
   if (url.pathname === "/api/business-metrics/ask" && req.method === "POST") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      const actor = await requirePermission(req, "delivery.read");
       const body = await readJsonBody(req);
-      return askAssistant({ question: body.question, section: body.section });
+      return askAssistant({ question: body.question, section: body.section, actor });
     });
   }
 
   if (url.pathname === "/api/assistant/ask" && req.method === "POST") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      const actor = await requirePermission(req, "delivery.read");
       const body = await readJsonBody(req);
-      return systemAsk({ question: body.question, route: body.route, contextData: body.contextData, history: body.history });
+      return systemAsk({ question: body.question, route: body.route, contextData: body.contextData, history: body.history, actor });
     });
   }
 
