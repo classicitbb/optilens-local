@@ -72,3 +72,38 @@ worker (`reportStatus`, `pollJobStatus`, `recordResolution`, `resumeJob`). The
 BeSwift portal is HTTPS, so a direct `fetch()` from the content script to an
 `http://` OptiLens origin would be blocked as mixed content; the worker is not
 subject to that restriction. Keep new server calls on the relay path.
+
+## Run stages
+
+1. **Sign in** — three page loads, orchestrated by `background.js`.
+2. **Header fill** — Applicant / Exporter / Importer / Producer / Consignee /
+   Transport / Invoice, then a blank-field sweep and a mandatory review pause.
+3. **Item fill** — one dialog per customs line, resuming past lines already
+   saved on the form.
+4. **Review gate** — the run stops and asks. *Finish here* ends at
+   `filled_review`, exactly as it always did. *Verify & submit* continues.
+5. **Verify & submit** — Form Action → Verify Document, the verification
+   message is shown back verbatim, and only a second explicit go-ahead clicks
+   Submit → Proceed. The Registration Reference is read off the page and
+   reported with the terminal `submitted` status.
+6. **Payment** — not automated. See `docs/beswift-payment-automation.md`. After
+   a submit the run offers to *record* the operator's own payment run (which
+   controls were used, never any entered value) so the automation can be
+   written against real selectors.
+
+A resume that carries no choice with it — the popup button, the right-click
+menu — always takes the conservative branch (`finish`, `stop`). Submission is
+irreversible and chargeable; it only happens when somebody asks for it on the
+panel.
+
+## Attention signal
+
+Any pause raises attention: the on-page panel is forced open and opaque, pulled
+back on screen if it was parked off it, and pulsed amber; while the tab is in
+the background the tab title flashes. Everything is restored to the operator's
+own layout when the pause clears. Before this, a pause on a collapsed panel or a
+backgrounded tab was silent and the run just sat there.
+
+The pause panel leads with the buttons. The error/resolution capture form is
+folded behind "Record what went wrong (optional)" and is never in the way of
+resuming; anything typed into it is saved when the run resumes.

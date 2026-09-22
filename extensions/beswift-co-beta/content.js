@@ -84,11 +84,40 @@
     }
     await pauseForInteraction(ctx, headerPauseReason, headerBlanks.length ? findByAny([headerBlanks[0].label]) : undefined, headerPauseMeta);
     await fillItems(ctx, payload);
-    await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", "Form fill complete. Review and submit manually.");
-    // Detach chrome.debugger now that pickByLabel is done using it — leaves
-    // the tab in a normal, non-debugged state (removing Chrome's "this
-    // extension started debugging this browser" banner) before handing the
-    // certificate back to a human for review/submit.
+    await checkpoint(ctx, `Items complete (${(payload.items || []).length} line(s)). Waiting on the review decision.`);
+    // Review gate. Submitting registers the application with the certifying
+    // authority and makes it payable, so it never happens on its own — the
+    // operator asks for it here, having just looked at the filled form. A
+    // resume that carries no choice with it (popup button, right-click menu)
+    // falls through to "finish", which is exactly the old behaviour.
+    const choice = await pauseForInteraction(
+      ctx,
+      "Items complete — review the whole certificate now. \"Verify & submit\" runs Form Action → Verify Document, "
+        + "shows you what BeSwift says, and only then offers to Submit. Finishing here leaves the certificate "
+        + "filled and unsubmitted for you to handle yourself.",
+      undefined,
+      {},
+      {
+        actions: [
+          { id: "submit", label: "Verify & submit certificate", primary: true, go: true },
+          { id: "finish", label: "Finish here — I will submit" }
+        ],
+        defaultOutcome: "finish"
+      }
+    );
+    if (choice === "submit") {
+      await submitCertificate(ctx);
+      return;
+    }
+    await finishWithoutSubmitting(ctx, "Form fill complete. Review and submit manually.");
+  }
+
+  // Ends the run at the old terminal state: filled, reviewed, not submitted.
+  // Detaches chrome.debugger now that pickByLabel is done with it, which
+  // removes Chrome's "this extension started debugging this browser" banner
+  // before the certificate is handed back to a human.
+  async function finishWithoutSubmitting(ctx, message) {
+    await report(ctx.baseUrl, ctx.job.automationJobId, "filled_review", message);
     chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
     showBanner("OptiLens BeSwift fill complete. Review the certificate before submitting.");
   }
@@ -475,6 +504,379 @@
     await checkpoint(ctx, `All ${items.length} item(s) processed.`);
   }
 
+  // ---------------------------------------------------------------------------
+  // Submit stage — opt-in, operator-triggered, never automatic.
+  //
+  // BeSwift's own sequence (eCOO Trader's Guide, "Form Actions"): Form Action
+  // or task bar → Verify Document → read the verification result → Form Action
+  // → Submit → Proceed on the confirmation → the system generates the
+  // Registration Reference, which is the number the payment run needs.
+  //
+  // Deliberately not fully autonomous. The verification result is free text
+  // this code has never seen, and a submit is irreversible and chargeable, so
+  // the run shows the operator what BeSwift actually said and waits for a
+  // second, explicit go-ahead before it clicks Submit. Every control it cannot
+  // find becomes a pause asking for that one click by hand, rather than a dead
+  // run — same pattern as the item dialog.
+  // ---------------------------------------------------------------------------
+  const FORM_ACTION_LABELS = ["form action", "form actions", "task bar", "actions"];
+
+  async function submitCertificate(ctx) {
+    await checkpoint(ctx, "Submit stage: Form Action → Verify Document.");
+    // Snapshot the alerts already on the page so the verification result is
+    // read from what BeSwift puts up NEXT, not from a banner that was sitting
+    // there before anything was clicked.
+    const before = snapshotOutcomeNodes();
+    if (!await clickFormAction("Verify Document")) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Verify Document on this page. Run Verify Document yourself from the "
+          + "Form Action menu (or the task bar, upper right), then Resume.",
+        undefined,
+        { field: "Form Action → Verify Document", expected: "Verify Document menu item" }
+      );
+    }
+    const verdict = await readActionOutcome(10000, before);
+    await checkpoint(ctx, `Verify Document result: ${verdict || "(no message captured — read it on the page)"}`);
+
+    const go = await pauseForInteraction(
+      ctx,
+      `BeSwift said: ${verdict || "(no message captured — read the verification result on the page)"} — `
+        + "submitting registers the application with the certifying authority and makes it payable. "
+        + "Submit only if the verification is clean.",
+      undefined,
+      { field: "Verify Document", expected: "no outstanding requirements", actual: verdict || "" },
+      {
+        actions: [
+          { id: "submit", label: "Submit now", primary: true, go: true },
+          { id: "stop", label: "Stop — do not submit" }
+        ],
+        defaultOutcome: "stop"
+      }
+    );
+    if (go !== "submit") {
+      await finishWithoutSubmitting(ctx, "Operator stopped before submit. Certificate is filled but not submitted.");
+      return;
+    }
+
+    await checkpoint(ctx, "Submit stage: Form Action → Submit.");
+    if (!await clickFormAction("Submit")) {
+      await pauseForInteraction(
+        ctx,
+        "Could not find Form Action → Submit. Choose Submit yourself from the Form Action menu, confirm with "
+          + "Proceed, then Resume so the registration reference gets recorded.",
+        undefined,
+        { field: "Form Action → Submit", expected: "Submit menu item" }
+      );
+    } else {
+      // Confirmation box — "Select Proceed from Confirmation box that appears".
+      const proceed = await waitFor(
+        () => findVisibleClickableByText("Proceed") || findVisibleClickableByText("Yes"),
+        12000,
+        250
+      );
+      if (proceed) {
+        await clickControl(proceed);
+      } else {
+        await pauseForInteraction(
+          ctx,
+          "Submit was clicked but no Proceed confirmation could be found. Confirm the submission on the page, "
+            + "then Resume.",
+          undefined,
+          { field: "Submit confirmation", expected: "Proceed" }
+        );
+      }
+    }
+
+    const reference = await waitFor(() => readRegistrationReference(), 45000, 750);
+    if (reference) {
+      await checkpoint(ctx, `Submitted. Registration reference ${reference}.`, { registrationReference: reference });
+    } else {
+      await checkpoint(ctx, "Submitted, but no registration reference could be read from the page — take it from "
+        + "the application header before paying.");
+    }
+
+    // Payment is a separate BeSwift module (Online Payment → Online Payment
+    // Order) and, for the card itself, a separate site (EZpay). Nothing here
+    // drives either one yet — see docs/beswift-payment-automation.md. Offer to
+    // record the operator's own payment run so the real controls can be learned
+    // rather than guessed at a live payment portal.
+    const next = await pauseForInteraction(
+      ctx,
+      `Certificate submitted${reference ? ` as ${reference}` : ""}. Next step is payment: Online Payment → `
+        + "Online Payment Order, add this LPCO application, add an EZpay payment method, Verify Document, "
+        + "Proceed, then Pay Now. That is still manual. Recording the run captures which controls you use "
+        + "(never anything you type) so it can be automated next.",
+      undefined,
+      {},
+      {
+        actions: [
+          { id: "capture", label: "Record my payment run", primary: true },
+          { id: "done", label: "Done" }
+        ],
+        defaultOutcome: "done"
+      }
+    );
+
+    await reportDetailed(
+      ctx.baseUrl,
+      ctx.job.automationJobId,
+      "submitted",
+      reference ? `Certificate submitted. Registration reference ${reference}.` : "Certificate submitted.",
+      { registrationReference: reference || null }
+    );
+    chrome.runtime.sendMessage({ type: "cdpDetach" }, () => void chrome.runtime.lastError);
+    if (next === "capture") startPaymentCapture(ctx, reference);
+    else showPinned("done", `Certificate submitted${reference ? ` as ${reference}` : ""}. Pay it from Online Payment → Online Payment Order.`);
+  }
+
+  // Clicks a named operation from BeSwift's Form Action menu / task bar. Some
+  // operations render inline on the task bar, so try a direct hit first and
+  // only open the menu when the operation is not already on screen.
+  async function clickFormAction(actionName, timeoutMs = 8000) {
+    let target = findVisibleClickableByText(actionName);
+    if (!target) {
+      const toggle = FORM_ACTION_LABELS.map((label) => findVisibleClickableByText(label)).find(Boolean);
+      if (toggle) {
+        await clickControl(toggle);
+        await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+      }
+      target = await waitFor(() => findVisibleClickableByText(actionName), timeoutMs, 250);
+    }
+    if (!target) {
+      pushFeed(`Form Action → ${actionName}: no matching control found on the page.`, "warn");
+      return false;
+    }
+    await clickControl(target);
+    await humanDelay(HUMAN_DELAY.fieldMin, HUMAN_DELAY.fieldMax);
+    return true;
+  }
+
+  // CDP click with a DOM-click fallback. The debugger can be gone by this
+  // point (detached after the fill, or dismissed by the operator), and menu
+  // items and plain buttons do not need the synthetic input events that the
+  // Vuetify autocompletes do.
+  async function clickControl(el) {
+    try {
+      await cdpClickElement(el);
+    } catch (error) {
+      pushFeed(`CDP click unavailable (${error.message}) — used a DOM click.`, "warn");
+      el.click();
+      await humanDelay(HUMAN_DELAY.clickMin, HUMAN_DELAY.clickMax);
+    }
+    return true;
+  }
+
+  // Any visible, enabled, clickable thing whose own text reads as `text`.
+  // Form Action operations render as buttons, links, Vuetify list items or
+  // ARIA menu items depending on where they appear, so all of those count.
+  // Our own panel is excluded, or a button label inside it could be mistaken
+  // for a page control.
+  function findVisibleClickableByText(text) {
+    const needle = String(text || "").trim().toLowerCase();
+    if (!needle) return null;
+    const nodes = [...document.querySelectorAll(
+      "button, a, [role='menuitem'], [role='button'], .v-list-item, .v-btn, .v-tab"
+    )];
+    const visible = nodes.filter((el) => !el.closest(`#${TOAST_ID}`) && !el.disabled && isVisibleElement(el));
+    const label = (el) => String(el.textContent || el.getAttribute("aria-label") || "")
+      .replace(/\s+/g, " ").trim().toLowerCase();
+    return visible.find((el) => label(el) === needle)
+      // A near-exact containment match catches "Submit " with an icon glyph or a
+      // trailing count, without letting "Submit Query Response" answer for
+      // "Submit".
+      || visible.find((el) => {
+        const value = label(el);
+        return value.includes(needle) && value.length <= needle.length + 12;
+      })
+      || null;
+  }
+
+  // Whatever BeSwift put on screen in response to the last action — a dialog,
+  // a snackbar, or an inline alert. Returned verbatim rather than matched
+  // against a success/failure pattern: these strings have never been seen from
+  // code, so the operator reads them, not a regex.
+  const OUTCOME_SELECTOR = ".v-dialog--active, .v-snack--active, .v-alert, [role='alertdialog'], [role='alert']";
+
+  function snapshotOutcomeNodes() {
+    return new Set([...document.querySelectorAll(OUTCOME_SELECTOR)]);
+  }
+
+  async function readActionOutcome(timeoutMs, before = new Set()) {
+    const node = await waitFor(() => {
+      const found = [...document.querySelectorAll(OUTCOME_SELECTOR)]
+        .filter((el) => !before.has(el) && !el.closest(`#${TOAST_ID}`) && isVisibleElement(el));
+      return found.at(-1) || null;
+    }, timeoutMs, 300);
+    if (!node) return "";
+    return String(node.innerText || "").replace(/\s+/g, " ").trim().slice(0, 400);
+  }
+
+  // The Registration Reference BeSwift generates on submit — the serial the
+  // payment order is raised against. Read from the form field when there is
+  // one, otherwise from the page text (year/code-serial, e.g. 2026/CER-1234).
+  function readRegistrationReference() {
+    for (const label of ["registration reference", "registration number", "registration ref"]) {
+      const el = findByAny([label]);
+      const value = el ? String(el.value || "").trim() : "";
+      if (value) return value;
+    }
+    const match = String(document.body?.innerText || "").match(/\b\d{4}\/[A-Z]{2,4}-\d{2,8}\b/);
+    return match ? match[0] : null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Payment-run recorder — opt-in, offered once, after a successful submit.
+  //
+  // BeSwift's payment module has never been driven from code, and guessing
+  // selectors at a live payment portal is not something to do speculatively.
+  // So instead of a half-written automation, this records WHICH controls the
+  // operator uses while they pay by hand, and files the recording against the
+  // job. The next iteration writes the automation against real controls.
+  //
+  // It records control identity only — tag, role, classes, label and visible
+  // text. It never records a value the operator typed, and anything that reads
+  // as a payment instrument (card number, CVV, expiry, cardholder name) is not
+  // even described. Card entry stays manual by design; see
+  // docs/beswift-payment-automation.md.
+  //
+  // Scope note: this content script only runs on the BeSwift portals, so the
+  // recording covers the BeSwift payment order and stops at the hand-off to
+  // EZpay. The card page is never observed at all.
+  // ---------------------------------------------------------------------------
+  const CARD_FIELD_PATTERN = /card|cvv|cvc|security\s*code|expir|cardholder|holder name|\bpan\b/i;
+  const CAPTURE_FLUSH_MS = 6000;
+  const CAPTURE_MAX_MS = 20 * 60 * 1000;
+  let paymentCapture = null;
+
+  function startPaymentCapture(ctx, reference) {
+    if (paymentCapture) return;
+    paymentCapture = { ctx, reference: reference || null, steps: [], pending: [], flushTimer: null, stopTimer: null };
+    document.addEventListener("click", onCaptureEvent, true);
+    document.addEventListener("focusin", onCaptureEvent, true);
+    window.addEventListener("beforeunload", onCaptureUnload);
+    paymentCapture.stopTimer = setTimeout(() => stopPaymentCapture("time limit reached"), CAPTURE_MAX_MS);
+    renderCapturePanel(reference);
+    pushFeed("Payment-run recording started — controls only, never what you type.", "info");
+  }
+
+  function stopPaymentCapture(reason) {
+    if (!paymentCapture) return;
+    const capture = paymentCapture;
+    document.removeEventListener("click", onCaptureEvent, true);
+    document.removeEventListener("focusin", onCaptureEvent, true);
+    window.removeEventListener("beforeunload", onCaptureUnload);
+    clearTimeout(capture.flushTimer);
+    clearTimeout(capture.stopTimer);
+    flushPaymentCapture();
+    paymentCapture = null;
+    pushFeed(`Payment-run recording stopped (${reason}) — ${capture.steps.length} step(s) captured.`, "info");
+    showPinned("done", `Payment-run recording stopped. ${capture.steps.length} step(s) filed against this job.`);
+  }
+
+  function onCaptureUnload() {
+    flushPaymentCapture();
+  }
+
+  function onCaptureEvent(event) {
+    const el = event.target;
+    if (!el || !el.tagName) return;
+    const isField = /^(input|textarea|select)$/i.test(el.tagName);
+    if (event.type === "focusin" && !isField) return;
+    recordCaptureStep(event.type === "focusin" ? "field" : "click", el, isField);
+  }
+
+  function recordCaptureStep(kind, el, isField) {
+    if (!paymentCapture) return;
+    if (el.closest?.(`#${TOAST_ID}`)) return; // our own panel is not part of the run
+    const control = describeControl(el, isField);
+    const previous = paymentCapture.steps.at(-1);
+    // Focus/click on the same control in a row is one step, not three.
+    if (previous && previous.kind === kind && previous.control === control.control) return;
+    const step = { n: paymentCapture.steps.length + 1, at: new Date().toISOString(), kind, ...control };
+    paymentCapture.steps.push(step);
+    paymentCapture.pending.push(step);
+    scheduleCaptureFlush();
+  }
+
+  // A compact, reproducible description of one control: enough for automation
+  // to find it again, and nothing that could carry an entered value.
+  function describeControl(el, isField) {
+    const route = `${location.pathname}${location.hash}`.slice(0, 120);
+    const labels = isField ? labelTextsForInput(el).join(" | ") : "";
+    const text = String(el.getAttribute?.("aria-label") || el.textContent || "")
+      .replace(/\s+/g, " ").trim().slice(0, 80);
+    const identity = `${text} ${labels} ${el.name || ""} ${el.id || ""} ${el.getAttribute?.("autocomplete") || ""}`;
+    if (isField && CARD_FIELD_PATTERN.test(identity)) {
+      // A payment-instrument field is logged as having happened and nothing
+      // else — not its label, not its name, certainly not its value.
+      return { route, control: "(payment instrument field — not described)", redacted: true };
+    }
+    // getAttribute, not className: on an SVG node (an icon inside a button)
+    // className is an SVGAnimatedString and stringifies to "[object ...]".
+    const classes = String(el.getAttribute?.("class") || "").split(/\s+/).filter(Boolean).slice(0, 3).join(".");
+    const control = [
+      el.tagName.toLowerCase(),
+      el.id ? `#${el.id}` : "",
+      classes ? `.${classes}` : "",
+      el.getAttribute?.("role") ? `[role=${el.getAttribute("role")}]` : "",
+      text ? ` "${text}"` : "",
+      labels ? ` label="${labels.slice(0, 80)}"` : ""
+    ].join("");
+    return { route, control: control.slice(0, 300), redacted: false };
+  }
+
+  function scheduleCaptureFlush() {
+    if (!paymentCapture || paymentCapture.flushTimer) return;
+    paymentCapture.flushTimer = setTimeout(() => {
+      if (paymentCapture) paymentCapture.flushTimer = null;
+      flushPaymentCapture();
+    }, CAPTURE_FLUSH_MS);
+  }
+
+  // Filed as a fill-resolution row with source "payment-capture" — the same
+  // durable, queryable table the operator's fix notes go to, so mining a
+  // recorded run needs no new plumbing.
+  function flushPaymentCapture() {
+    if (!paymentCapture || !paymentCapture.pending.length) return;
+    const batch = paymentCapture.pending.splice(0, paymentCapture.pending.length);
+    const { ctx, reference } = paymentCapture;
+    recordResolutionRelay(ctx.baseUrl, ctx.job.automationJobId, {
+      field: `Payment run steps ${batch[0].n}-${batch.at(-1).n}`,
+      section: batch[0].route,
+      expected: reference ? `Registration reference ${reference}` : "",
+      actual: "",
+      fix: "",
+      note: JSON.stringify(batch).slice(0, 4000),
+      source: "payment-capture"
+    }).catch((error) => pushFeed(`Payment-run batch not saved: ${error.message}`, "warn"));
+  }
+
+  function renderCapturePanel(reference) {
+    ensureToast();
+    toastPinnedEl.hidden = false;
+    toastPinnedEl.className = "olb-pinned olb-info";
+    toastPinnedEl.innerHTML = "";
+    const heading = document.createElement("div");
+    heading.style.fontWeight = "600";
+    heading.textContent = `Recording your payment run${reference ? ` for ${reference}` : ""}`;
+    const note = document.createElement("div");
+    note.className = "olb-note";
+    note.textContent = "Pay normally. Only which controls you use is recorded — never anything you type, and "
+      + "card fields are not described at all. Recording stops by itself when you leave BeSwift for EZpay.";
+    const actions = document.createElement("div");
+    actions.className = "olb-actions";
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "olb-btn ghost";
+    stop.textContent = "Stop recording";
+    stop.addEventListener("click", () => stopPaymentCapture("stopped by operator"));
+    actions.appendChild(stop);
+    toastPinnedEl.appendChild(heading);
+    toastPinnedEl.appendChild(note);
+    toastPinnedEl.appendChild(actions);
+  }
+
   // Commodity is BeSwift's HS-code lookup field. Root-caused live on production
   // (2026-08-06, shipment 11274): our catalog stores HS codes in two shapes —
   // bare 8-digit ("90015000") and dotted ("9001.50.00.000"). Only the bare form
@@ -697,6 +1099,10 @@
   // The active fill's ctx, so reconciliation/learning helpers can append to the
   // job log_json (not just the on-page feed). Set at the start of runFill.
   let fillCtx = null;
+  // Which button the operator pressed on the pause panel. Read (and cleared)
+  // by pauseForInteraction when the resume lands, so a pause can offer a real
+  // choice -- "resume", "submit", "stop" -- and not just "carry on".
+  let pauseOutcome = null;
   // Per-fill dedupe so a repeated field only logs one index suggestion.
   const indexSuggested = new Set();
 
@@ -1505,7 +1911,7 @@
   // design: a real human review step shouldn't be raced against a clock, but
   // this content-script instance is torn down for free if the tab
   // navigates/closes, so it can't leak beyond the page's own lifetime.
-  async function pauseForInteraction(ctx, reason, el, meta = {}) {
+  async function pauseForInteraction(ctx, reason, el, meta = {}, options = {}) {
     const pausedAt = new Date();
     if (el) highlightElement(el);
     await reportDetailed(ctx.baseUrl, ctx.job.automationJobId, "paused", reason);
@@ -1515,7 +1921,11 @@
     // operator fixes the field on the page, records what was wrong, and clicks
     // Resume right here — no need to switch to the popup, which unloads on blur.
     // The popup Resume button and the right-click menu still work as fallbacks.
-    renderPausePanel(ctx, reason, meta);
+    pauseOutcome = null;
+    renderPausePanel(ctx, reason, meta, options);
+    // Force the panel open and pulse it, and flash the tab title if the
+    // operator has switched away. A pause nobody notices is a stalled run.
+    raiseAttention();
     for (;;) {
       await wait(2000);
       const job = await pollJobStatus(ctx.baseUrl, ctx.job.automationJobId);
@@ -1525,8 +1935,14 @@
       if (resumed || job.status === "filling") {
         if (el) unhighlightElement(el);
         hidePinned();
-        pushFeed(`Resumed — continuing: ${reason}`, "info");
-        return;
+        clearAttention();
+        // A resume from the popup or the right-click menu carries no choice
+        // with it, so those fall back to the caller's stated default — which
+        // for anything consequential is the do-nothing option.
+        const outcome = pauseOutcome || options.defaultOutcome || "resume";
+        pauseOutcome = null;
+        pushFeed(`Resumed (${outcome}) — continuing: ${reason}`, "info");
+        return outcome;
       }
     }
   }
@@ -1621,6 +2037,10 @@
   const STYLE_ID = "optilens-beswift-style";
   let toastFeedEl = null;
   let toastPinnedEl = null;
+  // Kept so the attention pass can force the panel open / opaque without
+  // needing the operator to have clicked anything first.
+  let toastCollapseBtn = null;
+  let toastOpacityBtn = null;
 
   function ensureToastStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -1667,6 +2087,20 @@
       #${TOAST_ID} .olb-btn.primary{background:#f97316;color:#111827}
       #${TOAST_ID} .olb-btn.ghost{background:transparent;color:#fed7aa;border:1px solid #c2410c}
       #${TOAST_ID} .olb-note{color:#94a3b8;font-size:11px;margin-top:2px}
+      #${TOAST_ID} .olb-btn.go{background:#16a34a;color:#f0fdf4}
+      #${TOAST_ID} .olb-btn:disabled{opacity:.6;cursor:default}
+      #${TOAST_ID} .olb-disclosure{background:transparent;border:0;color:#fed7aa;cursor:pointer;
+        font:11px Segoe UI,Arial,sans-serif;padding:5px 0 0;text-align:left;text-decoration:underline}
+      /* Attention state -- the panel pulses amber so a stopped fill is visible
+         from across the room instead of sitting silently. Reduced-motion gets
+         the same amber ring without the animation. */
+      @keyframes olb-attn{
+        0%,100%{box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 0 rgba(249,115,22,0)}
+        50%{box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 7px rgba(249,115,22,.55)}}
+      #${TOAST_ID}.olb-attention{border-color:#f97316;animation:olb-attn 1.05s ease-in-out infinite}
+      #${TOAST_ID}.olb-attention .olb-head{background:#7c2d12;color:#fed7aa}
+      @media (prefers-reduced-motion:reduce){
+        #${TOAST_ID}.olb-attention{animation:none;box-shadow:0 12px 34px rgba(0,0,0,.4),0 0 0 5px rgba(249,115,22,.6)}}
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -1705,6 +2139,8 @@
     document.body.appendChild(root);
     toastPinnedEl = pinned;
     toastFeedEl = feed;
+    toastCollapseBtn = collapseBtn;
+    toastOpacityBtn = opacityBtn;
 
     wireToastControls(root, head, opacityBtn, collapseBtn);
     loadToastState(root, opacityBtn, collapseBtn);
@@ -1753,17 +2189,11 @@
     });
 
     collapseBtn.addEventListener("click", () => {
-      const collapsed = root.classList.toggle("olb-collapsed");
-      collapseBtn.textContent = collapsed ? "▸" : "▾";
-      toastState.collapsed = collapsed;
-      saveToastState();
+      setToastCollapsed(root, !root.classList.contains("olb-collapsed"));
     });
 
     opacityBtn.addEventListener("click", () => {
-      const on = root.classList.toggle("olb-transparent");
-      opacityBtn.classList.toggle("on", on);
-      toastState.transparent = on;
-      saveToastState();
+      setToastTransparent(root, !root.classList.contains("olb-transparent"));
     });
 
     // Persist the size the operator drags the native resize grip to.
@@ -1796,11 +2226,14 @@
           root.style.left = `${Math.min(s.left, window.innerWidth - 60)}px`;
           root.style.top = `${Math.min(s.top, window.innerHeight - 30)}px`;
         }
-        if (s.collapsed) {
+        // An attention raise may already have forced the panel open before
+        // chrome.storage answered; the stored state must not slam it shut
+        // again while the fill is waiting on somebody.
+        if (s.collapsed && !attention.active) {
           root.classList.add("olb-collapsed");
           collapseBtn.textContent = "▸";
         }
-        if (s.transparent) {
+        if (s.transparent && !attention.active) {
           root.classList.add("olb-transparent");
           opacityBtn.classList.add("on");
         }
@@ -1816,6 +2249,111 @@
     } catch {
       // best-effort persistence only
     }
+  }
+
+  // Collapse/transparency go through these so the attention pass can override
+  // them for the duration of a pause (persist:false) without overwriting the
+  // layout the operator chose. An operator toggle DURING a pause is a real
+  // preference, so it updates what gets restored afterwards too.
+  function setToastCollapsed(root, collapsed, { persist = true } = {}) {
+    root.classList.toggle("olb-collapsed", Boolean(collapsed));
+    if (toastCollapseBtn) toastCollapseBtn.textContent = collapsed ? "▸" : "▾";
+    if (!persist) return;
+    toastState.collapsed = Boolean(collapsed);
+    if (attention.active && attention.restore) attention.restore.collapsed = Boolean(collapsed);
+    saveToastState();
+  }
+
+  function setToastTransparent(root, transparent, { persist = true } = {}) {
+    root.classList.toggle("olb-transparent", Boolean(transparent));
+    if (toastOpacityBtn) toastOpacityBtn.classList.toggle("on", Boolean(transparent));
+    if (!persist) return;
+    toastState.transparent = Boolean(transparent);
+    if (attention.active && attention.restore) attention.restore.transparent = Boolean(transparent);
+    saveToastState();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Attention -- "the fill has stopped and cannot continue until you look".
+  // A pause used to be silent: if the panel was collapsed, or the operator had
+  // switched to another tab, the run just sat there until somebody thought to
+  // check on it, and the only tell was maximising the panel by hand. Raising
+  // attention forces the panel open and opaque, pulses it, and flashes the tab
+  // title while the tab is in the background. Everything it changed is put back
+  // exactly as it was when the pause clears.
+  // ---------------------------------------------------------------------------
+  const ATTENTION_TITLE = "⚠ OptiLens needs you";
+  const attention = { active: false, restore: null, timer: null, pageTitle: null, flashed: false };
+
+  function raiseAttention() {
+    const root = ensureToast();
+    if (!attention.active) {
+      attention.restore = { collapsed: toastState.collapsed, transparent: toastState.transparent };
+      attention.active = true;
+    }
+    setToastCollapsed(root, false, { persist: false });
+    setToastTransparent(root, false, { persist: false });
+    bringToastOnScreen(root);
+    root.classList.add("olb-attention");
+    document.addEventListener("visibilitychange", onAttentionVisibility);
+    startTitleFlash();
+  }
+
+  function clearAttention() {
+    document.removeEventListener("visibilitychange", onAttentionVisibility);
+    stopTitleFlash();
+    if (!attention.active) return;
+    const root = document.getElementById(TOAST_ID);
+    const restore = attention.restore || {};
+    attention.active = false;
+    attention.restore = null;
+    if (!root) return;
+    root.classList.remove("olb-attention");
+    setToastCollapsed(root, Boolean(restore.collapsed), { persist: false });
+    setToastTransparent(root, Boolean(restore.transparent), { persist: false });
+  }
+
+  function onAttentionVisibility() {
+    if (document.hidden && attention.active) startTitleFlash();
+    else stopTitleFlash();
+  }
+
+  // Flashing the tab title is the only "flash the tab" signal a content script
+  // can raise from inside the page. It only runs while the tab is in the
+  // background -- a tab already on screen has the pulsing panel on it. The SPA
+  // rewrites document.title on route changes, so the real title is re-read
+  // every tick instead of being captured once.
+  function startTitleFlash() {
+    if (attention.timer || !document.hidden) return;
+    attention.pageTitle = document.title;
+    attention.timer = setInterval(() => {
+      if (document.title !== ATTENTION_TITLE) attention.pageTitle = document.title;
+      document.title = attention.flashed ? attention.pageTitle : ATTENTION_TITLE;
+      attention.flashed = !attention.flashed;
+    }, 900);
+  }
+
+  function stopTitleFlash() {
+    if (attention.timer) {
+      clearInterval(attention.timer);
+      attention.timer = null;
+    }
+    if (attention.pageTitle && document.title === ATTENTION_TITLE) document.title = attention.pageTitle;
+    attention.flashed = false;
+  }
+
+  // A panel parked off-screen (dragged away, or the window was resized since)
+  // cannot signal anything, so an attention raise pulls it back to its default
+  // corner. Only when it is genuinely off-screen -- a panel the operator can
+  // still see stays where they put it.
+  function bringToastOnScreen(root) {
+    const rect = root.getBoundingClientRect();
+    const offScreen = rect.bottom < 40 || rect.top > window.innerHeight - 24
+      || rect.right < 60 || rect.left > window.innerWidth - 60;
+    if (!offScreen) return;
+    root.style.left = "auto";
+    root.style.right = "16px";
+    root.style.top = "16px";
   }
 
   // Appends one line to the rolling feed with an optional compact summary of the
@@ -1886,12 +2424,18 @@
     showPinned(kind, message);
   }
 
-  // Renders the operator error + resolution capture form inside the pinned slot
-  // while paused. Fields prefill from the paused field's known label/expected
-  // value. Returns a Promise that resolves once the operator submits (resume) —
-  // the resolution is posted first (if anything was entered), then the job is
-  // resumed; the surrounding pause loop notices the status flip and continues.
-  function renderPausePanel(ctx, reason, meta = {}) {
+  // Renders the pause panel inside the pinned slot: the reason, then the
+  // buttons that get the run moving again, then — folded away — the error +
+  // resolution capture form.
+  //
+  // The form used to sit between the reason and the buttons, which made every
+  // pause look like a five-field data-entry chore when the honest answer is
+  // usually "I looked at it, carry on". Recording a fix is worth doing when
+  // there IS a fix, so it stays one click away, but it is never in the path of
+  // resuming. `options.actions` lets a pause offer real choices (review →
+  // submit, verify → submit/stop); the chosen id is what pauseForInteraction
+  // returns.
+  function renderPausePanel(ctx, reason, meta = {}, options = {}) {
     ensureToast();
     toastPinnedEl.hidden = false;
     toastPinnedEl.className = "olb-pinned olb-pause";
@@ -1902,46 +2446,68 @@
     heading.style.fontWeight = "600";
     toastPinnedEl.appendChild(heading);
 
+    const choices = Array.isArray(options.actions) && options.actions.length
+      ? options.actions
+      : [{ id: "resume", label: "Resume", primary: true }];
+
+    const actions = document.createElement("div");
+    actions.className = "olb-actions";
+    const buttons = choices.map((choice) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `olb-btn ${choice.primary ? (choice.go ? "go" : "primary") : "ghost"}`;
+      btn.textContent = choice.label;
+      actions.appendChild(btn);
+      return { btn, choice };
+    });
+    toastPinnedEl.appendChild(actions);
+
+    const disclosure = document.createElement("button");
+    disclosure.type = "button";
+    disclosure.className = "olb-disclosure";
+    disclosure.textContent = "Record what went wrong (optional) \u25be";
+    toastPinnedEl.appendChild(disclosure);
+
     const form = document.createElement("div");
     form.className = "olb-form";
+    form.hidden = true;
     const field = mkField("Field", meta.field || "");
     const expected = mkField("Expected value", meta.expected || "");
-    const actual = mkField("What it actually had", "");
+    const actual = mkField("What it actually had", meta.actual || "");
     const fix = mkArea("What you did to fix it");
-    const note = mkArea("Notes / root cause (optional)");
+    const note = mkArea("Notes / root cause");
     form.appendChild(field.wrap);
     form.appendChild(expected.wrap);
     form.appendChild(actual.wrap);
     form.appendChild(fix.wrap);
     form.appendChild(note.wrap);
-
-    const actions = document.createElement("div");
-    actions.className = "olb-actions";
-    const resumeBtn = document.createElement("button");
-    resumeBtn.className = "olb-btn primary";
-    resumeBtn.type = "button";
-    resumeBtn.textContent = "Save fix & Resume";
-    const skipBtn = document.createElement("button");
-    skipBtn.className = "olb-btn ghost";
-    skipBtn.type = "button";
-    skipBtn.textContent = "Resume without note";
-    actions.appendChild(resumeBtn);
-    actions.appendChild(skipBtn);
+    toastPinnedEl.appendChild(form);
 
     const hint = document.createElement("div");
     hint.className = "olb-note";
-    hint.textContent = "Fix the field on the page first, then record what was wrong so it can be refined later.";
-
-    toastPinnedEl.appendChild(form);
-    toastPinnedEl.appendChild(actions);
+    hint.hidden = true;
+    hint.textContent = "Fix the field on the page first, then record what was wrong so it can be refined later. "
+      + "Whatever is filled in here is saved when you resume.";
     toastPinnedEl.appendChild(hint);
 
-    const submit = async (withNote) => {
-      resumeBtn.disabled = true;
-      skipBtn.disabled = true;
-      resumeBtn.textContent = "Resuming…";
+    disclosure.addEventListener("click", () => {
+      const open = form.hidden;
+      form.hidden = !open;
+      hint.hidden = !open;
+      disclosure.textContent = open
+        ? "Record what went wrong (optional) \u25b4"
+        : "Record what went wrong (optional) \u25be";
+      if (open) field.input.focus();
+    });
+
+    const submit = async (choice, btn) => {
+      for (const b of buttons) b.btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = "Resuming…";
+      // The note is saved whenever the operator actually wrote one — opening
+      // the form is what signals intent, not which button they end on.
       try {
-        if (withNote) {
+        if (!form.hidden) {
           const payload = {
             field: field.input.value.trim(),
             section: meta.section || "",
@@ -1958,19 +2524,23 @@
         // Don't block resume on a failed note write — surface it and continue.
         pushFeed(`Resolution note not saved: ${error.message}`, "warn");
       }
+      // Set before the relay: the pause loop reads this the moment the server
+      // reports the resume, and that can land before this handler returns.
+      pauseOutcome = choice.id;
       try {
-        await resumeJobRelay(ctx.baseUrl, ctx.job.automationJobId, withNote ? "Resumed with operator resolution." : "Resumed by operator.");
+        await resumeJobRelay(ctx.baseUrl, ctx.job.automationJobId, `Resumed by operator (${choice.id}).`);
       } catch (error) {
         // The pause loop's own poll will also catch a server-side resume; if the
         // relay failed, re-enable so the operator can retry.
+        pauseOutcome = null;
         pushFeed(`Resume failed: ${error.message}`, "warn");
-        resumeBtn.disabled = false;
-        skipBtn.disabled = false;
-        resumeBtn.textContent = "Save fix & Resume";
+        for (const b of buttons) b.btn.disabled = false;
+        btn.textContent = originalLabel;
       }
     };
-    resumeBtn.addEventListener("click", () => submit(true));
-    skipBtn.addEventListener("click", () => submit(false));
+    for (const { btn, choice } of buttons) {
+      btn.addEventListener("click", () => submit(choice, btn));
+    }
   }
 
   function mkField(labelText, value) {
