@@ -33,6 +33,32 @@ copies pick it up on their next update check; `site-bridge.js` also requests an
 immediate check on every OptiLens page load. Without the version bump, nothing
 ships.
 
+Note that a workstation may instead have the extension loaded **unpacked off
+the SMB share** (`\INO-3FRC3Q3\GitHub\optilens-local\extensions\beswift-co-beta`).
+Those copies read the host checkout directly and ignore the `.crx` entirely —
+they pick up a change on the next extension reload, which `reloadIfStale` does
+automatically while idle, but only when auto-drive is on.
+
+## Pointing the extension at the app (`baseUrl`)
+
+The popup's OptiLens URL is stored as `baseUrl` and the background worker reads
+it from storage, not from the form. Use a LAN-reachable origin:
+
+| Use | Why |
+| --- | --- |
+| `http://ino-3frc3q3` | IIS proxy on port 80. Works from the LAN. |
+| `https://optilens.cv.net` | Documented LAN HTTPS URL. Works from the LAN. |
+| ~~`http://…:8080`~~ | **Do not use.** The Node app on 8080 is host-only; from any other machine the TCP connect fails and every poll dies as `Failed to fetch`. |
+
+That failure is silent: `pollForQueuedJob` swallows it with `.catch(() => {})`,
+so a queued job simply sits unclaimed forever with nothing in any log. If a job
+will not claim, check `baseUrl` first.
+
+Every origin the extension talks to must also appear in `host_permissions`, and
+every origin the app is *browsed* at must appear in `site-bridge.js`'s
+`matches` — otherwise the Delivery & Export plugin-checker row cannot see the
+extension on that origin.
+
 ## Content scripts
 
 - `content.js` — runs on the BeSwift portals only. The automation itself.
@@ -40,3 +66,9 @@ ships.
   extension's presence and version so the Delivery & Export tab row can show
   install/update status. Read-only: it never touches BeSwift, only ever answers
   pings, and exposes nothing but a version string.
+
+Content-script → server calls always relay through the background service
+worker (`reportStatus`, `pollJobStatus`, `recordResolution`, `resumeJob`). The
+BeSwift portal is HTTPS, so a direct `fetch()` from the content script to an
+`http://` OptiLens origin would be blocked as mixed content; the worker is not
+subject to that restriction. Keep new server calls on the relay path.
