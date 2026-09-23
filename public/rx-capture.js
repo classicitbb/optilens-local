@@ -414,17 +414,23 @@
     return (left, right) => rank(left) - rank(right) || left.localeCompare(right, undefined, { numeric: true });
   }
 
-  const OWN_LENS_STYLE = "Custom Lens";
-  const isOwnLensDesign = (label) => label.endsWith(` · ${OWN_LENS_STYLE}`);
+
+  // Innovations spells the customer-supplied style both "Custom Lens" and "Custom lens".
+  const isOwnLensDesign = (label) => / · custom lens$/i.test(label);
 
   // One action for the usual job: switch the design to the customer-supplied
   // ("Custom Lens") design of the current lens type, keeping material and
   // colour where they still fit; the normal conflict repair clears the rest.
   function chooseOwnLenses() {
     if (!state.catalog || !state.canEdit) return;
-    const current = lensChoices().design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
+    const choices = lensChoices();
+    const current = choices.design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
     const designs = [...state.lensUniverse.design].filter(isOwnLensDesign);
-    const target = designs.find((label) => label.startsWith(`${current} · `)) || designs.find((label) => label.startsWith("Single Vision · ")) || designs[0];
+    // Innovations has two spellings of the style with different colour lists;
+    // take the one that keeps the most of the current material and colour.
+    const fit = (label) => lensMatches({ ...choices, design: label }).length * 4 + lensMatches({ ...choices, option: "", design: label }).length;
+    const best = (labels) => labels.sort((left, right) => fit(right) - fit(left))[0];
+    const target = best(designs.filter((label) => label.startsWith(`${current} · `))) || best(designs.filter((label) => label.startsWith("Single Vision · "))) || designs[0];
     if (!target) return showNotice("No customer-supplied lens is available in the catalogue.", true);
     setLensValue("design", target);
     lensInput("design").classList.remove("guessed");
