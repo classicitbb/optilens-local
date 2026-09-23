@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "" };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -24,10 +24,13 @@
     "pd.nearOd": "Near OD PD",
     "pd.nearOs": "Near OS PD",
     "lensRequest.lensType": "Lens type",
+    "lensRequest.materialGroup": "Material group",
     "lensRequest.design": "Lens design",
     "lensRequest.material": "Lens material",
     "lensRequest.option": "Lens option",
     "lensRequest.coating": "Lens coating",
+    "lensRequest.coatingSku": "Lens coating",
+    "lensRequest.catalogAlias": "Active lens",
     "frame.status": "Frame workflow",
     "frame.model": "Frame model",
     "frame.color": "Frame color",
@@ -77,7 +80,14 @@
     $("#resolutionForm").addEventListener("submit", saveResolution);
     $("#reprocessButton").addEventListener("click", reprocess);
     $("#submitOrderButton").addEventListener("click", submitOrder);
-    document.querySelectorAll("[data-path]").forEach((input) => input.addEventListener("input", () => resolveIssue(input.dataset.path)));
+    document.querySelectorAll("[data-path]").forEach((input) => {
+      const update = () => {
+        resolveIssue(input.dataset.path);
+        if (/^lensRequest\.(materialGroup|material|lensType|catalogAlias)$/.test(input.dataset.path)) refreshCatalogFields();
+      };
+      input.addEventListener("input", update);
+      input.addEventListener("change", update);
+    });
   }
 
   async function loadOrders() {
@@ -188,7 +198,10 @@
     $("#reprocessButton").hidden = !canEdit;
     $("#saveReviewButton").hidden = !canEdit;
     document.querySelectorAll("#reviewForm [data-path]").forEach((input) => { input.disabled = !canEdit; });
-    if (order.normalizedOrder) renderOrder(order.normalizedOrder);
+    if (order.normalizedOrder) {
+      renderOrder(order.normalizedOrder);
+      await renderCatalogFields(order.normalizedOrder);
+    }
     await renderResolution(order, canEdit);
     renderApprovalActions(order);
     stopPolling();
@@ -218,6 +231,66 @@
     renderIssues(order);
   }
 
+  async function renderCatalogFields(order = state.current?.normalizedOrder) {
+    if (!order) return;
+    try {
+      if (!state.catalog) {
+        const [catalogPayload, coatingPayload] = await Promise.all([
+          api("/api/rx-capture/catalog"), api("/api/rx-capture/coatings")
+        ]);
+        state.catalog = catalogPayload.items || [];
+        state.coatings = coatingPayload.items || [];
+      }
+      const request = order.lensRequest ||= {};
+      request.materialGroup ||= "1";
+      const groupField = fieldForPath("lensRequest.materialGroup");
+      const materialField = fieldForPath("lensRequest.material");
+      const typeField = fieldForPath("lensRequest.lensType");
+      const optionField = fieldForPath("lensRequest.option");
+      const coatingField = fieldForPath("lensRequest.coatingSku");
+      const aliasField = fieldForPath("lensRequest.catalogAlias");
+      fillOptions(groupField, uniqueOptions(state.catalog, "materialGroupCode", "materialGroup"), request.materialGroup, "Material Group 1 · Resin");
+      const withinGroup = state.catalog.filter((item) => item.materialGroupCode === groupField.value);
+      fillOptions(materialField, uniqueOptions(withinGroup, "material", "material"), request.material, "Choose material");
+      const withinMaterial = withinGroup.filter((item) => !materialField.value || item.material === materialField.value);
+      fillOptions(typeField, uniqueOptions(withinMaterial, "lensType", "lensType"), request.lensType, "Choose lens type");
+      const capturedOption = String(request.option || "").trim();
+      fillOptions(optionField, capturedOption ? [{ value: capturedOption, label: capturedOption }] : [], capturedOption, "Not captured — choose later");
+      fillOptions(coatingField, (state.coatings || []).map((item) => ({ value: item.sku, label: item.description })), request.coatingSku, "No coating selected");
+      const candidates = withinMaterial.filter((item) => !typeField.value || item.lensType === typeField.value);
+      fillOptions(aliasField, candidates.map((item) => ({ value: item.alias, label: item.label })), request.catalogAlias, "Choose active lens");
+    } catch (error) {
+      showNotice(`Catalogue choices are unavailable: ${error.message}`, true);
+    }
+  }
+
+  function uniqueOptions(items, valueKey, labelKey) {
+    return [...new Map(items.filter((item) => item[valueKey]).map((item) => [String(item[valueKey]), { value: String(item[valueKey]), label: String(item[labelKey] || item[valueKey]) }])).values()];
+  }
+
+  function fillOptions(field, options, selected, placeholder) {
+    if (!field) return;
+    const current = selected ?? field.value;
+    field.replaceChildren(new Option(placeholder, ""), ...options.map((item) => new Option(item.label, item.value)));
+    field.value = options.some((item) => item.value === String(current || "")) ? String(current) : "";
+  }
+
+  async function refreshCatalogFields() {
+    if (!state.current?.normalizedOrder || !state.catalog) return;
+    const draft = JSON.parse(JSON.stringify(state.current.normalizedOrder));
+    for (const path of ["lensRequest.materialGroup", "lensRequest.material", "lensRequest.lensType", "lensRequest.option", "lensRequest.coatingSku", "lensRequest.catalogAlias"]) {
+      setAtPath(draft, path, fieldForPath(path)?.value || null);
+    }
+    const alias = fieldForPath("lensRequest.catalogAlias")?.value;
+    const selected = state.catalog.find((item) => item.alias === alias);
+    if (selected) {
+      draft.lensRequest.materialGroup = selected.materialGroupCode;
+      draft.lensRequest.material = selected.material;
+      draft.lensRequest.lensType = selected.lensType;
+    }
+    await renderCatalogFields(draft);
+  }
+
   async function renderResolution(order, canEdit) {
     const canConfigure = canEdit && order.status === "READY_FOR_REVIEW" && Boolean(order.reviewConfirmedAt);
     $("#resolutionForm").hidden = !canConfigure;
@@ -227,11 +300,14 @@
       if (!field.name) continue;
       if (field.name === "addonSkus") field.value = (values.addonSkus || []).join(", ");
       else if (field.name === "remoteOperator") field.value = state.username;
-      else if (field.name === "customerNumber") field.value = order.customer?.account || values.customerNumber || "";
+      else if (field.name === "customerNumber") field.value = values.customerNumber || "";
       else if (field.name === "shipName") field.value = values.shipName || order.customer?.name || "";
       else field.value = values[field.name] ?? "";
     }
     try {
+      const account = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/submission-account`);
+      const customerNumber = $("#resolutionForm").elements.customerNumber;
+      if (!customerNumber.value) customerNumber.value = account.customerNumber || "";
       const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/alias-suggestion`);
       const suggestion = payload.suggestion || {};
       const field = $("#resolutionForm").elements.lensAlias;
@@ -240,7 +316,9 @@
       const summary = document.createElement("p");
       summary.textContent = suggestion.reason || "Choose an active catalogue lens.";
       notice.append(summary);
-      if (suggestion.status === "suggested" && suggestion.suggestedAlias && !field.value) field.value = suggestion.suggestedAlias;
+      const selectedAlias = order.normalizedOrder?.lensRequest?.catalogAlias;
+      if (selectedAlias && !field.value) field.value = selectedAlias;
+      else if (suggestion.status === "suggested" && suggestion.suggestedAlias && !field.value) field.value = suggestion.suggestedAlias;
       const candidates = suggestion.candidates || [];
       if (candidates.length) {
         const list = document.createElement("div");
@@ -267,7 +345,6 @@
     } catch (error) {
       showNotice(error.message, true);
     }
-    await loadCoatings(values.coatingSku || "");
   }
 
   function renderApprovalActions(order) {
@@ -368,6 +445,8 @@
     const form = new FormData($("#resolutionForm"));
     const resolution = Object.fromEntries(form.entries());
     resolution.addonSkus = String(resolution.addonSkus || "").split(",").map((value) => value.trim()).filter(Boolean);
+    resolution.lensAlias ||= state.current.normalizedOrder?.lensRequest?.catalogAlias || "";
+    resolution.coatingSku = state.current.normalizedOrder?.lensRequest?.coatingSku || "";
     const button = $("#saveResolutionButton");
     button.disabled = true;
     try {
@@ -399,19 +478,6 @@
     }
   }
 
-  async function loadCoatings(selectedSku) {
-    const field = $("#resolutionForm").elements.coatingSku;
-    if (!field) return;
-    try {
-      const payload = await api("/api/rx-capture/coatings");
-      const options = [new Option("No coating selected", "")];
-      for (const item of payload.items || []) options.push(new Option(item.description, item.sku));
-      field.replaceChildren(...options);
-      field.value = selectedSku;
-    } catch (error) {
-      showNotice(`Coating choices are unavailable: ${error.message}`, true);
-    }
-  }
 
   async function imageDataUrl(file) {
     if (file.size > 18 * 1024 * 1024) throw new Error("Choose an image smaller than 18 MB.");

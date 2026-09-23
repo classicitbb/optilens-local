@@ -285,11 +285,28 @@ test("RX Capture lets the intake owner submit one reviewed draft without a secon
   assert.match(releaseMigration, /rx-capture\.release/);
   assert.match(client, /\/submit/);
   assert.match(client, /rx-capture\/coatings/);
+  assert.match(client, /rx-capture\/catalog/);
+  assert.match(routes, /submission-account/);
+  assert.match(service, /innovations_account_mappings/);
+  assert.match(html, /Material group/);
+  assert.match(html, /Rimless \/ grooved/);
+  assert.match(html, /Edged \/ enclosed/);
   assert.match(client, /Save draft & continue to open the lens and coating choices/);
   assert.match(html, /SUBMIT TO INNOVATIONS/);
   assert.match(html, /SAVE DRAFT &amp; CONTINUE/);
   assert.match(html, /Captured details to continue later/);
   assert.doesNotMatch(html, /Review \/ release access/);
+});
+
+test("review normalization preserves exact catalogue choices without asking image extraction to invent them", () => {
+  const order = normalizeOpticalOrder({ lensRequest: {
+    materialGroup: "1", material: "Plastic 1.50", lensType: "Progressive",
+    catalogAlias: "0000000100001", coatingSku: "STANDARDAR"
+  } });
+  assert.equal(order.lensRequest.materialGroup, "1");
+  assert.equal(order.lensRequest.catalogAlias, "0000000100001");
+  assert.equal(order.lensRequest.coatingSku, "STANDARDAR");
+  assert.doesNotMatch(JSON.stringify(extractionJsonSchema().properties.lensRequest.properties), /catalogAlias|coatingSku|materialGroup/);
 });
 
 test("recent orders pass a click listener rather than Array.map callback metadata", () => {

@@ -139,8 +139,8 @@
             <table class="rx-table">
               <thead><tr><th scope="col">Eye</th><th scope="col">Sphere</th><th scope="col">Cylinder</th><th scope="col">Axis</th><th scope="col">ADD</th><th scope="col">Dist PD</th><th scope="col">Near PD</th><th scope="col">OC HT</th><th scope="col">Prism</th><th scope="col">Base</th></tr></thead>
               <tbody>
-                <tr><th scope="row">OD <small>right</small></th><td><input aria-label="OD sphere" data-path="prescription.od.sphere" inputmode="decimal"></td><td><input aria-label="OD cylinder" data-path="prescription.od.cylinder" inputmode="decimal"></td><td><input aria-label="OD axis" data-path="prescription.od.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><input aria-label="OD ADD" data-path="prescription.od.add" inputmode="decimal"></td><td><input aria-label="OD distance PD" data-path="pd.od" inputmode="decimal"></td><td><input aria-label="OD near PD" data-path="pd.nearOd" inputmode="decimal"></td><td><input aria-label="OD optical center height" data-path="frame.segHeightOd" inputmode="decimal"></td><td><input aria-label="OD prism" data-path="prescription.od.prism"></td><td><input aria-label="OD base" data-path="prescription.od.base"></td></tr>
-                <tr><th scope="row">OS <small>left</small></th><td><input aria-label="OS sphere" data-path="prescription.os.sphere" inputmode="decimal"></td><td><input aria-label="OS cylinder" data-path="prescription.os.cylinder" inputmode="decimal"></td><td><input aria-label="OS axis" data-path="prescription.os.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><input aria-label="OS ADD" data-path="prescription.os.add" inputmode="decimal"></td><td><input aria-label="OS distance PD" data-path="pd.os" inputmode="decimal"></td><td><input aria-label="OS near PD" data-path="pd.nearOs" inputmode="decimal"></td><td><input aria-label="OS optical center height" data-path="frame.segHeightOs" inputmode="decimal"></td><td><input aria-label="OS prism" data-path="prescription.os.prism"></td><td><input aria-label="OS base" data-path="prescription.os.base"></td></tr>
+                <tr><th scope="row">OD <small>right</small></th><td><span class="mobile-cell-label">Sphere</span><input aria-label="OD sphere" data-path="prescription.od.sphere" inputmode="decimal"></td><td><span class="mobile-cell-label">Cylinder</span><input aria-label="OD cylinder" data-path="prescription.od.cylinder" inputmode="decimal"></td><td><span class="mobile-cell-label">Axis</span><input aria-label="OD axis" data-path="prescription.od.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><span class="mobile-cell-label">ADD</span><input aria-label="OD ADD" data-path="prescription.od.add" inputmode="decimal"></td><td><span class="mobile-cell-label">Dist PD</span><input aria-label="OD distance PD" data-path="pd.od" inputmode="decimal"></td><td><span class="mobile-cell-label">Near PD</span><input aria-label="OD near PD" data-path="pd.nearOd" inputmode="decimal"></td><td><span class="mobile-cell-label">OC HT</span><input aria-label="OD optical center height" data-path="frame.segHeightOd" inputmode="decimal"></td><td><span class="mobile-cell-label">Prism</span><input aria-label="OD prism" data-path="prescription.od.prism"></td><td><span class="mobile-cell-label">Base</span><input aria-label="OD base" data-path="prescription.od.base"></td></tr>
+                <tr><th scope="row">OS <small>left</small></th><td><span class="mobile-cell-label">Sphere</span><input aria-label="OS sphere" data-path="prescription.os.sphere" inputmode="decimal"></td><td><span class="mobile-cell-label">Cylinder</span><input aria-label="OS cylinder" data-path="prescription.os.cylinder" inputmode="decimal"></td><td><span class="mobile-cell-label">Axis</span><input aria-label="OS axis" data-path="prescription.os.axis" inputmode="numeric" type="number" min="1" max="180"></td><td><span class="mobile-cell-label">ADD</span><input aria-label="OS ADD" data-path="prescription.os.add" inputmode="decimal"></td><td><span class="mobile-cell-label">Dist PD</span><input aria-label="OS distance PD" data-path="pd.os" inputmode="decimal"></td><td><span class="mobile-cell-label">Near PD</span><input aria-label="OS near PD" data-path="pd.nearOs" inputmode="decimal"></td><td><span class="mobile-cell-label">OC HT</span><input aria-label="OS optical center height" data-path="frame.segHeightOs" inputmode="decimal"></td><td><span class="mobile-cell-label">Prism</span><input aria-label="OS prism" data-path="prescription.os.prism"></td><td><span class="mobile-cell-label">Base</span><input aria-label="OS base" data-path="prescription.os.base"></td></tr>
               </tbody>
             </table>
           </div>
@@ -155,13 +155,15 @@
             <h2>Lens information</h2>
             <span class="optional-badge">Extracted / optional</span>
           </div>
-          <p class="section-help">Anything visible on the prescription is shown here. Catalogue selection and final lens validation come later.</p>
+          <p class="section-help">Captured wording stays visible for reference. Choose active catalogue values only when known; the exact active lens is saved with this draft.</p>
           <div class="field-grid two">
-            <label data-field-wrap="lensRequest.lensType">Lens type<input data-path="lensRequest.lensType" autocomplete="off"></label>
-            <label data-field-wrap="lensRequest.design">Design<input data-path="lensRequest.design" autocomplete="off"></label>
-            <label data-field-wrap="lensRequest.material">Material<input data-path="lensRequest.material" autocomplete="off"></label>
-            <label data-field-wrap="lensRequest.option">Option<input data-path="lensRequest.option" autocomplete="off"></label>
-            <label data-field-wrap="lensRequest.coating">Coating<input data-path="lensRequest.coating" autocomplete="off"></label>
+            <label data-field-wrap="lensRequest.materialGroup">Material group<select data-path="lensRequest.materialGroup"></select></label>
+            <label data-field-wrap="lensRequest.material">Material<select data-path="lensRequest.material"></select></label>
+            <label data-field-wrap="lensRequest.lensType">Lens type<select data-path="lensRequest.lensType"></select></label>
+            <label data-field-wrap="lensRequest.design">Printed lens design<input data-path="lensRequest.design" autocomplete="off" readonly aria-describedby="printedDesignHelp"><span id="printedDesignHelp" class="field-help">Captured from the prescription for reference; it does not choose a lens.</span></label>
+            <label data-field-wrap="lensRequest.option">Option from photo<select data-path="lensRequest.option"></select></label>
+            <label data-field-wrap="lensRequest.coatingSku">Coating <span class="field-optional">optional</span><select data-path="lensRequest.coatingSku"></select></label>
+            <label class="catalog-lens-field" data-field-wrap="lensRequest.catalogAlias">Active lens<select data-path="lensRequest.catalogAlias" aria-describedby="catalogLensHelp"></select><span id="catalogLensHelp" class="field-help">Only active exact aliases can be submitted to Innovations.</span></label>
           </div>
         </section>
 
@@ -184,22 +186,20 @@
             <h2>Innovations submission</h2>
             <span class="optional-badge">Choose what is known</span>
           </div>
-          <p class="section-help">Your account is already selected. Choose a source-validated lens and an optional coating when known. Uncertain captured values remain visible for later editing in Innovations.</p>
+          <p class="section-help">The selected Innovations account is prefilled when a LabLink mapping is known. It can be corrected here. One saved instruction is sent with the order.</p>
           <div id="aliasSuggestion" class="alias-suggestion" hidden></div>
           <div class="field-grid two">
-            <label>Customer number<input name="customerNumber" autocomplete="off" required readonly></label>
+            <label>Innovations customer number<input name="customerNumber" inputmode="numeric" autocomplete="off" required></label>
             <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
             <label>Ship name<input name="shipName" autocomplete="off" required></label>
-            <label>Exact 13-digit lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required aria-describedby="lensAliasHelp"><span id="lensAliasHelp" class="field-help">Choose a suggested active lens below, or enter its exact alias.</span></label>
-            <label>Coating <span class="field-optional">optional</span><select name="coatingSku"><option value="">No coating selected</option></select></label>
+            <label>Exact active lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required aria-describedby="lensAliasHelp"><span id="lensAliasHelp" class="field-help">Selected above; you may correct it with another exact active alias.</span></label>
             <label>Add-on SKUs <span class="field-optional">optional</span><input name="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
-            <label>Frame mode<select name="frameMode"><option value="uncut">Uncut</option><option value="edged">Edged / enclosed</option></select></label>
-            <label>Frame mounting code<input name="frameMounting" value="1" autocomplete="off" required></label>
+            <label>Frame mode<select name="frameMode"><option value="edged" selected>Edged / enclosed</option><option value="uncut">Uncut</option></select></label>
+            <label>Frame mounting<select name="frameMounting" required><option value="1">Metal</option><option value="2">Plastic</option><option value="3">Rimless / grooved</option></select></label>
             <label>Remote operator<input name="remoteOperator" autocomplete="off" readonly></label>
             <label>Lab number <span class="field-optional">optional</span><input name="labNum" autocomplete="off" placeholder="Uses configured default when blank"></label>
           </div>
         </section>
-        <section class="review-card"><label>Production instructions <span class="field-optional">optional</span><textarea name="instructions" rows="3"></textarea></label></section>
         <button id="saveResolutionButton" class="secondary-button wide" type="submit">SAVE SUBMISSION CHOICES</button>
       </form>
 
