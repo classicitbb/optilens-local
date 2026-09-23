@@ -1,6 +1,6 @@
 This app is an internal app acting as the medium of connection between mssql-svr for Innovations, the CV website and Odoo accounts in the future.
 
-The host checkout is `C:\Users\Administrator\Documents\GitHub\optilens-local`.
+The host checkout is `C:\Users\Administrator\Documents\GitHub\optilens-local` on the machine ino-3frc3q3 or ip \\192.168.254.7\GitHub\optilens-local or \\INO-3FRC3Q3\GitHub\optilens-local
 `C:\DEV\optilens-local` is a human-only working copy and must not be used by
 automated agents. Read `docs/REMOTE_AGENT_OPERATIONS.md` for the approved SSH
 or preconfigured PowerShell-remoting workflow, deployment commands, health
