@@ -444,3 +444,31 @@ test("recent orders pass a click listener rather than Array.map callback metadat
   assert.match(client, /state\.orders\.map\(\(order\) => orderButton\(order\)\)/);
   assert.doesNotMatch(client, /state\.orders\.map\(orderButton\)/);
 });
+
+test("a submitted RX cannot be edited, re-extracted or regenerated", async () => {
+  const { createRxCaptureService } = require("../lib/rx-capture/service");
+  const actor = { userId: "11111111-1111-1111-1111-111111111111", username: "employee" };
+  const orderId = "e5132c2e-a170-4958-b495-94121f7f0e08";
+  const writes = [];
+  const pool = {
+    request() {
+      const request = {
+        input() { return request; },
+        async query(text) {
+          if (/^\s*(UPDATE|INSERT)/.test(text)) { writes.push(text); return { recordset: [], rowsAffected: [0] }; }
+          return { recordset: [{ capture_order_id: orderId, created_by_user_id: actor.userId, status: "RELEASED" }] };
+        }
+      };
+      return request;
+    }
+  };
+  const service = createRxCaptureService({ getAppPool: async () => pool, schedule: () => { throw new Error("must not reprocess"); } });
+  await assert.rejects(service.updateOrder(orderId, { normalizedOrder: {} }, actor), { statusCode: 409, message: /already been submitted/ });
+  await assert.rejects(service.reprocessOrder(orderId, actor), { statusCode: 409, message: /already been submitted/ });
+  assert.deepEqual(writes, []);
+
+  const client = fs.readFileSync(path.join(__dirname, "..", "public", "rx-capture.js"), "utf8");
+  assert.match(client, /\$\("#reprocessButton"\)\.hidden = !editable;/);
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-capture", "service.js"), "utf8");
+  assert.match(source, /already submitted to Innovations as \$\{prior\.recordset\[0\]\.generated_filename\}/);
+});
