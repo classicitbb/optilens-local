@@ -454,21 +454,21 @@ function renderApplicationGrid() {
     const aria = allowed ? "" : ` aria-disabled="true"`;
     const color = app.color || APP_ACCENT_COLORS[app.id] || "#1A8A9C";
     const subTools = allowed && APP_SUB_TOOLS[app.id] ? APP_SUB_TOOLS[app.id] : [];
+    const isRestricted = !allowed;
 
     return `
       <article class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}" style="--app-accent: ${escapeHtml(color)}">
         <span class="app-accent-rail" aria-hidden="true" style="background:${escapeHtml(color)}"></span>
         <${tag} class="app-access-main"${href}${aria}>
-          <div class="app-access-header">
+          <div class="app-card-top">
             <span class="app-access-icon material-symbols-outlined" style="color: ${escapeHtml(color)}; background: color-mix(in srgb, ${escapeHtml(color)} 14%, transparent)">${escapeHtml(app.icon || "apps")}</span>
-            <span class="badge ${escapeHtml(app.status || "planned")}">${escapeHtml(allowed ? "available" : "restricted")}</span>
-          </div>
-          <div class="app-access-meta">
-            <div class="app-title-row">
-              <h3>${escapeHtml(app.name)}</h3>
-              ${allowed ? `<span class="app-hover-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>` : ""}
+            <div class="app-card-headings">
+              <div class="app-title-row">
+                <h3>${escapeHtml(app.name)}</h3>
+                ${isRestricted ? `<span class="badge restricted">restricted</span>` : `<span class="app-hover-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>`}
+              </div>
+              <p class="app-card-desc">${escapeHtml(app.summary || "Application workspace.")}</p>
             </div>
-            <p>${escapeHtml(app.summary || "Application workspace.")}</p>
           </div>
         </${tag}>
         ${subTools.length > 0 ? `

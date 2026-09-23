@@ -38,24 +38,41 @@
 
     <!-- Welcome banner / Hero -->
     <section class="welcome-banner">
-      <div class="welcome-copy">
-        <div class="welcome-meta-row">
-          <p class="eyebrow" id="welcomeEyebrow">Secure LAN dashboard</p>
-          <div class="hero-live-clock" data-auth-required aria-label="Current local time">
-            <span class="material-symbols-outlined">schedule</span>
-            <span id="clock">--:--:--</span>
+      <!-- Signed-in Hero Panel -->
+      <div class="hero-panel" data-auth-required>
+        <div class="hero-top-row">
+          <div class="hero-badge">
+            <span class="lan-status-dot"></span>
+            <span id="welcomeEyebrow">Secure LAN · Classic Visions Lab Hub</span>
+          </div>
+          <div class="hero-meta-right">
+            <div class="critical-status-pills" id="criticalStatusPills" aria-label="Critical connection status"></div>
+            <div class="hero-live-clock" aria-label="Current local time">
+              <span class="material-symbols-outlined">schedule</span>
+              <span id="clock">--:--:--</span>
+            </div>
           </div>
         </div>
-        <h1 id="welcomeTitle">OptiLens Local</h1>
-        <p id="welcomeMessage">Sign in to access export deliveries, pricing automation, integrations, and internal operations workflows.</p>
-      </div>
 
-      <!-- Quick search trigger in hero -->
-      <button type="button" class="hero-search-btn" id="heroSearchTrigger" data-auth-required aria-label="Search (Ctrl+K)">
-        <span class="material-symbols-outlined">search</span>
-        <span class="hsb-text">Search modules, settings, endpoints…</span>
-        <kbd>Ctrl+K</kbd>
-      </button>
+        <div class="hero-copy">
+          <h1 id="welcomeTitle">OptiLens Local</h1>
+          <p id="welcomeMessage">Internal operations console. Select an application workspace or launch a task below.</p>
+        </div>
+
+        <!-- Platform Diagnostics Drawer -->
+        <div class="analytics-band welcome-status">
+          <div class="analytics-head" id="analyticsHead" role="button" tabindex="0" aria-expanded="false">
+            <div class="analytics-head-left">
+              <span class="analytics-head-icon material-symbols-outlined">analytics</span>
+              <span class="analytics-head-label">Platform Diagnostics & Health</span>
+            </div>
+            <span class="analytics-chevron" aria-hidden="true">&#9660;</span>
+          </div>
+          <div class="analytics-body" id="analyticsBody" hidden>
+            <div class="analytics-row" id="metrics"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- Auth Form (centered for signed-out state) -->
       <form class="home-auth-card" id="homeAuthForm" autocomplete="on">
@@ -78,21 +95,6 @@
         <div class="auth-error" id="homeAuthError" role="alert"></div>
         <button class="button primary" id="homeAuthSubmit" type="submit">Sign in</button>
       </form>
-
-      <!-- Platform status (clean diagnostics bar merged into welcome banner) -->
-      <div class="analytics-band welcome-status" data-auth-required>
-        <div class="analytics-head" id="analyticsHead" role="button" tabindex="0" aria-expanded="false">
-          <div class="analytics-head-left">
-            <span class="analytics-head-icon material-symbols-outlined">analytics</span>
-            <h2>Platform Status</h2>
-          </div>
-          <div class="critical-status-pills" id="criticalStatusPills" aria-label="Critical connection status"></div>
-          <span class="analytics-chevron" aria-hidden="true">&#9660;</span>
-        </div>
-        <div class="analytics-body" id="analyticsBody" hidden>
-          <div class="analytics-row" id="metrics"></div>
-        </div>
-      </div>
     </section>
 
     <!-- Quick Actions (High-utility internal tools row) -->
@@ -108,7 +110,7 @@
           <span class="qa-icon material-symbols-outlined">inventory_2</span>
           <div class="qa-text">
             <strong>Delivery & Export</strong>
-            <span>Active shipments & commercial invoices</span>
+            <span>Active shipments & invoices</span>
           </div>
           <span class="qa-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
         </a>
@@ -116,7 +118,7 @@
           <span class="qa-icon material-symbols-outlined">document_scanner</span>
           <div class="qa-text">
             <strong>RX Capture</strong>
-            <span>Scan and extract optical prescriptions</span>
+            <span>Scan & extract optical Rx</span>
           </div>
           <span class="qa-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
         </a>
@@ -124,7 +126,7 @@
           <span class="qa-icon material-symbols-outlined">price_change</span>
           <div class="qa-text">
             <strong>Pricing Rules</strong>
-            <span>Sourcing ladder & wholesale price rules</span>
+            <span>Sourcing ladder & matrix</span>
           </div>
           <span class="qa-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
         </a>
@@ -132,7 +134,7 @@
           <span class="qa-icon material-symbols-outlined">link</span>
           <div class="qa-text">
             <strong>Integrations</strong>
-            <span>Innovations MSSQL, PSQL, and connectors</span>
+            <span>Innovations MSSQL & connectors</span>
           </div>
           <span class="qa-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
         </a>
@@ -140,7 +142,7 @@
           <span class="qa-icon material-symbols-outlined">bolt</span>
           <div class="qa-text">
             <strong>Automation</strong>
-            <span>Local LLM tasks & audited tools</span>
+            <span>Local LLM tasks & queue</span>
           </div>
           <span class="qa-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
         </a>
@@ -156,38 +158,6 @@
         </div>
       </div>
       <div class="app-access-grid" id="appAccessGrid"></div>
-    </section>
-
-    <!-- Platform Foundation -->
-    <section class="band foundation-band" data-auth-required>
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">Platform core</p>
-          <h2>Shared foundation</h2>
-        </div>
-      </div>
-      <div class="capability-grid">
-        <a class="capability-card" href="/settings#authentication">
-          <span class="icon material-symbols-outlined">lock</span>
-          <h3>Authentication</h3>
-          <p>One login and permission model across all operational modules.</p>
-        </a>
-        <a class="capability-card" href="/settings#modules">
-          <span class="icon material-symbols-outlined">view_module</span>
-          <h3>Module registry</h3>
-          <p>Centralized module lifecycle and routing without standalone silos.</p>
-        </a>
-        <a class="capability-card" href="/modules/integrations">
-          <span class="icon material-symbols-outlined">integration_instructions</span>
-          <h3>Integration layer</h3>
-          <p>MSSQL, PSQL, Access archives, and feeds routed via secure connectors.</p>
-        </a>
-        <a class="capability-card" href="/settings">
-          <span class="icon material-symbols-outlined">settings_system_daydream</span>
-          <h3>Administration</h3>
-          <p>Endpoints, credentials vault, user access, and system health controls.</p>
-        </a>
-      </div>
     </section>
 
   </main>
