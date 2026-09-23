@@ -57,6 +57,8 @@ test("delivery, launch-pad, pricing, and shell refinements retain their intended
   const shell = read("public/styles/shell.css");
   const shared = read("public/shared.js");
   const launchPad = read("public/app.js");
+  const launchPadMarkup = read("public/index.html");
+  const deliveryMarkup = read("public/delivery-export.html");
   const pricing = read("public/tools/pricing-automation/pricing.css");
   const pricingMarkup = read("public/tools/pricing-automation/index.html");
 
@@ -73,6 +75,16 @@ test("delivery, launch-pad, pricing, and shell refinements retain their intended
     "application launch actions must retain a visible keyboard focus state");
   assert.match(components, /@container \(min-width: 25rem\)/,
     "application cards must adapt to their available inline size");
+  assert.match(components, /\.signed-in main \{[\s\S]*--launch-pad-gutter: clamp\(14px, 5\.5vw, 70px\)/,
+    "the signed-in launch pad must define one shared responsive content rail");
+  assert.match(components, /@media \(min-width: 1200px\) \{[\s\S]*--launch-pad-gutter: 75px/,
+    "wide desktop launch pads must use the requested 75px content gutter");
+  assert.doesNotMatch(launchPadMarkup, /Shared foundation|Platform core/,
+    "the obsolete shared-foundation panel must not be rendered on the launch pad");
+  assert.doesNotMatch(deliveryMarkup, /searchHref/,
+    "Delivery and Export must retain its in-place command palette trigger");
+  assert.match(shared, /"\/modules\/delivery-export": \{\s*crumb: "Delivery & Export"\s*\}/,
+    "Delivery and Export route defaults must not redirect search to the launch pad");
   assert.match(launchPad, /target\.setAttribute\("aria-label", `\$\{apps\.length\} application workspaces`\)/,
     "the generated application grid must expose its workspace count to assistive technology");
   assert.match(launchPad, /class="app-access-card \$\{allowed \? "is-allowed" : "is-restricted"\}" data-application=/,

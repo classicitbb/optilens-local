@@ -183,12 +183,10 @@ function getShellPageConfig() {
       showDashboardEdit: true
     },
     "/modules/delivery-export": {
-      crumb: "Delivery & Export",
-      searchHref: "/"
+      crumb: "Delivery & Export"
     },
     "/delivery-export.html": {
-      crumb: "Delivery & Export",
-      searchHref: "/"
+      crumb: "Delivery & Export"
     },
     "/modules/pricing-automation": {
       crumb: "Pricing Automation"

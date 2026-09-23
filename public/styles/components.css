@@ -2400,6 +2400,25 @@ textarea.ci-line-input {
   box-shadow: none;
 }
 
+/* Keep the signed-in landing page on one shared content rail. The status
+   summary lives in the welcome banner, while the workspace grid is a sibling;
+   they therefore consume the same gutter rather than attempting to match each
+   other with section-specific margins. */
+.signed-in main {
+  --launch-pad-gutter: clamp(14px, 5.5vw, 70px);
+}
+
+.signed-in .welcome-banner,
+.signed-in .app-access-band {
+  margin-inline: var(--launch-pad-gutter);
+}
+
+@media (min-width: 1200px) {
+  .signed-in main {
+    --launch-pad-gutter: 75px;
+  }
+}
+
 /* ════════════════════════════════════════════════════════
    ANALYTICS / STATUS BAND
 ════════════════════════════════════════════════════════ */
@@ -2621,7 +2640,7 @@ textarea.ci-line-input {
 }
 
 .app-access-band {
-  margin: 18px clamp(14px, 5.5vw, 70px) 24px;
+  margin: 18px var(--launch-pad-gutter, clamp(14px, 5.5vw, 70px)) 24px;
   padding: 15px;
   border: 0;
   border-radius: 0;
