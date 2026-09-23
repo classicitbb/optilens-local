@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {} };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -75,6 +75,10 @@
     $("#primaryImage").addEventListener("change", () => previewFile("primaryImage", "primaryPreview", "primaryFileName"));
     $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
     $("#customerSearch").addEventListener("input", searchCustomers);
+    $("#customerSearch").addEventListener("keydown", customerSearchKeys);
+    $("#customerSearch").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("#customerSearch")) renderCustomerResults([]); }, 150));
+    window.addEventListener("scroll", positionCustomerResults, true);
+    window.addEventListener("resize", positionCustomerResults);
     $("#captureForm").addEventListener("submit", submitCapture);
     // The review form has no submit button, so Enter never saves by accident;
     // saving and submitting are explicit (buttons or Ctrl+S / Ctrl+Enter).
@@ -89,7 +93,13 @@
       fieldForPath("frame.a").focus();
     });
     document.addEventListener("keydown", reviewShortcuts);
+    // Every dropdown uses the website's combo list; Enter on a pick moves on.
+    document.querySelectorAll("#reviewForm select").forEach((select) => window.RxCombo.select(select, { onAdvance: (field) => focusNextField(field) }));
     document.querySelectorAll("[data-lens]").forEach((input) => {
+      const key = input.dataset.lens;
+      state.lensCombos[key] = window.RxCombo.combo(input, {
+        items: () => state.lensLabels[key] || [],
+        allItems: () => [...(state.lensUniverse?.[key] || [])].sort(compareLensValues(key)), onAdvance: (field) => focusNextField(field), synonyms: LENS_SHORTHAND });
       input.addEventListener("input", () => onLensInput(input.dataset.lens));
       input.addEventListener("change", () => onLensCommit(input.dataset.lens));
     });
@@ -267,8 +277,15 @@
   const LENS_KEYS = ["material", "design", "option"];
   const LENS_LABELS = { material: "material", design: "design", option: "colour option" };
   const LENS_TYPE_ORDER = ["Single Vision", "Bifocal", "Trifocal", "Progressive"];
+  // Shorthand operators type, as it appears on prescriptions and order sheets.
+  const LENS_SHORTHAND = {
+    ft: ["flat"], rd: ["round"], sv: ["single", "singlevision"], bf: ["bifocal"], tf: ["trifocal"],
+    pal: ["progressive"], prog: ["progressive"], pc: ["poly"], polycarbonate: ["poly"],
+    cr39: ["plastic"], cr: ["plastic"], hi: ["1.67", "1.74"], trans: ["transitions"], transitions: ["trans"],
+    grey: ["gray"], photo: ["photochromic"], ar: ["ar", "hmc", "shmc"], uc: ["uncoated", "unc"], src: ["srcoated", "src"]
+  };
   const lensInput = (key) => $(`#lens${key[0].toUpperCase()}${key.slice(1)}`);
-  const lensList = (key) => $(`#lens${key[0].toUpperCase()}${key.slice(1)}List`);
+  const setLensValue = (key, value) => { lensInput(key).value = value || ""; state.lensCombos?.[key]?.setCommitted(value || ""); };
   const designLabel = (item) => [item.lensType, item.style].filter(Boolean).join(" · ");
   const lensValue = (item, key) => (key === "material" ? item.material : key === "design" ? designLabel(item) : item.option);
 
@@ -303,7 +320,7 @@
       } catch { /* the employee chooses from the lists instead */ }
     }
     for (const key of LENS_KEYS) {
-      lensInput(key).value = values[key] || "";
+      setLensValue(key, values[key]);
       lensInput(key).classList.toggle("guessed", guessed && Boolean(values[key]));
     }
     $("#lensGuessNote").hidden = !guessed;
@@ -358,7 +375,8 @@
     const choices = lensChoices();
     for (const key of LENS_KEYS) {
       const values = [...new Set(lensMatches(choices, key).map((item) => lensValue(item, key)).filter(Boolean))].sort(compareLensValues(key));
-      lensList(key).replaceChildren(...values.map((value) => new Option(value, value)));
+      state.lensLabels[key] = values;
+      state.lensCombos?.[key]?.refresh();
     }
     const matches = lensMatches(choices);
     state.lensResolved = LENS_KEYS.every((key) => choices[key]) && matches.length
@@ -413,7 +431,7 @@
     for (const other of ["option", "design", "material"]) {
       if (lensMatches(lensChoices()).length) break;
       if (other === key || !lensChoices()[other]) continue;
-      lensInput(other).value = "";
+      setLensValue(other, "");
       lensInput(other).classList.remove("guessed");
       cleared.push(LENS_LABELS[other]);
     }
@@ -428,7 +446,7 @@
     const choices = lensChoices();
     for (const key of LENS_KEYS) {
       const typed = lensInput(key).value.trim();
-      if (typed && !choices[key]) issues.push({ path: `lens:${key}`, message: `Lens ${LENS_LABELS[key]} "${typed}" is not on the catalogue; pick one from the list.` });
+      if (typed && !choices[key] && document.activeElement !== lensInput(key)) issues.push({ path: `lens:${key}`, message: `Lens ${LENS_LABELS[key]} "${typed}" is not on the catalogue; pick one from the list.` });
     }
     if (!issues.length && !state.lensResolved) {
       const missing = LENS_KEYS.filter((key) => !choices[key]);
@@ -457,16 +475,12 @@
     $("#frameJobBadge").textContent = status === "UNCUT" ? "Uncut job" : "Edged job";
   }
 
-  // Enter moves to the next field, like a keyed order-entry screen. On a lens
-  // choice it waits for the datalist pick to land before moving on.
+  // Enter moves to the next field, like a keyed order-entry screen. Open
+  // dropdowns handle their own Enter (pick, then move on) before this runs.
   function advanceOnEnter(event) {
     if (event.key !== "Enter" || event.ctrlKey || event.metaKey || event.altKey) return;
     const field = event.target;
     if (!field.matches("input, select") || field.type === "hidden") return;
-    if (field.matches("[data-lens]")) {
-      setTimeout(() => { if (lensChoices()[field.dataset.lens]) focusNextField(field, event.shiftKey); }, 0);
-      return;
-    }
     event.preventDefault();
     focusNextField(field, event.shiftKey);
   }
@@ -857,28 +871,55 @@
     }, 180);
   }
 
+  // Customer matches use the same list as every other dropdown: it floats
+  // under the search field, and Up/Down + Enter pick without the mouse.
   function renderCustomerResults(customers) {
     const results = $("#customerResults");
-    results.replaceChildren(...customers.map((customer) => {
+    state.customerMatches = customers;
+    state.customerActive = customers.length ? 0 : -1;
+    results.replaceChildren(...customers.map((customer, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "customer-result";
+      button.className = `cbopt customer-result${index === state.customerActive ? " act" : ""}`;
+      button.tabIndex = -1;
       button.setAttribute("role", "option");
-      button.innerHTML = "";
       const name = document.createElement("strong");
       name.textContent = customer.name;
       const detail = document.createElement("small");
       detail.textContent = `${customer.account} · ID ${customer.id}`;
       button.append(name, detail);
-      button.addEventListener("click", () => {
-        state.selectedCustomer = customer;
-        $("#customerSearch").value = customer.name;
-        renderSelectedCustomer();
-        renderCustomerResults([]);
-      });
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", () => pickCustomer(customer));
       return button;
     }));
     results.hidden = customers.length === 0;
+    results.classList.toggle("on", customers.length > 0);
+    positionCustomerResults();
+  }
+
+  function positionCustomerResults() {
+    const results = $("#customerResults");
+    if (results.hidden) return;
+    const rect = $("#customerSearch").getBoundingClientRect();
+    Object.assign(results.style, { left: `${rect.left}px`, top: `${rect.bottom + 4}px`, width: `${rect.width}px` });
+  }
+
+  function pickCustomer(customer) {
+    state.selectedCustomer = customer;
+    $("#customerSearch").value = customer.name;
+    renderSelectedCustomer();
+    renderCustomerResults([]);
+  }
+
+  function customerSearchKeys(event) {
+    const matches = state.customerMatches || [];
+    if (!matches.length || !["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === "Escape") return renderCustomerResults([]);
+    if (event.key === "Enter") return pickCustomer(matches[Math.max(state.customerActive, 0)]);
+    state.customerActive = Math.min(Math.max(state.customerActive + (event.key === "ArrowDown" ? 1 : -1), 0), matches.length - 1);
+    [...$("#customerResults").children].forEach((option, index) => option.classList.toggle("act", index === state.customerActive));
+    $("#customerResults").children[state.customerActive]?.scrollIntoView({ block: "nearest" });
   }
 
   function renderSelectedCustomer() {

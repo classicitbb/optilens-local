@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#0b1e35">
   <title>RX Capture</title>
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&display=swap">
   <link rel="stylesheet" href="/styles/pages/rx-capture.css">
 </head>
 <body>
@@ -54,10 +57,10 @@
       <form id="captureForm" class="capture-card">
         <section class="customer-picker" aria-labelledby="captureCustomerLabel">
           <label id="captureCustomerLabel" for="customerSearch">Customer
-            <input id="customerSearch" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required>
+            <input id="customerSearch" class="cb-field" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required>
           </label>
           <p id="selectedCustomer" class="selected-customer">Search and select the customer before taking the prescription photo.</p>
-          <div id="customerResults" class="customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
+          <div id="customerResults" class="cblist customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
         </section>
         <label class="file-card" for="primaryImage">
           <span class="camera-icon" aria-hidden="true">⌁</span>
@@ -175,13 +178,10 @@
           <input type="hidden" data-path="lensRequest.catalogAlias">
           <input type="hidden" data-path="lensRequest.design">
           <div class="field-grid three lens-choices">
-            <label for="lensMaterial">1 · Material / index<input id="lensMaterial" list="lensMaterialList" autocomplete="off" placeholder="Type to search" data-lens="material"></label>
-            <label for="lensDesign">2 · Lens design / type<input id="lensDesign" list="lensDesignList" autocomplete="off" placeholder="Type to search" data-lens="design"></label>
-            <label for="lensOption">3 · Lens colour option<input id="lensOption" list="lensOptionList" autocomplete="off" placeholder="Type to search" data-lens="option"></label>
+            <label for="lensMaterial">1 · Material / index<input id="lensMaterial" autocomplete="off" placeholder="Type or choose…" data-lens="material"></label>
+            <label for="lensDesign">2 · Lens design / type<input id="lensDesign" autocomplete="off" placeholder="Type or choose…" data-lens="design"></label>
+            <label for="lensOption">3 · Lens colour option<input id="lensOption" autocomplete="off" placeholder="Type or choose…" data-lens="option"></label>
           </div>
-          <datalist id="lensMaterialList"></datalist>
-          <datalist id="lensDesignList"></datalist>
-          <datalist id="lensOptionList"></datalist>
           <p id="lensGuessNote" class="lens-guess-note" hidden>Guessed from the photo. Check each choice and correct anything that doesn't match the prescription.</p>
           <div id="lensSummary" class="lens-summary" role="status" aria-live="polite"></div>
           <div class="field-grid two lens-extras">
@@ -218,6 +218,7 @@
     </section>
   </main>
   <script src="/rx-capture-validation.js" defer></script>
+  <script src="/rx-combobox.js" defer></script>
   <script src="/rx-capture.js" defer></script>
 </body>
 </html>

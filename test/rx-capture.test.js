@@ -284,6 +284,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /accept="image\/\*" capture="environment"/);
   assert.match(html, /Lens selection/);
   assert.match(html, /data-lens="option"/);
+  assert.match(html, /<script src="\/rx-combobox\.js" defer><\/script>\s*<script src="\/rx-capture\.js" defer>/);
+  assert.doesNotMatch(html, /<datalist/);
   assert.match(html, /data-path="lensRequest\.lensType"/);
   assert.match(html, /data-path="frame\.status"/);
   assert.match(html, /To be traced/);
