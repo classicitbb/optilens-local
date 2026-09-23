@@ -167,6 +167,12 @@
           </div>
         </section>
 
+        <section id="validationCard" class="validation-card" hidden aria-live="polite">
+          <h2>Check these values</h2>
+          <ul id="validationErrors" class="validation-list errors"></ul>
+          <ul id="validationWarnings" class="validation-list warnings"></ul>
+        </section>
+
         <section id="issuesCard" class="issues-card" hidden>
           <h2>Captured details to continue later</h2>
           <p>These marks show what was unclear in the photo. Save the draft now and complete it later; only the minimum Innovations import values must be present to submit.</p>
@@ -212,6 +218,7 @@
       </section>
     </section>
   </main>
+  <script src="/rx-capture-validation.js" defer></script>
   <script src="/rx-capture.js" defer></script>
 </body>
 </html>

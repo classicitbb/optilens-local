@@ -84,9 +84,17 @@
       const update = () => {
         resolveIssue(input.dataset.path);
         if (/^lensRequest\.(materialGroup|material|lensType|catalogAlias)$/.test(input.dataset.path)) refreshCatalogFields();
+        runValidation();
       };
       input.addEventListener("input", update);
       input.addEventListener("change", update);
+      if (input.tagName === "INPUT" && !input.readOnly) {
+        input.addEventListener("blur", () => {
+          const formatted = window.RxValidation.formatField(input.dataset.path, input.value);
+          if (formatted !== input.value) input.value = formatted;
+          runValidation();
+        });
+      }
     });
   }
 
@@ -202,6 +210,7 @@
       renderOrder(order.normalizedOrder);
       await renderCatalogFields(order.normalizedOrder);
     }
+    runValidation();
     await renderResolution(order, canEdit);
     renderApprovalActions(order);
     stopPolling();
@@ -412,6 +421,12 @@
     order.patient.name = normalizePatientName(order.patient.name);
     fieldForPath("patient.name").value = order.patient.name || "";
     order.frame.supplied = order.frame.status !== "UNCUT";
+    const { errors } = runValidation();
+    if (errors.length) {
+      showNotice(`Fix ${errors.length} value${errors.length === 1 ? "" : "s"} before saving: ${errors[0].message}`, true);
+      focusField(errors[0].path);
+      return;
+    }
     const button = $("#saveReviewButton");
     button.disabled = true;
     try {
@@ -427,6 +442,75 @@
     } finally {
       button.disabled = false;
     }
+  }
+
+  function currentDraft() {
+    const draft = JSON.parse(JSON.stringify(state.current?.normalizedOrder || {}));
+    document.querySelectorAll("#reviewForm [data-path]").forEach((input) => {
+      try { setAtPath(draft, input.dataset.path, input.value.trim() || null); } catch { /* path absent from this draft */ }
+    });
+    return draft;
+  }
+
+  function runValidation() {
+    const card = $("#validationCard");
+    if (!state.current?.normalizedOrder || $("#reviewForm").hidden) {
+      card.hidden = true;
+      return { errors: [], warnings: [] };
+    }
+    const result = window.RxValidation.validateOrder(currentDraft());
+    document.querySelectorAll("#reviewForm [data-path]").forEach((input) => {
+      input.classList.remove("invalid", "warned");
+      input.removeAttribute("aria-invalid");
+    });
+    for (const item of result.warnings) fieldForPath(item.path)?.classList.add("warned");
+    for (const item of result.errors) {
+      const input = fieldForPath(item.path);
+      input?.classList.add("invalid");
+      input?.setAttribute("aria-invalid", "true");
+    }
+    renderValidationList($("#validationErrors"), result.errors);
+    renderValidationList($("#validationWarnings"), result.warnings);
+    card.classList.toggle("has-errors", result.errors.length > 0);
+    card.hidden = result.errors.length + result.warnings.length === 0;
+    return result;
+  }
+
+  function renderValidationList(list, items) {
+    list.replaceChildren(...items.map((item) => {
+      const row = document.createElement("li");
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "validation-link";
+      link.textContent = item.message;
+      link.addEventListener("click", () => focusField(item.path));
+      row.append(link);
+      if (item.fix && !fieldForPath(item.path)?.disabled) {
+        const fix = document.createElement("button");
+        fix.type = "button";
+        fix.className = "validation-fix";
+        fix.textContent = item.fix.label;
+        fix.addEventListener("click", () => applyFix(item.fix));
+        row.append(fix);
+      }
+      return row;
+    }));
+  }
+
+  function applyFix(fix) {
+    if (fix.type === "minus-cylinder") {
+      fieldForPath(`prescription.${fix.side}.sphere`).value = fix.values.sphere;
+      fieldForPath(`prescription.${fix.side}.cylinder`).value = fix.values.cylinder;
+      fieldForPath(`prescription.${fix.side}.axis`).value = String(fix.values.axis);
+    }
+    runValidation();
+  }
+
+  function focusField(path) {
+    const input = fieldForPath(path);
+    if (!input) return;
+    input.scrollIntoView({ block: "center", behavior: "smooth" });
+    input.focus({ preventScroll: true });
   }
 
   async function reprocess() {
