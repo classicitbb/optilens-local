@@ -267,13 +267,13 @@
     $("#failedMessage").textContent = order.normalizedOrder
       ? `${failureMessage} The last saved values remain available below for review.`
       : failureMessage;
-    const editable = canEdit && !["APPROVED", "STAGED", "RELEASED"].includes(order.status);
+    const editable = canEdit && !["APPROVED", "RX_GENERATED", "STAGED", "RELEASED"].includes(order.status);
     state.canEdit = editable;
     state.lensResolved = null;
     state.lastValidation = null;
     if (state.current?.id !== state.renderedOrderId) state.measurementsOpened = false;
     state.renderedOrderId = order.id;
-    $("#reprocessButton").hidden = !canEdit;
+    $("#reprocessButton").hidden = !editable;
     $("#saveReviewButton").hidden = !editable;
     document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
     if (order.normalizedOrder) {
