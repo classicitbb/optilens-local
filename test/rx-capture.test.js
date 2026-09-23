@@ -285,7 +285,9 @@ test("RX Capture lets the intake owner submit one reviewed draft without a secon
   assert.match(releaseMigration, /rx-capture\.release/);
   assert.match(client, /\/submit/);
   assert.match(client, /rx-capture\/coatings/);
+  assert.match(client, /Save draft & continue to open the lens and coating choices/);
   assert.match(html, /SUBMIT TO INNOVATIONS/);
+  assert.match(html, /SAVE DRAFT &amp; CONTINUE/);
   assert.match(html, /Captured details to continue later/);
   assert.doesNotMatch(html, /Review \/ release access/);
 });

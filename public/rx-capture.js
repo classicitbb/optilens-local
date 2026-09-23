@@ -271,11 +271,22 @@
   }
 
   function renderApprovalActions(order) {
-    const visible = (state.canWrite && state.canRelease && order.status === "READY_FOR_REVIEW" && order.resolution) || order.status === "RELEASED";
+    const readyToSubmit = state.canWrite && state.canRelease && order.status === "READY_FOR_REVIEW";
+    const visible = readyToSubmit || order.status === "RELEASED";
     $("#approvalActions").hidden = !visible;
     if (!visible) return;
-    if (order.status === "RELEASED") $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
-    else $("#approvalMessage").textContent = "Submitting creates the RX file, stages it, and sends it to Innovations. The order can continue to be edited there.";
+    const button = $("#submitOrderButton");
+    button.hidden = order.status === "RELEASED";
+    button.disabled = !order.resolution;
+    if (order.status === "RELEASED") {
+      $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
+    } else if (!order.reviewConfirmedAt) {
+      $("#approvalMessage").textContent = "Save draft & continue to open the lens and coating choices. Submit is then enabled for this same order.";
+    } else if (!order.resolution) {
+      $("#approvalMessage").textContent = "Choose an exact active lens and save the submission choices. Submit is then enabled for this same order.";
+    } else {
+      $("#approvalMessage").textContent = "This draft is ready. Submit creates the RX file, stages it, and sends it to Innovations.";
+    }
   }
 
   function renderIssues(order) {
@@ -333,7 +344,7 @@
         body: JSON.stringify({ normalizedOrder: order })
       });
       await showOrder(payload.order);
-      showNotice("Draft saved. You can continue it now or return later.");
+      showNotice("Draft saved. Choose the lens and coating, then submit this same order to Innovations.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {

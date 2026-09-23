@@ -98,6 +98,11 @@ test("preview is non-writing and retains the required RX line ordering", () => {
   assert.match(preview.content, /rx_od_sphere:\+0\.00[\s\S]*end_order\r\n$/);
 });
 
+test("new RX order identifiers begin at the 70000000 serial range", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-generator.js"), "utf8");
+  assert.match(source, /nextOrderId: 70000000/);
+});
+
 test("unapproved aliases and misc SKUs outside the Coatings group cannot enter an RX file", () => {
   assert.throws(() => rx.preview({ ...basePayload, lens: { mode: "fixed", alias: "0010100100001" } }), /valid 13-digit lens alias/);
   assert.throws(() => rx.preview({ ...basePayload, coating: { mode: "fixed", sku: "MOMOTEM" } }), /valid coating/);
