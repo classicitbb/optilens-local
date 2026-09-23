@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {} };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {} };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -72,8 +72,16 @@
       await api("/api/auth/logout", { method: "POST" }).catch(() => {});
       location.assign("/");
     });
-    $("#primaryImage").addEventListener("change", () => previewFile("primaryImage", "primaryPreview", "primaryFileName"));
-    $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
+    // Camera and gallery inputs share one image per slot; the latest pick wins.
+    document.querySelectorAll("[data-image-input]").forEach((input) => input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (!file) return;
+      state.images[input.dataset.imageInput] = file;
+      input.value = "";
+      previewFile(input.dataset.imageInput);
+    }));
+    $("#manualEntryButton").addEventListener("click", startManualEntry);
+    $("#ownLensButton").addEventListener("click", chooseOwnLenses);
     $("#customerSearch").addEventListener("input", searchCustomers);
     $("#customerSearch").addEventListener("keydown", customerSearchKeys);
     $("#customerSearch").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("#customerSearch")) renderCustomerResults([]); }, 150));
@@ -99,7 +107,11 @@
       const key = input.dataset.lens;
       state.lensCombos[key] = window.RxCombo.combo(input, {
         items: () => state.lensLabels[key] || [],
-        allItems: () => [...(state.lensUniverse?.[key] || [])].sort(compareLensValues(key)), onAdvance: (field) => focusNextField(field), synonyms: LENS_SHORTHAND });
+        allItems: () => [...(state.lensUniverse?.[key] || [])].sort(compareLensValues(key)),
+        pinned: key === "design" ? isOwnLensDesign : undefined,
+        onAdvance: (field) => focusNextField(field),
+        synonyms: LENS_SHORTHAND
+      });
       input.addEventListener("input", () => onLensInput(input.dataset.lens));
       input.addEventListener("change", () => onLensCommit(input.dataset.lens));
     });
@@ -173,8 +185,7 @@
 
   async function submitCapture(event) {
     event.preventDefault();
-    const primary = $("#primaryImage").files[0];
-    const secondary = $("#secondaryImage").files[0];
+    const { primary, secondary } = state.images;
     if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
     if (!primary) return showNotice("Choose a prescription image first.", true);
     const button = $("#submitCaptureButton");
@@ -191,10 +202,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ images, customer: state.selectedCustomer })
       });
-      $("#captureForm").reset();
-      clearSelectedCustomer();
-      clearPreview("primaryPreview", "primaryFileName");
-      clearPreview("secondaryPreview", "secondaryFileName");
+      resetCapture();
       await showOrder(payload.order);
     } catch (error) {
       showNotice(error.message, true);
@@ -202,6 +210,39 @@
       button.disabled = false;
       button.textContent = "SUBMIT FOR EXTRACTION";
     }
+  }
+
+  // Manual entry: same customer check, no photo, straight to an empty review.
+  async function startManualEntry() {
+    if (!state.selectedCustomer) {
+      showNotice("Select the ERP customer before entering the prescription.", true);
+      $("#customerSearch").focus();
+      return;
+    }
+    const button = $("#manualEntryButton");
+    button.disabled = true;
+    try {
+      const payload = await api("/api/rx-capture/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manual: true, customer: state.selectedCustomer })
+      });
+      resetCapture();
+      await showOrder(payload.order);
+      fieldForPath("patient.name")?.focus();
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function resetCapture() {
+    $("#captureForm").reset();
+    clearSelectedCustomer();
+    state.images = {};
+    previewFile("primary");
+    previewFile("secondary");
   }
 
   async function openOrder(id) {
@@ -324,6 +365,7 @@
       lensInput(key).classList.toggle("guessed", guessed && Boolean(values[key]));
     }
     $("#lensGuessNote").hidden = !guessed;
+    $("#ownLensButton").hidden = !state.canEdit || ![...state.lensUniverse.design].some(isOwnLensDesign);
     refreshLensLists();
   }
 
@@ -363,11 +405,31 @@
 
   function compareLensValues(key) {
     if (key !== "design") return (left, right) => left.localeCompare(right, undefined, { numeric: true });
+    // Customer-supplied designs lead the list: they are the most common job.
     const rank = (value) => {
+      if (isOwnLensDesign(value)) return -1;
       const index = LENS_TYPE_ORDER.indexOf(value.split(" · ")[0]);
       return index === -1 ? LENS_TYPE_ORDER.length : index;
     };
     return (left, right) => rank(left) - rank(right) || left.localeCompare(right, undefined, { numeric: true });
+  }
+
+  const OWN_LENS_STYLE = "Custom Lens";
+  const isOwnLensDesign = (label) => label.endsWith(` · ${OWN_LENS_STYLE}`);
+
+  // One action for the usual job: switch the design to the customer-supplied
+  // ("Custom Lens") design of the current lens type, keeping material and
+  // colour where they still fit; the normal conflict repair clears the rest.
+  function chooseOwnLenses() {
+    if (!state.catalog || !state.canEdit) return;
+    const current = lensChoices().design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
+    const designs = [...state.lensUniverse.design].filter(isOwnLensDesign);
+    const target = designs.find((label) => label.startsWith(`${current} · `)) || designs.find((label) => label.startsWith("Single Vision · ")) || designs[0];
+    if (!target) return showNotice("No customer-supplied lens is available in the catalogue.", true);
+    setLensValue("design", target);
+    lensInput("design").classList.remove("guessed");
+    onLensCommit("design");
+    focusNextField(lensInput("design"));
   }
 
   function refreshLensLists() {
@@ -389,6 +451,7 @@
     setHiddenPath("lensRequest.style", design?.style || "");
     setHiddenPath("lensRequest.option", choices.option);
     setHiddenPath("lensRequest.catalogAlias", state.lensResolved?.alias || "");
+    $("#ownLensButton").setAttribute("aria-pressed", String(isOwnLensDesign(choices.design)));
     $("#lensComboCount").textContent = `${matches.length} valid combination${matches.length === 1 ? "" : "s"}`;
     const summary = $("#lensSummary");
     summary.classList.toggle("resolved", Boolean(state.lensResolved));
@@ -397,7 +460,7 @@
       const label = document.createElement("strong");
       label.textContent = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
       const alias = document.createElement("span");
-      alias.textContent = `Innovations alias ${state.lensResolved.alias}`;
+      alias.textContent = `Innovations alias ${state.lensResolved.alias}${state.lensResolved.customerSupplied ? " · customer-supplied lens" : ""}`;
       summary.append(label, alias);
     } else {
       summary.textContent = "Choose a material, design and colour option to identify the exact Innovations lens.";
@@ -498,7 +561,13 @@
   }
 
   function reviewShortcuts(event) {
-    if (!(event.ctrlKey || event.metaKey) || !$("#reviewScreen").classList.contains("active") || $("#reviewForm").hidden) return;
+    if (!$("#reviewScreen").classList.contains("active") || $("#reviewForm").hidden) return;
+    if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === "KeyC") {
+      event.preventDefault();
+      chooseOwnLenses();
+      return;
+    }
+    if (!(event.ctrlKey || event.metaKey)) return;
     if (event.key.toLowerCase() === "s") {
       event.preventDefault();
       if (!$("#saveReviewButton").hidden) saveReview(event);
@@ -790,24 +859,24 @@
     });
   }
 
-  async function previewFile(inputId, previewId, nameId) {
-    const file = $(`#${inputId}`).files[0];
-    const preview = $(`#${previewId}`);
-    if (!file) return clearPreview(previewId, nameId);
-    $(`#${nameId}`).textContent = file.name;
+  async function previewFile(slot) {
+    const file = state.images[slot];
+    const preview = $(`#${slot}Preview`);
+    const name = $(`#${slot}FileName`);
+    preview.closest(".file-card").classList.toggle("has-image", Boolean(file));
+    if (!file) {
+      preview.removeAttribute("src");
+      preview.hidden = true;
+      name.textContent = "";
+      return;
+    }
+    name.textContent = file.name;
     try {
       preview.src = await fileToDataUrl(file);
       preview.hidden = false;
     } catch {
       preview.hidden = true;
     }
-  }
-
-  function clearPreview(previewId, nameId) {
-    const preview = $(`#${previewId}`);
-    preview.removeAttribute("src");
-    preview.hidden = true;
-    $(`#${nameId}`).textContent = "";
   }
 
   function showScreen(id) {

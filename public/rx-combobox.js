@@ -40,7 +40,7 @@
     list.style.width = `${rect.width}px`;
   }
 
-  function renderOptions(list, labels, { selected, active, empty, heading }) {
+  function renderOptions(list, labels, { selected, active, empty, heading, pinned }) {
     const group = heading ? [Object.assign(document.createElement("div"), { className: "cbgrp", textContent: heading })] : [];
     list.replaceChildren(...group, ...(labels.length ? labels.map((label, index) => {
       const option = document.createElement("div");
@@ -48,7 +48,8 @@
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(label === selected));
       option.dataset.index = String(index);
-      option.textContent = label;
+      if (pinned?.(label)) option.append(Object.assign(document.createElement("span"), { className: "pin", textContent: "★", ariaHidden: "true" }));
+      option.append(label);
       return option;
     }) : [Object.assign(document.createElement("div"), { className: "cbnone", textContent: empty })]));
     list.querySelectorAll(".cbopt")[active]?.scrollIntoView?.({ block: "nearest" });
@@ -80,7 +81,7 @@
 
   // Type-to-search input. `items()` returns the current labels; a pick sets the
   // input value and fires input + change. Enter picks and calls onAdvance.
-  function combo(input, { items, allItems, conflictNote = "Other choices · picking clears conflicts", onAdvance = () => {}, empty = "No matches", synonyms }) {
+  function combo(input, { items, allItems, pinned, conflictNote = "Other choices · picking clears conflicts", onAdvance = () => {}, empty = "No matches", synonyms }) {
     const matches = matcher(synonyms);
     const wrap = document.createElement("div");
     wrap.className = "combo";
@@ -133,7 +134,7 @@
     function render() {
       const labels = visible();
       if (active >= labels.length) active = labels.length - 1;
-      renderOptions(list, labels, { selected: input.value, active, empty, heading: widened ? conflictNote : "" });
+      renderOptions(list, labels, { selected: input.value, active, empty, pinned, heading: widened ? conflictNote : "" });
     }
     function open() {
       if (input.disabled || input.readOnly) return;

@@ -80,6 +80,59 @@ test("lens guess always proposes the closest active group-1 lens from partial wo
   assert.equal(guessLens({ lensType: "Bifocal" }, catalog.filter((lens) => lens.materialGroupCode === "2")), null);
 });
 
+test("customer-supplied Custom Lens aliases are preferred for an otherwise equal guess", () => {
+  const stock = { alias: "0000000100001", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "1.67 Index", styleDescription: "Regular", colorDescription: "Trans 7 Gray" };
+  const own = { alias: "0000199900700", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "1.67 Index", styleDescription: "Custom Lens", colorDescription: "Trans 7 Gray", customerSupplied: true };
+  const progressive = { alias: "0000500000001", materialGroupCode: "1", mfType: "Progressive", materialDescription: "1.67 Index", styleDescription: "Physio", colorDescription: "Trans 7 Gray" };
+  assert.equal(guessLens({ lensType: "Single Vision", material: "1.67", option: "Transitions gray" }, [stock, own]).alias, own.alias);
+  assert.equal(guessLens({ lensType: "Progressive", material: "1.67", option: "Transitions gray" }, [own, progressive]).alias, progressive.alias);
+  const ownPoly = { ...own, alias: "0010199900700", materialDescription: "Poly 1.59" };
+  assert.equal(guessLens({ lensType: "Single Vision", material: "1.67", design: "pt own lenses, cut only", option: "gray" }, [stock, ownPoly]).alias, ownPoly.alias);
+});
+
+test("catalogue sync recognises the Innovations Custom Lens style as customer-supplied", () => {
+  const { isCustomerSuppliedLens } = require("../lib/rx-catalog-sync");
+  assert.equal(isCustomerSuppliedLens("Custom Lens", "Trans 7 Gray"), true);
+  assert.equal(isCustomerSuppliedLens("Flat Top 28", "Custom Lens"), true);
+  assert.equal(isCustomerSuppliedLens("Custom AllPurp 12", "SRCoated"), false);
+  assert.equal(isCustomerSuppliedLens("Regular", "Custom Gray"), false);
+});
+
+test("manual entry creates an empty ready-to-review draft without images or extraction", async () => {
+  const { createRxCaptureService } = require("../lib/rx-capture/service");
+  const rows = new Map();
+  const events = [];
+  const pool = {
+    request() {
+      const params = {};
+      const request = {
+        input(name, _type, value) { params[name] = value; return request; },
+        async query(text) {
+          if (/INSERT INTO rx_capture\.orders/.test(text)) {
+            rows.set(params.capture_order_id, { ...params, extracted_json: params.draft_json, validated_json: params.draft_json, created_by_user_id: params.created_by_user_id, last_updated_at: params.created_at });
+            return { recordset: [] };
+          }
+          if (/order_events/.test(text)) { events.push(params); return { recordset: [] }; }
+          return { recordset: [...rows.values()].filter((row) => row.capture_order_id === params.capture_order_id) };
+        }
+      };
+      return request;
+    }
+  };
+  let scheduled = false;
+  const service = createRxCaptureService({ getAppPool: async () => pool, schedule: () => { scheduled = true; }, extractPrescriptionFromImages: async () => { throw new Error("must not extract"); } });
+  const actor = { userId: "11111111-1111-1111-1111-111111111111", username: "employee" };
+  const order = await service.createOrder({ manual: true, customer: { id: 7, account: "5000150", name: "Anka Optical Broad Street" } }, actor);
+  assert.equal(order.status, "READY_FOR_REVIEW");
+  assert.equal(scheduled, false);
+  assert.equal(order.normalizedOrder.lensGuessed, false);
+  assert.equal(order.normalizedOrder.lensRequest.materialGroup, "1");
+  assert.equal(order.normalizedOrder.patient.name, null);
+  assert.equal(order.customer.account, "5000150");
+  assert.equal([...rows.values()][0].source_image_paths_json, undefined);
+  assert.ok(events.length >= 1);
+});
+
 test("extracted wording stays as evidence while the draft starts from the guessed lens", () => {
   const extracted = normalizeOpticalOrder({ lensRequest: { lensType: "Bifocal", material: "Polycarbonate", option: "Gray" } });
   const draft = applyLensGuess(extracted, { alias: "0010002800096", material: "Poly 1.59", lensType: "Bifocal", style: "Flat Top 28", option: "XtrActive Gray" });
@@ -286,6 +339,11 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /data-lens="option"/);
   assert.match(html, /<script src="\/rx-combobox\.js" defer><\/script>\s*<script src="\/rx-capture\.js" defer>/);
   assert.doesNotMatch(html, /<datalist/);
+  assert.match(html, /id="primaryImage" type="file" accept="image\/\*" data-image-input="primary"/);
+  assert.match(html, /id="primaryCamera" type="file" accept="image\/\*" capture="environment"/);
+  assert.match(html, /Choose from gallery/);
+  assert.match(html, /id="manualEntryButton"/);
+  assert.match(html, /id="ownLensButton"/);
   assert.match(html, /data-path="lensRequest\.lensType"/);
   assert.match(html, /data-path="frame\.status"/);
   assert.match(html, /To be traced/);

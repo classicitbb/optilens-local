@@ -62,26 +62,33 @@
           <p id="selectedCustomer" class="selected-customer">Search and select the customer before taking the prescription photo.</p>
           <div id="customerResults" class="cblist customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
         </section>
-        <label class="file-card" for="primaryImage">
+        <div class="file-card" data-image-slot="primary">
           <span class="camera-icon" aria-hidden="true">⌁</span>
           <strong>Prescription image</strong>
-          <span>Take a photo or choose an image</span>
-          <input id="primaryImage" name="primaryImage" type="file" accept="image/*" capture="environment" required>
+          <span>Take a photo or choose one from your gallery</span>
           <img id="primaryPreview" alt="Prescription preview" hidden>
           <small id="primaryFileName"></small>
-        </label>
+          <div class="file-actions">
+            <label class="file-button" for="primaryCamera">Take photo<input id="primaryCamera" type="file" accept="image/*" capture="environment" data-image-input="primary"></label>
+            <label class="file-button" for="primaryImage">Choose from gallery<input id="primaryImage" type="file" accept="image/*" data-image-input="primary"></label>
+          </div>
+        </div>
 
-        <label class="file-card optional" for="secondaryImage">
+        <div class="file-card optional" data-image-slot="secondary">
           <span class="camera-icon" aria-hidden="true">＋</span>
           <strong>Second image <em>optional</em></strong>
           <span>Add the reverse side or an order sheet</span>
-          <input id="secondaryImage" name="secondaryImage" type="file" accept="image/*" capture="environment">
           <img id="secondaryPreview" alt="Second image preview" hidden>
           <small id="secondaryFileName"></small>
-        </label>
+          <div class="file-actions">
+            <label class="file-button" for="secondaryCamera">Take photo<input id="secondaryCamera" type="file" accept="image/*" capture="environment" data-image-input="secondary"></label>
+            <label class="file-button" for="secondaryImage">Choose from gallery<input id="secondaryImage" type="file" accept="image/*" data-image-input="secondary"></label>
+          </div>
+        </div>
 
         <p class="privacy-note">Images are sent from this server for extraction and deleted locally after successful processing. All values still require employee review.</p>
         <button id="submitCaptureButton" class="primary-button wide" type="submit">SUBMIT FOR EXTRACTION</button>
+        <button id="manualEntryButton" class="secondary-button wide" type="button">ENTER RX MANUALLY</button>
       </form>
     </section>
 
@@ -166,7 +173,10 @@
         <section class="review-card lens-card">
           <div class="section-title-row">
             <h2>Lens selection</h2>
-            <span id="lensComboCount" class="optional-badge"></span>
+            <div class="lens-head-actions">
+              <button id="ownLensButton" class="own-lens-chip" type="button" hidden aria-keyshortcuts="Alt+C" title="Customer's own lenses (Alt+C)"><span class="pin" aria-hidden="true">★</span> Customer's own lenses</button>
+              <span id="lensComboCount" class="optional-badge"></span>
+            </div>
           </div>
           <p class="section-help">Only combinations on the Innovations catalogue are offered. Choose in any order; each list narrows the others. Type to search.</p>
           <p id="lensEvidence" class="lens-evidence" hidden></p>
