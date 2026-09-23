@@ -114,9 +114,9 @@
         <section class="review-card frame-card">
           <div class="section-title-row">
             <h2>Frame</h2>
-            <span class="optional-badge">Optional</span>
+            <span id="frameJobBadge" class="optional-badge" aria-live="polite"></span>
           </div>
-          <div class="field-grid three">
+          <div class="field-grid two">
             <label data-field-wrap="frame.status">Workflow
               <select data-path="frame.status">
                 <option value="TO_BE_TRACED">To be traced</option>
@@ -124,13 +124,23 @@
                 <option value="UNCUT">Uncut / no frame trace</option>
               </select>
             </label>
-            <label data-field-wrap="frame.model">Model<input data-path="frame.model" placeholder="From frame / trace"></label>
-            <label data-field-wrap="frame.color">Color<input data-path="frame.color" placeholder="From frame / trace"></label>
-            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="From trace"></label>
-            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="From trace"></label>
+            <label data-field-wrap="frame.mounting">Mounting
+              <select data-path="frame.mounting">
+                <option value="1">Metal</option>
+                <option value="2">Plastic</option>
+                <option value="3">Rimless / grooved</option>
+              </select>
+            </label>
+            <label data-field-wrap="frame.model">Model<input data-path="frame.model" autocomplete="off" placeholder="Not detected, the lab reads it from the frame"></label>
+            <label data-field-wrap="frame.color">Colour<input data-path="frame.color" autocomplete="off" placeholder="Not detected"></label>
           </div>
+          <div id="frameMeasurements" class="field-grid four frame-measurements">
+            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="mm"></label>
+            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="mm"></label>
+            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="mm"></label>
+            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="mm"></label>
+          </div>
+          <button id="addMeasurementsButton" class="inline-action" type="button" hidden>+ Add frame measurements</button>
         </section>
 
         <section class="review-card prescription-card">
@@ -195,21 +205,15 @@
           <label>Instructions<textarea data-path="instructions" rows="3"></textarea></label>
         </section>
 
-        <section class="review-card submission-card">
-          <h2>Innovations submission</h2>
+        <section class="submission-bar" aria-label="Innovations submission">
           <p id="submissionSummary" class="submission-summary"></p>
-          <div class="field-grid two">
-            <label for="frameMounting">Frame mounting<select id="frameMounting"><option value="1">Metal</option><option value="2">Plastic</option><option value="3">Rimless / grooved</option></select></label>
-            <label for="addonSkus">Add-on SKUs <span class="field-optional">optional</span><input id="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
+          <p id="approvalMessage" class="section-help approval-message"></p>
+          <div class="action-row">
+            <button id="saveReviewButton" class="secondary-button" type="button" aria-keyshortcuts="Control+S" title="Save draft (Ctrl+S)">SAVE DRAFT</button>
+            <button id="submitOrderButton" class="primary-button" type="button" aria-keyshortcuts="Control+Enter" title="Submit to Innovations (Ctrl+Enter)">SUBMIT TO INNOVATIONS</button>
           </div>
-          <p class="field-help">Frame mode follows the Frame workflow: Uncut sends an uncut job, everything else is edged.</p>
+          <p class="shortcut-hint">Enter moves to the next field · Ctrl+S saves · Ctrl+Enter submits</p>
         </section>
-
-        <p id="approvalMessage" class="section-help approval-message"></p>
-        <div class="action-row">
-          <button id="saveReviewButton" class="secondary-button" type="submit">SAVE DRAFT</button>
-          <button id="submitOrderButton" class="primary-button" type="button">SUBMIT TO INNOVATIONS</button>
-        </div>
       </form>
     </section>
   </main>

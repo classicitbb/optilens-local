@@ -166,6 +166,13 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
 .lens-summary { margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: #f5f8fa; color: var(--muted); font-size: .8rem; line-height: 1.4; }
 .lens-summary.resolved { display: grid; gap: 2px; border: 1px solid #9ec8cf; background: #e4f7f7; color: var(--teal-dark); }
 .lens-summary.resolved span { font-size: .74rem; color: #557086; }
+.field-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.frame-measurements { margin-top: 9px; }
+.inline-action { margin-top: 10px; padding: 6px 0; border: 0; background: transparent; color: var(--teal-dark); font-size: .8rem; font-weight: 750; }
+.inline-action:hover, .inline-action:focus-visible { text-decoration: underline; }
+.submission-bar { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 10px 30px rgb(11 30 53 / .06); }
+.shortcut-hint { margin: 10px 2px 0; color: var(--muted); font-size: .72rem; }
+@media (hover: none) { .shortcut-hint { display: none; } }
 .submission-summary { margin: 0 0 10px; color: var(--ink); font-size: .85rem; font-weight: 700; line-height: 1.45; }
 .approval-message { margin: 4px 2px 0; }
 .review-form .action-row > button { flex: 1 1 200px; }
@@ -196,6 +203,7 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
   .capture-card .customer-picker, .capture-card .privacy-note, .capture-card .wide { grid-column: 1 / -1; }
   .field-grid.two { grid-template-columns: repeat(2, 1fr); }
   .field-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .field-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 619px) {

@@ -96,11 +96,14 @@ test("extracted wording stays as evidence while the draft starts from the guesse
 
 test("submission defaults come from the selected account and frame workflow", () => {
   const existing = { customer_account: "5000150", customer_name: "Anka Optical Broad Street" };
-  const normalized = { frame: { status: "TO_BE_TRACED" }, lensRequest: { catalogAlias: "0010002800096", coatingSku: "A1HDARC" }, instructions: "Rush" };
+  const normalized = { frame: { status: "TO_BE_TRACED", mounting: "2" }, lensRequest: { catalogAlias: "0010002800096", coatingSku: "A1HDARC" }, instructions: "Rush" };
   const actor = { username: "employee" };
-  const defaults = resolutionDefaults({ frameMounting: "2", addonSkus: ["TINT"], customerNumber: "999", shipName: "Other", labNum: "9", customerSequence: "7" }, { existing, normalized, actor, mappedCustomerNumber: null });
+  const defaults = resolutionDefaults({ frameMounting: "3", addonSkus: ["TINT"], customerNumber: "999", shipName: "Other", labNum: "9", customerSequence: "7" }, { existing, normalized, actor, mappedCustomerNumber: null });
+  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "1");
+  assert.equal(normalizeOpticalOrder({ frame: { mounting: "3" } }).frame.mounting, "3");
+  assert.equal(normalizeOpticalOrder({ frame: { mounting: "9" } }).frame.mounting, null);
   assert.deepEqual(defaults, {
-    frameMounting: "2", addonSkus: ["TINT"], customerNumber: "5000150", shipName: "Anka Optical Broad Street", frameMode: "edged",
+    frameMounting: "2", addonSkus: [], customerNumber: "5000150", shipName: "Anka Optical Broad Street", frameMode: "edged",
     coatingSku: "A1HDARC", lensAlias: "0010002800096", remoteOperator: "employee", instructions: "Rush"
   });
   assert.equal(resolutionDefaults({}, { existing, normalized, actor, mappedCustomerNumber: "7000001" }).customerNumber, "7000001");
@@ -335,7 +338,8 @@ test("RX Capture lets the intake owner submit one reviewed draft without a secon
   assert.match(html, /data-path="lensRequest.materialGroup" value="1"/);
   assert.doesNotMatch(html, /Customer sequence|Remote operator|Exact active lens alias|id="resolutionForm"/);
   assert.match(html, /Rimless \/ grooved/);
-  assert.match(html, /Frame mode follows the Frame workflow/);
+  assert.match(html, /data-path="frame.mounting"/);
+  assert.doesNotMatch(html, /Add-on SKUs|id="frameMounting"/);
   assert.match(client, /choose a lens material, design and colour option that exist together/);
   assert.match(html, /SUBMIT TO INNOVATIONS/);
   assert.match(html, />SAVE DRAFT</);

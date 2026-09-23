@@ -76,9 +76,19 @@
     $("#secondaryImage").addEventListener("change", () => previewFile("secondaryImage", "secondaryPreview", "secondaryFileName"));
     $("#customerSearch").addEventListener("input", searchCustomers);
     $("#captureForm").addEventListener("submit", submitCapture);
-    $("#reviewForm").addEventListener("submit", saveReview);
+    // The review form has no submit button, so Enter never saves by accident;
+    // saving and submitting are explicit (buttons or Ctrl+S / Ctrl+Enter).
+    $("#reviewForm").addEventListener("submit", (event) => event.preventDefault());
+    $("#reviewForm").addEventListener("keydown", advanceOnEnter);
+    $("#saveReviewButton").addEventListener("click", saveReview);
     $("#reprocessButton").addEventListener("click", reprocess);
     $("#submitOrderButton").addEventListener("click", submitOrder);
+    $("#addMeasurementsButton").addEventListener("click", () => {
+      state.measurementsOpened = true;
+      renderFrameState();
+      fieldForPath("frame.a").focus();
+    });
+    document.addEventListener("keydown", reviewShortcuts);
     document.querySelectorAll("[data-lens]").forEach((input) => {
       input.addEventListener("input", () => onLensInput(input.dataset.lens));
       input.addEventListener("change", () => onLensCommit(input.dataset.lens));
@@ -86,6 +96,7 @@
     document.querySelectorAll("[data-path]").forEach((input) => {
       const update = () => {
         resolveIssue(input.dataset.path);
+        if (input.dataset.path === "frame.status") renderFrameState();
         runValidation();
       };
       input.addEventListener("input", update);
@@ -209,11 +220,14 @@
     state.canEdit = editable;
     state.lensResolved = null;
     state.lastValidation = null;
+    if (state.current?.id !== state.renderedOrderId) state.measurementsOpened = false;
+    state.renderedOrderId = order.id;
     $("#reprocessButton").hidden = !canEdit;
     $("#saveReviewButton").hidden = !editable;
     document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
     if (order.normalizedOrder) {
       renderOrder(order.normalizedOrder);
+      renderFrameState();
       await renderLensSelection(order);
       renderSubmission(order);
     }
@@ -236,6 +250,7 @@
   function renderOrder(order) {
     order.frame ||= {};
     order.frame.status ||= "TO_BE_TRACED";
+    order.frame.mounting ||= "1";
     if (order.frame.supplied == null) order.frame.supplied = order.frame.status !== "UNCUT";
     document.querySelectorAll("[data-path]").forEach((input) => {
       input.value = valueAtPath(order, input.dataset.path) ?? "";
@@ -431,11 +446,57 @@
     field.value = options.some((item) => item.value === String(current || "")) ? String(current) : "";
   }
 
+  // The workflow decides the job type sent to Innovations. Measurements stay
+  // tucked away for traced and uncut jobs unless the photo supplied them.
+  function renderFrameState() {
+    const status = fieldForPath("frame.status").value;
+    const hasMeasurements = ["frame.a", "frame.b", "frame.dbl", "frame.ed"].some((path) => fieldForPath(path).value.trim());
+    const showMeasurements = status === "MEASURED" || hasMeasurements || state.measurementsOpened;
+    $("#frameMeasurements").hidden = !showMeasurements;
+    $("#addMeasurementsButton").hidden = showMeasurements || !state.canEdit;
+    $("#frameJobBadge").textContent = status === "UNCUT" ? "Uncut job" : "Edged job";
+  }
+
+  // Enter moves to the next field, like a keyed order-entry screen. On a lens
+  // choice it waits for the datalist pick to land before moving on.
+  function advanceOnEnter(event) {
+    if (event.key !== "Enter" || event.ctrlKey || event.metaKey || event.altKey) return;
+    const field = event.target;
+    if (!field.matches("input, select") || field.type === "hidden") return;
+    if (field.matches("[data-lens]")) {
+      setTimeout(() => { if (lensChoices()[field.dataset.lens]) focusNextField(field, event.shiftKey); }, 0);
+      return;
+    }
+    event.preventDefault();
+    focusNextField(field, event.shiftKey);
+  }
+
+  function focusNextField(field, backwards) {
+    const fields = [...$("#reviewForm").querySelectorAll("input, select, textarea")]
+      .filter((item) => item.type !== "hidden" && !item.disabled && !item.readOnly && item.offsetParent !== null);
+    const next = fields[fields.indexOf(field) + (backwards ? -1 : 1)];
+    if (next) {
+      next.focus();
+      if (next.select && next.tagName === "INPUT") next.select();
+    } else {
+      $("#submitOrderButton").hidden || $("#submitOrderButton").disabled ? $("#saveReviewButton").focus() : $("#submitOrderButton").focus();
+    }
+  }
+
+  function reviewShortcuts(event) {
+    if (!(event.ctrlKey || event.metaKey) || !$("#reviewScreen").classList.contains("active") || $("#reviewForm").hidden) return;
+    if (event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      if (!$("#saveReviewButton").hidden) saveReview(event);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const button = $("#submitOrderButton");
+      if (!button.hidden && !button.disabled) submitOrder();
+    }
+  }
+
   async function renderSubmission(order) {
-    const resolution = order.resolution || {};
     const customer = order.customer || {};
-    $("#frameMounting").value = resolution.frameMounting || "1";
-    $("#addonSkus").value = (resolution.addonSkus || []).join(", ");
     const summary = $("#submissionSummary");
     const describe = (account, labNum) => [
       `Ship to ${customer.name || "the selected customer"}`,
@@ -653,10 +714,6 @@
     const lens = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
     if (!window.confirm(`Submit this RX to Innovations as ${lens}? It will be staged and released, then remain editable in Innovations.`)) return;
     const id = encodeURIComponent(state.current.id);
-    const resolution = {
-      frameMounting: $("#frameMounting").value,
-      addonSkus: $("#addonSkus").value.split(",").map((value) => value.trim()).filter(Boolean)
-    };
     const button = $("#submitOrderButton");
     button.disabled = true;
     button.textContent = "SUBMITTING…";
@@ -664,7 +721,7 @@
     try {
       await persistReview();
       saved = true;
-      await api(`/api/rx-capture/orders/${id}/resolution`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution }) });
+      await api(`/api/rx-capture/orders/${id}/resolution`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution: {} }) });
       const payload = await api(`/api/rx-capture/orders/${id}/submit`, { method: "POST" });
       await showOrder(payload.order);
       showNotice("RX submitted to Innovations and archived.");
