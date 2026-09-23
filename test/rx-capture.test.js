@@ -10,8 +10,8 @@ const {
   unresolvedFields
 } = require("../lib/rx-capture/normalized-order");
 const { extractPrescriptionFromImages, loadRxAiConfig } = require("../lib/rx-capture/openai-extractor");
-const { parseImages, publicOrder } = require("../lib/rx-capture/service");
-const { resolveLensAlias } = require("../lib/rx-capture/alias-resolver");
+const { applyLensGuess, parseImages, publicOrder, resolutionDefaults } = require("../lib/rx-capture/service");
+const { guessLens, resolveLensAlias } = require("../lib/rx-capture/alias-resolver");
 
 test("normalizes optical order values without inventing prescription data", () => {
   const order = normalizeOpticalOrder({
@@ -62,6 +62,52 @@ test("lens alias candidates exclude inactive records and never treat a coating a
   const result = resolveLensAlias({ lensRequest: { lensType: "Multifocal", design: "Progressive", material: "1.50", option: "", coating: "Blue Blocker" } }, catalog);
   assert.deepEqual(result.candidates.map((candidate) => candidate.alias), ["0000000000001"]);
   assert.match(result.candidates[0].label, /Progressive.*Plastic 1\.50.*SRCoated/);
+});
+
+test("lens guess always proposes the closest active group-1 lens from partial wording", () => {
+  const catalog = [
+    { alias: "0000000100000", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "Plastic 1.50", styleDescription: "Regular", colorDescription: "UNCoated" },
+    { alias: "0010002800096", materialGroupCode: "1", mfType: "Bifocal", materialDescription: "Poly 1.59", styleDescription: "Flat Top 28", colorDescription: "XtrActive Gray" },
+    { alias: "0010002800001", materialGroupCode: "1", mfType: "Bifocal", materialDescription: "Poly 1.59", styleDescription: "Flat Top 28", colorDescription: "SRCoated" },
+    { alias: "2010002800001", materialGroupCode: "2", mfType: "Bifocal", materialDescription: "Glass 1.52", styleDescription: "Flat Top 28", colorDescription: "SRCoated" },
+    { alias: "0010002800002", materialGroupCode: "1", mfType: "Bifocal", materialDescription: "Poly 1.59", styleDescription: "Flat Top 28", colorDescription: "Gray SRC", active: false }
+  ];
+  assert.deepEqual(guessLens({ lensType: "Bifocal", design: "FT28", material: "Polycarbonate", option: "gray transitions" }, catalog), {
+    alias: "0010002800096", material: "Poly 1.59", lensType: "Bifocal", style: "Flat Top 28", option: "XtrActive Gray"
+  });
+  assert.equal(guessLens({ lensType: "Bifocal" }, catalog).option, "SRCoated");
+  assert.equal(guessLens({}, catalog), null);
+  assert.equal(guessLens({ lensType: "Bifocal" }, catalog.filter((lens) => lens.materialGroupCode === "2")), null);
+});
+
+test("extracted wording stays as evidence while the draft starts from the guessed lens", () => {
+  const extracted = normalizeOpticalOrder({ lensRequest: { lensType: "Bifocal", material: "Polycarbonate", option: "Gray" } });
+  const draft = applyLensGuess(extracted, { alias: "0010002800096", material: "Poly 1.59", lensType: "Bifocal", style: "Flat Top 28", option: "XtrActive Gray" });
+  assert.equal(extracted.lensRequest.material, "Polycarbonate");
+  assert.equal(draft.lensRequest.material, "Poly 1.59");
+  assert.equal(draft.lensRequest.style, "Flat Top 28");
+  assert.equal(draft.lensRequest.catalogAlias, "0010002800096");
+  assert.equal(draft.lensRequest.materialGroup, "1");
+  assert.equal(draft.lensGuessed, true);
+  const unguessed = applyLensGuess(extracted, null);
+  assert.equal(unguessed.lensRequest.material, null);
+  assert.equal(unguessed.lensGuessed, false);
+});
+
+test("submission defaults come from the selected account and frame workflow", () => {
+  const existing = { customer_account: "5000150", customer_name: "Anka Optical Broad Street" };
+  const normalized = { frame: { status: "TO_BE_TRACED", mounting: "2" }, lensRequest: { catalogAlias: "0010002800096", coatingSku: "A1HDARC" }, instructions: "Rush" };
+  const actor = { username: "employee" };
+  const defaults = resolutionDefaults({ frameMounting: "3", addonSkus: ["TINT"], customerNumber: "999", shipName: "Other", labNum: "9", customerSequence: "7" }, { existing, normalized, actor, mappedCustomerNumber: null });
+  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "1");
+  assert.equal(normalizeOpticalOrder({ frame: { mounting: "3" } }).frame.mounting, "3");
+  assert.equal(normalizeOpticalOrder({ frame: { mounting: "9" } }).frame.mounting, null);
+  assert.deepEqual(defaults, {
+    frameMounting: "2", addonSkus: [], customerNumber: "5000150", shipName: "Anka Optical Broad Street", frameMode: "edged",
+    coatingSku: "A1HDARC", lensAlias: "0010002800096", remoteOperator: "employee", instructions: "Rush"
+  });
+  assert.equal(resolutionDefaults({}, { existing, normalized, actor, mappedCustomerNumber: "7000001" }).customerNumber, "7000001");
+  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "UNCUT" } }, actor }).frameMode, "uncut");
 });
 
 test("marks only unresolved extracted fields as needing information", () => {
@@ -236,7 +282,10 @@ test("page and server integration preserve full-screen, authenticated camera cap
   const migration = fs.readFileSync(path.join(root, "database", "043-rx-capture.sql"), "utf8");
 
   assert.match(html, /accept="image\/\*" capture="environment"/);
-  assert.match(html, /Lens information/);
+  assert.match(html, /Lens selection/);
+  assert.match(html, /data-lens="option"/);
+  assert.match(html, /<script src="\/rx-combobox\.js" defer><\/script>\s*<script src="\/rx-capture\.js" defer>/);
+  assert.doesNotMatch(html, /<datalist/);
   assert.match(html, /data-path="lensRequest\.lensType"/);
   assert.match(html, /data-path="frame\.status"/);
   assert.match(html, /To be traced/);
@@ -250,7 +299,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.doesNotMatch(html, /shared\.js/);
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
-  assert.match(client, /reviewConfirmedAt/);
+  assert.match(client, /await persistReview\(\);\s+saved = true;/);
   assert.match(server, /handleRxCaptureRoute/);
   assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
   assert.match(auth, /code: "rx-capture"/);
@@ -288,12 +337,14 @@ test("RX Capture lets the intake owner submit one reviewed draft without a secon
   assert.match(client, /rx-capture\/catalog/);
   assert.match(routes, /submission-account/);
   assert.match(service, /innovations_account_mappings/);
-  assert.match(html, /Material group/);
+  assert.match(html, /data-path="lensRequest.materialGroup" value="1"/);
+  assert.doesNotMatch(html, /Customer sequence|Remote operator|Exact active lens alias|id="resolutionForm"/);
   assert.match(html, /Rimless \/ grooved/);
-  assert.match(html, /Edged \/ enclosed/);
-  assert.match(client, /Save draft & continue to open the lens and coating choices/);
+  assert.match(html, /data-path="frame.mounting"/);
+  assert.doesNotMatch(html, /Add-on SKUs|id="frameMounting"/);
+  assert.match(client, /choose a lens material, design and colour option that exist together/);
   assert.match(html, /SUBMIT TO INNOVATIONS/);
-  assert.match(html, /SAVE DRAFT &amp; CONTINUE/);
+  assert.match(html, />SAVE DRAFT</);
   assert.match(html, /Captured details to continue later/);
   assert.doesNotMatch(html, /Review \/ release access/);
 });

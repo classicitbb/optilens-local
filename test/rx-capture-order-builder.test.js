@@ -75,3 +75,13 @@ test("adds only the configured exact edging item for an edged capture", () => {
   assert.equal(result.order.frame.status, "ENCLOSED");
   assert.equal(result.order.items.at(-1).description, "EDGE TO FIT");
 });
+
+test("an edged capture with no detected frame model sends the follow-up placeholder", () => {
+  const captured = normalizedOrder();
+  captured.frame.model = null;
+  captured.frame.color = null;
+  const result = buildRxCaptureOrder(captured, { ...resolution(), frameMode: "edged", frameMounting: "2" }, { generator: generator(), reserveIdentifiers: false });
+  assert.equal(result.order.frame.model, "FRAME TO FOLLOW");
+  assert.equal(result.order.frame.color, "1");
+  assert.equal(result.order.frame.mounting, "2");
+});
