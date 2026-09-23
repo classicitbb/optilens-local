@@ -150,20 +150,32 @@
           </div>
         </section>
 
-        <section class="review-card">
+        <section class="review-card lens-card">
           <div class="section-title-row">
-            <h2>Lens information</h2>
-            <span class="optional-badge">Extracted / optional</span>
+            <h2>Lens selection</h2>
+            <span id="lensComboCount" class="optional-badge"></span>
           </div>
-          <p class="section-help">Captured wording stays visible for reference. Choose active catalogue values only when known; the exact active lens is saved with this draft.</p>
-          <div class="field-grid two">
-            <label data-field-wrap="lensRequest.materialGroup">Material group<select data-path="lensRequest.materialGroup"></select></label>
-            <label data-field-wrap="lensRequest.material">Material<select data-path="lensRequest.material"></select></label>
-            <label data-field-wrap="lensRequest.lensType">Lens type<select data-path="lensRequest.lensType"></select></label>
-            <label data-field-wrap="lensRequest.design">Printed lens design<input data-path="lensRequest.design" autocomplete="off" readonly aria-describedby="printedDesignHelp"><span id="printedDesignHelp" class="field-help">Captured from the prescription for reference; it does not choose a lens.</span></label>
-            <label data-field-wrap="lensRequest.option">Option from photo<select data-path="lensRequest.option"></select></label>
+          <p class="section-help">Only combinations on the Innovations catalogue are offered. Choose in any order; each list narrows the others. Type to search.</p>
+          <p id="lensEvidence" class="lens-evidence" hidden></p>
+          <input type="hidden" data-path="lensRequest.materialGroup" value="1">
+          <input type="hidden" data-path="lensRequest.material">
+          <input type="hidden" data-path="lensRequest.lensType">
+          <input type="hidden" data-path="lensRequest.style">
+          <input type="hidden" data-path="lensRequest.option">
+          <input type="hidden" data-path="lensRequest.catalogAlias">
+          <input type="hidden" data-path="lensRequest.design">
+          <div class="field-grid three lens-choices">
+            <label for="lensMaterial">1 · Material / index<input id="lensMaterial" list="lensMaterialList" autocomplete="off" placeholder="Type to search" data-lens="material"></label>
+            <label for="lensDesign">2 · Lens design / type<input id="lensDesign" list="lensDesignList" autocomplete="off" placeholder="Type to search" data-lens="design"></label>
+            <label for="lensOption">3 · Lens colour option<input id="lensOption" list="lensOptionList" autocomplete="off" placeholder="Type to search" data-lens="option"></label>
+          </div>
+          <datalist id="lensMaterialList"></datalist>
+          <datalist id="lensDesignList"></datalist>
+          <datalist id="lensOptionList"></datalist>
+          <p id="lensGuessNote" class="lens-guess-note" hidden>Guessed from the photo. Check each choice and correct anything that doesn't match the prescription.</p>
+          <div id="lensSummary" class="lens-summary" role="status" aria-live="polite"></div>
+          <div class="field-grid two lens-extras">
             <label data-field-wrap="lensRequest.coatingSku">Coating <span class="field-optional">optional</span><select data-path="lensRequest.coatingSku"></select></label>
-            <label class="catalog-lens-field" data-field-wrap="lensRequest.catalogAlias">Active lens<select data-path="lensRequest.catalogAlias" aria-describedby="catalogLensHelp"></select><span id="catalogLensHelp" class="field-help">Only active exact aliases can be submitted to Innovations.</span></label>
           </div>
         </section>
 
@@ -183,39 +195,22 @@
           <label>Instructions<textarea data-path="instructions" rows="3"></textarea></label>
         </section>
 
-        <button id="saveReviewButton" class="primary-button wide" type="submit">SAVE DRAFT &amp; CONTINUE</button>
-      </form>
-
-      <form id="resolutionForm" class="review-form" hidden>
-        <section class="review-card">
-          <div class="section-title-row">
-            <h2>Innovations submission</h2>
-            <span class="optional-badge">Choose what is known</span>
-          </div>
-          <p class="section-help">The selected Innovations account is prefilled when a LabLink mapping is known. It can be corrected here. One saved instruction is sent with the order.</p>
-          <div id="aliasSuggestion" class="alias-suggestion" hidden></div>
+        <section class="review-card submission-card">
+          <h2>Innovations submission</h2>
+          <p id="submissionSummary" class="submission-summary"></p>
           <div class="field-grid two">
-            <label>Innovations customer number<input name="customerNumber" inputmode="numeric" autocomplete="off" required></label>
-            <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
-            <label>Ship name<input name="shipName" autocomplete="off" required></label>
-            <label>Exact active lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required aria-describedby="lensAliasHelp"><span id="lensAliasHelp" class="field-help">Selected above; you may correct it with another exact active alias.</span></label>
-            <label>Add-on SKUs <span class="field-optional">optional</span><input name="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
-            <label>Frame mode<select name="frameMode"><option value="edged" selected>Edged / enclosed</option><option value="uncut">Uncut</option></select></label>
-            <label>Frame mounting<select name="frameMounting" required><option value="1">Metal</option><option value="2">Plastic</option><option value="3">Rimless / grooved</option></select></label>
-            <label>Remote operator<input name="remoteOperator" autocomplete="off" readonly></label>
-            <label>Lab number <span class="field-optional">optional</span><input name="labNum" autocomplete="off" placeholder="Uses configured default when blank"></label>
+            <label for="frameMounting">Frame mounting<select id="frameMounting"><option value="1">Metal</option><option value="2">Plastic</option><option value="3">Rimless / grooved</option></select></label>
+            <label for="addonSkus">Add-on SKUs <span class="field-optional">optional</span><input id="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
           </div>
+          <p class="field-help">Frame mode follows the Frame workflow: Uncut sends an uncut job, everything else is edged.</p>
         </section>
-        <button id="saveResolutionButton" class="secondary-button wide" type="submit">SAVE SUBMISSION CHOICES</button>
-      </form>
 
-      <section id="approvalActions" class="review-card approval-actions" hidden>
-        <h2>Submit to Innovations</h2>
-        <p id="approvalMessage" class="section-help">Save the draft, choose an exact active lens, then submit. Submission creates the RX file, stages it, and releases it to Innovations for later editing.</p>
+        <p id="approvalMessage" class="section-help approval-message"></p>
         <div class="action-row">
-          <button id="submitOrderButton" class="primary-button wide" type="button">SUBMIT TO INNOVATIONS</button>
+          <button id="saveReviewButton" class="secondary-button" type="submit">SAVE DRAFT</button>
+          <button id="submitOrderButton" class="primary-button" type="button">SUBMIT TO INNOVATIONS</button>
         </div>
-      </section>
+      </form>
     </section>
   </main>
   <script src="/rx-capture-validation.js" defer></script>

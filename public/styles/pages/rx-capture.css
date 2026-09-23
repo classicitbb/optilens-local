@@ -159,9 +159,20 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
 [data-path].missing, [data-path].uncertain { border-width: 2px; }
 [data-path].missing { border-color: #d68a25; background: #fffaf1; }
 [data-path].uncertain { border-color: #b86a3d; background: #fff4ee; }
-[data-path].warned { border-color: #d68a25; background: #fffaf1; }
-[data-path].invalid, [data-path].invalid:focus { border-color: var(--danger); border-width: 2px; background: #fff5f4; }
-.validation-card { padding: 14px; border-color: #e5c688; background: #fff9ee; }
+.lens-evidence { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid #9fb5c8; background: #f5f8fa; color: var(--ink); font-size: .8rem; line-height: 1.4; }
+.lens-evidence strong { color: var(--muted); font-weight: 700; }
+[data-lens].guessed { border-color: #d68a25; background: #fffaf1; }
+.lens-guess-note { margin: 8px 0 0; color: #77541d; font-size: .76rem; line-height: 1.4; }
+.lens-summary { margin: 10px 0; padding: 10px 12px; border-radius: 8px; background: #f5f8fa; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.lens-summary.resolved { display: grid; gap: 2px; border: 1px solid #9ec8cf; background: #e4f7f7; color: var(--teal-dark); }
+.lens-summary.resolved span { font-size: .74rem; color: #557086; }
+.submission-summary { margin: 0 0 10px; color: var(--ink); font-size: .85rem; font-weight: 700; line-height: 1.45; }
+.approval-message { margin: 4px 2px 0; }
+.review-form .action-row > button { flex: 1 1 200px; }
+.review-form .primary-button:disabled { cursor: not-allowed; box-shadow: none; }
+[data-path].warned, [data-lens].warned { border-color: #d68a25; background: #fffaf1; }
+[data-path].invalid, [data-path].invalid:focus, [data-lens].invalid, [data-lens].invalid:focus { border-color: var(--danger); border-width: 2px; background: #fff5f4; }
+.validation-card { padding: 14px; border: 1px solid #e5c688; border-radius: 14px; background: #fff9ee; }
 .validation-card.has-errors { border-color: #edc5c0; background: #fff8f7; }
 .validation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .validation-list:not(:empty) + .validation-list:not(:empty) { margin-top: 8px; }

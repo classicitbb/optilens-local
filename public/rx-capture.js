@@ -77,13 +77,15 @@
     $("#customerSearch").addEventListener("input", searchCustomers);
     $("#captureForm").addEventListener("submit", submitCapture);
     $("#reviewForm").addEventListener("submit", saveReview);
-    $("#resolutionForm").addEventListener("submit", saveResolution);
     $("#reprocessButton").addEventListener("click", reprocess);
     $("#submitOrderButton").addEventListener("click", submitOrder);
+    document.querySelectorAll("[data-lens]").forEach((input) => {
+      input.addEventListener("input", () => onLensInput(input.dataset.lens));
+      input.addEventListener("change", () => onLensCommit(input.dataset.lens));
+    });
     document.querySelectorAll("[data-path]").forEach((input) => {
       const update = () => {
         resolveIssue(input.dataset.path);
-        if (/^lensRequest\.(materialGroup|material|lensType|catalogAlias)$/.test(input.dataset.path)) refreshCatalogFields();
         runValidation();
       };
       input.addEventListener("input", update);
@@ -203,15 +205,19 @@
     $("#failedMessage").textContent = order.normalizedOrder
       ? `${failureMessage} The last saved values remain available below for review.`
       : failureMessage;
+    const editable = canEdit && !["APPROVED", "STAGED", "RELEASED"].includes(order.status);
+    state.canEdit = editable;
+    state.lensResolved = null;
+    state.lastValidation = null;
     $("#reprocessButton").hidden = !canEdit;
-    $("#saveReviewButton").hidden = !canEdit;
-    document.querySelectorAll("#reviewForm [data-path]").forEach((input) => { input.disabled = !canEdit; });
+    $("#saveReviewButton").hidden = !editable;
+    document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
     if (order.normalizedOrder) {
       renderOrder(order.normalizedOrder);
-      await renderCatalogFields(order.normalizedOrder);
+      await renderLensSelection(order);
+      renderSubmission(order);
     }
     runValidation();
-    await renderResolution(order, canEdit);
     renderApprovalActions(order);
     stopPolling();
     if (order.status === "PROCESSING") state.pollTimer = setTimeout(pollCurrentOrder, 1800);
@@ -240,41 +246,182 @@
     renderIssues(order);
   }
 
-  async function renderCatalogFields(order = state.current?.normalizedOrder) {
-    if (!order) return;
+  // Lens selection mirrors the CV website rx-order form: material, design and
+  // colour option are three linked choices over the active group-1 catalogue,
+  // each narrowing the other two. Every complete choice is exactly one alias.
+  const LENS_KEYS = ["material", "design", "option"];
+  const LENS_LABELS = { material: "material", design: "design", option: "colour option" };
+  const LENS_TYPE_ORDER = ["Single Vision", "Bifocal", "Trifocal", "Progressive"];
+  const lensInput = (key) => $(`#lens${key[0].toUpperCase()}${key.slice(1)}`);
+  const lensList = (key) => $(`#lens${key[0].toUpperCase()}${key.slice(1)}List`);
+  const designLabel = (item) => [item.lensType, item.style].filter(Boolean).join(" · ");
+  const lensValue = (item, key) => (key === "material" ? item.material : key === "design" ? designLabel(item) : item.option);
+
+  async function loadCatalog() {
+    if (state.catalog) return;
+    const [catalogPayload, coatingPayload] = await Promise.all([api("/api/rx-capture/catalog"), api("/api/rx-capture/coatings")]);
+    state.catalog = (catalogPayload.items || []).filter((item) => String(item.materialGroupCode || "1") === "1");
+    state.coatings = coatingPayload.items || [];
+    state.lensUniverse = Object.fromEntries(LENS_KEYS.map((key) => [key, new Set(state.catalog.map((item) => lensValue(item, key)).filter(Boolean))]));
+  }
+
+  async function renderLensSelection(order) {
+    const request = order.normalizedOrder.lensRequest ||= {};
     try {
-      if (!state.catalog) {
-        const [catalogPayload, coatingPayload] = await Promise.all([
-          api("/api/rx-capture/catalog"), api("/api/rx-capture/coatings")
-        ]);
-        state.catalog = catalogPayload.items || [];
-        state.coatings = coatingPayload.items || [];
-      }
-      const request = order.lensRequest ||= {};
-      request.materialGroup ||= "1";
-      const groupField = fieldForPath("lensRequest.materialGroup");
-      const materialField = fieldForPath("lensRequest.material");
-      const typeField = fieldForPath("lensRequest.lensType");
-      const optionField = fieldForPath("lensRequest.option");
-      const coatingField = fieldForPath("lensRequest.coatingSku");
-      const aliasField = fieldForPath("lensRequest.catalogAlias");
-      fillOptions(groupField, uniqueOptions(state.catalog, "materialGroupCode", "materialGroup"), request.materialGroup, "Material Group 1 · Resin");
-      const withinGroup = state.catalog.filter((item) => item.materialGroupCode === groupField.value);
-      fillOptions(materialField, uniqueOptions(withinGroup, "material", "material"), request.material, "Choose material");
-      const withinMaterial = withinGroup.filter((item) => !materialField.value || item.material === materialField.value);
-      fillOptions(typeField, uniqueOptions(withinMaterial, "lensType", "lensType"), request.lensType, "Choose lens type");
-      const capturedOption = String(request.option || "").trim();
-      fillOptions(optionField, capturedOption ? [{ value: capturedOption, label: capturedOption }] : [], capturedOption, "Not captured — choose later");
-      fillOptions(coatingField, (state.coatings || []).map((item) => ({ value: item.sku, label: item.description })), request.coatingSku, "No coating selected");
-      const candidates = withinMaterial.filter((item) => !typeField.value || item.lensType === typeField.value);
-      fillOptions(aliasField, candidates.map((item) => ({ value: item.alias, label: item.label })), request.catalogAlias, "Choose active lens");
+      await loadCatalog();
     } catch (error) {
       showNotice(`Catalogue choices are unavailable: ${error.message}`, true);
+      return;
+    }
+    fillOptions(fieldForPath("lensRequest.coatingSku"), state.coatings.map((item) => ({ value: item.sku, label: item.description })), request.coatingSku, "No coating selected");
+    renderLensEvidence(order.extractedOrder?.lensRequest);
+    let values = knownLensValues(lensValuesFromRequest(request));
+    let guessed = Boolean(order.normalizedOrder.lensGuessed);
+    if (!LENS_KEYS.some((key) => values[key]) && state.canEdit) {
+      try {
+        const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/alias-suggestion`);
+        const guess = payload.suggestion?.guess;
+        if (guess) {
+          values = knownLensValues({ material: guess.material, design: designLabel(guess), option: guess.option });
+          guessed = LENS_KEYS.some((key) => values[key]);
+        }
+      } catch { /* the employee chooses from the lists instead */ }
+    }
+    for (const key of LENS_KEYS) {
+      lensInput(key).value = values[key] || "";
+      lensInput(key).classList.toggle("guessed", guessed && Boolean(values[key]));
+    }
+    $("#lensGuessNote").hidden = !guessed;
+    refreshLensLists();
+  }
+
+  function lensValuesFromRequest(request) {
+    const byAlias = request.catalogAlias && state.catalog.find((item) => item.alias === String(request.catalogAlias));
+    const source = byAlias || request;
+    return { material: source.material, design: source.style ? designLabel(source) : "", option: source.option };
+  }
+
+  function knownLensValues(values) {
+    return Object.fromEntries(LENS_KEYS.map((key) => [key, state.lensUniverse[key].has(values[key]) ? values[key] : ""]));
+  }
+
+  function renderLensEvidence(printed) {
+    const parts = ["lensType", "design", "material", "option", "coating"].map((key) => String(printed?.[key] || "").trim()).filter(Boolean);
+    const evidence = $("#lensEvidence");
+    evidence.hidden = parts.length === 0;
+    evidence.replaceChildren();
+    if (!parts.length) return;
+    const label = document.createElement("strong");
+    label.textContent = "Printed on prescription: ";
+    evidence.append(label, parts.join(" · "));
+  }
+
+  // A choice only narrows the others once it matches a catalogue value exactly;
+  // half-typed search text is ignored until it is picked from the list.
+  function lensChoices() {
+    return Object.fromEntries(LENS_KEYS.map((key) => {
+      const value = lensInput(key).value.trim();
+      return [key, state.lensUniverse?.[key].has(value) ? value : ""];
+    }));
+  }
+
+  function lensMatches(choices, except) {
+    return state.catalog.filter((item) => LENS_KEYS.every((key) => key === except || !choices[key] || lensValue(item, key) === choices[key]));
+  }
+
+  function compareLensValues(key) {
+    if (key !== "design") return (left, right) => left.localeCompare(right, undefined, { numeric: true });
+    const rank = (value) => {
+      const index = LENS_TYPE_ORDER.indexOf(value.split(" · ")[0]);
+      return index === -1 ? LENS_TYPE_ORDER.length : index;
+    };
+    return (left, right) => rank(left) - rank(right) || left.localeCompare(right, undefined, { numeric: true });
+  }
+
+  function refreshLensLists() {
+    if (!state.catalog) return;
+    const choices = lensChoices();
+    for (const key of LENS_KEYS) {
+      const values = [...new Set(lensMatches(choices, key).map((item) => lensValue(item, key)).filter(Boolean))].sort(compareLensValues(key));
+      lensList(key).replaceChildren(...values.map((value) => new Option(value, value)));
+    }
+    const matches = lensMatches(choices);
+    state.lensResolved = LENS_KEYS.every((key) => choices[key]) && matches.length
+      ? [...matches].sort((left, right) => left.alias.localeCompare(right.alias))[0]
+      : null;
+    const design = choices.design ? state.catalog.find((item) => designLabel(item) === choices.design) : null;
+    setHiddenPath("lensRequest.materialGroup", "1");
+    setHiddenPath("lensRequest.material", choices.material);
+    setHiddenPath("lensRequest.lensType", design?.lensType || "");
+    setHiddenPath("lensRequest.style", design?.style || "");
+    setHiddenPath("lensRequest.option", choices.option);
+    setHiddenPath("lensRequest.catalogAlias", state.lensResolved?.alias || "");
+    $("#lensComboCount").textContent = `${matches.length} valid combination${matches.length === 1 ? "" : "s"}`;
+    const summary = $("#lensSummary");
+    summary.classList.toggle("resolved", Boolean(state.lensResolved));
+    summary.replaceChildren();
+    if (state.lensResolved) {
+      const label = document.createElement("strong");
+      label.textContent = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
+      const alias = document.createElement("span");
+      alias.textContent = `Innovations alias ${state.lensResolved.alias}`;
+      summary.append(label, alias);
+    } else {
+      summary.textContent = "Choose a material, design and colour option to identify the exact Innovations lens.";
     }
   }
 
-  function uniqueOptions(items, valueKey, labelKey) {
-    return [...new Map(items.filter((item) => item[valueKey]).map((item) => [String(item[valueKey]), { value: String(item[valueKey]), label: String(item[labelKey] || item[valueKey]) }])).values()];
+  function setHiddenPath(path, value) {
+    const input = fieldForPath(path);
+    if (input) input.value = value || "";
+  }
+
+  function onLensInput(key) {
+    lensInput(key).classList.remove("guessed");
+    $("#lensGuessNote").hidden = !document.querySelector("[data-lens].guessed");
+    refreshLensLists();
+    runValidation();
+  }
+
+  // On commit, accept a case-insensitive match, then drop whichever other
+  // choice conflicts (colour first, then design, then material) so the three
+  // always describe a lens that exists, as the website form does.
+  function onLensCommit(key) {
+    if (!state.catalog) return;
+    const input = lensInput(key);
+    const typed = input.value.trim();
+    if (typed && !state.lensUniverse[key].has(typed)) {
+      const exact = [...state.lensUniverse[key]].find((value) => value.toLowerCase() === typed.toLowerCase());
+      if (exact) input.value = exact;
+    }
+    const cleared = [];
+    for (const other of ["option", "design", "material"]) {
+      if (lensMatches(lensChoices()).length) break;
+      if (other === key || !lensChoices()[other]) continue;
+      lensInput(other).value = "";
+      lensInput(other).classList.remove("guessed");
+      cleared.push(LENS_LABELS[other]);
+    }
+    if (cleared.length) showNotice(`Cleared the ${cleared.join(" and ")}: that combination is not on the Innovations catalogue.`);
+    refreshLensLists();
+    runValidation();
+  }
+
+  function lensIssues() {
+    if (!state.catalog) return [];
+    const issues = [];
+    const choices = lensChoices();
+    for (const key of LENS_KEYS) {
+      const typed = lensInput(key).value.trim();
+      if (typed && !choices[key]) issues.push({ path: `lens:${key}`, message: `Lens ${LENS_LABELS[key]} "${typed}" is not on the catalogue; pick one from the list.` });
+    }
+    if (!issues.length && !state.lensResolved) {
+      const missing = LENS_KEYS.filter((key) => !choices[key]);
+      const names = missing.map((key) => LENS_LABELS[key]);
+      const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+      issues.push({ path: `lens:${missing[0] || "material"}`, message: `Choose the lens ${list} before submitting.` });
+    }
+    return issues;
   }
 
   function fillOptions(field, options, selected, placeholder) {
@@ -284,95 +431,54 @@
     field.value = options.some((item) => item.value === String(current || "")) ? String(current) : "";
   }
 
-  async function refreshCatalogFields() {
-    if (!state.current?.normalizedOrder || !state.catalog) return;
-    const draft = JSON.parse(JSON.stringify(state.current.normalizedOrder));
-    for (const path of ["lensRequest.materialGroup", "lensRequest.material", "lensRequest.lensType", "lensRequest.option", "lensRequest.coatingSku", "lensRequest.catalogAlias"]) {
-      setAtPath(draft, path, fieldForPath(path)?.value || null);
-    }
-    const alias = fieldForPath("lensRequest.catalogAlias")?.value;
-    const selected = state.catalog.find((item) => item.alias === alias);
-    if (selected) {
-      draft.lensRequest.materialGroup = selected.materialGroupCode;
-      draft.lensRequest.material = selected.material;
-      draft.lensRequest.lensType = selected.lensType;
-    }
-    await renderCatalogFields(draft);
-  }
-
-  async function renderResolution(order, canEdit) {
-    const canConfigure = canEdit && order.status === "READY_FOR_REVIEW" && Boolean(order.reviewConfirmedAt);
-    $("#resolutionForm").hidden = !canConfigure;
-    if (!canConfigure) return;
-    const values = order.resolution || {};
-    for (const field of $("#resolutionForm").elements) {
-      if (!field.name) continue;
-      if (field.name === "addonSkus") field.value = (values.addonSkus || []).join(", ");
-      else if (field.name === "remoteOperator") field.value = state.username;
-      else if (field.name === "customerNumber") field.value = values.customerNumber || "";
-      else if (field.name === "shipName") field.value = values.shipName || order.customer?.name || "";
-      else field.value = values[field.name] ?? "";
-    }
+  async function renderSubmission(order) {
+    const resolution = order.resolution || {};
+    const customer = order.customer || {};
+    $("#frameMounting").value = resolution.frameMounting || "1";
+    $("#addonSkus").value = (resolution.addonSkus || []).join(", ");
+    const summary = $("#submissionSummary");
+    const describe = (account, labNum) => [
+      `Ship to ${customer.name || "the selected customer"}`,
+      `Innovations account ${account || "not set"}`,
+      labNum ? `Lab ${labNum}` : null
+    ].filter(Boolean).join(" · ");
+    summary.textContent = describe(customer.account);
+    if (!state.canEdit) return;
     try {
       const account = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/submission-account`);
-      const customerNumber = $("#resolutionForm").elements.customerNumber;
-      if (!customerNumber.value) customerNumber.value = account.customerNumber || "";
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/alias-suggestion`);
-      const suggestion = payload.suggestion || {};
-      const field = $("#resolutionForm").elements.lensAlias;
-      const notice = $("#aliasSuggestion");
-      notice.replaceChildren();
-      const summary = document.createElement("p");
-      summary.textContent = suggestion.reason || "Choose an active catalogue lens.";
-      notice.append(summary);
-      const selectedAlias = order.normalizedOrder?.lensRequest?.catalogAlias;
-      if (selectedAlias && !field.value) field.value = selectedAlias;
-      else if (suggestion.status === "suggested" && suggestion.suggestedAlias && !field.value) field.value = suggestion.suggestedAlias;
-      const candidates = suggestion.candidates || [];
-      if (candidates.length) {
-        const list = document.createElement("div");
-        list.className = "alias-candidates";
-        for (const candidate of candidates) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "alias-candidate";
-          const label = document.createElement("strong");
-          label.textContent = candidate.label || [candidate.type, candidate.material, candidate.design, candidate.color].filter(Boolean).join(" · ");
-          const hint = document.createElement("small");
-          hint.textContent = "Use this active catalogue lens";
-          button.append(label, hint);
-          button.addEventListener("click", () => {
-            field.value = candidate.alias;
-            summary.textContent = `Selected: ${label.textContent}. The exact alias has been filled for this production configuration.`;
-            list.querySelectorAll(".alias-candidate").forEach((item) => item.classList.toggle("selected", item === button));
-          });
-          list.append(button);
-        }
-        notice.append(list);
-      }
-      notice.hidden = false;
-    } catch (error) {
-      showNotice(error.message, true);
-    }
+      if (state.current?.id === order.id) summary.textContent = describe(account.customerNumber || customer.account, account.labNum);
+    } catch { /* the ERP account shown above is what the server falls back to */ }
   }
 
   function renderApprovalActions(order) {
-    const readyToSubmit = state.canWrite && state.canRelease && order.status === "READY_FOR_REVIEW";
-    const visible = readyToSubmit || order.status === "RELEASED";
-    $("#approvalActions").hidden = !visible;
-    if (!visible) return;
     const button = $("#submitOrderButton");
-    button.hidden = order.status === "RELEASED";
-    button.disabled = !order.resolution;
+    const message = $("#approvalMessage");
     if (order.status === "RELEASED") {
-      $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
-    } else if (!order.reviewConfirmedAt) {
-      $("#approvalMessage").textContent = "Save draft & continue to open the lens and coating choices. Submit is then enabled for this same order.";
-    } else if (!order.resolution) {
-      $("#approvalMessage").textContent = "Choose an exact active lens and save the submission choices. Submit is then enabled for this same order.";
-    } else {
-      $("#approvalMessage").textContent = "This draft is ready. Submit creates the RX file, stages it, and sends it to Innovations.";
+      button.hidden = true;
+      message.textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
+      return;
     }
+    button.hidden = !state.canEdit || !state.canRelease;
+    if (!state.canEdit) {
+      message.textContent = "";
+      return;
+    }
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    const order = state.current;
+    if (!order || order.status === "RELEASED" || !state.canEdit) return;
+    const errors = state.lastValidation?.errors || [];
+    const blockers = [];
+    if (!state.lensResolved) blockers.push("choose a lens material, design and colour option that exist together");
+    if (errors.length) blockers.push(`fix the ${errors.length === 1 ? "value" : `${errors.length} values`} marked in red`);
+    $("#submitOrderButton").disabled = blockers.length > 0;
+    $("#approvalMessage").textContent = !state.canRelease
+      ? "Save the draft. Submitting to Innovations needs release access."
+      : blockers.length
+        ? `To submit, ${blockers.join(" and ")}.`
+        : "Ready. Submit saves this draft, creates the RX file, stages it and releases it to Innovations.";
   }
 
   function renderIssues(order) {
@@ -413,30 +519,37 @@
     renderIssues(state.current.normalizedOrder);
   }
 
-  async function saveReview(event) {
-    event.preventDefault();
-    if (!state.current?.normalizedOrder) return;
+  // Saves the reviewed values. Throws before the request when a value is
+  // invalid, so an unsaved edit is never replaced by the stored copy.
+  async function persistReview() {
     const order = JSON.parse(JSON.stringify(state.current.normalizedOrder));
+    delete order.lensGuessed;
     document.querySelectorAll("[data-path]").forEach((input) => setAtPath(order, input.dataset.path, input.value.trim() || null));
+    order.lensRequest.materialGroup = "1";
     order.patient.name = normalizePatientName(order.patient.name);
     fieldForPath("patient.name").value = order.patient.name || "";
     order.frame.supplied = order.frame.status !== "UNCUT";
     const { errors } = runValidation();
     if (errors.length) {
-      showNotice(`Fix ${errors.length} value${errors.length === 1 ? "" : "s"} before saving: ${errors[0].message}`, true);
       focusField(errors[0].path);
-      return;
+      throw new Error(`Fix ${errors.length} value${errors.length === 1 ? "" : "s"} before saving: ${errors[0].message}`);
     }
+    const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ normalizedOrder: order })
+    });
+    return payload.order;
+  }
+
+  async function saveReview(event) {
+    event.preventDefault();
+    if (!state.current?.normalizedOrder) return;
     const button = $("#saveReviewButton");
     button.disabled = true;
     try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ normalizedOrder: order })
-      });
-      await showOrder(payload.order);
-      showNotice("Draft saved. Choose the lens and coating, then submit this same order to Innovations.");
+      await showOrder(await persistReview());
+      showNotice(state.lensResolved ? "Draft saved. Submit it to Innovations when ready." : "Draft saved. Complete the lens selection to submit it.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -459,13 +572,14 @@
       return { errors: [], warnings: [] };
     }
     const result = window.RxValidation.validateOrder(currentDraft());
-    document.querySelectorAll("#reviewForm [data-path]").forEach((input) => {
+    result.warnings.push(...lensIssues());
+    document.querySelectorAll("#reviewForm :is([data-path], [data-lens])").forEach((input) => {
       input.classList.remove("invalid", "warned");
       input.removeAttribute("aria-invalid");
     });
-    for (const item of result.warnings) fieldForPath(item.path)?.classList.add("warned");
+    for (const item of result.warnings) visibleField(item.path)?.classList.add("warned");
     for (const item of result.errors) {
-      const input = fieldForPath(item.path);
+      const input = visibleField(item.path);
       input?.classList.add("invalid");
       input?.setAttribute("aria-invalid", "true");
     }
@@ -473,7 +587,16 @@
     renderValidationList($("#validationWarnings"), result.warnings);
     card.classList.toggle("has-errors", result.errors.length > 0);
     card.hidden = result.errors.length + result.warnings.length === 0;
+    state.lastValidation = result;
+    updateSubmitState();
     return result;
+  }
+
+  // Lens values are stored in hidden inputs; problems point at the visible choice.
+  function visibleField(path) {
+    const lensKey = path.startsWith("lens:") ? path.slice(5)
+      : { "lensRequest.material": "material", "lensRequest.lensType": "design", "lensRequest.style": "design", "lensRequest.option": "option", "lensRequest.catalogAlias": "material" }[path];
+    return lensKey ? lensInput(lensKey) : fieldForPath(path);
   }
 
   function renderValidationList(list, items) {
@@ -507,7 +630,7 @@
   }
 
   function focusField(path) {
-    const input = fieldForPath(path);
+    const input = visibleField(path);
     if (!input) return;
     input.scrollIntoView({ block: "center", behavior: "smooth" });
     input.focus({ preventScroll: true });
@@ -523,42 +646,34 @@
     }
   }
 
-  async function saveResolution(event) {
-    event.preventDefault();
-    if (!state.current) return;
-    const form = new FormData($("#resolutionForm"));
-    const resolution = Object.fromEntries(form.entries());
-    resolution.addonSkus = String(resolution.addonSkus || "").split(",").map((value) => value.trim()).filter(Boolean);
-    resolution.lensAlias ||= state.current.normalizedOrder?.lensRequest?.catalogAlias || "";
-    resolution.coatingSku = state.current.normalizedOrder?.lensRequest?.coatingSku || "";
-    const button = $("#saveResolutionButton");
-    button.disabled = true;
-    try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/resolution`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution })
-      });
-      await showOrder(payload.order);
-      showNotice("Submission choices saved. You can submit this draft to Innovations.");
-    } catch (error) {
-      showNotice(error.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  }
-
+  // One action: save the reviewed draft, record the submission choices, then
+  // stage and release. Saving clears any earlier choices, so all three run together.
   async function submitOrder() {
-    if (!state.current) return;
-    if (!window.confirm("Submit this RX draft to Innovations? It will be staged and released, then remain editable in Innovations.")) return;
+    if (!state.current?.normalizedOrder || !state.lensResolved) return;
+    const lens = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
+    if (!window.confirm(`Submit this RX to Innovations as ${lens}? It will be staged and released, then remain editable in Innovations.`)) return;
+    const id = encodeURIComponent(state.current.id);
+    const resolution = {
+      frameMounting: $("#frameMounting").value,
+      addonSkus: $("#addonSkus").value.split(",").map((value) => value.trim()).filter(Boolean)
+    };
     const button = $("#submitOrderButton");
     button.disabled = true;
+    button.textContent = "SUBMITTING…";
+    let saved = false;
     try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/submit`, { method: "POST" });
+      await persistReview();
+      saved = true;
+      await api(`/api/rx-capture/orders/${id}/resolution`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution }) });
+      const payload = await api(`/api/rx-capture/orders/${id}/submit`, { method: "POST" });
       await showOrder(payload.order);
-      showNotice("RX draft submitted to Innovations and archived.");
+      showNotice("RX submitted to Innovations and archived.");
     } catch (error) {
+      if (saved) await api(`/api/rx-capture/orders/${id}`).then((payload) => showOrder(payload.order)).catch(() => {});
       showNotice(error.message, true);
     } finally {
-      button.disabled = false;
+      button.textContent = "SUBMIT TO INNOVATIONS";
+      updateSubmitState();
     }
   }
 
