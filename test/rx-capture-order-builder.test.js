@@ -52,10 +52,19 @@ test("builds a deterministic reviewed RX order only from exact source selections
   assert.match(result.order.content, /lens:1234567890123/);
 });
 
-test("refuses unresolved fields and unknown aliases before identifiers are reserved", () => {
+test("keeps unresolved captured values blank while still requiring an exact lens", () => {
   const incomplete = normalizedOrder();
   incomplete.uncertainFields = ["prescription.od.sphere"];
-  assert.throws(() => buildRxCaptureOrder(incomplete, resolution(), { generator: generator() }), /Resolve every missing or uncertain/);
+  incomplete.prescription.od.sphere = null;
+  incomplete.prescription.os.axis = null;
+  incomplete.pd.binocular = null;
+  incomplete.frame = {};
+  const result = buildRxCaptureOrder(incomplete, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(result.issues.hasIssues, true);
+  assert.equal(result.order.prescription.od.sphere, "");
+  assert.equal(result.order.prescription.os.axis, "0");
+  assert.equal(result.order.prescription.od.near, "");
+  assert.equal(result.order.frame.a, "");
   assert.throws(() => buildRxCaptureOrder(normalizedOrder(), { ...resolution(), lensAlias: "9999999999999" }, { generator: generator() }), /exact source-validated lens alias/);
 });
 

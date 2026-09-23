@@ -1,10 +1,20 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — RX Capture Milestones 1 through 4 deployed; authenticated acceptance verification pending
+- Status: In progress — simplified RX Capture draft submission implemented locally; deployment and authenticated acceptance verification pending
 - Last synchronized: 2026-09-22
 
 ## Objective and current state
+
+### RX Capture simplified draft submission — local only
+
+The local source now implements the requested intake-first workflow. One RX Capture owner selects the ERP account, takes one or two prescription photos, reviews/corrects all extracted fields, saves an incomplete draft, optionally selects an exact active lens and coating, then uses **Submit to Innovations**. That single deliberate action generates the immutable payload, stages it, and releases it; no second-person approval queue appears in the intake UI. The confirmation makes the external delivery explicit, and the final state confirms that the released file is archived and that editing continues in Innovations.
+
+Unclear and missing values remain visibly flagged for later work but no longer keep a reviewed capture in `NEEDS_INFO`. The builder deliberately serializes unknown optical/PD/uncut-frame values as blanks rather than inventing measurements or prescription values. It still requires a valid patient name and exact source-validated active lens alias: those are the minimum values the existing proven `.rx` serializer requires. The selected customer pre-fills the ship name; coatings are presented from the server-side RX Capture coating list. The submit route requires both `rx-capture.write` and the existing separately assigned `rx-capture.release` permission, so the only source-system/file-drop action remains explicitly authorized.
+
+Affected files: `lib/rx-capture/{order-builder,service,routes}.js`, `public/rx-capture.{html,js}`, `public/styles/pages/rx-capture.css`, `test/rx-capture*.test.js`, and this handoff/project knowledge record. Focused RX tests pass 20/20; changed-file syntax checks and `git diff --check` pass. Two `npm test` runs each emitted seven initial passing tests but did not reach a final result before the local 30-second execution window, so full-suite status is unconfirmed. No deployment, migration, live extraction, staged file, release, or external source-system write was performed.
+
+Next action: deploy the guarded local update, then in authenticated external Edge/Chrome use an approved non-production image to verify direct typing, missing-value warnings, optional coating choice, same-user submit confirmation, and the final Innovations-release status. That live check performs a billable extraction and a file-drop release, so it requires explicit patient-data and release approval.
 
 Business Metrics now has a dedicated **OpenAI API — GPT-5.6 Luna** Chat API preset. It selects the existing OpenAI-compatible endpoint and the exact `gpt-5.6-luna` model ID; the generic OpenAI choice is retained for custom model IDs. Chat Completions deliberately omits `temperature` for Luna IDs because the provider rejects non-default values, while preserving the existing `0.1` temperature for other models. Revision `9cad5ec` was deployed through the guarded host updater; its host suite passed 217/217 and the saved app setting now uses Luna on the OpenAI endpoint. One minimal live compatibility request succeeded with Luna and no temperature error. Do not disable TLS verification.
 

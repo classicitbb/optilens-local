@@ -261,7 +261,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(migration, /rx_capture\.order_events/);
 });
 
-test("RX Capture keeps approval, immutable staging, and authorized Innovations release as separate boundaries", () => {
+test("RX Capture lets the intake owner submit one reviewed draft without a second-person queue", () => {
   const root = path.join(__dirname, "..");
   const routes = fs.readFileSync(path.join(root, "lib", "rx-capture", "routes.js"), "utf8");
   const service = fs.readFileSync(path.join(root, "lib", "rx-capture", "service.js"), "utf8");
@@ -271,21 +271,23 @@ test("RX Capture keeps approval, immutable staging, and authorized Innovations r
   const html = fs.readFileSync(path.join(root, "public", "rx-capture.html"), "utf8");
   const client = fs.readFileSync(path.join(root, "public", "rx-capture.js"), "utf8");
 
-  assert.match(routes, /rx-capture\.approve/);
-  assert.match(routes, /rx-capture\.stage/);
+  assert.match(routes, /submit/);
   assert.match(routes, /rx-capture\.release/);
-  assert.match(routes, /requireQueuePermission/);
-  assert.match(routes, /review-queue/);
-  assert.match(service, /A different authorized employee must approve/);
+  assert.match(routes, /rx-capture\.write/);
+  assert.match(service, /submitOrder/);
+  assert.match(service, /listCoatings/);
+  assert.doesNotMatch(service, /A different authorized employee must approve/);
   assert.match(service, /order_generations/);
   assert.match(delivery, /content integrity check failed/);
   assert.doesNotMatch(service, /rxGenerator\.release/);
   assert.match(service, /RX_RELEASED_TO_INNOVATIONS/);
   assert.match(migration, /UQ_rx_capture_generations_order/);
   assert.match(releaseMigration, /rx-capture\.release/);
-  assert.match(client, /not been released to Innovations/);
-  assert.match(html, /RELEASE TO INNOVATIONS/);
-  assert.match(html, /Review \/ release access/);
+  assert.match(client, /\/submit/);
+  assert.match(client, /rx-capture\/coatings/);
+  assert.match(html, /SUBMIT TO INNOVATIONS/);
+  assert.match(html, /Captured details to continue later/);
+  assert.doesNotMatch(html, /Review \/ release access/);
 });
 
 test("recent orders pass a click listener rather than Array.map callback metadata", () => {

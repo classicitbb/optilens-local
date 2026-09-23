@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canApprove: false, canStage: false, canRelease: false, canQueue: false, userId: null, username: "" };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "" };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -46,10 +46,7 @@
       state.userId = auth.user?.userId || null;
       state.username = auth.user?.username || auth.user?.displayName || "";
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
-      state.canApprove = (auth.user?.permissions || []).includes("rx-capture.approve");
-      state.canStage = (auth.user?.permissions || []).includes("rx-capture.stage");
       state.canRelease = (auth.user?.permissions || []).includes("rx-capture.release");
-      state.canQueue = state.canApprove || state.canStage || state.canRelease;
       $("#newRxButton").hidden = !state.canWrite;
       $("#saveReviewButton").hidden = !state.canWrite;
       wireEvents();
@@ -63,7 +60,6 @@
   function wireEvents() {
     $("#newRxButton").addEventListener("click", () => showScreen("captureScreen"));
     $("#refreshOrdersButton").addEventListener("click", loadOrders);
-    $("#refreshReviewQueueButton").addEventListener("click", loadReviewQueue);
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", async () => {
       stopPolling();
       showScreen("ordersScreen");
@@ -80,9 +76,7 @@
     $("#reviewForm").addEventListener("submit", saveReview);
     $("#resolutionForm").addEventListener("submit", saveResolution);
     $("#reprocessButton").addEventListener("click", reprocess);
-    $("#approveOrderButton").addEventListener("click", approveOrder);
-    $("#stageOrderButton").addEventListener("click", stageOrder);
-    $("#releaseOrderButton").addEventListener("click", releaseOrder);
+    $("#submitOrderButton").addEventListener("click", submitOrder);
     document.querySelectorAll("[data-path]").forEach((input) => input.addEventListener("input", () => resolveIssue(input.dataset.path)));
   }
 
@@ -92,16 +86,6 @@
     const list = $("#ordersList");
     list.replaceChildren(...state.orders.map((order) => orderButton(order)));
     $("#ordersEmpty").hidden = state.orders.length > 0;
-    if (state.canQueue) await loadReviewQueue();
-  }
-
-  async function loadReviewQueue() {
-    if (!state.canQueue) return;
-    const payload = await api("/api/rx-capture/review-queue");
-    const orders = payload.orders || [];
-    $("#reviewQueuePanel").hidden = false;
-    $("#reviewQueueList").replaceChildren(...orders.map((order) => orderRow(order, () => showOrder(order))));
-    $("#reviewQueueEmpty").hidden = orders.length > 0;
   }
 
   function orderRow(order, onClick = () => openOrder(order.id)) {
@@ -244,6 +228,7 @@
       if (field.name === "addonSkus") field.value = (values.addonSkus || []).join(", ");
       else if (field.name === "remoteOperator") field.value = state.username;
       else if (field.name === "customerNumber") field.value = order.customer?.account || values.customerNumber || "";
+      else if (field.name === "shipName") field.value = values.shipName || order.customer?.name || "";
       else field.value = values[field.name] ?? "";
     }
     try {
@@ -282,26 +267,15 @@
     } catch (error) {
       showNotice(error.message, true);
     }
+    await loadCoatings(values.coatingSku || "");
   }
 
   function renderApprovalActions(order) {
-    const visible = (state.canApprove && order.status === "READY_FOR_REVIEW") || (state.canStage && order.status === "RX_GENERATED") || (state.canRelease && order.status === "STAGED") || order.status === "RELEASED";
+    const visible = (state.canWrite && state.canRelease && order.status === "READY_FOR_REVIEW" && order.resolution) || order.status === "RELEASED";
     $("#approvalActions").hidden = !visible;
     if (!visible) return;
-    $("#approveOrderButton").hidden = !(state.canApprove && order.status === "READY_FOR_REVIEW");
-    $("#stageOrderButton").hidden = !(state.canStage && order.status === "RX_GENERATED");
-    $("#releaseOrderButton").hidden = !(state.canRelease && order.status === "STAGED");
-    const steps = ["approvalStepGenerated", "approvalStepStaged", "approvalStepReleased"];
-    const completed = order.status === "RELEASED" ? 3 : order.status === "STAGED" ? 2 : order.status === "RX_GENERATED" ? 1 : 0;
-    steps.forEach((id, index) => {
-      const step = $(`#${id}`);
-      step.classList.toggle("complete", index < completed);
-      step.classList.toggle("current", index === completed && order.status !== "RELEASED");
-    });
     if (order.status === "RELEASED") $("#approvalMessage").textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
-    else if (order.status === "STAGED") $("#approvalMessage").textContent = `Staged ${order.generatedFilename || "RX file"} in the local RX staging folder. It is waiting for an authorized release; nothing has been sent to Innovations yet.`;
-    else if (order.status === "RX_GENERATED") $("#approvalMessage").textContent = `Generated ${order.generatedFilename || "an immutable RX payload"}. The next step is local staging, which creates the file for review; it is not released automatically.`;
-    else $("#approvalMessage").textContent = "Approval creates an immutable RX payload. The visible steps below show when it is generated, written to local staging, and finally released to Innovations.";
+    else $("#approvalMessage").textContent = "Submitting creates the RX file, stages it, and sends it to Innovations. The order can continue to be edited there.";
   }
 
   function renderIssues(order) {
@@ -359,7 +333,7 @@
         body: JSON.stringify({ normalizedOrder: order })
       });
       await showOrder(payload.order);
-      showNotice("Review saved.");
+      showNotice("Draft saved. You can continue it now or return later.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -390,7 +364,7 @@
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution })
       });
       await showOrder(payload.order);
-      showNotice("Production configuration saved. It is ready for a separate reviewer.");
+      showNotice("Submission choices saved. You can submit this draft to Innovations.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -398,14 +372,15 @@
     }
   }
 
-  async function approveOrder() {
+  async function submitOrder() {
     if (!state.current) return;
-    const button = $("#approveOrderButton");
+    if (!window.confirm("Submit this RX draft to Innovations? It will be staged and released, then remain editable in Innovations.")) return;
+    const button = $("#submitOrderButton");
     button.disabled = true;
     try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/approve`, { method: "POST" });
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/submit`, { method: "POST" });
       await showOrder(payload.order);
-      showNotice("Approved payload generated. It is not staged or released.");
+      showNotice("RX draft submitted to Innovations and archived.");
     } catch (error) {
       showNotice(error.message, true);
     } finally {
@@ -413,34 +388,17 @@
     }
   }
 
-  async function stageOrder() {
-    if (!state.current) return;
-    const button = $("#stageOrderButton");
-    button.disabled = true;
+  async function loadCoatings(selectedSku) {
+    const field = $("#resolutionForm").elements.coatingSku;
+    if (!field) return;
     try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/stage`, { method: "POST" });
-      await showOrder(payload.order);
-      showNotice("Approved RX staged locally. It has not been released to Innovations.");
+      const payload = await api("/api/rx-capture/coatings");
+      const options = [new Option("No coating selected", "")];
+      for (const item of payload.items || []) options.push(new Option(item.description, item.sku));
+      field.replaceChildren(...options);
+      field.value = selectedSku;
     } catch (error) {
-      showNotice(error.message, true);
-    } finally {
-      button.disabled = false;
-    }
-  }
-
-  async function releaseOrder() {
-    if (!state.current) return;
-    if (!window.confirm("Release this approved staged RX file to Innovations? An archived copy will be retained.")) return;
-    const button = $("#releaseOrderButton");
-    button.disabled = true;
-    try {
-      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/release`, { method: "POST" });
-      await showOrder(payload.order);
-      showNotice("Approved RX released to Innovations and archived.");
-    } catch (error) {
-      showNotice(error.message, true);
-    } finally {
-      button.disabled = false;
+      showNotice(`Coating choices are unavailable: ${error.message}`, true);
     }
   }
 
@@ -540,6 +498,7 @@
   }
 
   function statusLabel(status) {
+    if (status === "READY_FOR_REVIEW") return "READY TO SUBMIT";
     return String(status || "NEW").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 

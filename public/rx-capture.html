@@ -42,17 +42,6 @@
         <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
       </section>
 
-      <section id="reviewQueuePanel" class="orders-panel review-queue" aria-labelledby="reviewQueueTitle" hidden>
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Review / release access</p>
-            <h2 id="reviewQueueTitle">APPROVAL QUEUE</h2>
-          </div>
-          <button id="refreshReviewQueueButton" class="icon-button" type="button" aria-label="Refresh approval queue">↻</button>
-        </div>
-        <div id="reviewQueueEmpty" class="empty-state">No RX Capture orders are awaiting review.</div>
-        <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="reviewQueueList"></tbody></table></div>
-      </section>
     </section>
 
     <section id="captureScreen" class="screen" aria-labelledby="captureTitle">
@@ -177,8 +166,8 @@
         </section>
 
         <section id="issuesCard" class="issues-card" hidden>
-          <h2>Experimental incomplete-order review</h2>
-          <p>Missing or uncertain fields do not block transmission in this experiment. The order can be augmented later as information becomes available.</p>
+          <h2>Captured details to continue later</h2>
+          <p>These marks show what was unclear in the photo. Save the draft now and complete it later; only the minimum Innovations import values must be present to submit.</p>
           <ul id="issuesList"></ul>
         </section>
 
@@ -186,23 +175,23 @@
           <label>Instructions<textarea data-path="instructions" rows="3"></textarea></label>
         </section>
 
-        <button id="saveReviewButton" class="primary-button wide" type="submit">SAVE REVIEW</button>
+        <button id="saveReviewButton" class="primary-button wide" type="submit">SAVE DRAFT</button>
       </form>
 
       <form id="resolutionForm" class="review-form" hidden>
         <section class="review-card">
           <div class="section-title-row">
-            <h2>Production configuration</h2>
-            <span class="optional-badge">Exact source selections</span>
+            <h2>Innovations submission</h2>
+            <span class="optional-badge">Choose what is known</span>
           </div>
-          <p class="section-help">Choose only known account, catalogue, and frame values. Saving this configuration does not generate, stage, or release a file.</p>
+          <p class="section-help">Your account is already selected. Choose a source-validated lens and an optional coating when known. Uncertain captured values remain visible for later editing in Innovations.</p>
           <div id="aliasSuggestion" class="alias-suggestion" hidden></div>
           <div class="field-grid two">
             <label>Customer number<input name="customerNumber" autocomplete="off" required readonly></label>
             <label>Customer sequence<input name="customerSequence" autocomplete="off" placeholder="Uses configured default when blank"></label>
             <label>Ship name<input name="shipName" autocomplete="off" required></label>
-            <label>Exact 13-digit lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required></label>
-            <label>Coating SKU <span class="field-optional">optional</span><input name="coatingSku" autocomplete="off"></label>
+            <label>Exact 13-digit lens alias<input name="lensAlias" inputmode="numeric" autocomplete="off" required aria-describedby="lensAliasHelp"><span id="lensAliasHelp" class="field-help">Choose a suggested active lens below, or enter its exact alias.</span></label>
+            <label>Coating <span class="field-optional">optional</span><select name="coatingSku"><option value="">No coating selected</option></select></label>
             <label>Add-on SKUs <span class="field-optional">optional</span><input name="addonSkus" autocomplete="off" placeholder="Comma-separated exact SKUs"></label>
             <label>Frame mode<select name="frameMode"><option value="uncut">Uncut</option><option value="edged">Edged / enclosed</option></select></label>
             <label>Frame mounting code<input name="frameMounting" value="1" autocomplete="off" required></label>
@@ -211,21 +200,14 @@
           </div>
         </section>
         <section class="review-card"><label>Production instructions <span class="field-optional">optional</span><textarea name="instructions" rows="3"></textarea></label></section>
-        <button id="saveResolutionButton" class="primary-button wide" type="submit">SAVE CONFIGURATION</button>
+        <button id="saveResolutionButton" class="secondary-button wide" type="submit">SAVE SUBMISSION CHOICES</button>
       </form>
 
       <section id="approvalActions" class="review-card approval-actions" hidden>
-        <h2>Reviewer actions</h2>
-        <p id="approvalMessage" class="section-help">Approval creates an immutable RX payload only. Staging writes that approved payload to local staging; neither action releases it to Innovations.</p>
-        <ol class="approval-steps" aria-label="RX file workflow">
-          <li id="approvalStepGenerated"><strong>Approve &amp; generate</strong><span>Creates the immutable RX payload.</span></li>
-          <li id="approvalStepStaged"><strong>Stage approved RX</strong><span>Writes the verified file to local staging.</span></li>
-          <li id="approvalStepReleased"><strong>Release to Innovations</strong><span>Sends it only after a separate authorized action; an archive copy remains.</span></li>
-        </ol>
+        <h2>Submit to Innovations</h2>
+        <p id="approvalMessage" class="section-help">Submitting creates the RX file, stages it, then releases it to Innovations. The order remains available for later editing there.</p>
         <div class="action-row">
-          <button id="approveOrderButton" class="primary-button" type="button">APPROVE &amp; GENERATE</button>
-          <button id="stageOrderButton" class="secondary-button" type="button">STAGE APPROVED RX</button>
-          <button id="releaseOrderButton" class="primary-button" type="button">RELEASE TO INNOVATIONS</button>
+          <button id="submitOrderButton" class="primary-button wide" type="button">SUBMIT TO INNOVATIONS</button>
         </div>
       </section>
     </section>
