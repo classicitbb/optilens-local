@@ -372,7 +372,9 @@
   function lensValuesFromRequest(request) {
     const byAlias = request.catalogAlias && state.catalog.find((item) => item.alias === String(request.catalogAlias));
     const source = byAlias || request;
-    return { material: source.material, design: source.style ? designLabel(source) : "", option: source.option };
+    // Drafts saved before the two Innovations spellings were merged may say "Custom lens".
+    const style = /^custom lens$/i.test(String(source.style || "")) ? "Custom Lens" : source.style;
+    return { material: source.material, design: style ? designLabel({ ...source, style }) : "", option: source.option };
   }
 
   function knownLensValues(values) {
@@ -415,22 +417,17 @@
   }
 
 
-  // Innovations spells the customer-supplied style both "Custom Lens" and "Custom lens".
-  const isOwnLensDesign = (label) => / · custom lens$/i.test(label);
+  // The server merges Innovations' two spellings into one "Custom Lens" design per type.
+  const isOwnLensDesign = (label) => label.endsWith(" · Custom Lens");
 
   // One action for the usual job: switch the design to the customer-supplied
   // ("Custom Lens") design of the current lens type, keeping material and
   // colour where they still fit; the normal conflict repair clears the rest.
   function chooseOwnLenses() {
     if (!state.catalog || !state.canEdit) return;
-    const choices = lensChoices();
-    const current = choices.design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
+    const current = lensChoices().design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
     const designs = [...state.lensUniverse.design].filter(isOwnLensDesign);
-    // Innovations has two spellings of the style with different colour lists;
-    // take the one that keeps the most of the current material and colour.
-    const fit = (label) => lensMatches({ ...choices, design: label }).length * 4 + lensMatches({ ...choices, option: "", design: label }).length;
-    const best = (labels) => labels.sort((left, right) => fit(right) - fit(left))[0];
-    const target = best(designs.filter((label) => label.startsWith(`${current} · `))) || best(designs.filter((label) => label.startsWith("Single Vision · "))) || designs[0];
+    const target = designs.find((label) => label.startsWith(`${current} · `)) || designs.find((label) => label.startsWith("Single Vision · ")) || designs[0];
     if (!target) return showNotice("No customer-supplied lens is available in the catalogue.", true);
     setLensValue("design", target);
     lensInput("design").classList.remove("guessed");

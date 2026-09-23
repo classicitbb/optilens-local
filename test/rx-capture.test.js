@@ -90,6 +90,26 @@ test("customer-supplied Custom Lens aliases are preferred for an otherwise equal
   assert.equal(guessLens({ lensType: "Single Vision", material: "1.67", design: "pt own lenses, cut only", option: "gray" }, [stock, ownPoly]).alias, ownPoly.alias);
 });
 
+test("the two Innovations Custom Lens spellings merge into one design with combined colours", () => {
+  const { mergeOwnLensStyles } = require("../lib/rx-capture/alias-resolver");
+  const row = (alias, style, option, extra = {}) => ({ alias, materialGroupCode: "1", mfType: "Single Vision", materialDescription: "Photochromic 1.50", styleDescription: style, colorDescription: option, customerSupplied: true, ...extra });
+  const catalog = [
+    row("0210199900096", "Custom lens", "XtrActive Gray"),
+    row("0210127700096", "Custom Lens", "XtrActive Gray"),
+    row("0210199900500", "Custom lens", "Trans 8 Gray"),
+    row("0210127700600", "Custom Lens", "Photo Brown"),
+    { alias: "0000000100001", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "Plastic 1.50", styleDescription: "Regular", colorDescription: "SRCoated" },
+    row("0210300000001", "Custom AllPurp 12", "SRCoated", { customerSupplied: false })
+  ];
+  const merged = mergeOwnLensStyles(catalog);
+  const own = merged.filter((lens) => lens.displayStyle === "Custom Lens");
+  assert.deepEqual(own.map((lens) => lens.colorDescription).sort(), ["Photo Brown", "Trans 8 Gray", "XtrActive Gray"]);
+  assert.equal(own.find((lens) => lens.colorDescription === "XtrActive Gray").alias, "0210127700096");
+  assert.equal(own.find((lens) => lens.colorDescription === "Trans 8 Gray").styleDescription, "Custom lens");
+  assert.equal(merged.length, 5);
+  assert.equal(guessLens({ lensType: "Single Vision", material: "Photochromic", option: "Trans 8 Gray" }, merged).style, "Custom Lens");
+});
+
 test("catalogue sync recognises the Innovations Custom Lens style as customer-supplied", () => {
   const { isCustomerSuppliedLens } = require("../lib/rx-catalog-sync");
   assert.equal(isCustomerSuppliedLens("Custom Lens", "Trans 7 Gray"), true);
