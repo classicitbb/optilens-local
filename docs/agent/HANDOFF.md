@@ -1,10 +1,20 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — simplified RX Capture draft submission deployed; authenticated acceptance verification pending
+- Status: In progress — RX Capture catalogue and account-mapping refinements deployed; one real release still awaits the operator's final confirmation
 - Last synchronized: 2026-09-23
 
 ## Objective and current state
+
+### RX Capture catalogue and LabLink account mapping — deployed and healthy
+
+Revision `ecdf6ee` makes the RX review the one place to choose production values: Material Group defaults to active Group 1 (Resin), then filters active Material and Lens Type choices; the printed design remains a read-only capture reference; photo-only option values are never guessed; coating is selected once in review; and the exact active alias is saved with the draft. The submission form defaults to **Edged / enclosed**, provides Metal/Plastic/Rimless-Grooved mounting values `1`/`2`/`3`, merges instructions into the captured instruction, and keeps the Innovations customer number editable.
+
+Migration `048-rx-capture-innovations-account-mappings.sql` records confirmed LabLink customer-number mappings in the private app database. It seeds the operator-supplied EFI mapping. A read-only source check confirmed that the Innovations `Customers.AccountNumber` remains the local code, so it must not be written to the `.rx` `cust_num` field. The managed mapping is used when known; otherwise the blank number must be entered by the operator rather than guessed.
+
+The guarded host updater fast-forwarded `ecdf6ee`, applied migration 048, restarted the app, and completed successfully. Read-only checks confirmed the migration and seeded mapping. The live source catalogue was then refreshed: 4,092 active aliases and 97 coating items are available, including the active Resin and Glass groups. Focused RX tests pass 21/21, changed-file syntax and diff checks pass, the live browser confirms the new controls and the Pixel 7-width two-column prescription layout, and `node scripts/monitor-harness.js verify` reports all systems online.
+
+Next action: select the intended active lens/coating for the real draft, verify its Innovations customer number, save the submission choices, then request final confirmation immediately before **Submit to Innovations**. That last click releases a patient RX file to the Innovations incoming route.
 
 ### RX Capture simplified draft submission — deployed and healthy
 
