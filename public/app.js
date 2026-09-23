@@ -207,11 +207,18 @@ function renderHomeAuth() {
   const emailWrap = document.querySelector("#homeAuthEmailWrap");
   const error = document.querySelector("#homeAuthError");
 
-  if (eyebrow) eyebrow.textContent = signedIn ? "Signed in" : "Secure LAN dashboard";
-  if (title) title.textContent = signedIn ? `Welcome, ${name}` : "OptiLens Local";
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  if (eyebrow) {
+    eyebrow.innerHTML = signedIn
+      ? `<span class="lan-status-dot"></span> Secure LAN · Classic Visions Lab Hub`
+      : "Secure LAN dashboard";
+  }
+  if (title) title.textContent = signedIn ? `${timeGreeting}, ${name}` : "OptiLens Local";
   if (message) {
     message.textContent = signedIn
-      ? "Your launch pad is ready. Platform status and configured workflows are available below."
+      ? "Internal operations console. Access delivery workflows, pricing rules, RX capture, and database connectors below."
       : "Sign in to access export deliveries, pricing automation, integrations, and internal operations workflows.";
   }
 
@@ -381,6 +388,60 @@ async function refreshDashboardSnapshot() {
   }
 }
 
+const APP_SUB_TOOLS = {
+  "delivery-export": [
+    { label: "Shipments", href: "/modules/delivery-export#shipments", icon: "local_shipping" },
+    { label: "Commercial Invoice", href: "/modules/delivery-export#commercial-invoice", icon: "receipt_long" },
+    { label: "BeSwift Fill", href: "/modules/delivery-export#beswift", icon: "send_and_archive" }
+  ],
+  "pricing-automation": [
+    { label: "Pricing Rules", href: "/modules/pricing-automation", icon: "tune" },
+    { label: "Matrix Group", href: "/modules/pricing-automation#matrix", icon: "table_chart" }
+  ],
+  "rx-capture": [
+    { label: "Scan Rx", href: "/rx-capture", icon: "photo_camera" },
+    { label: "Recent Batches", href: "/rx-capture#batches", icon: "history" }
+  ],
+  "integrations": [
+    { label: "Innovations MSSQL", href: "/modules/integrations#innovations", icon: "database" },
+    { label: "PSQL", href: "/modules/integrations#psql", icon: "dns" },
+    { label: "Access Archive", href: "/modules/integrations#access", icon: "inventory" }
+  ],
+  "automation": [
+    { label: "Agent Tools", href: "/modules/automation", icon: "smart_toy" },
+    { label: "Job Queue", href: "/modules/automation#queue", icon: "playlist_play" }
+  ],
+  "business-metrics": [
+    { label: "Inventory", href: "/modules/business-metrics#inventory", icon: "inventory" },
+    { label: "Deliveries", href: "/modules/business-metrics#deliveries", icon: "trending_up" }
+  ],
+  "settings": [
+    { label: "Endpoints", href: "/settings#endpoints", icon: "api" },
+    { label: "Credentials", href: "/credentials", icon: "key" },
+    { label: "Users", href: "/admin/users", icon: "group" }
+  ],
+  "credentials": [
+    { label: "Vault", href: "/credentials", icon: "lock" },
+    { label: "Source Writers", href: "/credentials#writers", icon: "edit_note" }
+  ],
+  "release-notes": [
+    { label: "Changelog", href: "/release-notes", icon: "history" }
+  ]
+};
+
+const APP_ACCENT_COLORS = {
+  "delivery-export": "#C89130",
+  "pricing-automation": "#389457",
+  "rx-capture": "#0f7c86",
+  "integrations": "#1A8A9C",
+  "automation": "#7c3aed",
+  "business-metrics": "#b45309",
+  "release-notes": "#6d28d9",
+  "users": "#0B1E35",
+  "credentials": "#64748b",
+  "settings": "#4b5563"
+};
+
 function renderApplicationGrid() {
   const target = document.querySelector("#appAccessGrid");
   if (!target) return;
@@ -391,13 +452,36 @@ function renderApplicationGrid() {
     const tag = allowed ? "a" : "div";
     const href = allowed ? ` href="${escapeHtml(app.href)}"` : "";
     const aria = allowed ? "" : ` aria-disabled="true"`;
+    const color = app.color || APP_ACCENT_COLORS[app.id] || "#1A8A9C";
+    const subTools = allowed && APP_SUB_TOOLS[app.id] ? APP_SUB_TOOLS[app.id] : [];
+
     return `
-      <${tag} class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}"${href}${aria}>
-        <span class="app-access-icon material-symbols-outlined">${escapeHtml(app.icon || "apps")}</span>
-        <span class="badge ${escapeHtml(app.status || "planned")}">${escapeHtml(allowed ? "available" : "restricted")}</span>
-        <h3>${escapeHtml(app.name)}</h3>
-        <p>${escapeHtml(app.summary || "Application workspace.")}</p>
-      </${tag}>
+      <article class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}" style="--app-accent: ${escapeHtml(color)}">
+        <span class="app-accent-rail" aria-hidden="true" style="background:${escapeHtml(color)}"></span>
+        <${tag} class="app-access-main"${href}${aria}>
+          <div class="app-access-header">
+            <span class="app-access-icon material-symbols-outlined" style="color: ${escapeHtml(color)}; background: color-mix(in srgb, ${escapeHtml(color)} 14%, transparent)">${escapeHtml(app.icon || "apps")}</span>
+            <span class="badge ${escapeHtml(app.status || "planned")}">${escapeHtml(allowed ? "available" : "restricted")}</span>
+          </div>
+          <div class="app-access-meta">
+            <div class="app-title-row">
+              <h3>${escapeHtml(app.name)}</h3>
+              ${allowed ? `<span class="app-hover-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>` : ""}
+            </div>
+            <p>${escapeHtml(app.summary || "Application workspace.")}</p>
+          </div>
+        </${tag}>
+        ${subTools.length > 0 ? `
+          <div class="app-card-tools">
+            ${subTools.map(tool => `
+              <a href="${escapeHtml(tool.href)}" class="app-card-tool-link">
+                <span class="material-symbols-outlined tool-icon">${escapeHtml(tool.icon)}</span>
+                <span>${escapeHtml(tool.label)}</span>
+              </a>
+            `).join("")}
+          </div>
+        ` : ""}
+      </article>
     `;
   }).join("");
 }
@@ -405,17 +489,22 @@ function renderApplicationGrid() {
 function applicationCatalog() {
   const shellApps = window.OptiLensShell?.apps || [];
   const shellById = new Map(shellApps.map((app) => [app.id, app]));
-  const moduleApps = (state.modules || []).map((module) => ({
-    ...module,
-    icon: shellById.get(module.id)?.icon || moduleIcon(module.id),
-    permissions: moduleAccessRules[module.id] || [`${module.id}.read`]
-  }));
+  const moduleApps = (state.modules || []).map((module) => {
+    const shellApp = shellById.get(module.id);
+    return {
+      ...module,
+      icon: shellApp?.icon || moduleIcon(module.id),
+      color: shellApp?.color || APP_ACCENT_COLORS[module.id] || "#1A8A9C",
+      permissions: moduleAccessRules[module.id] || [`${module.id}.read`]
+    };
+  });
   const seen = new Set(moduleApps.map((app) => app.id));
   return moduleApps.concat(platformApplications.filter((app) => !seen.has(app.id)).map((app) => {
     const shellApp = shellById.get(app.id);
     return {
       ...app,
-      icon: shellApp?.icon || moduleIcon(app.id)
+      icon: shellApp?.icon || moduleIcon(app.id),
+      color: shellApp?.color || APP_ACCENT_COLORS[app.id] || "#1A8A9C"
     };
   }));
 }
@@ -479,6 +568,11 @@ function wireHeaderActions() {
     head.querySelector(".analytics-chevron").innerHTML = isOpen ? "&#9660;" : "&#9650;";
   });
   head?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); head.click(); } });
+
+  // Hero search shortcut trigger
+  document.querySelector("#heroSearchTrigger")?.addEventListener("click", () => {
+    document.querySelector("#searchTrigger")?.click();
+  });
 }
 
 function normalizeDashboardTiles(tiles) {
