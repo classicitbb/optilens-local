@@ -2639,20 +2639,109 @@ textarea.ci-line-input {
 }
 
 .app-access-grid {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+  gap: 12px;
+  margin-top: 14px;
   align-items: stretch;
 }
 
 .app-access-card {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon status"
+    "title title"
+    "summary summary";
   align-content: start;
-  gap: 10px;
+  gap: 8px 12px;
   min-width: 0;
-  min-height: 176px;
+  min-block-size: 10.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 17px 16px 21px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 6%, var(--surface)), var(--surface) 48%);
+  overflow: clip;
+  container-type: inline-size;
+  box-shadow: 0 1px 2px rgba(11, 30, 53, 0.025);
+  transition: transform var(--transition-standard), border-color var(--transition-standard), box-shadow var(--transition-standard);
+}
+
+.app-access-card::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 4px;
+  background: var(--blue);
+  content: "";
+  opacity: 0.84;
+  transition: opacity var(--transition-standard), width var(--transition-standard);
+}
+
+.app-access-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--blue);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--blue) 16%, transparent);
+}
+
+.app-access-card:hover::before {
+  width: 5px;
+  opacity: 1;
+}
+
+.app-access-card {
+  text-decoration: none;
   color: inherit;
-  overflow: hidden;
+}
+
+.app-access-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--blue) 42%, transparent);
+  outline-offset: -3px;
+}
+
+.app-access-icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  transition: transform var(--transition-standard), background-color var(--transition-standard);
+}
+
+.app-access-card:hover .app-access-icon {
+  transform: scale(1.05);
+}
+
+.app-access-card .badge {
+  grid-area: status;
+  align-self: start;
+  justify-self: end;
+}
+
+.app-access-card h3 {
+  grid-area: title;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.app-access-card p {
+  grid-area: summary;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: clip;
 }
 
 .app-access-card.is-restricted {
@@ -2665,16 +2754,34 @@ textarea.ci-line-input {
   color: var(--muted);
 }
 
-.app-access-icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: var(--blue);
-  color: #fff;
-  font-size: 22px;
-  font-weight: 800;
+@container (min-width: 25rem) {
+  .app-access-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon status"
+      "icon title"
+      "icon summary";
+    column-gap: 13px;
+    align-items: start;
+  }
+
+  .app-access-icon {
+    grid-row: 1 / -1;
+    grid-column: 1;
+  }
+
+  .app-access-card p {
+    align-self: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-access-card,
+  .app-access-icon,
+  .app-access-card::before {
+    transition: none;
+  }
 }
 
 .app-access-card h3 {

@@ -386,13 +386,14 @@ function renderApplicationGrid() {
   if (!target) return;
 
   const apps = applicationCatalog();
+  target.setAttribute("aria-label", `${apps.length} application workspaces`);
   target.innerHTML = apps.map((app) => {
     const allowed = canAccessApplication(app);
     const tag = allowed ? "a" : "div";
     const href = allowed ? ` href="${escapeHtml(app.href)}"` : "";
     const aria = allowed ? "" : ` aria-disabled="true"`;
     return `
-      <${tag} class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}"${href}${aria}>
+      <${tag} class="app-access-card ${allowed ? "is-allowed" : "is-restricted"}" data-application="${escapeHtml(app.id)}"${href}${aria}>
         <span class="app-access-icon material-symbols-outlined">${escapeHtml(app.icon || "apps")}</span>
         <span class="badge ${escapeHtml(app.status || "planned")}">${escapeHtml(allowed ? "available" : "restricted")}</span>
         <h3>${escapeHtml(app.name)}</h3>

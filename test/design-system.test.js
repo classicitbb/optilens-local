@@ -56,6 +56,7 @@ test("delivery, launch-pad, pricing, and shell refinements retain their intended
   const components = read("public/styles/components.css");
   const shell = read("public/styles/shell.css");
   const shared = read("public/shared.js");
+  const launchPad = read("public/app.js");
   const pricing = read("public/tools/pricing-automation/pricing.css");
   const pricingMarkup = read("public/tools/pricing-automation/index.html");
 
@@ -66,6 +67,16 @@ test("delivery, launch-pad, pricing, and shell refinements retain their intended
   assert.match(shell, /\.search-overlay \{[\s\S]*background: transparent;[\s\S]*backdrop-filter: none;/);
   assert.match(shell, /\.search-palette \{[\s\S]*border-radius: 0 0 5px 5px;/);
   assert.match(shell, /\.launcher-panel \.launcher-tile \{[\s\S]*background: transparent;/);
+  assert.match(components, /\.app-access-grid \{[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 17\.5rem\), 1fr\)\)/,
+    "the launch grid must expand its application tracks without viewport-specific breakpoints");
+  assert.match(components, /\.app-access-card:focus-visible \{[\s\S]*outline: 3px solid/,
+    "application launch actions must retain a visible keyboard focus state");
+  assert.match(components, /@container \(min-width: 25rem\)/,
+    "application cards must adapt to their available inline size");
+  assert.match(launchPad, /target\.setAttribute\("aria-label", `\$\{apps\.length\} application workspaces`\)/,
+    "the generated application grid must expose its workspace count to assistive technology");
+  assert.match(launchPad, /class="app-access-card \$\{allowed \? "is-allowed" : "is-restricted"\}" data-application=/,
+    "each generated launch card must retain a stable application identifier");
   assert.match(pricingMarkup, /<body class="pricing-automation-page">/);
   assert.match(pricing, /\.matrix-hdr h3 \{ color: #fff;/);
   assert.match(pricing, /body\.pricing-automation-page \.pl-topbar \.pl-btn \{/);
