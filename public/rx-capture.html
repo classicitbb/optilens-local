@@ -47,6 +47,7 @@
           </div>
           <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders">↻</button>
         </div>
+        <input id="ordersSearch" class="cb-field orders-search" type="search" autocomplete="off" placeholder="Search patient, customer or account" aria-label="Search orders">
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
         <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
       </section>
@@ -135,6 +136,7 @@
         <strong>Extraction could not be completed</strong>
         <p id="failedMessage"></p>
         <button id="reprocessButton" class="secondary-button" type="button">TRY AGAIN</button>
+        <button class="secondary-button discard-button" type="button" data-discard>DISCARD</button>
       </div>
 
       <form id="reviewForm" class="review-form" hidden>
@@ -244,6 +246,7 @@
           <p id="submissionSummary" class="submission-summary"></p>
           <p id="approvalMessage" class="section-help approval-message"></p>
           <div class="action-row">
+            <button class="secondary-button discard-button" type="button" data-discard>DISCARD DRAFT</button>
             <button id="saveReviewButton" class="secondary-button" type="button" aria-keyshortcuts="Control+S" title="Save draft (Ctrl+S)">SAVE DRAFT</button>
             <button id="submitOrderButton" class="primary-button" type="button" aria-keyshortcuts="Control+Enter" title="Submit to Innovations (Ctrl+Enter)">SUBMIT TO INNOVATIONS</button>
             <button id="retryReleaseButton" class="secondary-button" type="button" hidden>RETRY RELEASE</button>
