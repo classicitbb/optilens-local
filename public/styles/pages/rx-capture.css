@@ -103,7 +103,7 @@ button { cursor: pointer; }
 .file-card > :not(.paste-target) { position: relative; z-index: 1; pointer-events: none; }
 .file-card > .file-actions, .file-card > .file-actions *, .file-card > .clipboard-offer, .file-card > .clipboard-offer * { pointer-events: auto; }
 .clipboard-offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid #9ec8cf; border-radius: 10px; background: #e4f7f7; color: var(--teal-dark); font-size: .82rem; font-weight: 750; }
-.clipboard-offer img { max-width: 72px; max-height: 72px; border-radius: 6px; object-fit: contain; background: white; }
+.file-card .clipboard-offer img { max-width: 72px; max-height: 72px; border-radius: 6px; object-fit: contain; background: white; }
 .paste-target { position: absolute; inset: 0; z-index: 0; border-radius: 10px; color: transparent; caret-color: transparent; overflow: hidden; outline: none; cursor: copy; -webkit-user-select: text; user-select: text; }
 .file-card:focus-within:not(:has(.file-button:focus-within)), .file-card.dragging { border-color: var(--teal); background: #eef9fa; }
 .file-card.dragging { border-style: solid; box-shadow: 0 0 0 4px rgb(15 124 134 / .15); }
@@ -114,8 +114,8 @@ button { cursor: pointer; }
 .file-button:hover { border-color: var(--teal); }
 .file-button:focus-within { outline: 3px solid rgb(15 124 134 / .3); outline-offset: 2px; }
 .file-card.has-image .file-button { min-height: 38px; padding: 7px 12px; }
-.file-card img { max-width: 100%; max-height: 230px; border-radius: 8px; object-fit: contain; }
-.file-card:has(img:not([hidden])) > .camera-icon, .file-card:has(img:not([hidden])) > strong, .file-card:has(img:not([hidden])) > span:not(.camera-icon) { display: none; }
+.file-card > img { max-width: 100%; max-height: 230px; border-radius: 8px; object-fit: contain; }
+.file-card:has(> img:not([hidden])) > .camera-icon, .file-card:has(> img:not([hidden])) > strong, .file-card:has(> img:not([hidden])) > span:not(.camera-icon) { display: none; }
 .file-card em { font-style: normal; color: var(--muted); font-weight: 500; }
 .file-card small { color: var(--muted); overflow-wrap: anywhere; }
 .camera-icon { font-size: 2.1rem; color: var(--teal); }
@@ -208,8 +208,7 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
 
 @media (min-width: 620px) {
   .rx-app { padding-top: 28px; }
-  .capture-card { grid-template-columns: 1fr 1fr; padding: 22px; }
-  .capture-card .customer-picker, .capture-card .privacy-note, .capture-card .wide { grid-column: 1 / -1; }
+  .capture-card { padding: 22px; }
   .field-grid.two { grid-template-columns: repeat(2, 1fr); }
   .field-grid.three { grid-template-columns: repeat(3, 1fr); }
   .field-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
