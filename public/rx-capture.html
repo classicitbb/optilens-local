@@ -72,15 +72,16 @@
           <!-- An editable layer behind the card's content so right-click (or a
                long press) offers the browser's own Paste; inputmode="none"
                keeps the phone keyboard closed. Only pasted images are kept. -->
-          <div id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none" spellcheck="false" role="textbox" aria-label="Paste a prescription image here" aria-describedby="imageDropHint"></div>
+          <div id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none" spellcheck="false" role="textbox" aria-label="Paste a prescription image or PDF here" aria-describedby="imageDropHint"></div>
           <span class="camera-icon" aria-hidden="true">⌁</span>
-          <strong>Prescription image</strong>
-          <span id="imageDropHint">Take a photo, choose one from your gallery, drag an image here, or paste a copied image or screenshot (Ctrl+V or right-click → Paste)</span>
+          <strong>Prescription image or PDF</strong>
+          <span id="imageDropHint">Take a photo, choose an image or PDF, drag one here, or paste a copied image or screenshot (Ctrl+V or right-click → Paste)</span>
           <img id="primaryPreview" alt="Prescription preview" hidden>
+          <span id="primaryPdf" class="pdf-badge" hidden>PDF</span>
           <small id="primaryFileName"></small>
           <div class="file-actions">
             <label class="file-button" for="primaryCamera">Take photo<input id="primaryCamera" type="file" accept="image/*" capture="environment" data-image-input="primary"></label>
-            <label class="file-button" for="primaryImage">Choose from gallery<input id="primaryImage" type="file" accept="image/*" data-image-input="primary"></label>
+            <label class="file-button" for="primaryImage">Choose image or PDF<input id="primaryImage" type="file" accept="image/*,application/pdf,.pdf" data-image-input="primary"></label>
             <button id="pasteImageButton" class="file-button" type="button" hidden>Paste image</button>
           </div>
           <div id="clipboardOffer" class="clipboard-offer" role="alert" hidden>

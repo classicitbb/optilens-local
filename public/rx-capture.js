@@ -184,12 +184,15 @@
   }
 
   function setImage(file) {
-    if (!file.type.startsWith("image/")) return showNotice("That file is not an image. Choose a photo, screenshot or scan of the prescription.", true);
+    if (!isImageOrPdf(file)) return showNotice("That file is not an image or PDF. Choose a photo, screenshot, scan or PDF of the prescription.", true);
     state.images.primary = file;
     $("#globalStatus").hidden = true;
     $("#clipboardOffer").hidden = true;
     previewFile("primary");
   }
+
+  const isPdf = (file) => file.type === "application/pdf" || (!file.type && /\.pdf$/i.test(file.name || ""));
+  const isImageOrPdf = (file) => file.type.startsWith("image/") || isPdf(file);
 
   // Clipboard images arrive unnamed (or as "image.png"); name them by time.
   function pastedFile(blob) {
@@ -242,7 +245,7 @@
     const zone = $("#imageDropZone");
     const target = $("#imagePasteTarget");
     const captureActive = () => $("#captureScreen").classList.contains("active");
-    const imageFrom = (items) => [...(items || [])].find((item) => item.kind === "file" && item.type.startsWith("image/"))?.getAsFile() || null;
+    const imageFrom = (items) => [...(items || [])].find((item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf"))?.getAsFile() || null;
     let depth = 0;
     zone.addEventListener("dragenter", (event) => { event.preventDefault(); depth += 1; zone.classList.add("dragging"); });
     zone.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) zone.classList.remove("dragging"); });
@@ -268,7 +271,7 @@
         return;
       }
       event.preventDefault();
-      setImage(file.name && file.name !== "image.png" ? file : pastedFile(file));
+      setImage(file.name && file.name !== "image.png" || isPdf(file) ? file : pastedFile(file));
     });
     $("#pasteImageButton").hidden = !canReadClipboard();
     $("#pasteImageButton").addEventListener("click", pasteFromClipboard);
@@ -995,6 +998,11 @@
 
 
   async function imageDataUrl(file) {
+    // PDFs go to the server as they are; the extractor reads their pages.
+    if (isPdf(file)) {
+      if (file.size > 8 * 1024 * 1024) throw new Error("Choose a PDF smaller than 8 MB.");
+      return (await fileToDataUrl(file)).replace(/^data:[^;,]*/, "data:application/pdf");
+    }
     if (file.size > 18 * 1024 * 1024) throw new Error("Choose an image smaller than 18 MB.");
     const sourceUrl = await fileToDataUrl(file);
     try {
@@ -1040,10 +1048,11 @@
     const preview = $(`#${slot}Preview`);
     const name = $(`#${slot}FileName`);
     preview.closest(".file-card").classList.toggle("has-image", Boolean(file));
-    if (!file) {
+    $(`#${slot}Pdf`).hidden = !file || !isPdf(file);
+    if (!file || isPdf(file)) {
       preview.removeAttribute("src");
       preview.hidden = true;
-      name.textContent = "";
+      name.textContent = file?.name || "";
       return;
     }
     name.textContent = file.name;
