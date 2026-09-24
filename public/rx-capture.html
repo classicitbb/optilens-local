@@ -140,6 +140,7 @@
         <strong>Extraction could not be completed</strong>
         <p id="failedMessage"></p>
         <button id="reprocessButton" class="secondary-button" type="button">TRY AGAIN</button>
+        <button class="secondary-button discard-button" type="button" data-discard>DISCARD</button>
       </div>
 
       <form id="reviewForm" class="review-form" hidden>
@@ -249,6 +250,7 @@
           <p id="submissionSummary" class="submission-summary"></p>
           <p id="approvalMessage" class="section-help approval-message"></p>
           <div class="action-row">
+            <button class="secondary-button discard-button" type="button" data-discard>DISCARD DRAFT</button>
             <button id="saveReviewButton" class="secondary-button" type="button" aria-keyshortcuts="Control+S" title="Save draft (Ctrl+S)">SAVE DRAFT</button>
             <button id="submitOrderButton" class="primary-button" type="button" aria-keyshortcuts="Control+Enter" title="Submit to Innovations (Ctrl+Enter)">SUBMIT TO INNOVATIONS</button>
           </div>

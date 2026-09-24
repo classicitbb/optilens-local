@@ -99,6 +99,7 @@
     $("#reviewForm").addEventListener("keydown", advanceOnEnter);
     $("#saveReviewButton").addEventListener("click", saveReview);
     $("#reprocessButton").addEventListener("click", reprocess);
+    document.querySelectorAll("[data-discard]").forEach((button) => button.addEventListener("click", discardOrder));
     $("#submitOrderButton").addEventListener("click", submitOrder);
     $("#addMeasurementsButton").addEventListener("click", () => {
       state.measurementsOpened = true;
@@ -403,6 +404,8 @@
     state.renderedOrderId = order.id;
     $("#reprocessButton").hidden = !editable;
     $("#saveReviewButton").hidden = !editable;
+    const discardable = canEdit && ["NEEDS_INFO", "READY_FOR_REVIEW", "FAILED"].includes(order.status);
+    document.querySelectorAll("[data-discard]").forEach((button) => { button.hidden = !discardable; });
     document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
     if (order.normalizedOrder) {
       renderOrder(order.normalizedOrder);
@@ -1007,6 +1010,22 @@
     try {
       const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}/reprocess`, { method: "POST" });
       await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  async function discardOrder() {
+    if (!state.current) return;
+    const name = state.current.patientName || "this prescription";
+    if (!window.confirm(`Discard the draft for ${name}? It will be removed from your orders and cannot be restored.`)) return;
+    try {
+      await api(`/api/rx-capture/orders/${encodeURIComponent(state.current.id)}`, { method: "DELETE" });
+      stopPolling();
+      state.current = null;
+      showScreen("ordersScreen");
+      showNotice("Draft discarded.");
+      await loadOrders();
     } catch (error) {
       showNotice(error.message, true);
     }
