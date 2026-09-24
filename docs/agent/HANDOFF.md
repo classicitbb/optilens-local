@@ -2,19 +2,19 @@
 
 - Repository: `classicitbb/optilens-local`
 - Status: In progress — RX Capture catalogue and account-mapping refinements deployed; one real release still awaits the operator's final confirmation
-- Last synchronized: 2026-09-23
+- Last synchronized: 2026-09-24
 
 ## Objective and current state
 
-### RX Capture resilience and operator-safety refinements — local only
+### RX Capture resilience and operator-safety refinements — deployed and healthy
 
 The local RX Capture build now retries persisted `PROCESSING` captures at Node startup, so a process interruption no longer leaves an otherwise recoverable capture indefinitely stranded. Voice intake verifies the audio duration from the uploaded bytes before sending a transcription request, rejects malformed or duration-mismatched payloads, and continues to enforce the three-minute limit from the verified value. A release that writes a hash-matching archive/incoming file before its database audit is persisted can be retried from the staged order; the UI makes that reconciliation path explicit rather than asking the operator to submit a second order.
 
 The review UI now uses keyboard-operable radio-mode controls, a semantic customer combobox, a whole-row order activation model without nested buttons, IME-safe Enter navigation, quiet validation while a field is being edited, explicit validation once a field is committed, reduced-motion handling, and a confirmation that repeats the patient, customer, lens, and frame workflow. A patient name must be entered in the serializer-ready `LASTNAME, FIRSTNAME` form before the page enables submission.
 
-Affected files: `lib/rx-capture/{file-delivery,openai-transcriber,routes,service}.js`, `server.js`, `public/rx-capture.{html,js,validation.js}`, `public/styles/pages/rx-capture.css`, and focused RX tests. Local syntax checks, `git diff --check`, and 77 focused RX tests pass. No deployment, restart, transcription request, source-system write, staged file, or Innovations release was performed.
+Affected files: `lib/rx-capture/{file-delivery,openai-transcriber,routes,service}.js`, `server.js`, `public/rx-capture.{html,js,validation.js}`, `public/styles/pages/rx-capture.css`, and focused RX tests. Local syntax checks, `git diff --check`, and 77 focused RX tests pass. The guarded updater applied revision `3ea88a5`, passed its smoke check and full suite (279/279), restarted the app, and `node scripts/monitor-harness.js verify` reported all systems online. No transcription request, source-system write, staged file, or Innovations release was performed.
 
-Next action: with explicit deployment authorization, deploy through the guarded updater and verify the health harness. Before real use, conduct an authenticated external Edge/Chrome check with approved non-production material for direct typing, IME composition, audio recording, stale-processing recovery, and staged-release reconciliation. Any actual transcription or release needs its own explicit authorization.
+Next action: conduct an authenticated external Edge/Chrome check with approved non-production material for direct typing, IME composition, audio recording, stale-processing recovery, and staged-release reconciliation. Any actual transcription or release needs its own explicit authorization.
 
 ### RX Capture catalogue and LabLink account mapping — deployed and healthy
 
