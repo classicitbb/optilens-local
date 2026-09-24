@@ -62,6 +62,7 @@
   function wireEvents() {
     $("#newRxButton").addEventListener("click", () => showScreen("captureScreen"));
     $("#refreshOrdersButton").addEventListener("click", loadOrders);
+    $("#ordersSearch").addEventListener("input", searchOrders);
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", async () => {
       stopPolling();
       showScreen("ordersScreen");
@@ -140,11 +141,23 @@
   }
 
   async function loadOrders() {
-    const payload = await api("/api/rx-capture/orders?limit=30");
+    const query = $("#ordersSearch").value.trim();
+    const params = new URLSearchParams({ limit: query ? "100" : "30" });
+    if (query) params.set("q", query);
+    const payload = await api(`/api/rx-capture/orders?${params}`);
+    // A slower earlier response must not overwrite results for newer text.
+    if ($("#ordersSearch").value.trim() !== query) return;
     state.orders = payload.orders || [];
     const list = $("#ordersList");
     list.replaceChildren(...state.orders.map((order) => orderButton(order)));
+    $("#ordersEmpty").textContent = query ? `No orders match "${query}".` : "No RX captures yet.";
     $("#ordersEmpty").hidden = state.orders.length > 0;
+  }
+
+  let ordersSearchTimer = null;
+  function searchOrders() {
+    clearTimeout(ordersSearchTimer);
+    ordersSearchTimer = setTimeout(() => loadOrders().catch((error) => showNotice(error.message, true)), 250);
   }
 
   function orderRow(order, onClick = () => openOrder(order.id)) {
