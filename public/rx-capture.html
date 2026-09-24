@@ -51,8 +51,8 @@
       <button class="back-button" type="button" data-back>← Recent orders</button>
       <div class="page-heading">
         <p class="eyebrow">New prescription</p>
-        <h1 id="captureTitle">Photograph or upload</h1>
-        <p>Use a clear, well-lit image. Keep the full prescription inside the frame.</p>
+        <h1 id="captureTitle">Photograph, dictate or type</h1>
+        <p>Pick the customer, then one way in: a photo of the prescription, or dictate it and check the text before extraction.</p>
       </div>
       <form id="captureForm" class="capture-card">
         <section class="customer-picker" aria-labelledby="captureCustomerLabel">
@@ -62,6 +62,11 @@
           <p id="selectedCustomer" class="selected-customer">Search and select the customer before taking the prescription photo.</p>
           <div id="customerResults" class="cblist customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
         </section>
+        <div class="mode-switch" role="radiogroup" aria-label="How to enter the prescription">
+          <button type="button" class="mode-option" role="radio" data-mode="photo" aria-checked="true">Photo</button>
+          <button type="button" class="mode-option" role="radio" data-mode="voice" aria-checked="false" aria-keyshortcuts="Alt+V">Voice / type</button>
+        </div>
+        <div id="photoMode" class="mode-panel">
         <div class="file-card" data-image-slot="primary">
           <span class="camera-icon" aria-hidden="true">⌁</span>
           <strong>Prescription image</strong>
@@ -87,6 +92,24 @@
         </div>
 
         <p class="privacy-note">Images are sent from this server for extraction and deleted locally after successful processing. All values still require employee review.</p>
+        </div>
+
+        <div id="voiceMode" class="mode-panel" hidden>
+          <div class="voice-recorder">
+            <button id="recordButton" class="record-button" type="button" aria-keyshortcuts="Alt+V" title="Start or stop recording (Alt+V)">
+              <span class="record-dot" aria-hidden="true"></span><span id="recordLabel">Record</span>
+            </button>
+            <div class="record-meta">
+              <span id="recordTimer" class="record-timer" aria-live="off">0:00 / 3:00</span>
+              <meter id="recordLevel" class="record-level" min="0" max="1" value="0" aria-label="Microphone level"></meter>
+            </div>
+          </div>
+          <p id="voiceStatus" class="voice-status" role="status">Say the eye first ("right eye…", "left eye…"), always say plus or minus, and say "axis" before the axis.</p>
+          <ul id="clipList" class="clip-list" aria-label="Recordings waiting for transcription"></ul>
+          <p id="unassignedNote" class="unassigned-note" hidden></p>
+          <div id="segmentBoxes" class="segment-boxes" aria-label="Dictation, split by section. Check and correct the words before extraction."></div>
+          <p class="privacy-note">Recordings are sent from this server for transcription and are not kept. Only the checked text is saved with the order. You can also type straight into the boxes.</p>
+        </div>
         <button id="submitCaptureButton" class="primary-button wide" type="submit">SUBMIT FOR EXTRACTION</button>
         <button id="manualEntryButton" class="secondary-button wide" type="button">ENTER RX MANUALLY</button>
       </form>
@@ -192,7 +215,7 @@
             <label for="lensDesign">2 · Lens design / type<input id="lensDesign" autocomplete="off" placeholder="Type or choose…" data-lens="design"></label>
             <label for="lensOption">3 · Lens colour option<input id="lensOption" autocomplete="off" placeholder="Type or choose…" data-lens="option"></label>
           </div>
-          <p id="lensGuessNote" class="lens-guess-note" hidden>Guessed from the photo. Check each choice and correct anything that doesn't match the prescription.</p>
+          <p id="lensGuessNote" class="lens-guess-note" hidden>Guessed from the photo or dictation. Check each choice and correct anything that doesn't match the prescription.</p>
           <div id="lensSummary" class="lens-summary" role="status" aria-live="polite"></div>
           <div class="field-grid two lens-extras">
             <label data-field-wrap="lensRequest.coatingSku">Coating <span class="field-optional">optional</span><select data-path="lensRequest.coatingSku"></select></label>
@@ -207,7 +230,7 @@
 
         <section id="issuesCard" class="issues-card" hidden>
           <h2>Captured details to continue later</h2>
-          <p>These marks show what was unclear in the photo. Save the draft now and complete it later; only the minimum Innovations import values must be present to submit.</p>
+          <p>These marks show what was unclear in the photo or dictation. Save the draft now and complete it later; only the minimum Innovations import values must be present to submit.</p>
           <ul id="issuesList"></ul>
         </section>
 
@@ -228,6 +251,7 @@
     </section>
   </main>
   <script src="/rx-capture-validation.js" defer></script>
+  <script src="/rx-capture-voice.js" defer></script>
   <script src="/rx-combobox.js" defer></script>
   <script src="/rx-capture.js" defer></script>
 </body>
