@@ -31,7 +31,7 @@ test("certificate setup serves the page and the public root certificate only", a
   assert.equal(page.res.status, 200);
   assert.match(page.res.headers["Content-Type"], /text\/html/);
   assert.match(page.res.body, /Certificate Trust Settings/);
-  assert.match(page.res.body, /[hidden] { display: none !important; }/);
+  assert.ok(page.res.body.includes("[hidden] { display: none !important; }"));
   assert.match(page.res.body, /SHA-256 [0-9A-F:]{95}/);
   assert.match(page.res.headers["Content-Security-Policy"], /connect-src 'self' https:\/\/optilens\.cv\.net/);
 
