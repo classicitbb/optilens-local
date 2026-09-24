@@ -194,6 +194,7 @@ const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute } = require("./lib/rx-capture/routes");
+const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1043,6 +1044,10 @@ async function refreshGitUpdatesOnSchedule() {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // Public, and reachable over plain HTTP through IIS: devices that do not
+  // trust the LAN certificate yet come here to install it.
+  if (await handleCertificateSetupRoute({ req, res, url })) return;
 
   if (url.pathname === "/api/connectors/live-gateway/direct") {
     writeLocalDevCors(res, req);
