@@ -63,24 +63,20 @@
       <form id="captureForm" class="capture-card">
         <section class="customer-picker" aria-labelledby="captureCustomerLabel">
           <label id="captureCustomerLabel" for="customerSearch">Customer
-            <input id="customerSearch" class="cb-field" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required>
+            <input id="customerSearch" class="cb-field" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="customerResults">
           </label>
           <p id="selectedCustomer" class="selected-customer">Search and select the customer before photographing or dictating the prescription.</p>
           <div id="customerResults" class="cblist customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
         </section>
         <div class="mode-switch" role="radiogroup" aria-label="How to enter the prescription">
-          <button type="button" class="mode-option" role="radio" data-mode="photo" aria-checked="true">Photo</button>
-          <button type="button" class="mode-option" role="radio" data-mode="voice" aria-checked="false" aria-keyshortcuts="Alt+V">Voice / type</button>
+          <button type="button" class="mode-option" role="radio" data-mode="photo" aria-checked="true" tabindex="0">Photo</button>
+          <button type="button" class="mode-option" role="radio" data-mode="voice" aria-checked="false" tabindex="-1" aria-keyshortcuts="Alt+V">Voice / type</button>
         </div>
         <div id="photoMode" class="mode-panel">
         <div id="imageDropZone" class="file-card" data-image-slot="primary">
-          <!-- An editable layer behind the card's content so right-click (or a
-               long press) offers the browser's own Paste; inputmode="none"
-               keeps the phone keyboard closed. Only pasted images are kept. -->
-          <div id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none" spellcheck="false" role="textbox" aria-label="Paste a prescription image or PDF here" aria-describedby="imageDropHint"></div>
           <span class="camera-icon" aria-hidden="true">⌁</span>
           <strong>Prescription image or PDF</strong>
-          <span id="imageDropHint">Take a photo, choose an image or PDF, drag one here, or paste a copied image or screenshot (Ctrl+V or right-click → Paste)</span>
+          <span id="imageDropHint">Take a photo, choose an image or PDF, drag one here, or paste a copied image or screenshot (Ctrl+V).</span>
           <img id="primaryPreview" alt="Prescription preview" hidden>
           <span id="primaryPdf" class="pdf-badge" hidden>PDF</span>
           <small id="primaryFileName"></small>
@@ -250,6 +246,7 @@
           <div class="action-row">
             <button id="saveReviewButton" class="secondary-button" type="button" aria-keyshortcuts="Control+S" title="Save draft (Ctrl+S)">SAVE DRAFT</button>
             <button id="submitOrderButton" class="primary-button" type="button" aria-keyshortcuts="Control+Enter" title="Submit to Innovations (Ctrl+Enter)">SUBMIT TO INNOVATIONS</button>
+            <button id="retryReleaseButton" class="secondary-button" type="button" hidden>RETRY RELEASE</button>
           </div>
           <p class="shortcut-hint">Enter moves to the next field · Ctrl+S saves · Ctrl+Enter submits</p>
         </section>

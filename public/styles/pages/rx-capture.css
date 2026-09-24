@@ -100,11 +100,10 @@ button { cursor: pointer; }
 .selected-customer { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
 .selected-customer.is-selected { color: var(--teal-dark); font-weight: 750; }
 .file-card { min-height: 190px; border: 2px dashed #9fb5c8; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; text-align: center; background: #f9fcfd; position: relative; }
-.file-card > :not(.paste-target) { position: relative; z-index: 1; pointer-events: none; }
+.file-card > * { position: relative; z-index: 1; pointer-events: none; }
 .file-card > .file-actions, .file-card > .file-actions *, .file-card > .clipboard-offer, .file-card > .clipboard-offer * { pointer-events: auto; }
 .clipboard-offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid #9ec8cf; border-radius: 10px; background: #e4f7f7; color: var(--teal-dark); font-size: .82rem; font-weight: 750; }
 .file-card .clipboard-offer img { max-width: 72px; max-height: 72px; border-radius: 6px; object-fit: contain; background: white; }
-.paste-target { position: absolute; inset: 0; z-index: 0; border-radius: 10px; color: transparent; caret-color: transparent; overflow: hidden; outline: none; cursor: copy; -webkit-user-select: text; user-select: text; }
 .file-card:focus-within:not(:has(.file-button:focus-within)), .file-card.dragging { border-color: var(--teal); background: #eef9fa; }
 .file-card.dragging { border-style: solid; box-shadow: 0 0 0 4px rgb(15 124 134 / .15); }
 .file-card input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -167,6 +166,11 @@ button { cursor: pointer; }
 .failed-panel .secondary-button { margin-top: 14px; }
 .spinner { width: 30px; height: 30px; border: 3px solid #c8e4e7; border-top-color: var(--teal); border-radius: 50%; animation: spin .8s linear infinite; flex: 0 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner, .record-button.is-recording .record-dot { animation: none; }
+  .spinner { opacity: .6; }
+}
 
 .review-form { display: grid; gap: 10px; }
 .review-card, .issues-card { padding: 14px; }

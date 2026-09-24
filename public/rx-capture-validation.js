@@ -101,8 +101,8 @@
     const singleVision = isSingleVision(order);
 
     const name = str(order?.patient?.name);
-    if (name && !/^[A-Za-z][A-Za-z '\-]*(?:,\s*[A-Za-z][A-Za-z '\-]*)?$/.test(name)) {
-      warn("patient.name", "Patient name has characters Innovations will reject; use letters, spaces, apostrophes and hyphens (LASTNAME, FIRSTNAME).");
+    if (name && !/^[A-Za-z][A-Za-z '\-]+,\s*[A-Za-z][A-Za-z '\-]+$/.test(name)) {
+      error("patient.name", "Innovations requires the patient name as LASTNAME, FIRSTNAME using letters, spaces, apostrophes and hyphens.");
     }
 
     const spheres = {};

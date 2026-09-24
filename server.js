@@ -193,7 +193,7 @@ const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
-const { handleRxCaptureRoute } = require("./lib/rx-capture/routes");
+const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
@@ -3776,4 +3776,7 @@ server.listen(port, host, () => {
   supplierMailboxPoller = startSupplierMailboxPoller();
   supplierMailboxPoller.start();
   startLiveGatewayOnBoot();
+  recoverRxCaptureProcessing()
+    .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
+    .catch((error) => console.error("RX Capture processing recovery did not start:", error.message));
 });

@@ -6,6 +6,16 @@
 
 ## Objective and current state
 
+### RX Capture resilience and operator-safety refinements — local only
+
+The local RX Capture build now retries persisted `PROCESSING` captures at Node startup, so a process interruption no longer leaves an otherwise recoverable capture indefinitely stranded. Voice intake verifies the audio duration from the uploaded bytes before sending a transcription request, rejects malformed or duration-mismatched payloads, and continues to enforce the three-minute limit from the verified value. A release that writes a hash-matching archive/incoming file before its database audit is persisted can be retried from the staged order; the UI makes that reconciliation path explicit rather than asking the operator to submit a second order.
+
+The review UI now uses keyboard-operable radio-mode controls, a semantic customer combobox, a whole-row order activation model without nested buttons, IME-safe Enter navigation, quiet validation while a field is being edited, explicit validation once a field is committed, reduced-motion handling, and a confirmation that repeats the patient, customer, lens, and frame workflow. A patient name must be entered in the serializer-ready `LASTNAME, FIRSTNAME` form before the page enables submission.
+
+Affected files: `lib/rx-capture/{file-delivery,openai-transcriber,routes,service}.js`, `server.js`, `public/rx-capture.{html,js,validation.js}`, `public/styles/pages/rx-capture.css`, and focused RX tests. Local syntax checks, `git diff --check`, and 77 focused RX tests pass. No deployment, restart, transcription request, source-system write, staged file, or Innovations release was performed.
+
+Next action: with explicit deployment authorization, deploy through the guarded updater and verify the health harness. Before real use, conduct an authenticated external Edge/Chrome check with approved non-production material for direct typing, IME composition, audio recording, stale-processing recovery, and staged-release reconciliation. Any actual transcription or release needs its own explicit authorization.
+
 ### RX Capture catalogue and LabLink account mapping — deployed and healthy
 
 Revision `ecdf6ee` makes the RX review the one place to choose production values: Material Group defaults to active Group 1 (Resin), then filters active Material and Lens Type choices; the printed design remains a read-only capture reference; photo-only option values are never guessed; coating is selected once in review; and the exact active alias is saved with the draft. The submission form defaults to **Edged / enclosed**, provides Metal/Plastic/Rimless-Grooved mounting values `1`/`2`/`3`, merges instructions into the captured instruction, and keeps the Innovations customer number editable.

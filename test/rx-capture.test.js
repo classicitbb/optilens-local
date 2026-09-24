@@ -375,7 +375,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /id="primaryImage" type="file" accept="image\/\*,application\/pdf,\.pdf" data-image-input="primary"/);
   assert.match(html, /id="primaryCamera" type="file" accept="image\/\*" capture="environment"/);
   assert.match(html, /Choose image or PDF/);
-  assert.match(html, /id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none"/);
+  assert.doesNotMatch(html, /imagePasteTarget|contenteditable="true" inputmode="none"/);
+  assert.match(html, /paste a copied image or screenshot \(Ctrl\+V\)/);
   assert.doesNotMatch(html, /data-image-slot="secondary"|data-path="pd\.type"/);
   assert.match(html, /id="manualEntryButton"/);
   assert.match(html, /id="ownLensButton"/);
@@ -383,6 +384,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /data-path="frame\.status"/);
   assert.match(html, /To be traced/);
   assert.match(html, /id="customerSearch"/);
+  assert.match(html, /role="combobox" aria-autocomplete="list"/);
+  assert.match(html, /role="radiogroup"/);
   assert.match(html, /class="rx-table"/);
   assert.match(html, /data-path="frame\.segHeightOd"/);
   assert.doesNotMatch(html, /Structured review/);

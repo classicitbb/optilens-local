@@ -158,12 +158,32 @@ test("text extraction asks for evidence, never stores, and returns the proposal"
   assert.deepEqual(result.evidence, [{ field: "prescription.od.sphere", text: "-1.00" }]);
 });
 
-test("audio uploads are type and length checked before transcription", () => {
-  const webm = `data:audio/webm;codecs=opus;base64,${Buffer.from("abc").toString("base64")}`;
-  assert.equal(parseAudio(webm, 4000).mimeType, "audio/webm");
-  assert.throws(() => parseAudio(webm, 400), /Nothing heard/);
+function wavDataUrl(durationMs) {
+  const sampleRate = 8000;
+  const data = Buffer.alloc(Math.round(sampleRate * durationMs / 1000));
+  const wav = Buffer.alloc(44 + data.length);
+  wav.write("RIFF", 0); wav.writeUInt32LE(36 + data.length, 4); wav.write("WAVEfmt ", 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(sampleRate, 24); wav.writeUInt32LE(sampleRate, 28); wav.writeUInt16LE(1, 32); wav.writeUInt16LE(8, 34);
+  wav.write("data", 36); wav.writeUInt32LE(data.length, 40); data.copy(wav, 44);
+  return `data:audio/wav;base64,${wav.toString("base64")}`;
+}
+
+function mp4DataUrl(durationMs) {
+  const mp4 = Buffer.alloc(28);
+  mp4.writeUInt32BE(28, 0); mp4.write("mvhd", 4); mp4[8] = 0;
+  mp4.writeUInt32BE(1000, 20); mp4.writeUInt32BE(durationMs, 24);
+  return `data:audio/mp4;base64,${mp4.toString("base64")}`;
+}
+
+test("audio uploads have a server-verified duration before transcription", () => {
+  const wav = wavDataUrl(4000);
+  assert.equal(parseAudio(wav, 4000).mimeType, "audio/wav");
+  assert.equal(Math.round(parseAudio(wav, 4000).durationMs), 4000);
+  assert.throws(() => parseAudio(wavDataUrl(400), 400), /Nothing heard/);
   assert.throws(() => parseAudio(`data:text/plain;base64,${Buffer.from("abc").toString("base64")}`, 4000), (error) => error.statusCode === 415);
-  assert.throws(() => parseAudio(webm, 4 * 60 * 1000), (error) => error.statusCode === 413);
+  assert.throws(() => parseAudio(wavDataUrl(4 * 60 * 1000), 4 * 60 * 1000), (error) => error.statusCode === 413);
+  assert.throws(() => parseAudio(wav, 30000), /duration could not be verified/);
 });
 
 test("the transcription prompt forbids adding signs and stays within its cap", () => {
@@ -179,7 +199,7 @@ test("transcription posts the audio with the vocabulary prompt", async () => {
     sent = { url, form: init.body };
     return { ok: true, json: async () => ({ text: "Right eye -2.50" }) };
   };
-  const audio = parseAudio(`data:audio/mp4;base64,${Buffer.from("abc").toString("base64")}`, 3000);
+  const audio = parseAudio(mp4DataUrl(3000), 3000);
   const text = await transcribeAudio(audio, { fetch, vocabulary: ["Physio"], config: { apiKey: "k", baseUrl: "https://example.test/v1", model: "gpt-4o-transcribe" } });
   assert.equal(text, "Right eye -2.50");
   assert.equal(sent.url, "https://example.test/v1/audio/transcriptions");
@@ -307,6 +327,30 @@ test("try again on a dictated order re-extracts from the stored transcript", asy
   const retried = await service.reprocessOrder(created.id, actor);
   assert.equal(retried.status, "PROCESSING");
   assert.equal(tasks.length, 2);
+});
+
+test("interrupted processing orders are rescheduled when the app starts", async () => {
+  const tasks = [];
+  const pool = {
+    request() {
+      return {
+        async query() {
+          return {
+            recordset: [{
+              capture_order_id: "11111111-1111-4111-8111-111111111111",
+              created_by_user_id: "22222222-2222-4222-8222-222222222222",
+              created_by_username: "employee",
+              created_by_display_name: "Employee"
+            }]
+          };
+        }
+      };
+    }
+  };
+  const service = createRxCaptureService({ getAppPool: async () => pool, schedule: (task) => tasks.push(task) });
+  const recovered = await service.recoverProcessingOrders();
+  assert.deepEqual(recovered, ["11111111-1111-4111-8111-111111111111"]);
+  assert.equal(tasks.length, 1);
 });
 
 test("voice is reported unavailable without the AI key", () => {

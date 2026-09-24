@@ -5,7 +5,7 @@ const { formatField, num, toMinusCylinder, validateOrder } = require("../public/
 
 function order(overrides = {}) {
   return {
-    patient: { name: "HUNTE, RUSSELL" },
+    patient: { name: "HUNTE, RUSSELL", ...overrides.patient },
     prescription: {
       od: { sphere: "-2.50", cylinder: "-1.00", axis: 90, add: null, prism: null, base: null },
       os: { sphere: "-2.25", cylinder: "-0.75", axis: 85, add: null, prism: null, base: null },
@@ -23,6 +23,11 @@ test("accepts an ordinary complete prescription", () => {
   const { errors, warnings } = validateOrder(order());
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings, []);
+});
+
+test("requires a patient name Innovations can produce", () => {
+  const { errors } = validateOrder(order({ patient: { name: "Russell Hunte" } }));
+  assert.ok(errors.some((item) => item.path === "patient.name" && /LASTNAME, FIRSTNAME/.test(item.message)));
 });
 
 test("parses plano wording and rejects text in numeric fields", () => {

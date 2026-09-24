@@ -34,11 +34,11 @@ test("releases only the hash-verified staged RX after archiving a matching copy"
   const item = fixture();
   try {
     stageApprovedRx(item);
-    assert.deepEqual(releaseApprovedRx(item), { filename: item.filename, sha256: item.expectedHash });
+    assert.deepEqual(releaseApprovedRx(item), { filename: item.filename, sha256: item.expectedHash, archiveReused: false, incomingReused: false });
     for (const folder of ["archive", "incoming"]) {
       assert.equal(fs.readFileSync(path.join(item.root, folder, item.filename), "utf8"), item.content.toString("utf8"));
     }
-    assert.deepEqual(releaseApprovedRx(item), { filename: item.filename, sha256: item.expectedHash });
+    assert.deepEqual(releaseApprovedRx(item), { filename: item.filename, sha256: item.expectedHash, archiveReused: true, incomingReused: true });
     fs.writeFileSync(path.join(item.root, "incoming", item.filename), "different");
     assert.throws(() => releaseApprovedRx(item), /different Innovations incoming file/);
   } finally {

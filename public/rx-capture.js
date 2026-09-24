@@ -79,7 +79,10 @@
     }));
     wireImageDropZone();
     $("#manualEntryButton").addEventListener("click", startManualEntry);
-    document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => switchMode(button.dataset.mode)));
+    document.querySelectorAll("[data-mode]").forEach((button) => {
+      button.addEventListener("click", () => switchMode(button.dataset.mode));
+      button.addEventListener("keydown", modeSwitchKeys);
+    });
     $("#recordButton").addEventListener("click", toggleRecording);
     document.addEventListener("keydown", captureShortcuts);
     window.addEventListener("beforeunload", warnUnsavedDictation);
@@ -99,6 +102,7 @@
     $("#saveReviewButton").addEventListener("click", saveReview);
     $("#reprocessButton").addEventListener("click", reprocess);
     $("#submitOrderButton").addEventListener("click", submitOrder);
+    $("#retryReleaseButton").addEventListener("click", retryRelease);
     $("#addMeasurementsButton").addEventListener("click", () => {
       state.measurementsOpened = true;
       renderFrameState();
@@ -125,7 +129,7 @@
         if (input.dataset.path === "frame.status") renderFrameState();
         if (event.type === "input" && /^pd\.(?:binocular|od|os)$/.test(input.dataset.path)) syncPd(input.dataset.path);
         if (event.type === "input" && /^frame\.(?:a|b|ed)$/.test(input.dataset.path)) syncEd(input.dataset.path);
-        runValidation();
+        runValidation(event.type !== "input");
       };
       input.addEventListener("input", update);
       input.addEventListener("change", update);
@@ -156,10 +160,6 @@
     const patient = document.createElement("strong");
     patient.textContent = order.patientName || "Patient not identified";
     const patientCell = document.createElement("td");
-    const openButton = document.createElement("button");
-    openButton.type = "button";
-    openButton.className = "order-link";
-    openButton.append(patient);
     const status = document.createElement("span");
     status.className = "status-pill";
     status.dataset.status = order.status;
@@ -169,18 +169,16 @@
     dateCell.textContent = formatDate(order.createdAt);
     const statusCell = document.createElement("td");
     statusCell.append(status);
-    patientCell.append(openButton);
+    patientCell.append(patient);
     row.append(patientCell, dateCell, statusCell);
+    // The row is the requested single action. Avoid a nested button, which
+    // creates two competing interactive targets for assistive technology.
     row.addEventListener("click", onClick);
     row.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         onClick();
       }
-    });
-    openButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      onClick();
     });
     return row;
   }
@@ -254,7 +252,6 @@
   // (Ctrl+V anywhere on this screen, or right-click / long-press -> Paste on the card).
   function wireImageDropZone() {
     const zone = $("#imageDropZone");
-    const target = $("#imagePasteTarget");
     const captureActive = () => $("#captureScreen").classList.contains("active");
     const imageFrom = (items) => [...(items || [])].find((item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf"))?.getAsFile() || null;
     let depth = 0;
@@ -274,13 +271,7 @@
     document.addEventListener("paste", (event) => {
       if (!captureActive()) return;
       const file = imageFrom(event.clipboardData?.items);
-      if (!file) {
-        if (event.target === target) {
-          event.preventDefault();
-          showNotice("The clipboard has no image. Copy a picture or take a screenshot, then paste again.", true);
-        }
-        return;
-      }
+      if (!file) return;
       event.preventDefault();
       setImage(file.name && file.name !== "image.png" || isPdf(file) ? file : pastedFile(file));
     });
@@ -289,9 +280,6 @@
     $("#useClipboardImage").addEventListener("click", () => { if (state.clipboardOffer) setImage(state.clipboardOffer); });
     $("#dismissClipboardImage").addEventListener("click", () => { $("#clipboardOffer").hidden = true; });
     window.addEventListener("focus", offerClipboardImage);
-    // The paste layer only exists to offer Paste; never let text be typed or dropped into it.
-    target.addEventListener("beforeinput", (event) => event.preventDefault());
-    target.addEventListener("input", () => target.replaceChildren());
   }
 
   async function submitCapture(event) {
@@ -612,7 +600,7 @@
     lensInput(key).classList.remove("guessed");
     $("#lensGuessNote").hidden = !document.querySelector("[data-lens].guessed");
     refreshLensLists();
-    runValidation();
+    runValidation(false);
   }
 
   // On commit, accept a case-insensitive match, then drop whichever other
@@ -741,7 +729,7 @@
   // Enter moves to the next field, like a keyed order-entry screen. Open
   // dropdowns handle their own Enter (pick, then move on) before this runs.
   function advanceOnEnter(event) {
-    if (event.key !== "Enter" || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key !== "Enter" || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey) return;
     const field = event.target;
     if (!field.matches("input, select") || field.type === "hidden") return;
     event.preventDefault();
@@ -796,10 +784,18 @@
 
   function renderApprovalActions(order) {
     const button = $("#submitOrderButton");
+    const retry = $("#retryReleaseButton");
     const message = $("#approvalMessage");
     if (order.status === "RELEASED") {
       button.hidden = true;
+      retry.hidden = true;
       message.textContent = `Released ${order.generatedFilename || "RX file"} to Innovations. The approved copy is archived.`;
+      return;
+    }
+    retry.hidden = order.status !== "STAGED" || !state.canRelease;
+    if (!retry.hidden) {
+      button.hidden = true;
+      message.textContent = "This RX is staged. Retry release only after an interrupted delivery; matching content is verified and never duplicated.";
       return;
     }
     button.hidden = !state.canEdit || !state.canRelease;
@@ -918,7 +914,7 @@
     return draft;
   }
 
-  function runValidation() {
+  function runValidation(reveal = true) {
     const card = $("#validationCard");
     if (!state.current?.normalizedOrder || $("#reviewForm").hidden) {
       card.hidden = true;
@@ -926,6 +922,16 @@
     }
     const result = window.RxValidation.validateOrder(currentDraft());
     result.warnings.push(...lensIssues());
+    state.lastValidation = result;
+    updateSubmitState();
+    if (!reveal) {
+      card.hidden = true;
+      document.querySelectorAll("#reviewForm :is([data-path], [data-lens])").forEach((input) => {
+        input.classList.remove("invalid", "warned");
+        input.removeAttribute("aria-invalid");
+      });
+      return result;
+    }
     document.querySelectorAll("#reviewForm :is([data-path], [data-lens])").forEach((input) => {
       input.classList.remove("invalid", "warned");
       input.removeAttribute("aria-invalid");
@@ -940,8 +946,6 @@
     renderValidationList($("#validationWarnings"), result.warnings);
     card.classList.toggle("has-errors", result.errors.length > 0);
     card.hidden = result.errors.length + result.warnings.length === 0;
-    state.lastValidation = result;
-    updateSubmitState();
     return result;
   }
 
@@ -1004,7 +1008,11 @@
   async function submitOrder() {
     if (!state.current?.normalizedOrder || !state.lensResolved) return;
     const lens = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
-    if (!window.confirm(`Submit this RX to Innovations as ${lens}? It will be staged and released, then remain editable in Innovations.`)) return;
+    const draft = currentDraft();
+    const frame = draft.frame?.status === "UNCUT" ? "Uncut" : "Edged / enclosed";
+    const customer = state.current.customer?.name || "the selected customer";
+    const patient = normalizePatientName(draft.patient?.name) || "patient not identified";
+    if (!window.confirm(`Submit ${patient} for ${customer}?\n\nLens: ${lens}\nFrame: ${frame}\n\nThis creates the RX file, stages it, and releases it to Innovations.`)) return;
     const id = encodeURIComponent(state.current.id);
     const button = $("#submitOrderButton");
     button.disabled = true;
@@ -1023,6 +1031,26 @@
     } finally {
       button.textContent = "SUBMIT TO INNOVATIONS";
       updateSubmitState();
+    }
+  }
+
+  async function retryRelease() {
+    const order = state.current;
+    if (!order || order.status !== "STAGED" || !state.canRelease) return;
+    if (!window.confirm(`Retry the release of ${order.generatedFilename || "this staged RX"}? Matching archived and incoming content will be reused; a different file will never be overwritten.`)) return;
+    const button = $("#retryReleaseButton");
+    button.disabled = true;
+    button.textContent = "RELEASING…";
+    try {
+      const payload = await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}/release`, { method: "POST" });
+      await showOrder(payload.order);
+      showNotice("RX release was reconciled and archived.");
+    } catch (error) {
+      await api(`/api/rx-capture/orders/${encodeURIComponent(order.id)}`).then((payload) => showOrder(payload.order)).catch(() => {});
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "RETRY RELEASE";
     }
   }
 
@@ -1160,10 +1188,12 @@
   // under the search field, and Up/Down + Enter pick without the mouse.
   function renderCustomerResults(customers) {
     const results = $("#customerResults");
+    const search = $("#customerSearch");
     state.customerMatches = customers;
     state.customerActive = customers.length ? 0 : -1;
     results.replaceChildren(...customers.map((customer, index) => {
       const button = document.createElement("button");
+      button.id = `customer-option-${index}`;
       button.type = "button";
       button.className = `cbopt customer-result${index === state.customerActive ? " act" : ""}`;
       button.tabIndex = -1;
@@ -1179,6 +1209,9 @@
     }));
     results.hidden = customers.length === 0;
     results.classList.toggle("on", customers.length > 0);
+    search.setAttribute("aria-expanded", String(customers.length > 0));
+    if (customers.length) search.setAttribute("aria-activedescendant", `customer-option-${state.customerActive}`);
+    else search.removeAttribute("aria-activedescendant");
     positionCustomerResults();
   }
 
@@ -1204,6 +1237,7 @@
     if (event.key === "Enter") return pickCustomer(matches[Math.max(state.customerActive, 0)]);
     state.customerActive = Math.min(Math.max(state.customerActive + (event.key === "ArrowDown" ? 1 : -1), 0), matches.length - 1);
     [...$("#customerResults").children].forEach((option, index) => option.classList.toggle("act", index === state.customerActive));
+    $("#customerSearch").setAttribute("aria-activedescendant", `customer-option-${state.customerActive}`);
     $("#customerResults").children[state.customerActive]?.scrollIntoView({ block: "nearest" });
   }
 
@@ -1267,11 +1301,11 @@
   }
 
   function switchMode(mode) {
-    if (mode === state.mode) return;
+    if (mode === state.mode) return true;
     const hasPhotos = Boolean(state.images.primary);
     const hasDictation = hasVoiceContent();
-    if (mode === "voice" && hasPhotos && !confirm("Discard the selected photos and dictate instead?")) return;
-    if (mode === "photo" && (hasDictation || state.voice.recording) && !confirm("Discard the dictation and use photos instead?")) return;
+    if (mode === "voice" && hasPhotos && !confirm("Discard the selected photos and dictate instead?")) return false;
+    if (mode === "photo" && (hasDictation || state.voice.recording) && !confirm("Discard the dictation and use photos instead?")) return false;
     if (mode === "voice") {
       state.images = {};
       previewFile("primary");
@@ -1282,10 +1316,28 @@
       renderClips();
     }
     state.mode = mode;
-    document.querySelectorAll("[data-mode]").forEach((button) => button.setAttribute("aria-checked", String(button.dataset.mode === mode)));
+    document.querySelectorAll("[data-mode]").forEach((button) => {
+      const selected = button.dataset.mode === mode;
+      button.setAttribute("aria-checked", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
     $("#photoMode").hidden = mode !== "photo";
     $("#voiceMode").hidden = mode !== "voice";
     if (mode === "voice") checkVoiceReadiness();
+    return true;
+  }
+
+  function modeSwitchKeys(event) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const options = [...document.querySelectorAll("[data-mode]")];
+    const current = options.indexOf(event.currentTarget);
+    const direction = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1;
+    const next = event.key === "Home" ? options[0]
+      : event.key === "End" ? options.at(-1)
+        : options[(current + direction + options.length) % options.length];
+    if (switchMode(next.dataset.mode)) next.focus();
+    else event.currentTarget.focus();
   }
 
   function hasVoiceContent() {
