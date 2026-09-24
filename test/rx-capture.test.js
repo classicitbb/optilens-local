@@ -172,7 +172,7 @@ test("submission defaults come from the selected account and frame workflow", ()
   const normalized = { frame: { status: "TO_BE_TRACED", mounting: "2" }, lensRequest: { catalogAlias: "0010002800096", coatingSku: "A1HDARC" }, instructions: "Rush" };
   const actor = { username: "employee" };
   const defaults = resolutionDefaults({ frameMounting: "3", addonSkus: ["TINT"], customerNumber: "999", shipName: "Other", labNum: "9", customerSequence: "7" }, { existing, normalized, actor, mappedCustomerNumber: null });
-  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "1");
+  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "2");
   assert.equal(normalizeOpticalOrder({ frame: { mounting: "3" } }).frame.mounting, "3");
   assert.equal(normalizeOpticalOrder({ frame: { mounting: "9" } }).frame.mounting, null);
   assert.deepEqual(defaults, {

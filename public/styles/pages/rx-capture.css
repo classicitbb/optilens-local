@@ -100,7 +100,13 @@ button { cursor: pointer; }
 .selected-customer { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
 .selected-customer.is-selected { color: var(--teal-dark); font-weight: 750; }
 .file-card { min-height: 190px; border: 2px dashed #9fb5c8; border-radius: 12px; padding: 22px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; text-align: center; background: #f9fcfd; position: relative; }
-.file-card.optional { min-height: 145px; }
+.file-card > :not(.paste-target) { position: relative; z-index: 1; pointer-events: none; }
+.file-card > .file-actions, .file-card > .file-actions *, .file-card > .clipboard-offer, .file-card > .clipboard-offer * { pointer-events: auto; }
+.clipboard-offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid #9ec8cf; border-radius: 10px; background: #e4f7f7; color: var(--teal-dark); font-size: .82rem; font-weight: 750; }
+.clipboard-offer img { max-width: 72px; max-height: 72px; border-radius: 6px; object-fit: contain; background: white; }
+.paste-target { position: absolute; inset: 0; z-index: 0; border-radius: 10px; color: transparent; caret-color: transparent; overflow: hidden; outline: none; cursor: copy; -webkit-user-select: text; user-select: text; }
+.file-card:focus-within:not(:has(.file-button:focus-within)), .file-card.dragging { border-color: var(--teal); background: #eef9fa; }
+.file-card.dragging { border-style: solid; box-shadow: 0 0 0 4px rgb(15 124 134 / .15); }
 .file-card input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .file-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
 .file-button { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--navy); font-size: .82rem; font-weight: 800; letter-spacing: .02em; cursor: pointer; }
@@ -172,6 +178,7 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
 .frame-measurements { margin-top: 9px; }
 .inline-action { margin-top: 10px; padding: 6px 0; border: 0; background: transparent; color: var(--teal-dark); font-size: .8rem; font-weight: 750; }
 .inline-action:hover, .inline-action:focus-visible { text-decoration: underline; }
+.frame-defaults-note { margin: 8px 0 0; }
 .submission-bar { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 10px 30px rgb(11 30 53 / .06); }
 .shortcut-hint { margin: 10px 2px 0; color: var(--muted); font-size: .72rem; }
 @media (hover: none) { .shortcut-hint { display: none; } }
@@ -222,7 +229,8 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
   .review-heading { padding: 5px 0 8px; }
   .review-topline { min-height: 30px; }
   .status-pill { padding: 5px 8px; font-size: .64rem; }
-  .review-form { background: white; border: 1px solid var(--line); border-radius: 10px; gap: 0; overflow: hidden; }
+  /* clip, not hidden: hidden would make the form a scroll container and stop the submit bar sticking. */
+  .review-form { background: white; border: 1px solid var(--line); border-radius: 10px; gap: 0; overflow: clip; }
   .review-form#resolutionForm { margin-block-start: 10px; margin-inline-end: 1px; }
   .review-card { border: 0; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--line); padding: 12px; }
   .review-form .review-card:last-of-type { border-bottom: 0; }
@@ -237,6 +245,13 @@ input:focus, textarea:focus, select:focus { outline: 3px solid rgb(15 124 134 / 
   .rx-table input { min-height: 40px; padding: 7px; }
   .mobile-cell-label { display: block; color: #50709a; font-size: .62rem; font-weight: 800; letter-spacing: .04em; margin: 0 0 2px; text-transform: uppercase; }
   .frame-card .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Save / submit stay in reach while scrolling the review. */
+  .submission-bar { position: sticky; bottom: 0; z-index: 5; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: 0 -8px 20px rgb(11 30 53 / .10); }
+  .submission-summary { margin-bottom: 6px; font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .approval-message { margin: 0 0 8px; font-size: .72rem; }
+  .submission-bar .action-row { flex-wrap: nowrap; gap: 8px; }
+  .review-form .submission-bar .action-row > button { flex: 1 1 0; min-height: 44px; padding: 10px 8px; font-size: .78rem; }
+  .rx-app:has(#reviewScreen.active) { padding-bottom: 10px; }
 }
 
 /* Dropdowns: exact values from the CV website rx-order form (.combo, .cblist,

@@ -30,6 +30,12 @@
       "description": "Open pricing rules and calculator."
     },
     {
+      "name": "RX Capture",
+      "short_name": "RX Capture",
+      "url": "/rx-capture",
+      "description": "Photograph or upload a prescription for Innovations."
+    },
+    {
       "name": "Chemistrie Clips",
       "short_name": "Chemistrie",
       "url": "/modules/chemistry-clips",

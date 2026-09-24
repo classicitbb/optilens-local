@@ -85,3 +85,24 @@ test("an edged capture with no detected frame model sends the follow-up placehol
   assert.equal(result.order.frame.color, "1");
   assert.equal(result.order.frame.mounting, "2");
 });
+
+test("an edged capture with blank measurements sends the default box and plastic mounting", () => {
+  const captured = normalizedOrder();
+  captured.frame = { a: null, b: "", dbl: undefined };
+  const result = buildRxCaptureOrder(captured, { ...resolution(), frameMode: "edged" }, { generator: generator(), reserveIdentifiers: false });
+  assert.equal(result.order.frame.a, "55.0");
+  assert.equal(result.order.frame.b, "45.0");
+  assert.equal(result.order.frame.dbl, "18.0");
+  assert.equal(result.order.frame.mounting, "2");
+});
+
+test("distance PDs are sent over the binocular note, which only fills a blank eye", () => {
+  const captured = normalizedOrder();
+  captured.pd = { binocular: "64", od: "31", os: "33.5" };
+  const both = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(both.order.prescription.od.far, "31.0");
+  assert.equal(both.order.prescription.os.far, "33.5");
+  captured.pd = { binocular: "64", od: "31", os: null };
+  const one = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(one.order.prescription.os.far, "32.0");
+});

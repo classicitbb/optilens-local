@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {} };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, pdDerived: new Set(), edTouched: false };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -55,8 +55,7 @@
       wireEvents();
       await loadOrders();
     } catch (error) {
-      if (error.status === 401) location.assign("/");
-      else showNotice(error.message, true);
+      if (error.status !== 401) showNotice(error.message, true);
     }
   }
 
@@ -72,14 +71,13 @@
       await api("/api/auth/logout", { method: "POST" }).catch(() => {});
       location.assign("/");
     });
-    // Camera and gallery inputs share one image per slot; the latest pick wins.
+    // Camera, gallery, drag-and-drop and paste all fill the one image; the latest wins.
     document.querySelectorAll("[data-image-input]").forEach((input) => input.addEventListener("change", () => {
       const file = input.files[0];
-      if (!file) return;
-      state.images[input.dataset.imageInput] = file;
       input.value = "";
-      previewFile(input.dataset.imageInput);
+      if (file) setImage(file);
     }));
+    wireImageDropZone();
     $("#manualEntryButton").addEventListener("click", startManualEntry);
     $("#ownLensButton").addEventListener("click", chooseOwnLenses);
     $("#customerSearch").addEventListener("input", searchCustomers);
@@ -116,9 +114,11 @@
       input.addEventListener("change", () => onLensCommit(input.dataset.lens));
     });
     document.querySelectorAll("[data-path]").forEach((input) => {
-      const update = () => {
+      const update = (event) => {
         resolveIssue(input.dataset.path);
         if (input.dataset.path === "frame.status") renderFrameState();
+        if (event.type === "input" && /^pd\.(?:binocular|od|os)$/.test(input.dataset.path)) syncPd(input.dataset.path);
+        if (event.type === "input" && /^frame\.(?:a|b|ed)$/.test(input.dataset.path)) syncEd(input.dataset.path);
         runValidation();
       };
       input.addEventListener("input", update);
@@ -183,9 +183,106 @@
     return orderRow(order, onClick);
   }
 
+  function setImage(file) {
+    if (!file.type.startsWith("image/")) return showNotice("That file is not an image. Choose a photo, screenshot or scan of the prescription.", true);
+    state.images.primary = file;
+    $("#globalStatus").hidden = true;
+    $("#clipboardOffer").hidden = true;
+    previewFile("primary");
+  }
+
+  // Clipboard images arrive unnamed (or as "image.png"); name them by time.
+  function pastedFile(blob) {
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const extension = (blob.type.split("/")[1] || "png").replace("jpeg", "jpg");
+    return new File([blob], `pasted-image-${stamp}.${extension}`, { type: blob.type || "image/png" });
+  }
+
+  const canReadClipboard = () => window.isSecureContext && typeof navigator.clipboard?.read === "function";
+
+  async function readClipboardImage() {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find((value) => value.startsWith("image/"));
+      if (type) return pastedFile(await item.getType(type));
+    }
+    return null;
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const file = await readClipboardImage();
+      if (file) setImage(file);
+      else showNotice("The clipboard has no image. Copy a picture or take a screenshot, then paste again.", true);
+    } catch {
+      showNotice("The browser blocked clipboard access. Press Ctrl+V, or right-click the prescription card and choose Paste.", true);
+    }
+  }
+
+  // Once clipboard access has been allowed (the Paste image button asks), a
+  // freshly copied picture or screenshot is offered when this screen opens or
+  // the window regains focus. Never asks for permission by itself.
+  async function offerClipboardImage() {
+    if (!canReadClipboard() || !$("#captureScreen").classList.contains("active") || state.images.primary) return;
+    try {
+      const permission = await navigator.permissions.query({ name: "clipboard-read" });
+      if (permission.state !== "granted") return;
+      const file = await readClipboardImage();
+      const signature = file && `${file.type}:${file.size}`;
+      if (!file || signature === state.clipboardSeen) return;
+      state.clipboardSeen = signature;
+      state.clipboardOffer = file;
+      $("#clipboardOfferPreview").src = await fileToDataUrl(file);
+      $("#clipboardOffer").hidden = false;
+    } catch { /* no permission API or clipboard access: paste still works */ }
+  }
+
+  // The prescription card accepts a dropped image file and a pasted image
+  // (Ctrl+V anywhere on this screen, or right-click / long-press -> Paste on the card).
+  function wireImageDropZone() {
+    const zone = $("#imageDropZone");
+    const target = $("#imagePasteTarget");
+    const captureActive = () => $("#captureScreen").classList.contains("active");
+    const imageFrom = (items) => [...(items || [])].find((item) => item.kind === "file" && item.type.startsWith("image/"))?.getAsFile() || null;
+    let depth = 0;
+    zone.addEventListener("dragenter", (event) => { event.preventDefault(); depth += 1; zone.classList.add("dragging"); });
+    zone.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) zone.classList.remove("dragging"); });
+    zone.addEventListener("dragover", (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; });
+    zone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      depth = 0;
+      zone.classList.remove("dragging");
+      const file = [...(event.dataTransfer?.files || [])][0] || imageFrom(event.dataTransfer?.items);
+      if (file) setImage(file);
+    });
+    // A file dropped beside the card must not navigate away from the form.
+    window.addEventListener("dragover", (event) => { if (captureActive()) event.preventDefault(); });
+    window.addEventListener("drop", (event) => { if (captureActive()) event.preventDefault(); });
+    document.addEventListener("paste", (event) => {
+      if (!captureActive()) return;
+      const file = imageFrom(event.clipboardData?.items);
+      if (!file) {
+        if (event.target === target) {
+          event.preventDefault();
+          showNotice("The clipboard has no image. Copy a picture or take a screenshot, then paste again.", true);
+        }
+        return;
+      }
+      event.preventDefault();
+      setImage(file.name && file.name !== "image.png" ? file : pastedFile(file));
+    });
+    $("#pasteImageButton").hidden = !canReadClipboard();
+    $("#pasteImageButton").addEventListener("click", pasteFromClipboard);
+    $("#useClipboardImage").addEventListener("click", () => { if (state.clipboardOffer) setImage(state.clipboardOffer); });
+    $("#dismissClipboardImage").addEventListener("click", () => { $("#clipboardOffer").hidden = true; });
+    window.addEventListener("focus", offerClipboardImage);
+    // The paste layer only exists to offer Paste; never let text be typed or dropped into it.
+    target.addEventListener("beforeinput", (event) => event.preventDefault());
+    target.addEventListener("input", () => target.replaceChildren());
+  }
+
   async function submitCapture(event) {
     event.preventDefault();
-    const { primary, secondary } = state.images;
+    const { primary } = state.images;
     if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
     if (!primary) return showNotice("Choose a prescription image first.", true);
     const button = $("#submitCaptureButton");
@@ -193,9 +290,7 @@
     button.textContent = "PREPARING IMAGE…";
     try {
       const images = [];
-      for (const file of [primary, secondary].filter(Boolean)) {
-        images.push({ name: file.name, dataUrl: await imageDataUrl(file) });
-      }
+      images.push({ name: primary.name, dataUrl: await imageDataUrl(primary) });
       button.textContent = "SUBMITTING…";
       const payload = await api("/api/rx-capture/orders", {
         method: "POST",
@@ -241,8 +336,9 @@
     $("#captureForm").reset();
     clearSelectedCustomer();
     state.images = {};
+    state.clipboardOffer = null;
+    $("#clipboardOffer").hidden = true;
     previewFile("primary");
-    previewFile("secondary");
   }
 
   async function openOrder(id) {
@@ -301,12 +397,23 @@
   function renderOrder(order) {
     order.frame ||= {};
     order.frame.status ||= "TO_BE_TRACED";
-    order.frame.mounting ||= "1";
+    // Undetected mounting and model start from the usual job: a plastic frame, model unknown.
+    order.frame.mounting ||= "2";
+    order.frame.model ||= "Unknown";
     if (order.frame.supplied == null) order.frame.supplied = order.frame.status !== "UNCUT";
     document.querySelectorAll("[data-path]").forEach((input) => {
       input.value = valueAtPath(order, input.dataset.path) ?? "";
       input.classList.remove("missing", "uncertain");
     });
+    restorePdDerivation();
+    const edValue = window.RxValidation.num(fieldForPath("frame.ed").value);
+    const edEstimate = window.RxValidation.edFor(fieldForPath("frame.a").value, fieldForPath("frame.b").value);
+    state.edTouched = Number.isFinite(edValue) && !(edEstimate !== null && Math.abs(edValue - edEstimate) < 0.05);
+    // Fill whichever side the photo left blank.
+    const pdBlank = (path) => !fieldForPath(path).value.trim();
+    if (state.canEdit && pdBlank("pd.binocular")) syncPd("pd.od");
+    else if (state.canEdit && pdBlank("pd.od") && pdBlank("pd.os")) syncPd("pd.binocular");
+    syncEd(state.canEdit ? "frame.a" : null);
     for (const path of effectiveMissingFields(order)) fieldForPath(path)?.classList.add("missing");
     for (const path of order.uncertainFields || []) fieldForPath(path)?.classList.add("uncertain");
     renderIssues(order);
@@ -530,6 +637,69 @@
     field.value = options.some((item) => item.value === String(current || "")) ? String(current) : "";
   }
 
+  // Binocular PD is a note the distance PDs come from, and vice versa: a
+  // binocular PD fills blank (or previously derived) distance PDs, and two
+  // distance PDs fill a blank (or previously derived) binocular PD. A value
+  // the employee typed is never overwritten.
+  function syncPd(changed) {
+    const { num, formatField } = window.RxValidation;
+    const fields = { binocular: fieldForPath("pd.binocular"), od: fieldForPath("pd.od"), os: fieldForPath("pd.os") };
+    const path = (key) => `pd.${key}`;
+    const free = (key) => !fields[key].value.trim() || state.pdDerived.has(path(key));
+    const derive = (key, value) => {
+      fields[key].value = value === null ? "" : formatField(path(key), String(Math.round(value * 100) / 100));
+      if (value === null) return state.pdDerived.delete(path(key));
+      state.pdDerived.add(path(key));
+      resolveIssue(path(key));
+    };
+    // Half-typed values ("6" on the way to "64") derive nothing yet.
+    const { binocularPd, monocularPd } = window.RxValidation.LIMITS;
+    const plausible = (value, limits) => Number.isFinite(value) && value >= limits.min && value <= limits.max;
+    state.pdDerived.delete(changed);
+    if (changed === "pd.binocular") {
+      if (!free("od") || !free("os")) return;
+      const binocular = num(fields.binocular.value);
+      const half = plausible(binocular, binocularPd) ? binocular / 2 : null;
+      derive("od", half);
+      derive("os", half);
+      return;
+    }
+    if (!free("binocular")) return;
+    const od = num(fields.od.value);
+    const os = num(fields.os.value);
+    derive("binocular", plausible(od, monocularPd) && plausible(os, monocularPd) ? od + os : null);
+  }
+
+  // A saved draft does not record which PD was derived; recover it from the
+  // values so editing the source still updates the others.
+  function restorePdDerivation() {
+    const { num } = window.RxValidation;
+    const [binocular, od, os] = ["pd.binocular", "pd.od", "pd.os"].map((path) => num(fieldForPath(path).value));
+    state.pdDerived = new Set();
+    if (![binocular, od, os].every(Number.isFinite)) return;
+    if (Math.abs(od - binocular / 2) < 0.01 && Math.abs(os - binocular / 2) < 0.01) ["pd.od", "pd.os"].forEach((path) => state.pdDerived.add(path));
+    else if (Math.abs(od + os - binocular) < 0.01) state.pdDerived.add("pd.binocular");
+  }
+
+  // ED follows A and B (sqrt(A^2 + B^2), as on the CV website order form)
+  // until the employee types their own ED; clearing it returns to the estimate.
+  function syncEd(changed) {
+    const { edFor, FRAME_DEFAULTS } = window.RxValidation;
+    const ed = fieldForPath("frame.ed");
+    const a = fieldForPath("frame.a").value;
+    const b = fieldForPath("frame.b").value;
+    if (changed === "frame.ed") state.edTouched = Boolean(ed.value.trim());
+    const estimate = edFor(a, b);
+    if (!state.edTouched && changed && state.canEdit) ed.value = estimate === null ? "" : estimate.toFixed(1);
+    const fallback = edFor(a.trim() || FRAME_DEFAULTS.a, b.trim() || FRAME_DEFAULTS.b);
+    ed.placeholder = fallback === null ? "mm" : `${fallback.toFixed(1)} auto`;
+    // Still on the estimate: Enter-to-advance hops from B straight to DBL.
+    ed.tabIndex = state.edTouched ? 0 : -1;
+    $("#edHint").textContent = !state.edTouched
+      ? "Auto: √(A² + B²)"
+      : estimate === null ? "Entered" : `Entered; A and B give ${estimate.toFixed(1)}`;
+  }
+
   // The workflow decides the job type sent to Innovations. Measurements stay
   // tucked away for traced and uncut jobs unless the photo supplied them.
   function renderFrameState() {
@@ -539,6 +709,7 @@
     $("#frameMeasurements").hidden = !showMeasurements;
     $("#addMeasurementsButton").hidden = showMeasurements || !state.canEdit;
     $("#frameJobBadge").textContent = status === "UNCUT" ? "Uncut job" : "Edged job";
+    $("#frameDefaultsNote").hidden = status === "UNCUT";
   }
 
   // Enter moves to the next field, like a keyed order-entry screen. Open
@@ -553,7 +724,7 @@
 
   function focusNextField(field, backwards) {
     const fields = [...$("#reviewForm").querySelectorAll("input, select, textarea")]
-      .filter((item) => item.type !== "hidden" && !item.disabled && !item.readOnly && item.offsetParent !== null);
+      .filter((item) => item.type !== "hidden" && item.tabIndex >= 0 && !item.disabled && !item.readOnly && item.offsetParent !== null);
     const next = fields[fields.indexOf(field) + (backwards ? -1 : 1)];
     if (next) {
       next.focus();
@@ -642,8 +813,10 @@
   }
 
   function effectiveMissingFields(order) {
+    const pdCovered = Boolean(order.pd?.binocular) || Boolean(order.pd?.od && order.pd?.os);
     return (order.missingFields || []).filter((path) => {
       if (/^(frame|lensRequest)\./.test(path)) return false;
+      if (path === "pd.type" || (pdCovered && /^pd\.(?:binocular|od|os)$/.test(path))) return false;
       if (/^prescription\.(od|os)\.(prism|base)$/.test(path)) return false;
       if (/^prescription\.(od|os)\.add$/.test(path)) return requiresAddPower(order);
       return true;
@@ -887,6 +1060,7 @@
     document.body.dataset.screen = id;
     window.scrollTo({ top: 0, behavior: "instant" });
     $("#globalStatus").hidden = true;
+    if (id === "captureScreen") offerClipboardImage();
   }
 
   function showNotice(message, isError = false) {
@@ -1027,8 +1201,17 @@
   async function api(url, options = {}) {
     const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...options });
     const payload = await response.json().catch(() => ({}));
+    if (response.status === 401) returnAfterSignIn();
     if (!response.ok) throw Object.assign(new Error(payload.error || `Request failed (${response.status}).`), { status: response.status });
     return payload;
+  }
+
+  // The session has expired: sign in on the home page, then come straight back here.
+  function returnAfterSignIn() {
+    if (state.signingIn) return;
+    state.signingIn = true;
+    stopPolling();
+    location.assign(`/?next=${encodeURIComponent(location.pathname + location.search)}`);
   }
 
   init();

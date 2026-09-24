@@ -21,6 +21,9 @@
     frame: { a: 78, b: 60, ed: 88, dbl: 30 },
     maxBlank: 80
   };
+  // Sent in place of blank measurements so an edged job can be submitted
+  // before the frame is measured.
+  const FRAME_DEFAULTS = { a: 55, b: 45, dbl: 18 };
   const EYES = [["od", "OD", "Od"], ["os", "OS", "Os"]];
   const BASE_PATTERN = /^(?:BI|BO|BU|BD|IN|OUT|UP|DOWN)$/;
 
@@ -41,6 +44,14 @@
   const fixed = (n, digits = 2) => n.toFixed(digits);
   const signed = (n) => `${n > 0 ? "+" : ""}${fixed(n)}`;
   const normalizeAxis = (n) => { const a = ((Math.round(n) % 180) + 180) % 180; return a === 0 ? 180 : a; };
+
+  // ED estimate used by the CV website rx-order form: sqrt(A^2 + B^2), rounded up to 0.1 mm.
+  function edFor(a, b) {
+    const width = num(a);
+    const height = num(b);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+    return Math.ceil(Math.sqrt(width * width + height * height) * 10) / 10;
+  }
 
   function lensText(order) {
     return [order?.lensRequest?.lensType, order?.lensRequest?.design].map(str).filter(Boolean).join(" ");
@@ -164,7 +175,7 @@
     const od = num(pd.od);
     const os = num(pd.os);
     if (Number.isFinite(binocular) && Number.isFinite(od) && Number.isFinite(os) && Math.abs(od + os - binocular) > 1) {
-      warn("pd.binocular", `OD + OS PD (${fixed(od + os, 1)} mm) does not match the binocular PD (${fixed(binocular, 1)} mm); the binocular value is the one submitted.`);
+      warn("pd.binocular", `OD + OS PD (${fixed(od + os, 1)} mm) does not match the binocular PD (${fixed(binocular, 1)} mm); the distance PDs are the ones submitted.`);
     }
 
     if (Number.isFinite(spheres.od) && Number.isFinite(spheres.os) && spheres.od * spheres.os < 0) {
@@ -184,8 +195,8 @@
       error("frame.ed", `Frame ED ${fixed(box.ed, 1)} mm cannot be smaller than the larger of A and B (${fixed(Math.max(box.a, box.b), 1)} mm).`);
     }
     if (frame.status === "MEASURED") {
-      const missing = ["a", "b", "dbl", "ed"].filter((key) => box[key] === null);
-      if (missing.length) warn(`frame.${missing[0]}`, `Frame workflow says measurements are available, but ${missing.map((key) => key.toUpperCase()).join(", ")} ${missing.length > 1 ? "are" : "is"} blank.`);
+      const missing = ["a", "b", "dbl"].filter((key) => box[key] === null);
+      if (missing.length) warn(`frame.${missing[0]}`, `Frame workflow says measurements are available, but ${missing.map((key) => key.toUpperCase()).join(", ")} ${missing.length > 1 ? "are" : "is"} blank; the default${missing.length > 1 ? "s" : ""} (${missing.map((key) => `${key.toUpperCase()} ${FRAME_DEFAULTS[key]}`).join(", ")}) will be sent.`);
     }
     if (Number.isFinite(box.a) && Number.isFinite(box.dbl) && Number.isFinite(box.ed)) {
       const eyes = Number.isFinite(binocular) ? [binocular / 2] : [od, os].filter(Number.isFinite);
@@ -213,5 +224,5 @@
     return /\b(?:progressive|bifocal|trifocal|multifocal|occupational)\b/i.test(text) ? "multifocal" : null;
   }
 
-  return { LIMITS, num, formatField, toMinusCylinder, validateOrder, isProgressive, isMultifocal };
+  return { LIMITS, FRAME_DEFAULTS, edFor, num, formatField, toMinusCylinder, validateOrder, isProgressive, isMultifocal };
 });
