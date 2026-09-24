@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {} };
+  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, mode: "photo", voice: emptyVoice(), frequentCustomers: null };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -81,6 +81,12 @@
       previewFile(input.dataset.imageInput);
     }));
     $("#manualEntryButton").addEventListener("click", startManualEntry);
+    document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => switchMode(button.dataset.mode)));
+    $("#recordButton").addEventListener("click", toggleRecording);
+    document.addEventListener("keydown", captureShortcuts);
+    window.addEventListener("beforeunload", warnUnsavedDictation);
+    $("#customerSearch").addEventListener("focus", showFrequentCustomers);
+    renderSegmentBoxes();
     $("#ownLensButton").addEventListener("click", chooseOwnLenses);
     $("#customerSearch").addEventListener("input", searchCustomers);
     $("#customerSearch").addEventListener("keydown", customerSearchKeys);
@@ -185,6 +191,7 @@
 
   async function submitCapture(event) {
     event.preventDefault();
+    if (state.mode === "voice") return submitDictation();
     const { primary, secondary } = state.images;
     if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
     if (!primary) return showNotice("Choose a prescription image first.", true);
@@ -243,6 +250,10 @@
     state.images = {};
     previewFile("primary");
     previewFile("secondary");
+    state.voice = emptyVoice();
+    state.frequentCustomers = null;
+    renderSegmentBoxes();
+    renderClips();
   }
 
   async function openOrder(id) {
@@ -309,6 +320,13 @@
     });
     for (const path of effectiveMissingFields(order)) fieldForPath(path)?.classList.add("missing");
     for (const path of order.uncertainFields || []) fieldForPath(path)?.classList.add("uncertain");
+    // Dictated orders explain each flag with the words that produced it.
+    const flags = state.current?.extractedOrder?.voiceFlags || {};
+    document.querySelectorAll("[data-path]").forEach((input) => {
+      const flag = flags[input.dataset.path];
+      if (flag && input.classList.contains("uncertain")) input.title = voiceFlagText(flag);
+      else input.removeAttribute("title");
+    });
     renderIssues(order);
   }
 
@@ -629,14 +647,21 @@
   }
 
   function renderIssues(order) {
+    const flags = state.current?.extractedOrder?.voiceFlags || {};
+    const notes = state.current?.extractedOrder?.voiceNotes || [];
     const issues = [
       ...effectiveMissingFields(order).map((path) => ({ path, kind: "Missing" })),
       ...(order.uncertainFields || []).map((path) => ({ path, kind: "Uncertain" }))
     ];
-    $("#issuesCard").hidden = issues.length === 0;
+    $("#issuesCard").hidden = issues.length === 0 && notes.length === 0;
     $("#issuesList").replaceChildren(...issues.map((issue) => {
       const item = document.createElement("li");
-      item.textContent = `${issue.kind}: ${pathLabels[issue.path] || issue.path}`;
+      const flag = issue.kind === "Uncertain" ? flags[issue.path] : null;
+      item.textContent = `${issue.kind}: ${pathLabels[issue.path] || issue.path}${flag ? ` (${voiceFlagText(flag)})` : ""}`;
+      return item;
+    }), ...notes.map((note) => {
+      const item = document.createElement("li");
+      item.textContent = `Note: ${note}`;
       return item;
     }));
   }
@@ -931,7 +956,7 @@
     state.selectedCustomer = null;
     renderSelectedCustomer();
     clearTimeout(state.customerTimer);
-    if (query.length < 2) return renderCustomerResults([]);
+    if (query.length < 2) return showFrequentCustomers();
     state.customerTimer = setTimeout(async () => {
       try {
         const payload = await api(`/api/rx-capture/customers?q=${encodeURIComponent(query)}`);
@@ -997,7 +1022,7 @@
   function renderSelectedCustomer() {
     const selected = $("#selectedCustomer");
     if (!state.selectedCustomer) {
-      selected.textContent = "Search and select the customer before taking the prescription photo.";
+      selected.textContent = "Search and select the customer before photographing or dictating the prescription.";
       selected.classList.remove("is-selected");
       return;
     }
@@ -1029,6 +1054,347 @@
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(payload.error || `Request failed (${response.status}).`), { status: response.status });
     return payload;
+  }
+
+  // ---- Voice / typed intake -------------------------------------------------
+  // The capture page records clips, transcribes each one, splits the text into
+  // labelled boxes the employee checks and edits, and submits that text for
+  // extraction instead of photos. Audio stays in page memory only until its
+  // transcription succeeds.
+  const MAX_CLIP_MS = 3 * 60 * 1000;
+  const MIN_CLIP_MS = 1000;
+  const SILENCE_LEVEL = 0.02;
+
+  function emptyVoice() {
+    return { segments: {}, clips: [], clipCount: 0, raw: "", recording: null, readiness: null };
+  }
+
+  function switchMode(mode) {
+    if (mode === state.mode) return;
+    const hasPhotos = Boolean(state.images.primary || state.images.secondary);
+    const hasDictation = hasVoiceContent();
+    if (mode === "voice" && hasPhotos && !confirm("Discard the selected photos and dictate instead?")) return;
+    if (mode === "photo" && (hasDictation || state.voice.recording) && !confirm("Discard the dictation and use photos instead?")) return;
+    if (mode === "voice") {
+      state.images = {};
+      previewFile("primary");
+      previewFile("secondary");
+    } else {
+      stopRecording(true);
+      state.voice = emptyVoice();
+      renderSegmentBoxes();
+      renderClips();
+    }
+    state.mode = mode;
+    document.querySelectorAll("[data-mode]").forEach((button) => button.setAttribute("aria-checked", String(button.dataset.mode === mode)));
+    $("#photoMode").hidden = mode !== "photo";
+    $("#voiceMode").hidden = mode !== "voice";
+    if (mode === "voice") checkVoiceReadiness();
+  }
+
+  function hasVoiceContent() {
+    return Object.values(currentSegments()).some(Boolean) || state.voice.clips.length > 0;
+  }
+
+  // Recording needs a secure page, a recorder, and the server's AI key. Typing
+  // into the boxes still works when any of them is missing.
+  async function checkVoiceReadiness() {
+    let reason = null;
+    if (!window.isSecureContext) reason = "This device doesn't trust the OptiLens certificate, so the microphone is blocked. Install it from /cert, or type into the boxes below.";
+    else if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) reason = "This browser can't record audio. Type into the boxes below, or use a current Chrome, Edge or Safari.";
+    if (!reason && state.voice.readiness === null) {
+      try {
+        const status = await api("/api/rx-capture/voice-status");
+        if (!status.available) reason = status.reason || "Voice transcription is not available.";
+      } catch (error) {
+        reason = error.message;
+      }
+    }
+    state.voice.readiness = reason || "";
+    const button = $("#recordButton");
+    button.disabled = Boolean(reason);
+    if (reason) setVoiceStatus(reason, true);
+  }
+
+  function captureShortcuts(event) {
+    if (!$("#captureScreen").classList.contains("active")) return;
+    if (!(event.altKey && !event.ctrlKey && !event.metaKey && event.code === "KeyV")) return;
+    event.preventDefault();
+    if (state.mode !== "voice") switchMode("voice");
+    else if (!$("#recordButton").disabled) toggleRecording();
+  }
+
+  async function toggleRecording() {
+    if (state.voice.recording) return stopRecording(false);
+    if (state.voice.readiness === null) await checkVoiceReadiness();
+    if ($("#recordButton").disabled) return;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (error) {
+      const blocked = error?.name === "NotAllowedError" || error?.name === "SecurityError";
+      setVoiceStatus(blocked ? "Microphone blocked. Allow the microphone for this site in the browser settings, or type into the boxes below." : "No microphone was found. Type into the boxes below.", true);
+      return;
+    }
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+    const recording = { recorder, stream, chunks, startedAt: Date.now(), peak: 0, discard: false };
+    recording.meter = startLevelMeter(stream, recording);
+    recorder.addEventListener("dataavailable", (event) => { if (event.data?.size) chunks.push(event.data); });
+    recorder.addEventListener("stop", () => finishRecording(recording));
+    recording.limit = setTimeout(() => stopRecording(false), MAX_CLIP_MS);
+    recording.tick = setInterval(renderRecordTimer, 250);
+    state.voice.recording = recording;
+    recorder.start();
+    $("#recordButton").classList.add("is-recording");
+    $("#recordLabel").textContent = "Stop";
+    setVoiceStatus("Listening… tap Stop (or Alt+V) when you have finished.");
+    renderRecordTimer();
+  }
+
+  function stopRecording(discard) {
+    const recording = state.voice.recording;
+    if (!recording) return;
+    recording.discard = discard;
+    if (recording.recorder.state !== "inactive") recording.recorder.stop();
+  }
+
+  function startLevelMeter(stream, recording) {
+    try {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      context.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Float32Array(analyser.fftSize);
+      // A timer, not animation frames: frames stop when the page is hidden,
+      // which would leave the peak at zero and reject a good recording.
+      recording.sampler = setInterval(() => {
+        analyser.getFloatTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) sum += sample * sample;
+        const level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
+        recording.peak = Math.max(recording.peak, level);
+        $("#recordLevel").value = level;
+      }, 100);
+      if (context.state !== "running") context.resume().catch(() => { recording.peak = 1; });
+      return context;
+    } catch {
+      recording.peak = 1;
+      return null;
+    }
+  }
+
+  function renderRecordTimer() {
+    const recording = state.voice.recording;
+    const elapsed = recording ? Date.now() - recording.startedAt : 0;
+    const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+    $("#recordTimer").textContent = `${clock(elapsed)} / ${clock(MAX_CLIP_MS)}`;
+  }
+
+  async function finishRecording(recording) {
+    clearTimeout(recording.limit);
+    clearInterval(recording.tick);
+    clearInterval(recording.sampler);
+    // If the meter never ran, the level is unknown: do not reject the clip for it.
+    if (!recording.meter || recording.meter.state !== "running") recording.peak = Math.max(recording.peak, 1);
+    recording.stream.getTracks().forEach((track) => track.stop());
+    recording.meter?.close?.().catch?.(() => {});
+    state.voice.recording = null;
+    $("#recordButton").classList.remove("is-recording");
+    $("#recordLabel").textContent = "Record";
+    $("#recordLevel").value = 0;
+    renderRecordTimer();
+    if (recording.discard) return;
+    const durationMs = Date.now() - recording.startedAt;
+    // Near-silent clips are dropped here: speech models invent text for silence.
+    if (durationMs < MIN_CLIP_MS || recording.peak < SILENCE_LEVEL) {
+      setVoiceStatus("Nothing heard. Check the microphone and try again.", true);
+      return;
+    }
+    const blob = new Blob(recording.chunks, { type: recording.recorder.mimeType || recording.chunks[0]?.type || "audio/webm" });
+    const clip = { id: `clip-${Date.now()}`, blob, durationMs, status: "pending", error: null };
+    state.voice.clips.push(clip);
+    renderClips();
+    await transcribeClip(clip);
+  }
+
+  async function transcribeClip(clip) {
+    clip.status = "working";
+    clip.error = null;
+    renderClips();
+    setVoiceStatus("Transcribing…");
+    try {
+      const audio = await blobDataUrl(clip.blob);
+      const result = await api("/api/rx-capture/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio, durationMs: clip.durationMs })
+      });
+      state.voice.segments = window.RxVoice.mergeIntoSegments(currentSegments(), result.pieces || []);
+      state.voice.raw = [state.voice.raw, result.text].filter(Boolean).join("\n");
+      state.voice.clipCount += 1;
+      state.voice.clips = state.voice.clips.filter((item) => item !== clip);
+      renderSegmentBoxes();
+      renderClips();
+      setVoiceStatus(result.text ? "Check every box against the prescription, correct any words, then submit for extraction." : "Nothing was transcribed from that recording. Try again.", !result.text);
+    } catch (error) {
+      clip.status = "failed";
+      clip.error = error.message;
+      renderClips();
+      setVoiceStatus(`${error.message} Retry the recording below, or use ENTER RX MANUALLY (the customer stays selected).`, true);
+    }
+  }
+
+  function renderClips() {
+    const list = $("#clipList");
+    list.replaceChildren(...state.voice.clips.map((clip) => {
+      const item = document.createElement("li");
+      item.className = `clip clip-${clip.status}`;
+      const label = document.createElement("span");
+      label.textContent = clip.status === "failed"
+        ? `Recording (${Math.round(clip.durationMs / 1000)} s) not transcribed: ${clip.error}`
+        : `Recording (${Math.round(clip.durationMs / 1000)} s) — transcribing…`;
+      item.append(label);
+      if (clip.status === "failed") {
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "inline-action";
+        retry.textContent = "Retry transcription";
+        retry.addEventListener("click", () => transcribeClip(clip));
+        const drop = document.createElement("button");
+        drop.type = "button";
+        drop.className = "inline-action";
+        drop.textContent = "Discard";
+        drop.addEventListener("click", () => {
+          state.voice.clips = state.voice.clips.filter((item) => item !== clip);
+          renderClips();
+        });
+        item.append(retry, drop);
+      }
+      return item;
+    }));
+    list.hidden = state.voice.clips.length === 0;
+  }
+
+  // One box per section. Edits never re-split: once touched, the label is the
+  // employee's call. New clips are split and appended to the matching boxes.
+  function renderSegmentBoxes() {
+    const container = $("#segmentBoxes");
+    const segments = state.voice.segments || {};
+    container.replaceChildren(...window.RxVoice.SEGMENTS.map(({ key, label }) => {
+      const wrap = document.createElement("label");
+      wrap.className = `segment-box segment-${key}`;
+      wrap.dataset.segment = key;
+      const title = document.createElement("span");
+      title.className = "segment-label";
+      title.textContent = label;
+      const box = document.createElement("textarea");
+      box.rows = 1;
+      box.dataset.segmentInput = key;
+      box.value = segments[key] || "";
+      box.setAttribute("autocomplete", "off");
+      box.setAttribute("spellcheck", "false");
+      const hint = document.createElement("small");
+      hint.className = "segment-hint";
+      wrap.append(title, box, hint);
+      box.addEventListener("input", () => {
+        state.voice.segments = { ...currentSegments(), [key]: box.value };
+        autoGrow(box);
+        renderSegmentHints();
+      });
+      return wrap;
+    }));
+    container.querySelectorAll("textarea").forEach(autoGrow);
+    renderSegmentHints();
+  }
+
+  function renderSegmentHints() {
+    const segments = currentSegments();
+    document.querySelectorAll("[data-segment]").forEach((wrap) => {
+      const key = wrap.dataset.segment;
+      const words = window.RxVoice.correctionWords(segments[key]);
+      const hint = wrap.querySelector(".segment-hint");
+      hint.textContent = words.length ? `Contains a correction (${words.map((word) => `"${word}"`).join(", ")}). Leave only the final value.` : "";
+      wrap.classList.toggle("has-correction", words.length > 0);
+      wrap.classList.toggle("is-empty", !segments[key]);
+    });
+    const unassigned = String(segments.unassigned || "").split("\n").filter((line) => line.trim()).length;
+    const note = $("#unassignedNote");
+    note.hidden = unassigned === 0;
+    note.textContent = `${unassigned} unassigned phrase${unassigned === 1 ? "" : "s"}. They are still read at extraction; move any value into the right box if it belongs to an eye.`;
+  }
+
+  function currentSegments() {
+    const segments = { ...(state.voice.segments || {}) };
+    document.querySelectorAll("[data-segment-input]").forEach((box) => { segments[box.dataset.segmentInput] = box.value; });
+    return segments;
+  }
+
+  function autoGrow(box) {
+    box.style.height = "auto";
+    box.style.height = `${Math.max(box.scrollHeight, 44)}px`;
+  }
+
+  function setVoiceStatus(message, isError = false) {
+    const status = $("#voiceStatus");
+    status.textContent = message;
+    status.classList.toggle("error", isError);
+  }
+
+  async function submitDictation() {
+    if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
+    if (state.voice.recording) return showNotice("Stop the recording before submitting.", true);
+    if (state.voice.clips.length) return showNotice("A recording has not been transcribed yet. Retry or discard it first.", true);
+    const segments = currentSegments();
+    if (!Object.values(segments).some((text) => String(text || "").trim())) return showNotice("Record or type the prescription first.", true);
+    const button = $("#submitCaptureButton");
+    button.disabled = true;
+    button.textContent = "SUBMITTING…";
+    try {
+      const payload = await api("/api/rx-capture/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer: state.selectedCustomer, transcript: { segments, raw: state.voice.raw, clipCount: state.voice.clipCount } })
+      });
+      resetCapture();
+      await showOrder(payload.order);
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "SUBMIT FOR EXTRACTION";
+    }
+  }
+
+  function warnUnsavedDictation(event) {
+    if (!$("#captureScreen").classList.contains("active")) return;
+    if (!state.voice.recording && !state.voice.clips.length) return;
+    event.preventDefault();
+    event.returnValue = "";
+  }
+
+  function voiceFlagText(flag) {
+    return flag.evidence ? `${flag.reason}: "${flag.evidence}"` : flag.reason;
+  }
+
+  function blobDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("The recording could not be read."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Before typing, the customer box offers this employee's frequent customers.
+  async function showFrequentCustomers() {
+    if ($("#customerSearch").value.trim().length >= 2 || state.selectedCustomer) return;
+    try {
+      state.frequentCustomers ||= (await api("/api/rx-capture/customers/frequent")).customers || [];
+      if (document.activeElement === $("#customerSearch") && $("#customerSearch").value.trim().length < 2) renderCustomerResults(state.frequentCustomers);
+    } catch {
+      renderCustomerResults([]);
+    }
   }
 
   init();
