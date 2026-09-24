@@ -61,6 +61,7 @@ button { cursor: pointer; }
 .primary-button { color: white; background: var(--teal); box-shadow: 0 8px 20px rgb(15 124 134 / .18); }
 .primary-button:hover { background: var(--teal-dark); }
 .secondary-button { color: var(--navy); background: white; border: 1px solid var(--line); }
+.discard-button { color: var(--danger); }
 .wide { width: 100%; }
 .primary-button:disabled { opacity: .55; cursor: wait; }
 
