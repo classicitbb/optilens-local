@@ -194,6 +194,7 @@ const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute } = require("./lib/rx-capture/routes");
+const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1043,6 +1044,10 @@ async function refreshGitUpdatesOnSchedule() {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // Public, and reachable over plain HTTP through IIS: devices that do not
+  // trust the LAN certificate yet come here to install it.
+  if (await handleCertificateSetupRoute({ req, res, url })) return;
 
   if (url.pathname === "/api/connectors/live-gateway/direct") {
     writeLocalDevCors(res, req);
@@ -2832,7 +2837,7 @@ const server = http.createServer(async (req, res) => {
   if (isInteractivePageRequest(url.pathname) && !isPublicInteractivePage(url.pathname)) {
     const user = await optionalCurrentUser(req);
     if (!user) {
-      return redirectToSignIn(res);
+      return redirectToSignIn(res, url);
     }
     if (!canAccessPage(url.pathname, user)) {
       return sendText(res, "Forbidden", 403);
@@ -2885,10 +2890,13 @@ function normalizeRoutePath(requestPath) {
     : requestPath;
 }
 
-function redirectToSignIn(res) {
+// Signing in happens on the home page; `next` sends the user back to the
+// module they were in when the session expired.
+function redirectToSignIn(res, url) {
+  const next = url ? `${url.pathname}${url.search}` : "/";
   writeSecurityHeaders(res);
   res.writeHead(302, {
-    "Location": "/",
+    "Location": next === "/" ? "/" : `/?next=${encodeURIComponent(next)}`,
     "Cache-Control": "no-store"
   });
   res.end();

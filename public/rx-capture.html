@@ -4,8 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1e35">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RX Capture">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>RX Capture</title>
+  <link rel="manifest" href="/rx-capture.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/optilens.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&display=swap">
@@ -59,7 +65,7 @@
           <label id="captureCustomerLabel" for="customerSearch">Customer
             <input id="customerSearch" class="cb-field" type="search" autocomplete="off" placeholder="Search ERP customer by name or account" required>
           </label>
-          <p id="selectedCustomer" class="selected-customer">Search and select the customer before taking the prescription photo.</p>
+          <p id="selectedCustomer" class="selected-customer">Search and select the customer before photographing or dictating the prescription.</p>
           <div id="customerResults" class="cblist customer-results" role="listbox" aria-label="ERP customer matches" hidden></div>
         </section>
         <div class="mode-switch" role="radiogroup" aria-label="How to enter the prescription">
@@ -67,27 +73,27 @@
           <button type="button" class="mode-option" role="radio" data-mode="voice" aria-checked="false" aria-keyshortcuts="Alt+V">Voice / type</button>
         </div>
         <div id="photoMode" class="mode-panel">
-        <div class="file-card" data-image-slot="primary">
+        <div id="imageDropZone" class="file-card" data-image-slot="primary">
+          <!-- An editable layer behind the card's content so right-click (or a
+               long press) offers the browser's own Paste; inputmode="none"
+               keeps the phone keyboard closed. Only pasted images are kept. -->
+          <div id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none" spellcheck="false" role="textbox" aria-label="Paste a prescription image or PDF here" aria-describedby="imageDropHint"></div>
           <span class="camera-icon" aria-hidden="true">⌁</span>
-          <strong>Prescription image</strong>
-          <span>Take a photo or choose one from your gallery</span>
+          <strong>Prescription image or PDF</strong>
+          <span id="imageDropHint">Take a photo, choose an image or PDF, drag one here, or paste a copied image or screenshot (Ctrl+V or right-click → Paste)</span>
           <img id="primaryPreview" alt="Prescription preview" hidden>
+          <span id="primaryPdf" class="pdf-badge" hidden>PDF</span>
           <small id="primaryFileName"></small>
           <div class="file-actions">
             <label class="file-button" for="primaryCamera">Take photo<input id="primaryCamera" type="file" accept="image/*" capture="environment" data-image-input="primary"></label>
-            <label class="file-button" for="primaryImage">Choose from gallery<input id="primaryImage" type="file" accept="image/*" data-image-input="primary"></label>
+            <label class="file-button" for="primaryImage">Choose image or PDF<input id="primaryImage" type="file" accept="image/*,application/pdf,.pdf" data-image-input="primary"></label>
+            <button id="pasteImageButton" class="file-button" type="button" hidden>Paste image</button>
           </div>
-        </div>
-
-        <div class="file-card optional" data-image-slot="secondary">
-          <span class="camera-icon" aria-hidden="true">＋</span>
-          <strong>Second image <em>optional</em></strong>
-          <span>Add the reverse side or an order sheet</span>
-          <img id="secondaryPreview" alt="Second image preview" hidden>
-          <small id="secondaryFileName"></small>
-          <div class="file-actions">
-            <label class="file-button" for="secondaryCamera">Take photo<input id="secondaryCamera" type="file" accept="image/*" capture="environment" data-image-input="secondary"></label>
-            <label class="file-button" for="secondaryImage">Choose from gallery<input id="secondaryImage" type="file" accept="image/*" data-image-input="secondary"></label>
+          <div id="clipboardOffer" class="clipboard-offer" role="alert" hidden>
+            <img id="clipboardOfferPreview" alt="Image on your clipboard">
+            <span>Use the image on your clipboard?</span>
+            <button id="useClipboardImage" class="file-button" type="button">Use it</button>
+            <button id="dismissClipboardImage" class="file-button" type="button">No</button>
           </div>
         </div>
 
@@ -164,15 +170,16 @@
                 <option value="3">Rimless / grooved</option>
               </select>
             </label>
-            <label data-field-wrap="frame.model">Model<input data-path="frame.model" autocomplete="off" placeholder="Not detected, the lab reads it from the frame"></label>
+            <label data-field-wrap="frame.model">Model<input data-path="frame.model" autocomplete="off" placeholder="Unknown"></label>
             <label data-field-wrap="frame.color">Colour<input data-path="frame.color" autocomplete="off" placeholder="Not detected"></label>
           </div>
           <div id="frameMeasurements" class="field-grid four frame-measurements">
-            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="mm"></label>
-            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="mm"></label>
-            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="mm"></label>
-            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="mm"></label>
+            <label data-field-wrap="frame.a">A<input data-path="frame.a" inputmode="decimal" placeholder="55 default"></label>
+            <label data-field-wrap="frame.b">B<input data-path="frame.b" inputmode="decimal" placeholder="45 default"></label>
+            <label data-field-wrap="frame.dbl">DBL<input data-path="frame.dbl" inputmode="decimal" placeholder="18 default"></label>
+            <label data-field-wrap="frame.ed">ED<input data-path="frame.ed" inputmode="decimal" placeholder="mm"><small id="edHint" class="field-help">Auto from A and B</small></label>
           </div>
+          <p id="frameDefaultsNote" class="section-help frame-defaults-note">Blank measurements are sent as A 55 · B 45 · DBL 18.</p>
           <button id="addMeasurementsButton" class="inline-action" type="button" hidden>+ Add frame measurements</button>
         </section>
 
@@ -188,8 +195,7 @@
             </table>
           </div>
           <div class="rx-table-meta">
-            <label data-field-wrap="pd.binocular">Binocular PD<input data-path="pd.binocular" inputmode="decimal"></label>
-            <label data-field-wrap="pd.type">PD type<input data-path="pd.type" placeholder="Binocular / monocular"></label>
+            <label data-field-wrap="pd.binocular">Binocular PD<input data-path="pd.binocular" inputmode="decimal"><small class="field-help">A binocular PD fills both distance PDs; both distance PDs fill the binocular PD.</small></label>
           </div>
         </section>
 
@@ -254,5 +260,6 @@
   <script src="/rx-capture-voice.js" defer></script>
   <script src="/rx-combobox.js" defer></script>
   <script src="/rx-capture.js" defer></script>
+  <script src="/pwa.js" defer></script>
 </body>
 </html>

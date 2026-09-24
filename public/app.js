@@ -148,6 +148,9 @@ async function init() {
   });
 
   state.auth = await loadAuthState();
+  // Already signed in (another tab renewed the session): go straight back.
+  const returnPath = signInReturnPath();
+  if (state.auth.user && returnPath) return window.location.replace(returnPath);
   applyAuthGate();
   renderHomeAuth();
 
@@ -267,7 +270,9 @@ async function submitHomeAuth(event) {
     state.auth.user = data.user;
     state.auth.needsBootstrap = false;
     window.dispatchEvent(new CustomEvent("optilens:auth-changed", { detail: { user: data.user } }));
-    window.location.reload();
+    const next = signInReturnPath();
+    if (next) window.location.assign(next);
+    else window.location.reload();
   } catch (err) {
     if (error) error.textContent = err.message || "Sign in failed.";
   } finally {

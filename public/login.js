@@ -18,7 +18,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     });
     
     if (res.ok) {
-      window.location.href = '/';
+      // Return to the module whose session expired, when the link says so.
+      const next = new URLSearchParams(window.location.search).get('next') || '';
+      window.location.href = /^\/(?![\/\\])/.test(next) ? next : '/';
     } else {
       const data = await res.json();
       errorMsg.textContent = data.error || 'Login failed';

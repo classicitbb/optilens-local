@@ -172,7 +172,7 @@ test("submission defaults come from the selected account and frame workflow", ()
   const normalized = { frame: { status: "TO_BE_TRACED", mounting: "2" }, lensRequest: { catalogAlias: "0010002800096", coatingSku: "A1HDARC" }, instructions: "Rush" };
   const actor = { username: "employee" };
   const defaults = resolutionDefaults({ frameMounting: "3", addonSkus: ["TINT"], customerNumber: "999", shipName: "Other", labNum: "9", customerSequence: "7" }, { existing, normalized, actor, mappedCustomerNumber: null });
-  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "1");
+  assert.equal(resolutionDefaults({}, { existing, normalized: { ...normalized, frame: { status: "MEASURED" } }, actor }).frameMounting, "2");
   assert.equal(normalizeOpticalOrder({ frame: { mounting: "3" } }).frame.mounting, "3");
   assert.equal(normalizeOpticalOrder({ frame: { mounting: "9" } }).frame.mounting, null);
   assert.deepEqual(defaults, {
@@ -296,6 +296,19 @@ test("OpenAI extraction sends images server-side with strict schema and storage 
   assert.equal(result.patient.name, "HUNTE, RUSSELL");
 });
 
+test("OpenAI extraction sends a PDF prescription as a file input", async () => {
+  let body;
+  await extractPrescriptionFromImages([{ mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7") }], {
+    config: { apiKey: "server-only-test-key", baseUrl: "https://api.openai.com/v1", model: "vision-test" },
+    fetch: async (url, options) => {
+      body = JSON.parse(options.body);
+      return { ok: true, json: async () => ({ output_text: JSON.stringify(emptyNormalizedOrder()) }) };
+    }
+  });
+  assert.equal(body.input[0].content[1].type, "input_file");
+  assert.match(body.input[0].content[1].file_data, /^data:application\/pdf;base64,/);
+});
+
 test("RX extraction prefers the Credentials Vault key over a stale environment key", () => {
   const config = loadRxAiConfig({
     env: {
@@ -359,9 +372,11 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /data-lens="option"/);
   assert.match(html, /<script src="\/rx-combobox\.js" defer><\/script>\s*<script src="\/rx-capture\.js" defer>/);
   assert.doesNotMatch(html, /<datalist/);
-  assert.match(html, /id="primaryImage" type="file" accept="image\/\*" data-image-input="primary"/);
+  assert.match(html, /id="primaryImage" type="file" accept="image\/\*,application\/pdf,\.pdf" data-image-input="primary"/);
   assert.match(html, /id="primaryCamera" type="file" accept="image\/\*" capture="environment"/);
-  assert.match(html, /Choose from gallery/);
+  assert.match(html, /Choose image or PDF/);
+  assert.match(html, /id="imagePasteTarget" class="paste-target" contenteditable="true" inputmode="none"/);
+  assert.doesNotMatch(html, /data-image-slot="secondary"|data-path="pd\.type"/);
   assert.match(html, /id="manualEntryButton"/);
   assert.match(html, /id="ownLensButton"/);
   assert.match(html, /data-path="lensRequest\.lensType"/);

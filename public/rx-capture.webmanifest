@@ -1,0 +1,20 @@
+{
+  "id": "/rx-capture",
+  "name": "RX Capture",
+  "short_name": "RX Capture",
+  "description": "Photograph or upload a prescription, review the extracted values and submit it to Innovations.",
+  "start_url": "/rx-capture",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#0b1e35",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/optilens.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

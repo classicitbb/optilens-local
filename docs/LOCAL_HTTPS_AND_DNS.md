@@ -22,6 +22,26 @@ The host runs Technitium DNS and answers `optilens.cv.net` as `192.168.254.7`. I
 
 Do not put the DNS-console password, API tokens, or certificate private keys in this repository or browser JavaScript.
 
+## Setting up phones, tablets and PCs
+
+Send users to **`http://192.168.254.7/cert`** (or `http://optilens.cv.net/cert`).
+The page is deliberately plain HTTP, so it opens on a device that does not trust
+the OptiLens root CA yet. It detects the device and gives the steps, and it serves:
+
+| Download | For |
+| --- | --- |
+| `/cert/optilens-root-ca.mobileconfig` | iPhone/iPad (Safari only). After installing the profile, the user must also enable full trust under Settings → General → About → Certificate Trust Settings. |
+| `/cert/optilens-root-ca.crt` | Android (install from Settings → CA certificate), Windows and Mac |
+
+The page's **Check again** button requests `https://optilens.cv.net/cert/ping`,
+which only succeeds once the device trusts the certificate. The page shows the root
+certificate's SHA-256 fingerprint so users can compare it with the one on file
+before trusting it, because plain HTTP can be tampered with on the network.
+
+IIS proxies `/cert` over HTTP through the first rule in
+`templates/iis-optilens-web.config`; everything else on port 80 still redirects to
+HTTPS. Only the public certificate in `data/certificates/` is served.
+
 ## Connecting a workstation
 
 Until the router's DHCP configuration is updated, configure one workstation at a time:
@@ -79,7 +99,7 @@ Start-Service -Name DnsService
 ## Network boundaries
 
 - IIS terminates TLS on port 443 and proxies to the Node service at `127.0.0.1:8080`.
-- Port 80 only redirects to HTTPS.
+- Port 80 redirects to HTTPS, except `/cert` (certificate setup), which IIS proxies over HTTP.
 - LAN traffic cannot directly reach Node port 8080.
 - DNS access is allowed from `192.168.254.0/24` only.
 

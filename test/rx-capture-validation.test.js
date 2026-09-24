@@ -135,3 +135,10 @@ test("formats fields without altering typed values", () => {
   assert.equal(formatField("frame.a", "52"), "52.0");
   assert.equal(formatField("patient.name", "abc"), "abc");
 });
+
+test("ED is estimated from A and B the way the website order form does", () => {
+  const { edFor, FRAME_DEFAULTS } = require("../public/rx-capture-validation");
+  assert.equal(edFor("52", "40"), 65.7);
+  assert.equal(edFor(FRAME_DEFAULTS.a, FRAME_DEFAULTS.b), 71.1);
+  assert.equal(edFor("", "40"), null);
+});

@@ -1514,6 +1514,12 @@ function closeAccount() {
   }, 200);
 }
 
+// Same-origin path from ?next= (set when a module's session expired), or null.
+function signInReturnPath() {
+  const next = new URLSearchParams(window.location.search).get("next") || "";
+  return /^\/(?![\/\\])/.test(next) ? next : null;
+}
+
 async function submitAuth(event) {
   event.preventDefault();
   const submit = document.querySelector("#authSubmit");
@@ -1539,7 +1545,9 @@ async function submitAuth(event) {
     renderAuthChip();
     closeAuth();
     window.dispatchEvent(new CustomEvent("optilens:auth-changed", { detail: { user: data.user } }));
-    window.location.reload();
+    const next = signInReturnPath();
+    if (next) window.location.assign(next);
+    else window.location.reload();
   } catch (err) {
     error.textContent = err.message || "Sign in failed.";
   } finally {
