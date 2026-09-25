@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, pdDerived: new Set(), edTouched: false, mode: "photo", voice: emptyVoice(), frequentCustomers: null };
+  const state = { orders: [], current: null, pollTimer: null, submissionReturnTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, pdDerived: new Set(), edTouched: false, mode: "photo", voice: emptyVoice(), frequentCustomers: null };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -63,11 +63,7 @@
     $("#newRxButton").addEventListener("click", () => showScreen("captureScreen"));
     $("#refreshOrdersButton").addEventListener("click", loadOrders);
     $("#ordersSearch").addEventListener("input", searchOrders);
-    document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", async () => {
-      stopPolling();
-      showScreen("ordersScreen");
-      await loadOrders();
-    }));
+    document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => returnToRecentOrders()));
     $("#logoutButton").addEventListener("click", async () => {
       await api("/api/auth/logout", { method: "POST" }).catch(() => {});
       location.assign("/");
@@ -178,6 +174,12 @@
     const patient = document.createElement("strong");
     patient.textContent = order.patientName || "Patient not identified";
     const patientCell = document.createElement("td");
+    const accountCell = document.createElement("td");
+    accountCell.className = "order-meta";
+    accountCell.textContent = order.customer?.account || "Not assigned";
+    const lensCell = document.createElement("td");
+    lensCell.className = "order-lens";
+    lensCell.textContent = selectedLensLabel(order);
     const status = document.createElement("span");
     status.className = "status-pill";
     status.dataset.status = order.status;
@@ -188,7 +190,7 @@
     const statusCell = document.createElement("td");
     statusCell.append(status);
     patientCell.append(patient);
-    row.append(patientCell, dateCell, statusCell);
+    row.append(patientCell, accountCell, lensCell, dateCell, statusCell);
     // The row is the requested single action. Avoid a nested button, which
     // creates two competing interactive targets for assistive technology.
     row.addEventListener("click", onClick);
@@ -203,6 +205,12 @@
 
   function orderButton(order, onClick) {
     return orderRow(order, onClick);
+  }
+
+  function selectedLensLabel(order) {
+    const request = order.normalizedOrder?.lensRequest;
+    if (!request?.catalogAlias) return "Not selected";
+    return [request.material, request.lensType, request.style, request.option].filter(Boolean).join(" · ") || "Selected lens";
   }
 
   function setImage(file) {
@@ -1065,7 +1073,7 @@
       await api(`/api/rx-capture/orders/${id}/resolution`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolution: {} }) });
       const payload = await api(`/api/rx-capture/orders/${id}/submit`, { method: "POST" });
       await showOrder(payload.order);
-      showNotice("RX submitted to Innovations and archived.");
+      startSubmissionReturnCountdown();
     } catch (error) {
       if (saved) await api(`/api/rx-capture/orders/${id}`).then((payload) => showOrder(payload.order)).catch(() => {});
       showNotice(error.message, true);
@@ -1163,7 +1171,41 @@
     }
   }
 
+  function cancelSubmissionReturn() {
+    if (state.submissionReturnTimer) clearTimeout(state.submissionReturnTimer);
+    state.submissionReturnTimer = null;
+  }
+
+  async function returnToRecentOrders({ afterSubmission = false } = {}) {
+    cancelSubmissionReturn();
+    stopPolling();
+    showScreen("ordersScreen");
+    try {
+      await loadOrders();
+      if (afterSubmission) showNotice("RX submitted to Innovations and archived.");
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  function startSubmissionReturnCountdown() {
+    cancelSubmissionReturn();
+    let secondsRemaining = 2;
+    const tick = () => {
+      if (secondsRemaining === 0) {
+        state.submissionReturnTimer = null;
+        returnToRecentOrders({ afterSubmission: true });
+        return;
+      }
+      showNotice(`RX submitted to Innovations and archived. Returning to recent orders in ${secondsRemaining} second${secondsRemaining === 1 ? "" : "s"}.`);
+      secondsRemaining -= 1;
+      state.submissionReturnTimer = setTimeout(tick, 1000);
+    };
+    tick();
+  }
+
   function showScreen(id) {
+    cancelSubmissionReturn();
     screens.forEach((screen) => screen.classList.toggle("active", screen.id === id));
     document.body.dataset.screen = id;
     window.scrollTo({ top: 0, behavior: "instant" });

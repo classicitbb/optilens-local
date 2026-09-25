@@ -78,7 +78,7 @@ button { cursor: pointer; }
 .empty-state { padding: 28px 18px; color: var(--muted); text-align: center; }
 .orders-table-wrap { overflow-x: auto; }
 .orders-search { display: block; width: calc(100% - 36px); margin: 0 18px 12px; }
-.orders-table { width: 100%; border-collapse: collapse; }
+.orders-table { width: 100%; min-width: 820px; border-collapse: collapse; }
 .orders-table th, .orders-table td { padding: 14px 18px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
 .orders-table th { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
 .orders-table tr:last-child td { border-bottom: 0; }
@@ -89,6 +89,7 @@ button { cursor: pointer; }
 .order-link:hover, .order-link:focus-visible { color: var(--teal-dark); text-decoration: underline; outline: none; }
 .order-link strong { overflow-wrap: anywhere; }
 .order-meta { color: var(--muted); font-size: .78rem; }
+.order-lens { min-width: 250px; }
 .status-pill { align-self: center; border-radius: 999px; padding: 6px 9px; background: #e8eef4; color: var(--navy); font-size: .7rem; font-weight: 850; letter-spacing: .04em; white-space: nowrap; }
 .status-pill[data-status="NEEDS_INFO"], .status-pill[data-status="FAILED"] { background: #fff0e0; color: #864b04; }
 .status-pill[data-status="READY_FOR_REVIEW"] { background: #dcf5e7; color: #17643a; }
@@ -162,6 +163,7 @@ button { cursor: pointer; }
 .notice.error { background: #fff0ee; color: var(--danger); }
 .review-topline { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
 .review-heading { padding-top: 5px; }
+#reviewTitle { color: #cf0707; }
 .processing-panel, .failed-panel { padding: 22px; display: flex; gap: 16px; align-items: center; }
 .processing-panel p, .failed-panel p { color: var(--muted); margin: 5px 0 0; line-height: 1.4; }
 .failed-panel { display: block; border-color: #edc5c0; }

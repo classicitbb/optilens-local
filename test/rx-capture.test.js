@@ -363,6 +363,22 @@ test("public order response excludes local source image paths", () => {
   assert.doesNotMatch(JSON.stringify(response), /private|patient\.jpg/);
 });
 
+test("public orders retain the assigned ERP account and exact selected lens", () => {
+  const response = publicOrder({
+    capture_order_id: "11111111-1111-4111-8111-111111111111",
+    status: "READY_FOR_REVIEW",
+    created_by_user_id: "22222222-2222-4222-8222-222222222222",
+    customer_id: 7,
+    customer_account: "5000150",
+    customer_name: "Anka Optical Broad Street",
+    validated_json: JSON.stringify({ lensRequest: { catalogAlias: "0010002800096", material: "Poly 1.59", lensType: "Single Vision", style: "Custom Lens", option: "Clear" } }),
+    created_at: new Date("2026-09-22T10:00:00Z"),
+    last_updated_at: new Date("2026-09-22T10:00:00Z")
+  });
+  assert.equal(response.customer.account, "5000150");
+  assert.equal(response.normalizedOrder.lensRequest.catalogAlias, "0010002800096");
+});
+
 test("page and server integration preserve full-screen, authenticated camera capture", () => {
   const root = path.join(__dirname, "..");
   const html = fs.readFileSync(path.join(root, "public", "rx-capture.html"), "utf8");
@@ -393,14 +409,19 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /role="combobox" aria-autocomplete="list"/);
   assert.match(html, /role="radiogroup"/);
   assert.match(html, /class="rx-table"/);
+  assert.match(html, /<th scope="col">ERP account<\/th><th scope="col">Selected lens<\/th>/);
   assert.match(html, /data-path="frame\.segHeightOd"/);
   assert.doesNotMatch(html, /Structured review/);
   assert.match(html, /Employee prescription intake — photograph a prescription/);
   assert.doesNotMatch(html, /id="ordersTitle"/);
   assert.match(css, /\[hidden\] \{ display: none !important; \}/);
+  assert.match(css, /#reviewTitle \{ color: #cf0707; \}/);
   assert.doesNotMatch(html, /shared\.js/);
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
+  assert.match(client, /function selectedLensLabel\(order\)/);
+  assert.match(client, /order\.customer\?\.account \|\| "Not assigned"/);
+  assert.match(client, /if \(!request\?\.catalogAlias\) return "Not selected"/);
   assert.match(client, /await persistReview\(\);\s+saved = true;/);
   assert.match(client, /\["patient\.name", "patient\.reference"\]\.includes\(input\.dataset\.path\).*uppercaseInputValue/);
   assert.match(client, /const extractedEd = window\.RxValidation\.num\(state\.current\?\.extractedOrder\?\.frame\?\.ed\)/);
@@ -437,6 +458,10 @@ test("RX Capture lets the intake owner submit one reviewed draft without a secon
   assert.match(migration, /UQ_rx_capture_generations_order/);
   assert.match(releaseMigration, /rx-capture\.release/);
   assert.match(client, /\/submit/);
+  assert.match(client, /startSubmissionReturnCountdown\(\)/);
+  assert.match(client, /Returning to recent orders in \$\{secondsRemaining\} second/);
+  assert.match(client, /returnToRecentOrders\(\{ afterSubmission: true \}\)/);
+  assert.match(client, /await loadOrders\(\);\s+if \(afterSubmission\) showNotice\("RX submitted to Innovations and archived\."\);/);
   assert.match(client, /rx-capture\/coatings/);
   assert.match(client, /rx-capture\/catalog/);
   assert.match(routes, /submission-account/);
