@@ -36,8 +36,14 @@ test("normalizes optical order values without inventing prescription data", () =
 
 test("normalizes unpunctuated patient names to last-name-first", () => {
   const order = normalizeOpticalOrder({ patient: { name: "Jordan Alexis Smith" } });
-  assert.equal(order.patient.name, "Smith, Jordan Alexis");
-  assert.equal(normalizeOpticalOrder({ patient: { name: "Smith, Jordan Alexis" } }).patient.name, "Smith, Jordan Alexis");
+  assert.equal(order.patient.name, "SMITH, JORDAN ALEXIS");
+  assert.equal(normalizeOpticalOrder({ patient: { name: "Smith, Jordan Alexis" } }).patient.name, "SMITH, JORDAN ALEXIS");
+});
+
+test("normalizes patient name and reference to upper case", () => {
+  const order = normalizeOpticalOrder({ patient: { name: "Hunte, Russell", reference: "ab-123x" } });
+  assert.equal(order.patient.name, "HUNTE, RUSSELL");
+  assert.equal(order.patient.reference, "AB-123X");
 });
 
 test("lens alias resolution defaults unspecified photochromic color to gray and clear to SR-coated", () => {
@@ -396,6 +402,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
   assert.match(client, /await persistReview\(\);\s+saved = true;/);
+  assert.match(client, /\["patient\.name", "patient\.reference"\]\.includes\(input\.dataset\.path\).*uppercaseInputValue/);
+  assert.match(client, /const extractedEd = window\.RxValidation\.num\(state\.current\?\.extractedOrder\?\.frame\?\.ed\)/);
   assert.match(server, /handleRxCaptureRoute/);
   assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
   assert.match(auth, /code: "rx-capture"/);

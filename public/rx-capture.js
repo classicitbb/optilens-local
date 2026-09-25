@@ -127,6 +127,7 @@
     });
     document.querySelectorAll("[data-path]").forEach((input) => {
       const update = (event) => {
+        if (["patient.name", "patient.reference"].includes(input.dataset.path) && !event.isComposing) uppercaseInputValue(input);
         resolveIssue(input.dataset.path);
         if (input.dataset.path === "frame.status") renderFrameState();
         if (event.type === "input" && /^pd\.(?:binocular|od|os)$/.test(input.dataset.path)) syncPd(input.dataset.path);
@@ -135,6 +136,9 @@
       };
       input.addEventListener("input", update);
       input.addEventListener("change", update);
+      if (["patient.name", "patient.reference"].includes(input.dataset.path)) {
+        input.addEventListener("compositionend", () => uppercaseInputValue(input));
+      }
       if (input.tagName === "INPUT" && !input.readOnly) {
         input.addEventListener("blur", () => {
           const formatted = window.RxValidation.formatField(input.dataset.path, input.value);
@@ -431,7 +435,12 @@
     restorePdDerivation();
     const edValue = window.RxValidation.num(fieldForPath("frame.ed").value);
     const edEstimate = window.RxValidation.edFor(fieldForPath("frame.a").value, fieldForPath("frame.b").value);
-    state.edTouched = Number.isFinite(edValue) && !(edEstimate !== null && Math.abs(edValue - edEstimate) < 0.05);
+    const extractedEd = window.RxValidation.num(state.current?.extractedOrder?.frame?.ed);
+    // A value still matching extraction was not entered by the operator. Replace
+    // it with the A/B calculation; retain only a later deliberate override.
+    state.edTouched = Number.isFinite(edValue)
+      && !(edEstimate !== null && Math.abs(edValue - edEstimate) < 0.05)
+      && !(Number.isFinite(extractedEd) && Math.abs(edValue - extractedEd) < 0.05);
     // Fill whichever side the photo left blank.
     const pdBlank = (path) => !fieldForPath(path).value.trim();
     if (state.canEdit && pdBlank("pd.binocular")) syncPd("pd.od");
@@ -1295,12 +1304,17 @@
     if (!name) return null;
     if (name.includes(",")) {
       const [last, ...first] = name.split(",");
-      return first.join(" ").trim() ? `${last.trim()}, ${first.join(" ").trim()}` : last.trim();
+      return (first.join(" ").trim() ? `${last.trim()}, ${first.join(" ").trim()}` : last.trim()).toUpperCase();
     }
     const parts = name.split(" ");
-    if (parts.length < 2) return name;
+    if (parts.length < 2) return name.toUpperCase();
     const last = parts.pop();
-    return `${last}, ${parts.join(" ")}`;
+    return `${last}, ${parts.join(" ")}`.toUpperCase();
+  }
+
+  function uppercaseInputValue(input) {
+    const uppercase = input.value.toUpperCase();
+    if (uppercase !== input.value) input.value = uppercase;
   }
 
   async function api(url, options = {}) {
