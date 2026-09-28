@@ -1,20 +1,22 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — local RX Capture output and catalogue-availability corrections are ready for guarded deployment; no RX file was generated or released
+- Status: In progress — RX Capture output, catalogue-availability, and recent-orders table refinements are deployed and healthy; no RX file was generated or released
 - Last synchronized: 2026-09-28
 
 ## Objective and current state
 
-### RX Capture output and active-catalogue corrections — local, not deployed
+### RX Capture output, active-catalogue, and recent-orders corrections — deployed and healthy
 
 RX Capture no longer emits the `EDGE TO FIT` miscellaneous item for edged frames, including when it is present in a submitted legacy add-on list. Edging remains communicated by the frame fields. When the selected exact lens is customer-supplied (`Custom Lens`/customer lenses), the generated instructions include `customer lenses` once. Patient names now require only non-empty captured text at the normalized-order boundary; operators can correct an imperfect name in Innovations instead of being blocked by the former `LASTNAME, FIRSTNAME` validation.
 
 Read-only source research confirmed that Innovations treats a lens configuration as active when `dbo.LensItem.Flags & 2 = 0`. The RX catalogue sync had not consulted `LensItem`; it was using Pricing Automation rows as an implicit availability filter. The sync now includes every active source configuration (whether or not it has a Pricing Automation row) and writes `active: true` onto refreshed records. This removes inactive choices and restores active configurations that pricing data had omitted.
 
-Affected files: `lib/rx-capture/order-builder.js`, `public/rx-capture-validation.js`, `lib/rx-catalog-sync.js`, and focused RX Capture tests. Read-only source count: 7,630 active alias configurations out of 206,820 aliases. `node --test test/rx-capture-order-builder.test.js test/rx-capture-validation.test.js test/rx-capture.test.js` passed (53/53); changed-file syntax checks, `npm run check`, and `git diff --check` passed. No catalogue refresh, deployment, extraction, staged file, or Innovations release was performed.
+The recent-orders table now uses a wide desktop layout with Patient name, ERP account, assigned RX number, Selected lens, Submission date, and Status. Its header stays visible while rows scroll inside the panel; desktop text does not wrap. On mobile, Selected lens is omitted so Patient name, ERP account, RX number, date, and status fit in one compact table. The RX number is taken from the numeric prefix of the generated `.rx` filename; drafts show `Not assigned`.
 
-Next action: deploy through the guarded local-update workflow, refresh the RX catalogue from the source, run the monitor harness, then verify in authenticated external Edge/Chrome that inactive choices are absent, an active formerly omitted choice is present, an edged draft contains no `EDGE TO FIT` item, and a customer-lens draft includes the instruction.
+Affected files: `lib/rx-capture/order-builder.js`, `public/rx-capture-validation.js`, `lib/rx-catalog-sync.js`, `public/rx-capture.{html,js}`, `public/styles/pages/rx-capture.css`, and focused RX Capture tests. Read-only source count: 7,630 active alias configurations out of 206,820 aliases. `node --test test/rx-capture-order-builder.test.js test/rx-capture-validation.test.js test/rx-capture.test.js` passed (53/53); changed-file syntax checks, `npm run check`, and `git diff --check` passed. The guarded host updater deployed revision `b2d1ed9`, passed its smoke check and full application suite, restarted the app, and `node scripts/monitor-harness.js verify` reported all systems online. No catalogue refresh, extraction, staged file, or Innovations release was performed.
+
+Next action: refresh the RX catalogue from the source only when explicitly authorized, then verify in authenticated external Edge/Chrome that inactive choices are absent, an active formerly omitted choice is present, an edged draft contains no `EDGE TO FIT` item, a customer-lens draft includes the instruction, and the recent-orders table stays compact at mobile width.
 
 ### RX Capture resilience and operator-safety refinements — deployed and healthy
 
