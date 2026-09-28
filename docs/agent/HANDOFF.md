@@ -14,9 +14,11 @@ Read-only source research confirmed that Innovations treats a lens configuration
 
 The recent-orders table now uses a wide desktop layout with Patient name, ERP account, assigned RX number, Selected lens, Submission date, and Status. Its header stays visible while rows scroll inside the panel; desktop text does not wrap. On mobile, Selected lens is omitted so Patient name, ERP account, RX number, date, and status fit in one compact table. The RX number is taken from the numeric prefix of the generated `.rx` filename; drafts show `Not assigned`.
 
+Follow-up local change: the search control now shares the desktop orders header with the refresh action; on mobile it becomes a full-width toolbar row beneath the heading. It is not deployed yet.
+
 Affected files: `lib/rx-capture/order-builder.js`, `public/rx-capture-validation.js`, `lib/rx-catalog-sync.js`, `public/rx-capture.{html,js}`, `public/styles/pages/rx-capture.css`, and focused RX Capture tests. Read-only source count: 7,630 active alias configurations out of 206,820 aliases. `node --test test/rx-capture-order-builder.test.js test/rx-capture-validation.test.js test/rx-capture.test.js` passed (53/53); changed-file syntax checks, `npm run check`, and `git diff --check` passed. The guarded host updater deployed revision `b2d1ed9`, passed its smoke check and full application suite, restarted the app, and `node scripts/monitor-harness.js verify` reported all systems online. No catalogue refresh, extraction, staged file, or Innovations release was performed.
 
-Next action: refresh the RX catalogue from the source only when explicitly authorized, then verify in authenticated external Edge/Chrome that inactive choices are absent, an active formerly omitted choice is present, an edged draft contains no `EDGE TO FIT` item, a customer-lens draft includes the instruction, and the recent-orders table stays compact at mobile width.
+Next action: deploy the pending recent-orders search-toolbar refinement through the guarded local-update workflow, then verify in authenticated external Edge/Chrome that inactive choices are absent, an active formerly omitted choice is present, an edged draft contains no `EDGE TO FIT` item, a customer-lens draft includes the instruction, and the recent-orders table stays compact at mobile width.
 
 ### RX Capture resilience and operator-safety refinements — deployed and healthy
 

@@ -417,6 +417,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /role="combobox" aria-autocomplete="list"/);
   assert.match(html, /role="radiogroup"/);
   assert.match(html, /class="rx-table"/);
+  assert.match(html, /<div class="orders-actions">\s*<input id="ordersSearch"[\s\S]*?<button id="refreshOrdersButton"/);
   assert.match(html, /<th scope="col">ERP account<\/th><th scope="col">RX number<\/th><th class="orders-lens-column" scope="col">Selected lens<\/th>/);
   assert.match(html, /data-path="frame\.segHeightOd"/);
   assert.doesNotMatch(html, /Structured review/);
@@ -435,6 +436,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(css, /\.orders-table-wrap \{ max-block-size: min\(34rem, calc\(100dvh - 17rem\)\); overflow: auto;/);
   assert.match(css, /\.orders-table th \{ position: sticky;/);
   assert.match(css, /\.orders-lens-column \{ display: none; \}/);
+  assert.match(css, /\.orders-actions \{ display: flex;/);
   assert.match(client, /await persistReview\(\);\s+saved = true;/);
   assert.match(client, /\["patient\.name", "patient\.reference"\]\.includes\(input\.dataset\.path\).*uppercaseInputValue/);
   assert.match(client, /const extractedEd = window\.RxValidation\.num\(state\.current\?\.extractedOrder\?\.frame\?\.ed\)/);
