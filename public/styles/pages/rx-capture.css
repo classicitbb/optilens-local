@@ -39,7 +39,7 @@ button { cursor: pointer; }
 .rx-account { font-size: .82rem; }
 .link-button { border: 0; background: transparent; color: #b9e9ed; padding: 8px; }
 
-.rx-app { width: min(100%, 850px); margin: 0 auto; padding: 18px 16px calc(34px + env(safe-area-inset-bottom)); }
+.rx-app { width: min(100%, 1180px); margin: 0 auto; padding: 18px 16px calc(34px + env(safe-area-inset-bottom)); }
 .screen { display: none; }
 .screen.active { display: block; }
 .hero { padding: 12px 4px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -76,24 +76,48 @@ button { cursor: pointer; }
 .section-heading h2 { margin: 4px 0 0; font-size: 1rem; letter-spacing: .04em; }
 .icon-button { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: white; font-size: 1.4rem; }
 .empty-state { padding: 28px 18px; color: var(--muted); text-align: center; }
-.orders-table-wrap { overflow-x: auto; }
+.orders-table-wrap { max-block-size: min(34rem, calc(100dvh - 17rem)); overflow: auto; scrollbar-color: #9fb5c8 transparent; }
 .orders-search { display: block; width: calc(100% - 36px); margin: 0 18px 12px; }
-.orders-table { width: 100%; min-width: 820px; border-collapse: collapse; }
+.orders-table { width: 100%; min-width: 1060px; border-collapse: collapse; table-layout: fixed; }
 .orders-table th, .orders-table td { padding: 14px 18px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
-.orders-table th { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
+.orders-table th { position: sticky; inset-block-start: 0; z-index: 1; background: white; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.orders-table th:nth-child(1) { width: 17%; }
+.orders-table th:nth-child(2) { width: 12%; }
+.orders-table th:nth-child(3) { width: 11%; }
+.orders-table th:nth-child(4) { width: 31%; }
+.orders-table th:nth-child(5) { width: 16%; }
+.orders-table th:nth-child(6) { width: 13%; }
 .orders-table tr:last-child td { border-bottom: 0; }
 .orders-table tbody tr:hover { background: #f3fafb; }
 .orders-table tbody tr.order-row { cursor: pointer; }
 .orders-table tbody tr.order-row:focus-visible { outline: 3px solid rgb(15 124 134 / .35); outline-offset: -3px; background: #f3fafb; }
 .order-link { border: 0; background: transparent; padding: 0; color: var(--ink); text-align: left; }
 .order-link:hover, .order-link:focus-visible { color: var(--teal-dark); text-decoration: underline; outline: none; }
-.order-link strong { overflow-wrap: anywhere; }
+.orders-table td { white-space: nowrap; }
+.orders-table td:first-child strong, .order-lens { display: block; overflow: hidden; text-overflow: ellipsis; }
 .order-meta { color: var(--muted); font-size: .78rem; }
-.order-lens { min-width: 250px; }
+.order-rx-number { font-variant-numeric: tabular-nums; }
+.order-lens { min-width: 0; }
 .status-pill { align-self: center; border-radius: 999px; padding: 6px 9px; background: #e8eef4; color: var(--navy); font-size: .7rem; font-weight: 850; letter-spacing: .04em; white-space: nowrap; }
 .status-pill[data-status="NEEDS_INFO"], .status-pill[data-status="FAILED"] { background: #fff0e0; color: #864b04; }
 .status-pill[data-status="READY_FOR_REVIEW"] { background: #dcf5e7; color: #17643a; }
 .status-pill[data-status="PROCESSING"] { background: #e3f2ff; color: #135f91; }
+
+@media (max-width: 700px) {
+  .rx-app { padding-inline: 10px; }
+  .orders-table-wrap { max-block-size: min(30rem, calc(100dvh - 15rem)); }
+  .orders-table { min-width: 0; font-size: .75rem; }
+  .orders-lens-column { display: none; }
+  .orders-table th, .orders-table td { padding: 12px 7px; }
+  .orders-table th { font-size: .58rem; letter-spacing: .045em; }
+  .orders-table th:nth-child(1) { width: 29%; }
+  .orders-table th:nth-child(2) { width: 15%; }
+  .orders-table th:nth-child(3) { width: 14%; }
+  .orders-table th:nth-child(5) { width: 20%; }
+  .orders-table th:nth-child(6) { width: 22%; }
+  .order-meta { font-size: .68rem; }
+  .status-pill { padding: 4px 5px; font-size: .59rem; letter-spacing: .025em; }
+}
 
 .back-button { border: 0; background: transparent; color: var(--teal-dark); font-weight: 750; padding: 8px 0; }
 .page-heading { padding: 20px 0 16px; }

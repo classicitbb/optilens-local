@@ -25,9 +25,9 @@ test("accepts an ordinary complete prescription", () => {
   assert.deepEqual(warnings, []);
 });
 
-test("requires a patient name Innovations can produce", () => {
+test("allows an imperfect captured patient identifier for operator correction", () => {
   const { errors } = validateOrder(order({ patient: { name: "Russell Hunte" } }));
-  assert.ok(errors.some((item) => item.path === "patient.name" && /LASTNAME, FIRSTNAME/.test(item.message)));
+  assert.ok(!errors.some((item) => item.path === "patient.name"));
 });
 
 test("parses plano wording and rejects text in numeric fields", () => {

@@ -177,8 +177,11 @@
     const accountCell = document.createElement("td");
     accountCell.className = "order-meta";
     accountCell.textContent = order.customer?.account || "Not assigned";
+    const rxNumberCell = document.createElement("td");
+    rxNumberCell.className = "order-meta order-rx-number";
+    rxNumberCell.textContent = rxNumberLabel(order);
     const lensCell = document.createElement("td");
-    lensCell.className = "order-lens";
+    lensCell.className = "order-lens orders-lens-column";
     lensCell.textContent = selectedLensLabel(order);
     const status = document.createElement("span");
     status.className = "status-pill";
@@ -190,7 +193,7 @@
     const statusCell = document.createElement("td");
     statusCell.append(status);
     patientCell.append(patient);
-    row.append(patientCell, accountCell, lensCell, dateCell, statusCell);
+    row.append(patientCell, accountCell, rxNumberCell, lensCell, dateCell, statusCell);
     // The row is the requested single action. Avoid a nested button, which
     // creates two competing interactive targets for assistive technology.
     row.addEventListener("click", onClick);
@@ -211,6 +214,11 @@
     const request = order.normalizedOrder?.lensRequest;
     if (!request?.catalogAlias) return "Not selected";
     return [request.material, request.lensType, request.style, request.option].filter(Boolean).join(" · ") || "Selected lens";
+  }
+
+  function rxNumberLabel(order) {
+    const match = String(order.generatedFilename || "").match(/^(\d+)_/);
+    return match ? match[1] : "Not assigned";
   }
 
   function setImage(file) {

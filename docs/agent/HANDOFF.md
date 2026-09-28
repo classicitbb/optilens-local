@@ -1,10 +1,20 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — RX Capture catalogue and account-mapping refinements deployed; one real release still awaits the operator's final confirmation
-- Last synchronized: 2026-09-24
+- Status: In progress — local RX Capture output and catalogue-availability corrections are ready for guarded deployment; no RX file was generated or released
+- Last synchronized: 2026-09-28
 
 ## Objective and current state
+
+### RX Capture output and active-catalogue corrections — local, not deployed
+
+RX Capture no longer emits the `EDGE TO FIT` miscellaneous item for edged frames, including when it is present in a submitted legacy add-on list. Edging remains communicated by the frame fields. When the selected exact lens is customer-supplied (`Custom Lens`/customer lenses), the generated instructions include `customer lenses` once. Patient names now require only non-empty captured text at the normalized-order boundary; operators can correct an imperfect name in Innovations instead of being blocked by the former `LASTNAME, FIRSTNAME` validation.
+
+Read-only source research confirmed that Innovations treats a lens configuration as active when `dbo.LensItem.Flags & 2 = 0`. The RX catalogue sync had not consulted `LensItem`; it was using Pricing Automation rows as an implicit availability filter. The sync now includes every active source configuration (whether or not it has a Pricing Automation row) and writes `active: true` onto refreshed records. This removes inactive choices and restores active configurations that pricing data had omitted.
+
+Affected files: `lib/rx-capture/order-builder.js`, `public/rx-capture-validation.js`, `lib/rx-catalog-sync.js`, and focused RX Capture tests. Read-only source count: 7,630 active alias configurations out of 206,820 aliases. `node --test test/rx-capture-order-builder.test.js test/rx-capture-validation.test.js test/rx-capture.test.js` passed (53/53); changed-file syntax checks, `npm run check`, and `git diff --check` passed. No catalogue refresh, deployment, extraction, staged file, or Innovations release was performed.
+
+Next action: deploy through the guarded local-update workflow, refresh the RX catalogue from the source, run the monitor harness, then verify in authenticated external Edge/Chrome that inactive choices are absent, an active formerly omitted choice is present, an edged draft contains no `EDGE TO FIT` item, and a customer-lens draft includes the instruction.
 
 ### RX Capture resilience and operator-safety refinements — deployed and healthy
 

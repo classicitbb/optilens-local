@@ -68,12 +68,26 @@ test("keeps unresolved captured values blank while still requiring an exact lens
   assert.throws(() => buildRxCaptureOrder(normalizedOrder(), { ...resolution(), lensAlias: "9999999999999" }, { generator: generator() }), /exact source-validated lens alias/);
 });
 
-test("adds only the configured exact edging item for an edged capture", () => {
+test("does not add the EDGE TO FIT misc item for an edged capture", () => {
   const captured = normalizedOrder();
   captured.frame.model = "FRAME 54";
-  const result = buildRxCaptureOrder(captured, { ...resolution(), frameMode: "edged", frameMounting: "1" }, { generator: generator(), reserveIdentifiers: false });
+  const result = buildRxCaptureOrder(captured, { ...resolution(), frameMode: "edged", frameMounting: "1", addonSkus: ["EDGE"] }, { generator: generator(), reserveIdentifiers: false });
   assert.equal(result.order.frame.status, "ENCLOSED");
-  assert.equal(result.order.items.at(-1).description, "EDGE TO FIT");
+  assert.deepEqual(result.order.items.map((item) => item.description), ["Coating"]);
+});
+
+test("adds customer lenses to instructions for a customer-supplied lens", () => {
+  const ownLens = { ...lens, customerSupplied: true, styleDescription: "Custom Lens" };
+  const ownGenerator = { ...generator(), getCatalog: () => [ownLens] };
+  const result = buildRxCaptureOrder(normalizedOrder(), { ...resolution(), instructions: "Rush" }, { generator: ownGenerator, reserveIdentifiers: false });
+  assert.equal(result.order.instructions, "Rush; customer lenses");
+});
+
+test("accepts an imperfect captured patient identifier for operator correction", () => {
+  const captured = normalizedOrder();
+  captured.patient.name = "PATIENT 123";
+  const result = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(result.order.patient.name, "123, PATIENT");
 });
 
 test("an edged capture with no detected frame model sends the follow-up placeholder", () => {

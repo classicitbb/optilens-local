@@ -363,7 +363,13 @@ test("public order response excludes local source image paths", () => {
   assert.doesNotMatch(JSON.stringify(response), /private|patient\.jpg/);
 });
 
-test("public orders retain the assigned ERP account and exact selected lens", () => {
+test("RX catalogue sync derives availability from active Innovations LensItem rows", () => {
+  const sync = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-catalog-sync.js"), "utf8");
+  assert.match(sync, /FROM dbo\.LensItem li[\s\S]*?li\.MaterialGroup = a\.GroupNum[\s\S]*?\(li\.Flags & 2\) = 0/);
+  assert.match(sync, /active: true/);
+});
+
+test("public orders retain the assigned ERP account, RX number source, and exact selected lens", () => {
   const response = publicOrder({
     capture_order_id: "11111111-1111-4111-8111-111111111111",
     status: "READY_FOR_REVIEW",
@@ -371,11 +377,13 @@ test("public orders retain the assigned ERP account and exact selected lens", ()
     customer_id: 7,
     customer_account: "5000150",
     customer_name: "Anka Optical Broad Street",
+    generated_filename: "20260928_ANKA_PATIENT.rx",
     validated_json: JSON.stringify({ lensRequest: { catalogAlias: "0010002800096", material: "Poly 1.59", lensType: "Single Vision", style: "Custom Lens", option: "Clear" } }),
     created_at: new Date("2026-09-22T10:00:00Z"),
     last_updated_at: new Date("2026-09-22T10:00:00Z")
   });
   assert.equal(response.customer.account, "5000150");
+  assert.equal(response.generatedFilename, "20260928_ANKA_PATIENT.rx");
   assert.equal(response.normalizedOrder.lensRequest.catalogAlias, "0010002800096");
 });
 
@@ -409,7 +417,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /role="combobox" aria-autocomplete="list"/);
   assert.match(html, /role="radiogroup"/);
   assert.match(html, /class="rx-table"/);
-  assert.match(html, /<th scope="col">ERP account<\/th><th scope="col">Selected lens<\/th>/);
+  assert.match(html, /<th scope="col">ERP account<\/th><th scope="col">RX number<\/th><th class="orders-lens-column" scope="col">Selected lens<\/th>/);
   assert.match(html, /data-path="frame\.segHeightOd"/);
   assert.doesNotMatch(html, /Structured review/);
   assert.match(html, /Employee prescription intake — photograph a prescription/);
@@ -420,8 +428,13 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
   assert.match(client, /function selectedLensLabel\(order\)/);
+  assert.match(client, /function rxNumberLabel\(order\)/);
+  assert.match(client, /String\(order\.generatedFilename \|\| ""\)\.match\(\/\^\(\\d\+\)_\//);
   assert.match(client, /order\.customer\?\.account \|\| "Not assigned"/);
   assert.match(client, /if \(!request\?\.catalogAlias\) return "Not selected"/);
+  assert.match(css, /\.orders-table-wrap \{ max-block-size: min\(34rem, calc\(100dvh - 17rem\)\); overflow: auto;/);
+  assert.match(css, /\.orders-table th \{ position: sticky;/);
+  assert.match(css, /\.orders-lens-column \{ display: none; \}/);
   assert.match(client, /await persistReview\(\);\s+saved = true;/);
   assert.match(client, /\["patient\.name", "patient\.reference"\]\.includes\(input\.dataset\.path\).*uppercaseInputValue/);
   assert.match(client, /const extractedEd = window\.RxValidation\.num\(state\.current\?\.extractedOrder\?\.frame\?\.ed\)/);

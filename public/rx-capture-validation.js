@@ -100,11 +100,6 @@
     const progressive = isProgressive(order);
     const singleVision = isSingleVision(order);
 
-    const name = str(order?.patient?.name);
-    if (name && !/^[A-Za-z][A-Za-z '\-]+,\s*[A-Za-z][A-Za-z '\-]+$/.test(name)) {
-      error("patient.name", "Innovations requires the patient name as LASTNAME, FIRSTNAME using letters, spaces, apostrophes and hyphens.");
-    }
-
     const spheres = {};
     for (const [side, label, suffix] of EYES) {
       const eye = rx[side] || {};
