@@ -5,13 +5,13 @@
  *
  * Stages a clearly-marked TEST order and releases it into the REAL Incoming
  * share (data/rx/config.json -> folders.incoming). Must be run on a machine
- * that actually has \\INNOVA-SVR\Innovations\Incoming on its network (e.g.
+ * that actually has \\192.168.254.5\Innovations\Incoming on its network (e.g.
  * INO-3FRC3Q3) — it will NOT work from an unrelated dev box or a Linux
  * sandbox, since UNC path resolution requires Windows.
  *
  * Usage:  node scripts/test-stock-release.js
  *
- * After running, check \\INNOVA-SVR\Innovations\Incoming for the filename
+ * After running, check \\192.168.254.5\Innovations\Incoming for the filename
  * printed below, and watch how Innova's system handles it (it's marked
  * TEST / DO NOT PROCESS throughout, but nothing stops their intake from
  * picking it up like a real order).
