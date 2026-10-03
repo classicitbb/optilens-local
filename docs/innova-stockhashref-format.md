@@ -99,9 +99,9 @@ settles several of the "still open" items above.
 the one in `data/rx/config.json`.** Innova's own `innovations.ini` has
 `IncomingPath=\\192.168.254.5\innovations\Incoming\`, which is exactly what
 the vault's "Innovations Incoming Folder" entry holds. The checked-in fallback
-`\\INNOVA-SVR\Innovations\Incoming` returns EPERM from the host and is stale —
-the operator override is what makes this work, so do not "fix" config.json to
-match.
+in `data/rx/config.json` is now the same `\\192.168.254.5\Innovations\Incoming`
+(the old `\\INNOVA-SVR` path is not used and returned EPERM); the vault entry
+still takes precedence when set.
 
 **The watcher's verdict is visible in the folder itself.** A file Innova
 accepts is consumed (it turns up under `Incoming/processed/` and
