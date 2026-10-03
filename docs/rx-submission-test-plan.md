@@ -2,7 +2,7 @@
 
 Covers the full loop: CVWeb RxOrderForm (quotations app) → `rx_order_submissions` outbox →
 `RxSubmissionsPage` release → optilens-local (`rx-order-submitter.js`) → Innovations
-(`\\INNOVA-SVR\Innovations\Incoming` file-drop or InnovaAPI `/process_rxi`).
+(`\\192.168.254.5\Innovations\Incoming` file-drop or InnovaAPI `/process_rxi`).
 
 ## 1. Automated (done, runs today)
 
@@ -23,7 +23,7 @@ the outbox table, the claim/complete edge function calls, or the actual file-dro
 necessarily a live test — see part 2.
 
 ## 2. Live end-to-end (needs a human or computer-use on Russell's desktop — this sandbox has no
-network path to ino-3frc3q3 or \\INNOVA-SVR)
+network path to ino-3frc3q3 or \\192.168.254.5)
 
 Russell confirmed (2026-08-09): the server in use for this is a **test environment** — safe to
 post real-looking test orders, he'll review. Use an obviously-fake patient name regardless
@@ -54,7 +54,7 @@ Steps:
    - `RxSubmissionsPage` row flips to `submitted` (or `failed` with a readable error) and shows
      `transport: file drop` (since InnovaAPI creds may not be configured, or `api` if they are).
    - A file named `{order_id}_CLAUDE_TEST_DO_NOT_PROCESS.rx` exists in
-     `\\INNOVA-SVR\Innovations\Incoming` — **this is the step nobody has confirmed works**;
+     `\\192.168.254.5\Innovations\Incoming` — **this is the step nobody has confirmed works**;
      the Node process on INO-3FRC3Q3 reaching that UNC share at all is unverified.
    - Open the dropped file and diff its header/frame/lens/rx fields against
      `templates/rx-samples/sample-sv-distance-uncut.rx` (or the enclosed/traced sample if you

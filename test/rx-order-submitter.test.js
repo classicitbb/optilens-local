@@ -129,3 +129,32 @@ test("a submission with no ERP account number is rejected before it can reach th
   payload.account = {};
   assert.throws(() => buildOrder(payload, config, { reserveIdentifiers: false }), /no account number/);
 });
+
+const { buildDropFile } = require("../lib/rx-order-submitter");
+
+const claimed = (over = {}) => ({
+  payload: { account: { account_number: "5000150" } },
+  canonical_order: { orderId: "4821", patientName: "Test, Patient" },
+  hashref_body: "start_order\r\nlab_num:{{lab_num}}\r\ncust_num:{{cust_num}}\r\nend_order",
+  ...over,
+});
+
+test("drop file fills lab and customer, and is named from the database order number", () => {
+  const drop = buildDropFile(claimed(), { defaults: { labNum: "1177" }, output: { extension: ".rx" } });
+  assert.match(drop.content, /lab_num:1177\r\ncust_num:5000150\r\n/);
+  assert.equal(drop.filename, "4821_TEST_PATIENT.rx");
+});
+
+test("drop file refuses an order the website could not render", () => {
+  assert.throws(
+    () => buildDropFile(claimed({ canonical_order: null, hashref_body: undefined, canonical_error: "A confirmed lens alias is required" }), { defaults: { labNum: "1177" }, output: { extension: ".rx" } }),
+    /confirmed lens alias/,
+  );
+});
+
+test("drop file refuses a missing account number", () => {
+  assert.throws(
+    () => buildDropFile(claimed({ payload: { account: {} } }), { defaults: { labNum: "1177" }, output: { extension: ".rx" } }),
+    /account number/,
+  );
+});

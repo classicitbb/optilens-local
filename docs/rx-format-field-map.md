@@ -6,7 +6,7 @@ Reference samples (uploaded by Russell 2026-08-09, saved for regression fixtures
 2. `classicmain25132443076283360...rx` — progressive, **enclosed + full shape trace**.
 3/4. `classicmain09190740036979709...rx` (uploaded twice, identical) — progressive, wrap frame, **enclosed + full shape trace**.
 
-This is the file `optilens-local` writes into `\\INNOVA-SVR\Innovations\Incoming` (or POSTs via
+This is the file `optilens-local` writes into `\\192.168.254.5\Innovations\Incoming` (or POSTs via
 `process_rxi`) once a staff member releases a web Rx order. Every line below maps to either a
 CVWeb `rx-order` payload field, a `data/rx/config.json` default, or a self-generated identifier.
 

@@ -14,7 +14,7 @@
   "folders": {
     "staging": "./output/rx/staging",
     "archive": "./output/rx/archive",
-    "incoming": "\\\\INNOVA-SVR\\Innovations\\Incoming",
+    "incoming": "\\\\192.168.254.5\\Innovations\\Incoming",
     "stockStaging": "./output/stock/staging",
     "stockArchive": "./output/stock/archive"
   },
