@@ -124,6 +124,38 @@ test("catalogue sync recognises the Innovations Custom Lens style as customer-su
   assert.equal(isCustomerSuppliedLens("Regular", "Custom Gray"), false);
 });
 
+test("catalogue sync keeps Custom Lens aliases only while their material, type and option are active", () => {
+  const { selectCatalogRows } = require("../lib/rx-catalog-sync");
+  const row = (alias, material, mfType, lensType, option, hasActive, group = 1) => ({ alias, material_group_code: group, material, mf_type: mfType, lens_type: lensType, option_name: option, has_active_item: hasActive });
+  const rows = [
+    row("0000000100001", "Poly 1.59", "Single Vision", "Regular", "SRCoated", 1),
+    row("0000000100002", "Poly 1.59", "Single Vision", "Regular", "Trans 7 Gray", 1),
+    row("0010199900001", "Poly 1.59", "Single Vision", "Custom Lens", "SRCoated", 0),
+    row("0010199900002", "Poly 1.59", "Single Vision", "Custom lens", "Trans 7 Gray", 0),
+    row("0010199900003", "Poly 1.59", "Progressive", "Custom Lens", "SRCoated", 0),
+    row("0010199900004", "Poly 1.59", "Single Vision", "Custom Lens", "Retired Tint", 0),
+    row("0990199900001", "Retired 1.99", "Single Vision", "Custom Lens", "SRCoated", 0),
+    row("0000000200001", "Poly 1.59", "Single Vision", "Regular", "Retired Tint", 0)
+  ];
+  assert.deepEqual(selectCatalogRows(rows).map((item) => item.alias), ["0000000100001", "0000000100002", "0010199900001", "0010199900002"]);
+});
+
+test("lens guess limits itself to Custom Lens aliases when the lenses are the customer's own", () => {
+  const stock = { alias: "0000000100001", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "Poly 1.59", styleDescription: "Regular", colorDescription: "SRCoated" };
+  const own = { alias: "0010199900001", materialGroupCode: "1", mfType: "Single Vision", materialDescription: "Poly 1.59", styleDescription: "Custom Lens", colorDescription: "Trans 7 Gray", customerSupplied: true };
+  const progressiveOwn = { ...own, alias: "0010199900003", mfType: "Progressive", colorDescription: "SRCoated" };
+  const request = { lensType: "Single Vision", material: "Poly", option: "SRCoated" };
+  assert.equal(guessLens(request, [stock, own]).alias, stock.alias);
+  assert.equal(guessLens({ ...request, design: "customer supplied lenses" }, [stock, own]).alias, own.alias);
+  assert.equal(guessLens({ ...request, design: "customer supplied lenses" }, [stock, own, progressiveOwn]).alias, own.alias);
+  assert.equal(guessLens({ ...request, design: "customer supplied lenses" }, [stock]).alias, stock.alias);
+});
+
+test("photo extraction asks for customer-supplied lenses visible in the images", () => {
+  const extractor = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-capture", "openai-extractor.js"), "utf8");
+  assert.match(extractor, /photos show the customer's own lenses[\s\S]*?customer supplied lenses/);
+});
+
 test("manual entry creates an empty ready-to-review draft without images or extraction", async () => {
   const { createRxCaptureService } = require("../lib/rx-capture/service");
   const rows = new Map();
