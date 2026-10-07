@@ -141,7 +141,7 @@ test("text extraction asks for evidence, never stores, and returns the proposal"
       json: async () => ({ output_text: JSON.stringify({
         patient: { name: null, reference: null },
         prescription: { od: { sphere: "-1.00", cylinder: null, axis: null, add: null, prism: null, base: null }, os: { sphere: null, cylinder: null, axis: null, add: null, prism: null, base: null } },
-        pd: { type: null, binocular: null, od: null, os: null, nearOd: null, nearOs: null },
+        pd: { type: null, binocular: null, od: null, os: null, nearOd: null, nearOs: null, nearBinocular: null },
         frame: { supplied: null, status: null, model: null, color: null, a: null, b: null, dbl: null, ed: null, segHeightOd: null, segHeightOs: null },
         lensRequest: { lensType: null, design: null, material: null, option: null, coating: null },
         instructions: null, uncertainFields: [], missingFields: [],

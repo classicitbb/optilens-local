@@ -28,7 +28,7 @@
     right: ["right eye", "right", "od", "r"],
     left: ["left eye", "left", "os", "l"],
     both: ["same both", "both eyes", "both", "ou"],
-    measure: ["near pd", "fitting height", "add", "pd", "pupil", "height", "seg", "oc"],
+    measure: ["near pd", "fitting height", "add", "pd", "pupil", "height", "ht", "seg", "oc"],
     prism: ["prism", "base in", "base out", "base up", "base down", "base"],
     lens: ["single vision", "anti reflective", "lens", "lenses", "material", "index", "poly", "polycarbonate", "trivex", "sv", "progressive", "varifocal", "bifocal", "coating", "ar", "photochromic", "transitions", "trans", "tint"],
     // "supplied", "colour" and "ED" are left out: they also occur in own-lens
@@ -43,10 +43,10 @@
   const EYE_KEYS = new Set(["right", "left", "both"]);
   const EYE_WORDS = new Set(["right", "left", "od", "os", "ou", "both", "r", "l"]);
   // Words that describe an eye value; they never open a segment of their own.
-  const EYE_VALUE_WORDS = new Set(["sphere", "sph", "plano", "pl", "cyl", "cylinder", "axis", "x", "add", "plus", "minus", "prism", "base", "pd", "height",
+  const EYE_VALUE_WORDS = new Set(["sphere", "sph", "plano", "pl", "cyl", "cylinder", "axis", "x", "add", "plus", "minus", "prism", "base", "pd", "height", "ht",
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "fifteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "quarter", "half"]);
   const EYE_ATTACHED = new Set(["prism", "base in", "base out", "base up", "base down", "base"]);
-  const PER_EYE_MEASURE = new Set(["pd", "near pd", "height", "fitting height", "seg", "oc"]);
+  const PER_EYE_MEASURE = new Set(["pd", "near pd", "height", "ht", "fitting height", "seg", "oc"]);
   const CORRECTION_WORDS = ["scratch that", "i mean", "correction", "actually", "sorry", "no"];
 
   const PHRASES = Object.entries(TRIGGERS)

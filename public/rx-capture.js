@@ -23,6 +23,7 @@
     "pd.os": "OS PD",
     "pd.nearOd": "Near OD PD",
     "pd.nearOs": "Near OS PD",
+    "pd.nearBinocular": "Near binocular PD",
     "lensRequest.lensType": "Lens type",
     "lensRequest.materialGroup": "Material group",
     "lensRequest.design": "Lens design",
@@ -38,8 +39,8 @@
     "frame.b": "Frame B",
     "frame.dbl": "Frame DBL",
     "frame.ed": "Frame ED",
-    "frame.segHeightOd": "OD segment height",
-    "frame.segHeightOs": "OS segment height"
+    "frame.segHeightOd": "OD OC height",
+    "frame.segHeightOs": "OS OC height"
   };
 
   async function init() {
