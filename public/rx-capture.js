@@ -183,6 +183,9 @@
     const lensCell = document.createElement("td");
     lensCell.className = "order-lens orders-lens-column";
     lensCell.textContent = selectedLensLabel(order);
+    const capturedByCell = document.createElement("td");
+    capturedByCell.className = "order-meta order-captured-by";
+    capturedByCell.textContent = capturedByLabel(order);
     const status = document.createElement("span");
     status.className = "status-pill";
     status.dataset.status = order.status;
@@ -193,7 +196,7 @@
     const statusCell = document.createElement("td");
     statusCell.append(status);
     patientCell.append(patient);
-    row.append(patientCell, accountCell, rxNumberCell, lensCell, dateCell, statusCell);
+    row.append(patientCell, accountCell, rxNumberCell, lensCell, capturedByCell, dateCell, statusCell);
     // The row is the requested single action. Avoid a nested button, which
     // creates two competing interactive targets for assistive technology.
     row.addEventListener("click", onClick);
@@ -208,6 +211,11 @@
 
   function orderButton(order, onClick) {
     return orderRow(order, onClick);
+  }
+
+  // Orders are shared across authorised users; show who captured each one.
+  function capturedByLabel(order) {
+    return order.createdByUsername || order.createdByDisplayName || "Unknown";
   }
 
   function selectedLensLabel(order) {
@@ -393,10 +401,12 @@
 
   async function showOrder(order) {
     state.current = order;
-    const canEdit = state.canWrite && String(order.createdByUserId || "").toLowerCase() === String(state.userId || "").toLowerCase();
+    // Any authorised writer can pick up an order another user captured.
+    const canEdit = state.canWrite;
     showScreen("reviewScreen");
     $("#reviewStatus").dataset.status = order.status;
     $("#reviewStatus").textContent = statusLabel(order.status);
+    $("#reviewCapturedBy").textContent = `Captured by ${capturedByLabel(order)}`;
     $("#processingPanel").hidden = order.status !== "PROCESSING";
     $("#failedPanel").hidden = order.status !== "FAILED";
     $("#reviewForm").hidden = !order.normalizedOrder || order.status === "PROCESSING";

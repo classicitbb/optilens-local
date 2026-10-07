@@ -51,7 +51,7 @@
           </div>
         </div>
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
-        <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">ERP account</th><th scope="col">RX number</th><th class="orders-lens-column" scope="col">Selected lens</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
+        <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">ERP account</th><th scope="col">RX number</th><th class="orders-lens-column" scope="col">Selected lens</th><th scope="col">Captured by</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
       </section>
 
     </section>
@@ -123,7 +123,7 @@
     <section id="reviewScreen" class="screen" aria-labelledby="reviewTitle">
       <div class="review-topline">
         <button class="back-button" type="button" data-back>← Recent orders</button>
-        <span id="reviewStatus" class="status-pill"></span>
+        <span id="reviewStatus" class="status-pill"></span> <span id="reviewCapturedBy" class="order-meta"></span>
       </div>
       <div class="page-heading review-heading">
         <h1 id="reviewTitle">Check extracted values</h1>

@@ -443,8 +443,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(server, /handleRxCaptureRoute/);
   assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
   assert.match(auth, /code: "rx-capture"/);
-  assert.match(service, /WHERE created_by_user_id = @user_id/);
-  assert.match(service, /capture_order_id = @capture_order_id AND created_by_user_id = @user_id/);
+  assert.doesNotMatch(service, /WHERE created_by_user_id = @user_id/);
+  assert.doesNotMatch(service, /capture_order_id = @capture_order_id AND created_by_user_id = @user_id/);
   assert.match(service, /review_confirmed_at/);
   assert.match(migration, /created_by_user_id uniqueidentifier NOT NULL/);
   assert.match(migration, /rx_capture\.order_events/);
@@ -537,4 +537,40 @@ test("a submitted RX cannot be edited, re-extracted or regenerated", async () =>
   assert.match(client, /\$\("#reprocessButton"\)\.hidden = !editable;/);
   const source = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-capture", "service.js"), "utf8");
   assert.match(source, /already submitted to Innovations as \$\{prior\.recordset\[0\]\.generated_filename\}/);
+});
+
+test("RX Capture shares every captured order with any authorised user and names who captured it", async () => {
+  const { createRxCaptureService } = require("../lib/rx-capture/service");
+  const photographer = "22222222-2222-4222-8222-222222222222";
+  const orderId = "33333333-3333-4333-8333-333333333333";
+  const row = { capture_order_id: orderId, status: "READY_FOR_REVIEW", created_by_user_id: photographer, created_by_username: "photographer", created_by_display_name: "Photo Grapher", patient_name: "DOE, JANE" };
+  const seen = [];
+  const pool = {
+    request() {
+      const request = {
+        input(name) { seen.push(name); return request; },
+        async query(text) { seen.push(text); return { recordset: [row], rowsAffected: [1] }; }
+      };
+      return request;
+    }
+  };
+  const service = createRxCaptureService({ getAppPool: async () => pool });
+  const reviewer = { userId: "11111111-1111-1111-1111-111111111111", username: "reviewer" };
+  const listed = await service.listOrders(reviewer);
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].createdByUsername, "photographer");
+  const opened = await service.getOrder(orderId, reviewer);
+  assert.equal(opened.createdByUsername, "photographer");
+  assert.equal(seen.includes("user_id"), false);
+  assert.doesNotMatch(seen.filter((item) => /SELECT/.test(item)).join("\n"), /created_by_user_id = @user_id/);
+});
+
+test("RX Capture lists the capturing user on each order row and on the review screen", () => {
+  const root = path.join(__dirname, "..");
+  const client = fs.readFileSync(path.join(root, "public", "rx-capture.js"), "utf8");
+  const html = fs.readFileSync(path.join(root, "public", "rx-capture.html"), "utf8");
+  assert.match(html, /<th scope="col">Captured by<\/th>/);
+  assert.match(html, /id="reviewCapturedBy"/);
+  assert.match(client, /capturedByLabel\(order\)/);
+  assert.doesNotMatch(client, /createdByUserId \|\| ""\)\.toLowerCase\(\) === /);
 });
