@@ -433,7 +433,10 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(client, /String\(order\.generatedFilename \|\| ""\)\.match\(\/\^\(\\d\+\)_\//);
   assert.match(client, /order\.customer\?\.account \|\| "Not assigned"/);
   assert.match(client, /if \(!request\?\.catalogAlias\) return "Not selected"/);
-  assert.match(css, /\.orders-table-wrap \{ max-block-size: min\(34rem, calc\(100dvh - 17rem\)\); overflow: auto;/);
+  assert.match(css, /\.orders-table-wrap \{ overflow: visible; \}/);
+  assert.doesNotMatch(css, /\.orders-table \{[^}]*min-width: 1060px/);
+  assert.match(css, /\.rx-app:has\(#ordersScreen\.active\) \{ width: min\(100%, 1400px\); \}/);
+  assert.match(css, /\.orders-table th:nth-child\(7\) \{ width: 14%; \}/);
   assert.match(css, /\.orders-table th \{ position: sticky;/);
   assert.match(css, /\.orders-lens-column \{ display: none; \}/);
   assert.match(css, /\.orders-actions \{ display: flex;/);
