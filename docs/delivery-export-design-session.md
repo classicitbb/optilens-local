@@ -140,7 +140,7 @@ Current app DB access is working, but source DB access is not wired yet.
 
 Needed safe setup:
 
-- Source MSSQL server: `MSSQL-SVR`
+- Source MSSQL server: `MSSQL-SVR\SQLEXPRESS`
 - Source database: `Innovations`
 - Read-only source login or service account.
 - Environment variables for source credentials, not committed to code.

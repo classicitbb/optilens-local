@@ -8,7 +8,7 @@ portal-visible order status.
 
 ## Decisions (2026-07-16)
 
-1. **Broken database:** `sourceMssql` (Innovations on `MSSQL-SVR/Innovations`) is not
+1. **Broken database:** `sourceMssql` (Innovations on `MSSQL-SVR\SQLEXPRESS/Innovations`) is not
    reliable yet. Until it is, source reads come from the live Actian Zen (Pervasive)
    Innovations database at `192.168.254.5:1583` (DSN `Innovations`).
 2. **Bridge design: mirror database.** A new `innovations_mirror` database on the
@@ -79,7 +79,7 @@ time by re-running the script):
      existing automation-job/worker pattern; "Sync now" action on the integrations
      page.
 3. **Source profile switch:**
-   - Config exposes two named profiles: `mirror` (MSSQL-SVR/innovations_mirror) and
+   - Config exposes two named profiles: `mirror` (MSSQL-SVR\SQLEXPRESS/innovations_mirror) and
      `live` (vendor Innovations MSSQL). Active profile persisted in the app DB
      (settings table), read at pool creation; switching resets the source pool.
    - Integrations page card "Innovations Source": both profiles with live health

@@ -1,5 +1,5 @@
 param(
-    [string] $Server = "MSSQL-SVR",
+    [string] $Server = "MSSQL-SVR\SQLEXPRESS",
     [string] $Database = "Innovations",
     [string] $User = "sql_reporting"
 )

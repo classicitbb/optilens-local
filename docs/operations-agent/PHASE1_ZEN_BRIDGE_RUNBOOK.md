@@ -9,7 +9,7 @@ Set credentials through environment variables or the credentials vault. Do not
 commit real secrets.
 
 ```text
-OPTILENS_MIRROR_DB_SERVER=MSSQL-SVR
+OPTILENS_MIRROR_DB_SERVER=MSSQL-SVR\SQLEXPRESS
 OPTILENS_MIRROR_DB_NAME=innovations_mirror
 OPTILENS_MIRROR_DB_USER=optilens_app
 OPTILENS_MIRROR_DB_PASSWORD=...
