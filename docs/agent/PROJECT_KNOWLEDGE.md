@@ -38,4 +38,6 @@
 
 ## Knowledge maintenance
 
+- PR #57 RX outbox fixture coverage runs with `node --test test/rx-order-submitter.test.js`. It preserves cloud-rendered OD-only/OS-only Hashref bytes and tests watcher accepted/rejected/pending verdicts and worker completion payloads without network or file-drop writes. Single-eye `rx_eye` codes 1/2 remain provisional until live Innovations intake is verified. Current watcher acceptance means file disappearance only; pending also produces `ok: true`, so neither proves creation of an Innovations order.
+
 Update this file with public-safe, durable facts that help the next agent: repository layout, non-sensitive commands, module ownership, generated-file rules, and architectural decisions. Do not record infrastructure topology, credential details, live endpoints, internal identities, private paths, customer data, or secret values. Retrieve authorized operational context from configured tools and secure host documentation at execution time.

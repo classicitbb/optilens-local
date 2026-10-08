@@ -6,6 +6,16 @@
 
 ## Objective and current state
 
+### PR #57 RX outbox fixture coverage — local tests complete; live submission pending
+
+Added deterministic OD-only and OS-only Hashref passthrough tests, watcher disappearance/`.bad`/precedence/timeout cases, and RX worker accepted/rejected/pending completion tests in `test/rx-order-submitter.test.js`. Ran only `node --test test/rx-order-submitter.test.js`: 19 passed, 0 failed. Fixtures mock file-drop writes, network requests, and audit logging; no real order was claimed or submitted. Production code was not changed.
+
+Affected files: the focused test file, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Remaining blocker: the requested live submission has no specified approved test order/customer or eye. User clarification is pending. Authorization to submit an order was requested in the task, but the concrete target is required before claiming queued business data. No deployment is authorized by this task. Current acceptance checks file disappearance without a processed receipt; pending completion has `ok: true`. Live proof must verify a processed receipt and matching Innovations order, including single-eye codes 1/2, rather than relying on the worker message.
+
+Connector verification: a harmless `SELECT 1 AS ConnectionVerified` succeeded against Innovations using host-local integrated authentication on the running SQL instance. The default-instance attempt failed with SQL connection error `[2]` and login timeout; read-only service inspection identified the running instance and the subsequent read succeeded. No service/configuration changes were made.
+
+Next executable action: `node --test test/rx-order-submitter.test.js` reproduces the local coverage. After the user identifies the approved test target, inspect its exact outbox row and use the configured authenticated submission flow; do not run the generic claim worker against unspecified queued orders.
+
 ### CVWeb stock-order bridge deployed; RX transmission is healthy
 
 On 2026-10-05, read-only local checks confirmed that the **OptiLens Stock Submissions** scheduled worker is registered, `Ready`, and successfully ran at its five-minute cadence (latest result code `0`). Its action invokes `scripts/stock-submissions-cli.js --max 3` from the authoritative checkout. The local submission audit contains no `stock_submission.claimed`, `stock_submission.finished`, or `stock_submission.failed` event since 2026-09-11; the only recorded production-style stock releases are from 2026-09-09. This finding applies only to finished-stock website orders, not prescription RX orders.

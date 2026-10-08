@@ -158,3 +158,82 @@ test("drop file refuses a missing account number", () => {
     /account number/,
   );
 });
+
+const stockGenerator = require('../lib/stock-order-generator');
+const syncLog = require('../lib/innovations-sync-log');
+const fixtureConfig = {
+  defaults: { labNum: '1177' }, output: { extension: '.rx' }, stockOrder: {},
+  folders: { incoming: 'fixture-incoming', stockStaging: 'fixture-staging', stockArchive: 'fixture-archive' },
+};
+
+for (const [side, code, other] of [['od', '1', 'os'], ['os', '2', 'od']]) {
+  test(`drop file preserves ${side}-only Hashref bytes and .rx filename`, () => {
+    // Cloud-rendered input contract; codes 1/2 still require live intake proof.
+    const body = [
+      'file_version:2.5', 'start_order', 'lab_num:{{lab_num}}', 'cust_num:{{cust_num}}',
+      'order_num:4821', `rx_eye:${code}`, `x_${side}_lens_alias:FIXTURE`,
+      `rx_${side}_sphere:0.00`, `rx_${side}_cylinder:-1.25`, `rx_${side}_axis:90`,
+      `rx_${side}_far:31.50`, `rx_${side}_prism:1.00`, `rx_${side}_prism_dir:OUT`,
+      `rx_${side}_seg_height:18.00`, 'end_order', '',
+    ].join('\r\n');
+    const drop = buildDropFile(claimed({ hashref_body: body }), fixtureConfig);
+    assert.equal(drop.filename, '4821_TEST_PATIENT.rx');
+    assert.equal(drop.content, body.replace('{{lab_num}}', '1177').replace('{{cust_num}}', '5000150'));
+    assert.equal(fieldsOf(drop.content).rx_eye, code);
+    assert.doesNotMatch(drop.content, new RegExp(`(?:rx_${other}_|x_${other}_lens_)`));
+    assert.doesNotMatch(drop.content, /(?<!\r)\n/);
+  });
+}
+
+for (const [label, present, outcome] of [
+  ['consumed without receipt (current acceptance rule)', [], 'accepted'],
+  ['renamed .bad', ['bad'], 'rejected'],
+  ['.bad takes precedence over an incoming file', ['bad', 'incoming'], 'rejected'],
+  ['still incoming at timeout', ['incoming'], 'pending'],
+]) {
+  test(`watcher verdict: ${label}`, async (t) => {
+    const dropped = path.resolve(__dirname, '..', fixtureConfig.folders.incoming, '4821_TEST_PATIENT.rx');
+    t.mock.method(fs, 'readFileSync', () => JSON.stringify(fixtureConfig));
+    t.mock.method(fs, 'existsSync', (file) =>
+      (file === dropped && present.includes('incoming')) ||
+      (file === `${dropped}.bad` && present.includes('bad')));
+    assert.equal(await stockGenerator.checkReleaseOutcome('4821_TEST_PATIENT.rx', { timeoutMs: 0 }), outcome);
+  });
+}
+
+for (const outcome of ['accepted', 'rejected', 'pending']) {
+  test(`RX worker reports ${outcome} after writing exact .rx fixture`, async (t) => {
+    const sub = { ...claimed(), id: 'fixture-submission', attempts: 1 };
+    const completions = [];
+    const writes = [];
+    t.mock.method(rxGenerator, 'loadConfig', () => fixtureConfig);
+    t.mock.method(fs, 'existsSync', () => false);
+    t.mock.method(rxGenerator, 'atomicWrite', (file, content) => writes.push({ file, content }));
+    t.mock.method(stockGenerator, 'checkReleaseOutcome', async (filename) => {
+      assert.equal(filename, '4821_TEST_PATIENT.rx');
+      return outcome;
+    });
+    t.mock.method(syncLog, 'write', () => {});
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+      if (String(url).endsWith('/_rx_submissions/next')) {
+        return { ok: true, json: async () => ({ submission: sub }) };
+      }
+      assert.ok(String(url).endsWith('/_rx_submissions/complete'));
+      completions.push(JSON.parse(options.body));
+      return { ok: true };
+    });
+    const result = await require('../lib/rx-order-submitter').runOnce(
+      { baseUrl: 'https://fixture.invalid', apiKey: 'fixture-only' }, { max: 1 });
+    const ok = outcome !== 'rejected';
+    assert.deepEqual(writes, [{
+      file: path.resolve(__dirname, '..', fixtureConfig.folders.incoming, '4821_TEST_PATIENT.rx'),
+      content: buildDropFile(sub, fixtureConfig).content,
+    }]);
+    assert.deepEqual(result.processed, [{ id: sub.id, ok, outcome, transport: 'file_drop', filename: '4821_TEST_PATIENT.rx' }]);
+    assert.deepEqual(completions, [{
+      id: sub.id, ok, transport: 'file_drop', attempts: 1,
+      result_message: `Dropped 4821_TEST_PATIENT.rx; Innovations intake: ${outcome}.`,
+      ...(ok ? {} : { error: 'Innova rejected 4821_TEST_PATIENT.rx (renamed .bad in the Incoming folder).' }),
+    }]);
+  });
+}
