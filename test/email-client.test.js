@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { addressList, displayNameForFolder, folderSortKey, parseRecipients, safeFilename, snippetFrom } = require("../lib/email/message-utils");
 const { bearerToken, createSupabaseStaffAuth } = require("../lib/email/supabase-auth");
 const { isAllowedOrigin } = require("../lib/email/routes");
+const { canAccessAccount, canManageAccount } = require("../lib/email/access");
 
 test("addressList flattens mailparser address objects and groups", () => {
   const field = { value: [
@@ -53,7 +54,7 @@ function fakeFetch(roles) {
 
 test("staff auth accepts admin/operator and rejects others", async () => {
   const ok = createSupabaseStaffAuth({ getAnonKey: () => "anon", fetchFn: fakeFetch(["operator"]) });
-  assert.deepEqual(await ok.verify("Bearer t"), { id: "u1", email: "staff@cv.bb" });
+  assert.deepEqual(await ok.verify("Bearer t"), { id: "u1", email: "staff@cv.bb", isAdmin: false });
   const viewer = createSupabaseStaffAuth({ getAnonKey: () => "anon", fetchFn: fakeFetch(["viewer"]) });
   await assert.rejects(viewer.verify("Bearer t"), (error) => error.statusCode === 403);
   await assert.rejects(ok.verify(undefined), (error) => error.statusCode === 401);
@@ -72,4 +73,19 @@ test("CORS allows OpticAdmin origins only", () => {
   assert.equal(isAllowedOrigin("http://localhost:59485"), true);
   assert.equal(isAllowedOrigin("http://localhost.evil.example:80"), false);
   assert.equal(isAllowedOrigin(""), false);
+});
+
+test("shared mailboxes are open to all staff; personal ones to members only", () => {
+  const owner = { email: "jane@classicvisions.net" };
+  const other = { email: "sam@classicvisions.net" };
+  const admin = { email: "boss@classicvisions.net", isAdmin: true };
+  const members = [{ email: "Jane@classicvisions.net", role: "owner" }];
+  const personal = { is_shared: false };
+  assert.equal(canAccessAccount(other, { is_shared: 1 }, []), true);
+  assert.equal(canAccessAccount(owner, personal, members), true);
+  assert.equal(canAccessAccount(other, personal, members), false);
+  assert.equal(canAccessAccount(admin, personal, members), false);
+  assert.equal(canManageAccount(admin, personal, members), true);
+  assert.equal(canManageAccount(owner, personal, members), true);
+  assert.equal(canManageAccount(other, personal, [...members, { email: "sam@classicvisions.net", role: "member" }]), false);
 });
