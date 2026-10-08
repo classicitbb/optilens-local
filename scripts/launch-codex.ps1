@@ -1,5 +1,7 @@
 param(
-    [string]$ProjectRoot = ""
+    [string]$ProjectRoot = "",
+    [switch]$Current,
+    [string]$CodexVersion = "0.156.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,12 +11,24 @@ if (-not $ProjectRoot) {
 }
 
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
-$codex = Get-Command codex -ErrorAction SilentlyContinue
-if (-not $codex) {
-    throw "Codex is not installed or is not available on PATH. Install the Codex desktop app, then try again."
+if (-not $Current -and $CodexVersion -notmatch '^\d+\.\d+\.\d+$') {
+    throw "CodexVersion must be a numeric version such as 0.156.1."
 }
 
-# cmd.exe keeps the terminal open after Codex exits, which makes any launch
-# error visible to the operator.
-$command = 'cd /d "{0}" && codex' -f $ProjectRoot.Replace('"', '""')
+# Clear TERM because management shells can set it to "dumb", which disables
+# terminal capabilities used by interactive TUIs. Run in a native cmd console.
+$codexCommand = if ($Current) {
+    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) {
+        throw "Codex is not available on PATH."
+    }
+    "codex"
+} else {
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
+        throw "npx is not available on PATH. Install Node.js 20 or later to run the pinned legacy Codex CLI."
+    }
+    "npx.cmd --yes @openai/codex@$CodexVersion"
+}
+
+# cmd.exe keeps the terminal open after Codex exits, so launch errors remain visible.
+$command = 'set "TERM=" && cd /d "{0}" && {1}' -f $ProjectRoot.Replace('"', '""'), $codexCommand
 Start-Process -FilePath $env:ComSpec -ArgumentList @("/k", $command) -WorkingDirectory $ProjectRoot

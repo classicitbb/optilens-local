@@ -22,6 +22,11 @@
 - Run `npm run check` and `npm test` for relevant code changes.
 - Use the documented guarded lifecycle and health-verification procedures for authorized host work.
 
+## Windows CLI launcher
+
+- `npm run codex:launch` starts the pinned Codex CLI `0.156.1` in a native `cmd.exe` console and clears inherited `TERM=dumb`; use `npm run codex:launch:current` to start the globally installed CLI instead. The desktop shortcut invokes PowerShell with `-File` rather than targeting the `.ps1` directly.
+- Codex CLI `0.157.0` has a reported Windows daemon startup regression for which `0.156.1` is a documented workaround. Current Codex Windows guidance recommends Windows 11 and lists recent Windows 10 as best effort; it does not list Windows Server. Claude Code documents Windows Server 2019 support. Treat the pin as a compatibility workaround, not a supported-platform guarantee.
+
 ## RX Capture
 
 - `/rx-capture` is a full-screen, authenticated mobile intake page inside the existing Node HTTP process.
