@@ -69,5 +69,7 @@ test("CORS allows OpticAdmin origins only", () => {
   assert.equal(isAllowedOrigin("https://classicvisions.lovable.app"), true);
   assert.equal(isAllowedOrigin("https://abc-123.lovable.app"), false);
   assert.equal(isAllowedOrigin("https://evil.example"), false);
+  assert.equal(isAllowedOrigin("http://localhost:59485"), true);
+  assert.equal(isAllowedOrigin("http://localhost.evil.example:80"), false);
   assert.equal(isAllowedOrigin(""), false);
 });
