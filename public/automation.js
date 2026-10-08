@@ -210,7 +210,7 @@
 
   function updateAutomationCrumb(button) {
     const crumb = document.querySelector("#app-shell-header .top-crumb");
-    if (crumb) crumb.textContent = button?.dataset.tab === "supplier-email" ? "OS Lab Status Update Inbox" : "Automation";
+    if (crumb) crumb.textContent = "Automation";
   }
 
   function formatSyncTime(value) {

@@ -12,8 +12,6 @@
 .module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link { background:#c89130; color:#0b1e35; }
 .module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link:hover { background:#e0a63b; color:#0b1e35; }
 .module-body:has(.workflow-tabs) .workflow-panel { padding:22px 24px 32px; }
-.module-body:has(.workflow-tabs) .supplier-email-tab-panel { padding:0; min-height:calc(100vh - 104px); }
-.module-body:has(.workflow-tabs) .supplier-email-tab-panel iframe { display:block; width:100%; height:calc(100vh - 104px); min-height:720px; border:0; background:#f7f5ef; }
 .module-body:has(.workflow-tabs) .capability-grid article { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
 .capability-accordion { border:1px solid #ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
 .capability-accordion > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 18px; cursor:pointer; color:#0b1e35; font-size:15px; font-weight:800; list-style:none; }
@@ -46,10 +44,20 @@
 .info-tooltip:hover::after,.info-tooltip:focus-visible::after { opacity:1; transform:translateY(0); }
 .automation-email-page .ops-panel { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.05); }
 .automation-email-page .ops-card { border-color:#ded9cc; background:#fffdf9; }
-.automation-email-page.automation-embedded #app-shell-header,
-.automation-email-page.automation-embedded .module-title { display:none; }
-.automation-email-page.automation-embedded .module-main { min-height:100%; }
-.automation-email-page.automation-embedded .module-workspace { min-height:100%; }
+/* OS Lab inbox: own route, edge-to-edge like Delivery & Export. The title block is
+   dropped because the shell crumb already names the page and the panes need the height. */
+.os-lab-inbox-page .module-main { margin:0; max-width:none; padding:0; }
+.os-lab-inbox-page .module-title { display:none; }
+@media (min-width:1001px) {
+  .os-lab-inbox-page .module-main { height:calc(100vh - 56px); }
+  .os-lab-inbox-page .module-workspace { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
+  .os-lab-inbox-page .supplier-email-panel.active { flex:1 1 auto; min-height:0; overflow:auto; }
+  .os-lab-inbox-page #mailbox.active { display:flex; flex-direction:column; overflow:hidden; padding:10px 14px 12px; }
+  .os-lab-inbox-page .mailbox-workspace { flex:1 1 auto; min-height:0; border-radius:8px; box-shadow:none; }
+  .os-lab-inbox-page .mailbox-pane { display:flex; flex-direction:column; min-height:0; }
+  .os-lab-inbox-page .mailbox-list,
+  .os-lab-inbox-page .records-table-wrap { flex:1 1 auto; min-height:0; max-height:none; }
+}
 
 .automation-email-page .supplier-email-intro { padding:15px 24px 0; }
 .automation-email-page .supplier-email-panel { display:none; padding:18px 24px 32px; }

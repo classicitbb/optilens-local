@@ -89,6 +89,14 @@ const tileDestinations = {
 // Icons are Google Material Symbols ligature names (rendered via .material-symbols-outlined).
 const platformApplications = [
   {
+    id: "os-lab-status",
+    name: "OS Lab Status Inbox",
+    href: "/modules/os-lab-status",
+    summary: "Supplier status emails matched to live orders, with exceptions and write-back approval.",
+    status: "first-build",
+    permissions: ["automation.read", "automation.manage"]
+  },
+  {
     id: "business-metrics",
     name: "Business Metrics",
     href: "/modules/business-metrics",
@@ -440,6 +448,7 @@ function moduleIcon(moduleId) {
     "pricing-automation": "price_change",
     "integrations": "link",
     "automation": "bolt",
+    "os-lab-status": "mark_email_read",
     "rx-capture": "document_scanner"
   };
   return icons[moduleId] || "apps";
