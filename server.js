@@ -196,6 +196,8 @@ const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-acces
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
+const { handleEmailRoute } = require("./lib/email/routes");
+const { startEmailSync } = require("./lib/email/service");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
 const {
   findInvoiceItem,
@@ -1064,6 +1066,7 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => getBootstrapState());
   }
 
+  if (await handleEmailRoute({ req, res, url, handleApi, readJsonBody })) return;
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
@@ -3801,6 +3804,7 @@ server.listen(port, host, () => {
   gitUpdateTimer.unref();
   supplierMailboxPoller = startSupplierMailboxPoller();
   supplierMailboxPoller.start();
+  startEmailSync();
   startLiveGatewayOnBoot();
   recoverRxCaptureProcessing()
     .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
