@@ -104,3 +104,6 @@ div.ps-tile { cursor:default; }
 @media (max-width:560px) {
   .ps-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
+
+/* Content sits directly on the page: no workspace card, border or shadow */
+.module-workspace.ps-bare { border:0; background:transparent; box-shadow:none; border-radius:0; }
