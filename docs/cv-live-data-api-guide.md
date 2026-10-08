@@ -2,7 +2,7 @@
 
 ## Architecture
 
-OptiLens Local is the only process that reads `MSSQL-SVR/Innovations`.
+OptiLens Local is the only process that reads `MSSQL-SVR\SQLEXPRESS` / `Innovations`.
 
 CV Web never calls the office network directly. It queues an authenticated,
 customer-scoped request in Supabase. The OptiLens Local live gateway polls the
@@ -59,7 +59,7 @@ unique index.
 1. Confirm `.env` or the credentials vault has the MSSQL source connection:
 
 ```text
-OPTILENS_SOURCE_MSSQL_SERVER=MSSQL-SVR
+OPTILENS_SOURCE_MSSQL_SERVER=MSSQL-SVR\SQLEXPRESS
 OPTILENS_SOURCE_MSSQL_DATABASE=Innovations
 OPTILENS_SOURCE_MSSQL_USER=<read-only sql login>
 OPTILENS_SOURCE_MSSQL_PASSWORD=<secret>

@@ -73,7 +73,7 @@ BEGIN
         N'source-mssql-innovations',
         N'Source MSSQL Innovations',
         N'mssql',
-        N'{"server":"MSSQL-SVR","database":"Innovations","encrypt":true,"trustServerCertificate":true}',
+        N'{"server":"MSSQL-SVR\\SQLEXPRESS","database":"Innovations","encrypt":true,"trustServerCertificate":true}',
         N'Windows Credential Manager or environment variables',
         N'read-only'
     );

@@ -57,13 +57,21 @@ ssh -i "$env:USERPROFILE\.ssh\optilens-codex-ed25519" Administrator@MSSQL-SVR wh
 
 ### MSSQL-SVR read-access verification
 
-The remote `Administrator` session is a SQL Server `sysadmin` on the default instance. The following databases were verified `ONLINE` and accessible through Windows Integrated Authentication: `Innovations`, `innovations_mirror`, `old_innovations`, `optilens_local`, `master`, `model`, `msdb`, and `tempdb`.
+The remote `Administrator` session is a SQL Server `sysadmin` on the named instance `MSSQL-SVR\SQLEXPRESS`. The default instance (`MSSQLSERVER`) is stopped; nothing listens on TCP 1433. The following databases were verified `ONLINE` and accessible through Windows Integrated Authentication (re-verified 2026-10-07): `Innovations`, `innovations_mirror`, `optilens_local`, `test-innovations`, `master`, `model`, `msdb`, and `tempdb`. `old_innovations` and `sql_reporting` are not present on this instance.
 
 Use a read-only local query such as the following. `-C` is required by the installed ODBC 18 client because the server certificate chain is not locally trusted:
 
 ```powershell
-sqlcmd -E -C -S localhost -Q "SET NOCOUNT ON; SELECT name, state_desc, HAS_DBACCESS(name) AS HasAccess FROM sys.databases ORDER BY name;"
+sqlcmd -E -C -S .\SQLEXPRESS -Q "SET NOCOUNT ON; SELECT name, state_desc, HAS_DBACCESS(name) AS HasAccess FROM sys.databases ORDER BY name;"
 ```
+
+Canonical connection string for SSMS and other Windows-authenticated tooling (no secret; the Windows login is the credential, so it only works from a session on `MSSQL-SVR` or a domain-joined peer, not from the workgroup controller):
+
+```text
+Data Source=MSSQL-SVR\SQLEXPRESS;Initial Catalog=Innovations;Integrated Security=True;Persist Security Info=False;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Command Timeout=0
+```
+
+The OptiLens app itself does not use Integrated Security: it connects with the SQL logins (`OPTILENS_*_USER` / vault entries) to `OPTILENS_DB_SERVER` / `OPTILENS_SOURCE_MSSQL_SERVER`, which are `MSSQL-SVR\SQLEXPRESS` (resolved through SQL Browser; the instance listens on TCP 1435).
 
 This access does not override the application data rules: source Innovations/PSQL/MSSQL data remains read-only for discovery unless the privileged-admin confirmation policy is followed.
 
