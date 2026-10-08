@@ -125,7 +125,7 @@ const {
 } = require("./lib/dashboard");
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
-const { getProductionStatus } = require("./lib/metrics/production-status");
+const { getProductionStatus, getProductionOrders } = require("./lib/metrics/production-status");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
@@ -1566,6 +1566,16 @@ const server = http.createServer(async (req, res) => {
       "production-status",
       () => requirePermission(req, "platform.admin"),
       () => getProductionStatus()
+    );
+  }
+
+  // Orders behind any Production Status figure (drill-through).
+  if (url.pathname === "/api/production-status/orders" && req.method === "GET") {
+    return handleCachedApi(
+      req, res,
+      `production-status-orders:${url.searchParams.toString()}`,
+      () => requirePermission(req, "platform.admin"),
+      () => getProductionOrders(Object.fromEntries(url.searchParams.entries()))
     );
   }
 

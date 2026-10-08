@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {
-  AGING_BUCKETS, bucketAging, summariseWip, shapeThroughput, getProductionStatus
+  AGING_BUCKETS, bucketAging, summariseWip, shapeThroughput, getProductionStatus, getProductionOrders
 } = require("../lib/metrics/production-status");
 
 const NOW = new Date("2026-10-08T12:00:00-04:00");
@@ -61,20 +61,67 @@ test("getProductionStatus assembles the payload from the two source queries", as
     request: () => ({
       query: async (sql) => {
         calls.push(sql);
+        if (/dbo\.Assignments/.test(sql)) return { recordsets: [[{ assignedToType: 4, orders: 1 }], [{ orders: 3 }]] };
         return /#ord/.test(sql)
           ? { recordset: [{ kind: "row", seq: 1, label: "Today", received: 3, shipped: 2 }] }
-          : { recordset: [{ OrderID: 1, ReceivedTime: daysAgo(1), statusName: "Waiting on Frame", outsourced: 0 }] };
+          : {
+            recordset: [{
+              OrderID: 1, JobID: "J1", ReceivedTime: daysAgo(1), CurrentStatusDate: daysAgo(6),
+              statusName: "Waiting on Frame", outsourced: 0
+            }]
+          };
       }
     })
   };
 
   const status = await getProductionStatus({ pool, now: NOW });
 
-  assert.strictEqual(calls.length, 2);
+  assert.strictEqual(calls.length, 3);
+  assert.deepStrictEqual(status.assignments, { all: 3, user: 0, cs: 1, customer: 0 });
+  assert.deepStrictEqual(status.staging.columns, ["Waiting on Frame"]);
+  assert.strictEqual(status.staging.total.cells["Waiting on Frame"], 1);
+  assert.strictEqual(status.staging.bands.find((b) => b.key === "5").cells["Waiting on Frame"], 1);
   assert.strictEqual(status.generatedAt, NOW.toISOString());
   assert.strictEqual(status.totals.waiting, 1);
   assert.strictEqual(status.throughput.periods[0].received, 3);
   assert.strictEqual(status.aging.total, 1);
+});
+
+function fakePool(recordset) {
+  return { request: () => ({ input() {}, query: async () => ({ recordset, recordsets: [recordset] }) }) };
+}
+
+test("drill-through returns the orders behind a WIP segment and an aging band", async () => {
+  const pool = fakePool([
+    { OrderID: 1, JobID: "A", ReceivedTime: daysAgo(1), statusName: "Label for Tray 1", outsourced: 0 },
+    { OrderID: 2, JobID: "B", ReceivedTime: daysAgo(12), statusName: "Transmitted", outsourced: 1 },
+    { OrderID: 3, JobID: "C", ReceivedTime: daysAgo(40), statusName: "Remote Rx", outsourced: 0 }
+  ]);
+
+  const outsourced = await getProductionOrders({ metric: "wip", segment: "outsourced" }, { pool, now: NOW });
+  assert.deepStrictEqual(outsourced.orders.map((o) => o.jobId), ["B"]);
+
+  const band = await getProductionOrders({ metric: "aging", bucket: "10d" }, { pool, now: NOW });
+  assert.deepStrictEqual(band.orders.map((o) => o.jobId), ["B"]);
+
+  const older = await getProductionOrders({ metric: "aging", bucket: "10d", older: "1" }, { pool, now: NOW });
+  assert.deepStrictEqual(older.orders.map((o) => o.jobId), ["C", "B"], "oldest first");
+  assert.strictEqual(older.count, 2);
+});
+
+test("drill-through rejects unknown metrics and malformed periods with a 400", async () => {
+  const pool = fakePool([]);
+  for (const params of [{ metric: "nope" }, { metric: "received", seq: "x" }, { metric: "wip", segment: "x" },
+    { metric: "aging", bucket: "x" }, { metric: "assignments", type: "x" }]) {
+    await assert.rejects(getProductionOrders(params, { pool, now: NOW }), (error) => error.statusCode === 400);
+  }
+});
+
+test("period drill-through binds the period as parameters rather than interpolating input", async () => {
+  const inputs = {};
+  const pool = { request: () => ({ input: (k, v) => { inputs[k] = v; }, query: async () => ({ recordset: [] }) }) };
+  await getProductionOrders({ metric: "shipped", kind: "row", seq: "2", label: "x'; DROP TABLE Orders;--" }, { pool, now: NOW });
+  assert.deepStrictEqual(inputs, { kind: "row", seq: 2 });
 });
 
 test("the page, script and stylesheet exist and are wired to the API", () => {
@@ -83,6 +130,7 @@ test("the page, script and stylesheet exist and are wired to the API", () => {
   assert.match(read("public/production-status.html"), /href="\/styles\/system\.css"/);
   assert.match(read("public/production-status.js"), /\/api\/production-status/);
   assert.match(read("server.js"), /"\/api\/production-status"/);
+  assert.match(read("server.js"), /"\/api\/production-status\/orders"/);
   assert.match(read("server.js"), /"\/modules\/production-status":\s+"production-status\.html"/);
   assert.match(read("public/shared.js"), /id: "production-status"/);
 });

@@ -1,36 +1,63 @@
 /* Production Status — layout and data-viz series colours only; primitives live in system.css */
 .ps-fresh { display:flex; align-items:center; gap:10px; }
-.ps-root { display:flex; flex-direction:column; gap:16px; }
 .ps-error { color:var(--red); }
-.ps-note, .ps-empty { color:var(--muted); font-size:.8rem; }
+.ps-note, .ps-empty, .ps-hint { color:var(--muted); font-size:.8rem; margin:0; }
+.ps-hint { margin-bottom:12px; }
 
-.ps-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; }
-.ps-tile { display:flex; flex-direction:column; gap:2px; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
-.ps-tile-total { border-color:var(--blue); }
-.ps-tile-n { font-size:2rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
-.ps-tile-l { color:var(--muted); font-size:.82rem; }
+.ps-grid-2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap:18px; align-items:start; }
+.ps-col { display:flex; flex-direction:column; gap:18px; min-width:0; }
+.ps-card { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.ps-card h2 { margin:0; font-size:1.05rem; font-weight:500; color:var(--blue); }
 
-.ps-throughput { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
-.ps-legend { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; font-size:.84rem; }
-.ps-chart { flex:1 1 360px; min-width:0; max-width:760px; height:auto; }
+/* Figures that drill into orders */
+.ps-num { border:0; background:transparent; padding:0; font:inherit; color:var(--blue); cursor:pointer; font-variant-numeric:tabular-nums; }
+.ps-num:hover { text-decoration:underline; }
+.ps-num:focus-visible, .ps-dot:focus-visible, .ps-arc:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+
+/* WIP tiles */
+.ps-tiles { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; }
+.ps-tile { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 8px; border:0; border-radius:4px; color:#fff; font:inherit; cursor:pointer; }
+button.ps-tile:hover { filter:brightness(1.07); }
+div.ps-tile { cursor:default; }
+.ps-tile-l { font-size:.8rem; font-weight:600; }
+.ps-tile-n { font-size:1.6rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+.ps-tile-waiting { background:#f4574d; }
+.ps-tile-progress { background:#97c95d; }
+.ps-tile-outsourced { background:#f7931e; }
+.ps-tile-total { background:#18b2f5; }
+
+/* Assignments */
+.ps-assign { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:8px 24px; margin:0; }
+.ps-assign > div { display:flex; justify-content:space-between; gap:12px; font-size:.86rem; }
+.ps-assign dt { margin:0; }
+.ps-assign dd { margin:0; font-variant-numeric:tabular-nums; }
+
+/* Throughput */
+.ps-throughput { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+.ps-legend { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; font-size:.82rem; color:var(--muted); }
+.ps-chart { flex:1 1 300px; min-width:0; height:auto; }
 .ps-grid { stroke:var(--line); stroke-width:1; }
 .ps-axis { fill:var(--muted); font-size:10px; }
 .ps-line { fill:none; stroke-width:2; stroke-linejoin:round; }
+.ps-dot, .ps-arc { cursor:pointer; }
+.ps-dot:hover { r:6; }
 
-.ps-table { width:100%; min-width:0; border-collapse:collapse; font-size:.86rem; }
-.ps-table th, .ps-table td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:left; font-weight:inherit; }
-.ps-table tr:first-child th { color:var(--muted); font-weight:600; }
+/* Tables: compact, zebra rows, no header chrome */
+.ps-table { width:100%; min-width:0; border-collapse:collapse; font-size:.84rem; }
+.ps-table th, .ps-table td { padding:6px 10px; border-bottom:0; text-align:left; font-weight:inherit; text-transform:none; letter-spacing:0; white-space:nowrap; background:transparent; }
+.ps-table tr:first-child th { color:var(--muted); font-weight:500; }
+.ps-table th[scope="row"] { font-size:.84rem; }
 .ps-table th.num, .ps-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
-.ps-table tr:nth-child(even) td, .ps-table tr:nth-child(even) th[scope="row"] { background:color-mix(in srgb, var(--line) 25%, transparent); }
+.ps-table tr:nth-child(even) td { background:color-mix(in srgb, var(--line) 30%, transparent); }
+.ps-card .table-wrap { border:0; }
 
-.ps-aging { display:flex; flex-wrap:wrap; gap:24px; align-items:center; }
-.ps-aging .table-wrap { flex:1 1 380px; min-width:min(100%, 380px); max-width:520px; }
-.ps-aging .ps-table th, .ps-aging .ps-table td { white-space:nowrap; }
-.ps-donut { flex:0 1 240px; width:240px; height:auto; }
+.ps-aging { display:flex; flex-wrap:wrap; gap:18px; align-items:center; }
+.ps-aging .table-wrap { flex:1 1 280px; }
+.ps-donut { flex:0 1 220px; width:220px; height:auto; }
 .ps-arc { fill:none; stroke-width:34; }
 .ps-donut-n { fill:var(--ink); font-size:26px; font-weight:700; }
 
-.ps-swatch { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:8px; vertical-align:-1px; }
+.ps-swatch { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:8px; vertical-align:1px; }
 
 /* Series and age-band colours (shared by swatches, lines, dots and arcs) */
 .ps-received  { --c:#12b0f0; }
@@ -57,3 +84,23 @@
 .ps-age-stroke-10d { stroke:#ff9020; }
 .ps-age-stroke-3w { stroke:#e60000; }
 .ps-age-stroke-1m { stroke:#8a0000; }
+
+.ps-stage-total { background:#e9efe9; }
+.ps-stage-lt5 { background:#7ec8f0; }
+.ps-stage-5 { background:#9bdc7a; }
+.ps-stage-7 { background:#d5e800; }
+.ps-stage-11 { background:#ffb300; }
+.ps-stage-14 { background:#ff8a00; }
+.ps-stage-17 { background:#ff4d4d; }
+.ps-stage-gt28 { background:#a52a1a; }
+
+/* Drill-through dialog */
+.ps-drill { width:min(1100px, 94vw); max-height:86vh; padding:0; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink); }
+.ps-drill::backdrop { background:rgba(11, 30, 53, .55); }
+.ps-drill-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+.ps-drill-head h2 { margin:0; font-size:1.05rem; }
+.ps-drill-body { padding:12px 18px 18px; overflow:auto; max-height:calc(86vh - 80px); }
+
+@media (max-width:560px) {
+  .ps-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
