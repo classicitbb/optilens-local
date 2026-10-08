@@ -27,7 +27,7 @@ test("the OptiLens system declares the shared Classic Visions semantic foundatio
 test("all application surfaces load the final common system stylesheet", () => {
   const pages = [
     "index.html", "login.html", "admin-users.html", "automation.html",
-    "business-metrics.html", "credentials.html", "delivery-export.html",
+    "business-metrics.html", "production-status.html", "credentials.html", "delivery-export.html",
     "integrations.html", "pricing-automation.html", "release-notes.html",
     "settings.html", "statement-template.html", "supplier-email.html",
     "tools/pricing-automation/index.html"

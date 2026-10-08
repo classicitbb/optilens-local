@@ -13,6 +13,7 @@ const SHELL_APP_CATALOG = [
   { id: "automation",        label: "Automation",        meta: "Module",   icon: "bolt",          href: "/modules/automation",         color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
   { id: "rx-capture",        label: "RX Capture",        meta: "Module",   icon: "document_scanner", href: "/rx-capture",                    color: "#0f7c86", permissions: ["rx-capture.read", "rx-capture.write"] },
   { id: "business-metrics",  label: "Business Metrics",  meta: "Module",   icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
+  { id: "production-status", label: "Production Status", meta: "Module",   icon: "precision_manufacturing", href: "/modules/production-status", color: "#0f7c86", permissions: ["platform.admin"] },
   { id: "release-notes",     label: "Release Notes",     meta: "Roadmap",  icon: "history",       href: "/release-notes",              color: "#6d28d9", permissions: [] },
   { id: "users",             label: "Users",             meta: "Admin",    icon: "group",         href: "/admin/users",                color: "#0B1E35", permissions: ["users.manage"] },
   { id: "credentials",       label: "Credentials",       meta: "Security", icon: "key",           href: "/credentials",                color: "#64748b", permissions: ["credentials.manage"] },
@@ -199,6 +200,12 @@ function getShellPageConfig() {
     },
     "/modules/business-metrics": {
       crumb: "Business Metrics"
+    },
+    "/modules/production-status": {
+      crumb: "Production Status"
+    },
+    "/production-status.html": {
+      crumb: "Production Status"
     },
     "/business-metrics.html": {
       crumb: "Business Metrics"

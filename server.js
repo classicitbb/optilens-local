@@ -125,6 +125,7 @@ const {
 } = require("./lib/dashboard");
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
+const { getProductionStatus } = require("./lib/metrics/production-status");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
@@ -1558,6 +1559,16 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Production Status: throughput, WIP totals and work-order aging from live Innovations.
+  if (url.pathname === "/api/production-status" && req.method === "GET") {
+    return handleCachedApi(
+      req, res,
+      "production-status",
+      () => requirePermission(req, "platform.admin"),
+      () => getProductionStatus()
+    );
+  }
+
   // Overview tab (tab 1). Split out from the monolith above so it is cheap enough to
   // poll: it reads only the Innovations MSSQL source, is cached briefly, and answers
   // 304 when nothing has changed.
@@ -2928,7 +2939,9 @@ function canAccessPage(requestPath, user) {
     "/rx-capture": ["rx-capture.read", "rx-capture.write"],
     "/rx-capture.html": ["rx-capture.read", "rx-capture.write"],
     "/modules/business-metrics": ["platform.admin"],
-    "/business-metrics.html": ["platform.admin"]
+    "/business-metrics.html": ["platform.admin"],
+    "/modules/production-status": ["platform.admin"],
+    "/production-status.html": ["platform.admin"]
   };
 
   const required = pagePermissions[route];
@@ -2982,6 +2995,7 @@ function resolveStaticPath(requestPath) {
     "/modules/automation":          "automation.html",
     "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/business-metrics":    "business-metrics.html",
+    "/modules/production-status":   "production-status.html",
     "/rx-capture":                  "rx-capture.html",
     "/admin/users":                 "admin-users.html",
     "/modules/chemistry-clips":     "chemistry-clips.html"

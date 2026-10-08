@@ -1,0 +1,59 @@
+/* Production Status — layout and data-viz series colours only; primitives live in system.css */
+.ps-fresh { display:flex; align-items:center; gap:10px; }
+.ps-root { display:flex; flex-direction:column; gap:16px; }
+.ps-error { color:var(--red); }
+.ps-note, .ps-empty { color:var(--muted); font-size:.8rem; }
+
+.ps-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; }
+.ps-tile { display:flex; flex-direction:column; gap:2px; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.ps-tile-total { border-color:var(--blue); }
+.ps-tile-n { font-size:2rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+.ps-tile-l { color:var(--muted); font-size:.82rem; }
+
+.ps-throughput { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+.ps-legend { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; font-size:.84rem; }
+.ps-chart { flex:1 1 360px; min-width:0; max-width:760px; height:auto; }
+.ps-grid { stroke:var(--line); stroke-width:1; }
+.ps-axis { fill:var(--muted); font-size:10px; }
+.ps-line { fill:none; stroke-width:2; stroke-linejoin:round; }
+
+.ps-table { width:100%; min-width:0; border-collapse:collapse; font-size:.86rem; }
+.ps-table th, .ps-table td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:left; font-weight:inherit; }
+.ps-table tr:first-child th { color:var(--muted); font-weight:600; }
+.ps-table th.num, .ps-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.ps-table tr:nth-child(even) td, .ps-table tr:nth-child(even) th[scope="row"] { background:color-mix(in srgb, var(--line) 25%, transparent); }
+
+.ps-aging { display:flex; flex-wrap:wrap; gap:24px; align-items:center; }
+.ps-aging .table-wrap { flex:1 1 380px; min-width:min(100%, 380px); max-width:520px; }
+.ps-aging .ps-table th, .ps-aging .ps-table td { white-space:nowrap; }
+.ps-donut { flex:0 1 240px; width:240px; height:auto; }
+.ps-arc { fill:none; stroke-width:34; }
+.ps-donut-n { fill:var(--ink); font-size:26px; font-weight:700; }
+
+.ps-swatch { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:8px; vertical-align:-1px; }
+
+/* Series and age-band colours (shared by swatches, lines, dots and arcs) */
+.ps-received  { --c:#12b0f0; }
+.ps-remakes   { --c:#e5252a; }
+.ps-breakages { --c:#7a0c10; }
+.ps-cancelled { --c:#ff8a1f; }
+.ps-shipped   { --c:#118a1c; }
+.ps-swatch.ps-received, .ps-swatch.ps-remakes, .ps-swatch.ps-breakages,
+.ps-swatch.ps-cancelled, .ps-swatch.ps-shipped { background:var(--c); }
+.ps-line { stroke:var(--c); }
+.ps-dot { fill:var(--c); }
+
+.ps-age-current { background:#e9efe9; }
+.ps-age-2d { background:#b6e35f; }
+.ps-age-4d { background:#00bd00; }
+.ps-age-6d { background:#008a00; }
+.ps-age-10d { background:#ff9020; }
+.ps-age-3w { background:#e60000; }
+.ps-age-1m { background:#8a0000; }
+.ps-age-stroke-current { stroke:#e9efe9; }
+.ps-age-stroke-2d { stroke:#b6e35f; }
+.ps-age-stroke-4d { stroke:#00bd00; }
+.ps-age-stroke-6d { stroke:#008a00; }
+.ps-age-stroke-10d { stroke:#ff9020; }
+.ps-age-stroke-3w { stroke:#e60000; }
+.ps-age-stroke-1m { stroke:#8a0000; }

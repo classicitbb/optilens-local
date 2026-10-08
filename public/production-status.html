@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Production Status - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/production-status.css">
+  <link rel="stylesheet" href="/styles/system.css">
+</head>
+<body class="module-body">
+
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Production Status"
+  };
+</script>
+
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Operations</p>
+          <h1>Production Status</h1>
+        </div>
+        <div class="ps-fresh">
+          <span class="badge planned" id="psStatus">Loading…</span>
+          <button class="button secondary" type="button" id="psRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <nav class="workflow-tabs" aria-label="Production status tabs">
+        <button class="active" type="button" data-tab="totals">Totals</button>
+        <button type="button" data-tab="throughput">Throughput</button>
+        <button type="button" data-tab="aging">Work Order Aging</button>
+      </nav>
+
+      <section class="workflow-panel active" id="totals"><div class="ps-root" id="psTotals"></div></section>
+      <section class="workflow-panel" id="throughput"><div class="ps-root" id="psThroughput"></div></section>
+      <section class="workflow-panel" id="aging"><div class="ps-root" id="psAging"></div></section>
+
+      <p class="ps-note" id="psNote" hidden></p>
+    </section>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/production-status.js"></script>
+</body>
+</html>
