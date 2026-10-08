@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Production Status - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/production-status.css">
+  <link rel="stylesheet" href="/styles/system.css">
+</head>
+<body class="module-body">
+
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Production Status"
+  };
+</script>
+
+  <main class="module-main">
+    <section class="module-workspace ps-bare">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Operations</p>
+          <h1>Production Status</h1>
+        </div>
+        <div class="ps-fresh">
+          <span class="badge planned" id="psStatus">Loading…</span>
+          <button class="button secondary" type="button" id="psRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <p class="ps-hint">Select any figure to see the orders behind it.</p>
+
+      <div class="ps-grid-2">
+        <div class="ps-col">
+          <section class="ps-card" aria-labelledby="psAssignTitle">
+            <h2 id="psAssignTitle">Assignments</h2>
+            <div id="psAssignments"></div>
+          </section>
+          <section class="ps-card" aria-labelledby="psThroughputTitle">
+            <h2 id="psThroughputTitle">Production Throughput</h2>
+            <div id="psThroughput"></div>
+          </section>
+        </div>
+        <div class="ps-col">
+          <div id="psTotals"></div>
+          <section class="ps-card" aria-labelledby="psStagingTitle">
+            <h2 id="psStagingTitle">Job Staging</h2>
+            <div id="psStaging"></div>
+          </section>
+          <section class="ps-card" aria-labelledby="psAgingTitle">
+            <h2 id="psAgingTitle">Work Order Aging</h2>
+            <div id="psAging"></div>
+          </section>
+        </div>
+      </div>
+
+      <p class="ps-note" id="psNote" hidden></p>
+    </section>
+  </main>
+
+  <dialog class="ps-drill" id="psDrill" aria-labelledby="psDrillTitle">
+    <header class="ps-drill-head">
+      <div>
+        <h2 id="psDrillTitle">Orders</h2>
+        <p class="ps-note" id="psDrillMeta"></p>
+      </div>
+      <button class="button secondary" type="button" id="psDrillClose">Close</button>
+    </header>
+    <div class="ps-drill-body" id="psDrillBody"></div>
+  </dialog>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/production-status.js"></script>
+</body>
+</html>
