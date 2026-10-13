@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { addressList, displayNameForFolder, folderSortKey, parseRecipients, safeFilename, snippetFrom } = require("../lib/email/message-utils");
 const { bearerToken, createSupabaseStaffAuth } = require("../lib/email/supabase-auth");
 const { isAllowedOrigin } = require("../lib/email/routes");
-const { canAccessAccount, canManageAccount } = require("../lib/email/access");
+const { canAccessAccount, canManageAccount, manageAccess } = require("../lib/email/access");
 
 test("addressList flattens mailparser address objects and groups", () => {
   const field = { value: [
@@ -88,4 +88,20 @@ test("shared mailboxes are open to all staff; personal ones to members only", ()
   assert.equal(canManageAccount(admin, personal, members), true);
   assert.equal(canManageAccount(owner, personal, members), true);
   assert.equal(canManageAccount(other, personal, [...members, { email: "sam@classicvisions.net", role: "member" }]), false);
+});
+
+test("admins can manage a personal mailbox without being able to read it", () => {
+  const admin = { email: "boss@classicvisions.net", isAdmin: true };
+  const owner = { email: "jane@classicvisions.net" };
+  const reader = { email: "sam@classicvisions.net" };
+  const stranger = { email: "kim@classicvisions.net" };
+  const personal = { is_shared: false };
+  const members = [{ email: "jane@classicvisions.net", role: "owner" }, { email: "sam@classicvisions.net", role: "member" }];
+  assert.equal(canAccessAccount(admin, personal, members), false);
+  assert.equal(manageAccess(admin, personal, members), "ok");
+  assert.equal(manageAccess(owner, personal, members), "ok");
+  assert.equal(manageAccess(reader, personal, members), "forbidden");
+  assert.equal(manageAccess(stranger, personal, members), "missing");
+  assert.equal(manageAccess(stranger, { is_shared: true }, []), "forbidden");
+  assert.equal(manageAccess(admin, undefined, []), "missing");
 });
