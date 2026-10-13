@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { addressList, displayNameForFolder, folderSortKey, parseRecipients, safeFilename, snippetFrom } = require("../lib/email/message-utils");
+const { addressList, displayNameForFolder, folderSortKey, normalizeSignature, outgoingBody, parseRecipients, safeFilename, snippetFrom } = require("../lib/email/message-utils");
 const { bearerToken, createSupabaseStaffAuth } = require("../lib/email/supabase-auth");
 const { isAllowedOrigin } = require("../lib/email/routes");
 const { canAccessAccount, canManageAccount, manageAccess } = require("../lib/email/access");
@@ -104,4 +104,18 @@ test("admins can manage a personal mailbox without being able to read it", () =>
   assert.equal(manageAccess(stranger, personal, members), "missing");
   assert.equal(manageAccess(stranger, { is_shared: true }, []), "forbidden");
   assert.equal(manageAccess(admin, undefined, []), "missing");
+});
+
+test("outgoingBody sends HTML alongside text only when given, and caps its size", () => {
+  assert.deepEqual(outgoingBody({ text: "Hi" }), { text: "Hi" });
+  assert.deepEqual(outgoingBody({ text: "Hi", html: "  " }), { text: "Hi" });
+  assert.deepEqual(outgoingBody({ text: "Hi", html: "<p>Hi</p>" }), { text: "Hi", html: "<p>Hi</p>" });
+  assert.throws(() => outgoingBody({ text: "", html: "x".repeat(2 * 1024 * 1024 + 1) }), (error) => error.statusCode === 413);
+});
+
+test("normalizeSignature requires a name and body and caps the size", () => {
+  assert.deepEqual(normalizeSignature({ name: "  Main ", html: " <b>R</b> ", isDefault: 1 }), { name: "Main", html: "<b>R</b>", isDefault: true });
+  assert.throws(() => normalizeSignature({ name: "", html: "x" }), (error) => error.statusCode === 400);
+  assert.throws(() => normalizeSignature({ name: "a", html: "" }), (error) => error.statusCode === 400);
+  assert.throws(() => normalizeSignature({ name: "a", html: "x".repeat(100 * 1024 + 1) }), (error) => error.statusCode === 413);
 });
