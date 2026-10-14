@@ -9,7 +9,7 @@ const store = require("../lib/inventory/store");
 const { handleInventoryRoute } = require("../lib/inventory/routes");
 const { runInventoryScan } = require("../lib/inventory/scan-runner");
 const recs = require("../lib/inventory/recommendations-service");
-const { setup } = require("./inventory-test-helpers");
+const { setup, fakeSource, liveRow } = require("./inventory-test-helpers");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -231,6 +231,7 @@ test("assigning a shelf count and recording the result work end to end over HTTP
 
 test("starting a scan queues work and answers 202 without waiting for it", async () => {
   setup();
+  fakeSource([liveRow()]);
   const result = await call("POST", `${API}/scan/run`);
   assert.equal(result.status, 202);
   assert.equal(result.body.started, true);

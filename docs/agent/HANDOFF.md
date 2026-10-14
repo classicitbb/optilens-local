@@ -1,18 +1,22 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — local Inventory Intelligence workspace and sign-in/layout changes need host deployment and authenticated browser verification; prior handoffs remain below
+- Status: Complete — no active handoff
 - Last synchronized: 2026-10-14
 
 ## Objective and current state
 
-### Inventory Intelligence workspace and annotated sign-in/layout changes — local only
+### Inventory Intelligence compact queue and splitter — deployed
+
+Applied the annotated cockpit density changes in `public/business-metrics-inventory-intelligence.js` and `public/styles/pages/inventory-intelligence.css`: removed the duplicate header title, tightened the description/scan text, scan button, caveat banner, and KPI cards; widened and shortened Search; added 6px beneath its toolbar; made the queue table edge to edge with square corners and shorter rows. The table now budgets evidence and action column widths, exposes a 2px draggable divider with arrow-key control, and keeps Actions visible when a narrow container must scroll horizontally. Recommendation text is limited to two visible lines with its full value in the Review drawer. The divider is hidden only when the queue container is narrower than the table's 1180px minimum; Actions remains sticky there.
+
+The guarded host update deployed revision `95ee26d` from `codex/inventory-density`. Its smoke check, full application suite (489/489), restart, and monitor verification passed. A live signed-in browser check confirmed the table and Actions fit at 1366px, Actions remain visible with horizontal table scrolling at 1024px, and the 2px separator responds to arrow keys. The divider was returned to its original value and the temporary viewport override was reset. No scan, approval, order, or source-system write was performed. The update rebuilt a tracked monitor executable that remains modified in the host checkout while the monitor is running; restoring it failed because Windows holds the executable open. This is a generated artifact, not a source-code change, and a future guarded Git pull will require a controlled monitor maintenance window to clean it.
+
+### Inventory Intelligence workspace and annotated sign-in/layout changes — deployed previously
 
 Moved Inventory Intelligence from a Business Metrics tab to administrator-only `/modules/inventory-intelligence`, retained a Business Metrics navigation link, added launcher and Launch Pad entries, and made the new workspace edge-to-edge. Scoped Business Metrics main/title padding to the annotated values and set the cockpit filter navigation to 12px. The Launch Pad username field requests autocomplete off; the password keeps `current-password` and now has an accessible reveal button. Browsers may override the username autocomplete hint.
 
-Affected files: `server.js`, `public/index.html`, `public/app.js`, `public/shared.js`, `public/business-metrics.html`, `public/inventory-intelligence.html`, `public/business-metrics-inventory-intelligence.js`, `public/styles/components.css`, `public/styles/pages/business-metrics-layout.css`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `docs/INVENTORY_INTELLIGENCE.md`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Focused tests: `node --test test/inventory-intelligence-http.test.js test/business-metrics-overview.test.js test/design-system.test.js` passed 46/46 after the documentation update. `npm run check`, changed-JS `node --check`, and `git diff --check` passed. No host action, deployment, data write, or authenticated browser check was performed.
-
-Blocker: this task's supplied instructions require an explicit production/host deployment authorization; the current user request authorizes local source work but does not name deployment. The full `npm test` run was stopped after seven passing assistant tests because the unrelated assistant suite was progressing slowly; no full-suite result is claimed. Approval required: authorize the guarded production deployment. Next executable action: deploy the reviewed changes through `docs/REMOTE_AGENT_OPERATIONS.md` after authorization, run the full suite in the guarded workflow, and verify health plus signed-in browser behavior at desktop and narrow widths.
+Affected files: `server.js`, `public/index.html`, `public/app.js`, `public/shared.js`, `public/business-metrics.html`, `public/inventory-intelligence.html`, `public/business-metrics-inventory-intelligence.js`, `public/styles/components.css`, `public/styles/pages/business-metrics-layout.css`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `docs/INVENTORY_INTELLIGENCE.md`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Focused tests: `node --test test/inventory-intelligence-http.test.js test/business-metrics-overview.test.js test/design-system.test.js` passed 46/46 after the documentation update. `npm run check`, changed-JS `node --check`, and `git diff --check` passed. The workspace route and sign-in changes were already in the deployed base revision before the queue-density deployment. The live signed-in browser check above verified the workspace route; sign-in autofill behavior remains subject to browser and password-manager heuristics.
 
 ### PR #57 RX outbox fixture coverage — local tests complete; live submission pending
 

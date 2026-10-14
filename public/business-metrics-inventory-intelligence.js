@@ -62,6 +62,7 @@
     audit: null, auditError: null, auditLoading: false, auditFilter: { action: "", entityType: "", scanRunId: "" },
     scans: null,
     selected: {},                // recommendationId -> true
+    evidenceShare: 64,           // percentage of the queue table reserved for source evidence
     detail: null, detailError: null, detailId: null,
     pollTimer: null, pollCount: 0
   };
@@ -266,7 +267,7 @@
       '<div class="ii-cards" id="iiCards" role="group" aria-label="Work queues"></div>' +
       '<div class="ii-nav" id="iiNav"></div>' +
       '<div id="iiQueueView">' +
-        '<div class="ii-toolbar">' +
+        '<div class="ii-toolbar ii-queue-toolbar">' +
           '<div class="ii-toolbar-group">' +
             '<label class="ii-field">Search<input class="ii-input ii-search" id="iiSearch" type="search" placeholder="Item, SKU or supplier" autocomplete="off"></label>' +
             '<label class="ii-field">Show<select class="ii-select" id="iiStatus">' +
@@ -326,8 +327,7 @@
   function renderHeader() {
     var s = state.summary;
     var scan = s && s.dataScan;
-    var html = '<div><h2>Inventory Intelligence</h2>' +
-      '<p>Deterministic replenishment recommendations from stock, usage and open purchase orders. Staff only. ' +
+    var html = '<div><p>Deterministic replenishment recommendations from stock, usage and open purchase orders. Staff only. ' +
       'Nothing here orders, writes to Innovations or changes the lens table; approving a recommendation records an approved setting in this app.</p></div>' +
       '<div class="ii-scan">';
     if (scan) {
@@ -352,7 +352,7 @@
       banner.innerHTML = '<div class="ii-banner" data-tone="' + tone + '"><span class="grow">' + esc(s.message) + '</span>' +
         (caveats ? '<details><summary>About this data</summary><ul>' + caveats + '</ul></details>' : '') + '</div>';
     } else if (s && (s.sourceCaveats || []).length) {
-      banner.innerHTML = '<div class="ii-banner"><details class="grow"><summary>About this data</summary><ul>' +
+      banner.innerHTML = '<div class="ii-banner ii-about-banner"><details class="grow"><summary>About this data</summary><ul>' +
         s.sourceCaveats.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("") + '</ul></details></div>';
     } else {
       banner.innerHTML = "";
@@ -404,19 +404,19 @@
     { key: "supplierName", label: "Supplier", sort: true },
     { key: "onHand", label: "On hand", sort: true, num: true },
     { key: "openPoQuantity", label: "Open PO", sort: true, num: true },
-    { key: "usage30", label: "30-day usage", sort: true, num: true },
-    { key: "usage90", label: "90-day usage", sort: true, num: true },
+    { key: "usage30", label: "30-day usage", shortLabel: "30d use", sort: true, num: true },
+    { key: "usage90", label: "90-day usage", shortLabel: "90d use", sort: true, num: true },
     { key: "trend", label: "Trend" },
-    { key: "daysRemaining", label: "Days of stock", sort: true, num: true },
-    { key: "leadTimeDays", label: "Lead time", sort: true, num: true },
-    { key: "confidenceScore", label: "Confidence", sort: true }
+    { key: "daysRemaining", label: "Days of stock", shortLabel: "Stock days", sort: true, num: true },
+    { key: "leadTimeDays", label: "Lead time", shortLabel: "Lead d", sort: true, num: true },
+    { key: "confidenceScore", label: "Confidence", shortLabel: "Conf.", sort: true }
   ];
 
   function sortHeader(column) {
     if (!column.sort) return esc(column.label);
     var active = state.sortBy === column.key;
     return '<button type="button" class="ii-sort" data-action="sort" data-key="' + column.key + '"' + (active ? ' data-dir="' + state.sortDir + '"' : '') +
-      ' aria-label="Sort by ' + esc(column.label) + '">' + esc(column.label) + '</button>';
+      ' aria-label="Sort by ' + esc(column.label) + '">' + esc(column.shortLabel || column.label) + '</button>';
   }
   function ariaSort(column) {
     if (!column.sort || state.sortBy !== column.key) return "";
@@ -480,7 +480,8 @@
     return '<tr data-selected="' + Boolean(state.selected[r.recommendationId]) + '">' +
       '<td>' + (canDecide(r) ? '<input type="checkbox" data-action="select" data-id="' + esc(r.recommendationId) + '" aria-label="Select ' + esc(r.itemLabel || r.itemId) + '"' + checked + '>' : '') + '</td>' +
       '<td><div class="ii-item-name">' + esc(r.itemLabel || r.itemId) + '</div>' +
-        '<div class="ii-sub">' + (r.sku ? 'SKU ' + esc(r.sku) + ' · ' : '') + esc(r.itemId) + '</div>' + evidenceSummary(r) + '</td>' +
+        '<div class="ii-sub ii-item-meta" title="' + esc((r.sku ? 'SKU ' + r.sku + ' · ' : '') + r.itemId) + '">' +
+        (r.sku ? 'SKU ' + esc(r.sku) + ' · ' : '') + esc(r.itemId) + '</div>' + evidenceSummary(r) + '</td>' +
       '<td>' + (r.supplierName ? esc(r.supplierName) : '<span class="ii-sub">Unmapped</span>') + '</td>' +
       '<td class="num' + (ev.onHand < 0 ? ' ii-neg' : '') + '">' + num(ev.onHand) + '</td>' +
       '<td class="num">' + num(ev.openPoQuantity) + '</td>' +
@@ -492,9 +493,60 @@
       '<td>' + confidenceCell(r) + '</td>' +
       '<td class="ii-act first num">' + (qty > 0 ? '<span class="ii-qty">' + num(qty) + '</span> <span class="ii-sub">units</span>' : '<span class="ii-sub">None</span>') + '</td>' +
       '<td class="ii-act"><div class="ii-rec-text"><div>' + statusBadge(r.status) + ' <span class="ii-sub">' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span></div>' +
-        '<div class="ii-sub">' + esc(actionText) + '</div></div></td>' +
+        '<div class="ii-sub ii-rec-detail" title="' + esc(actionText) + '">' + esc(actionText) + '</div></div></td>' +
       '<td class="ii-act">' + rowActions(r) + '</td>' +
     '</tr>';
+  }
+
+  var EVIDENCE_COLUMNS = [.035, .215, .12, .07, .07, .075, .075, .085, .085, .08, .09];
+  var ACTION_COLUMNS = [.17, .42, .41];
+  function queueColumnWidths(table) {
+    var shares = EVIDENCE_COLUMNS.map(function (fraction) { return state.evidenceShare * fraction; })
+      .concat(ACTION_COLUMNS.map(function (fraction) { return (100 - state.evidenceShare) * fraction; }));
+    table.querySelectorAll("col").forEach(function (col, index) {
+      col.style.width = shares[index].toFixed(3) + "%";
+    });
+  }
+
+  function wireQueueSplitter() {
+    var wrap = el("iiResults").querySelector(".ii-table-wrap");
+    var handle = wrap && wrap.querySelector(".ii-queue-splitter");
+    if (!handle) return;
+    var table = wrap.querySelector("table");
+    function setShare(value) {
+      state.evidenceShare = Math.max(54, Math.min(72, value));
+      queueColumnWidths(table);
+      handle.style.left = state.evidenceShare + "%";
+      handle.setAttribute("aria-valuenow", String(Math.round(state.evidenceShare)));
+    }
+    function moveTo(clientX) {
+      var rect = wrap.getBoundingClientRect();
+      setShare((clientX - rect.left + wrap.scrollLeft) / table.offsetWidth * 100);
+    }
+    setShare(state.evidenceShare);
+    handle.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      handle.setPointerCapture(event.pointerId);
+      handle.classList.add("dragging");
+    });
+    handle.addEventListener("pointermove", function (event) {
+      if (handle.hasPointerCapture(event.pointerId)) moveTo(event.clientX);
+    });
+    handle.addEventListener("pointerup", function (event) {
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    });
+    handle.addEventListener("lostpointercapture", function () { handle.classList.remove("dragging"); });
+    handle.addEventListener("keydown", function (event) {
+      var step = event.shiftKey ? 5 : 1;
+      if (event.key === "ArrowLeft") setShare(state.evidenceShare - step);
+      else if (event.key === "ArrowRight") setShare(state.evidenceShare + step);
+      else if (event.key === "Home") setShare(54);
+      else if (event.key === "End") setShare(72);
+      else return;
+      event.preventDefault();
+    });
+    handle.addEventListener("dblclick", function () { setShare(64); });
   }
 
   function renderResults() {
@@ -527,8 +579,12 @@
           return '<th scope="col"' + (index === 0 ? "" : "") + (c.num ? ' class="num"' : "") + ariaSort(c) + '>' + sortHeader(c) + '</th>';
         }).join("") +
         '<th scope="col" class="ii-group-action first num">' + sortHeaderAction() + '</th><th scope="col" class="ii-group-action">Recommendation</th><th scope="col" class="ii-group-action">Actions</th></tr>';
-      body = '<table class="ii-table"><caption class="ii-visually-hidden">Replenishment work queue</caption><thead>' + head1 + head2 + '</thead><tbody>' + items.map(renderRow).join("") + '</tbody></table>';
-      host.innerHTML = '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Work queue table, scrolls sideways">' + body + '</div>';
+      body = '<table class="ii-table ii-queue-table"><caption class="ii-visually-hidden">Replenishment work queue</caption>' +
+        '<colgroup>' + EVIDENCE_COLUMNS.concat(ACTION_COLUMNS).map(function () { return '<col>'; }).join("") + '</colgroup>' +
+        '<thead>' + head1 + head2 + '</thead><tbody>' + items.map(renderRow).join("") + '</tbody></table>';
+      host.innerHTML = '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Work queue table, scrolls sideways">' + body +
+        '<div class="ii-queue-splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Evidence and recommendation width; use arrow keys to resize" aria-valuemin="54" aria-valuemax="72"></div></div>';
+      wireQueueSplitter();
     }
     host.setAttribute("aria-busy", state.listLoading ? "true" : "false");
 
@@ -540,7 +596,7 @@
 
   function sortHeaderAction() {
     var active = state.sortBy === "suggestedOrderQuantity";
-    return '<button type="button" class="ii-sort" data-action="sort" data-key="suggestedOrderQuantity"' + (active ? ' data-dir="' + state.sortDir + '"' : '') + ' aria-label="Sort by suggested order quantity">Suggested order</button>';
+    return '<button type="button" class="ii-sort" data-action="sort" data-key="suggestedOrderQuantity"' + (active ? ' data-dir="' + state.sortDir + '"' : '') + ' aria-label="Sort by suggested order quantity">Order qty</button>';
   }
 
   function allSelected(items) {
