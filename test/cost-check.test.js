@@ -262,3 +262,126 @@ test("an item fix touches only the rows whose cost actually differs", async () =
 test("unknown fix types are refused", async () => {
   await assert.rejects(fixes.prepareCostFix({ type: "drop-everything", newCost: 1 }, { userId: "u" }, { pool: fakePool([]), service: {} }), /Unknown fix type/);
 });
+
+/* ─────────── roles: one SKU, different lines (order 1700) ─────────── */
+
+test("an edging line that reuses a lens OPC is never compared with the lens master", () => {
+  const masters = {
+    lens: new Map([["0023407745", { kind: "lens", id: 1150944, ids: [1150944], cost: 1.9, name: "70S400/250" }]]),
+    misc: new Map()
+  };
+  assert.equal(scan.masterFor(masters, 1, "0023407745").cost, 1.9, "the lens line still finds its master");
+  assert.equal(scan.masterFor(masters, 7, "0023407745"), null, "the edging line must not borrow the lens cost");
+  assert.equal(scan.masterFor(masters, 7, null), null);
+  const edging = scan.analyseLine(
+    { category: 7, type: 1, sku: "0023407745", quantity: 1, cost: 9, price: 15 },
+    { master: scan.masterFor(masters, 7, "0023407745"), masterChecked: true }
+  );
+  assert.deepEqual(edging.issues, []);
+});
+
+function analysedLine(over) {
+  return {
+    lineId: 1, type: 1, isPackage: false, category: 1, categoryName: "Lens", sku: "A", description: "Left Lens: X",
+    cost: 0, price: 24, issues: [{ code: "no-cost", severity: "critical" }], ...over
+  };
+}
+
+test("an uncosted lens beside an over-costed edging line for the same SKU is flagged as a misplaced cost", () => {
+  const lines = [
+    analysedLine({ lineId: 4351, sku: "0023407745" }),
+    analysedLine({ lineId: 4352, sku: "0024407751", description: "Right Lens: X" }),
+    analysedLine({ lineId: 4353, sku: "0023407745", category: 7, categoryName: "Edging", description: "Edging Charge", cost: 9, price: 9, issues: [{ code: "cost-ge-price" }] }),
+    analysedLine({ lineId: 4354, sku: "0024407751", category: 7, categoryName: "Edging", description: "Edging Charge", cost: 9, price: 9, issues: [{ code: "cost-ge-price" }] })
+  ];
+  const notes = scan.markMisplacedCosts(lines);
+  assert.equal(notes.length, 2);
+  assert.equal(notes[0].code, "cost-misplaced");
+  assert.equal(lines[0].misplacedFrom.lineId, 4353, "each eye is paired by SKU");
+  assert.equal(lines[1].misplacedFrom.lineId, 4354);
+  assert.equal(lines[0].misplacedFrom.cost, 9);
+});
+
+test("a healthy edging line does not make an uncosted lens look misplaced", () => {
+  const lines = [
+    analysedLine({ lineId: 1, sku: "S" }),
+    analysedLine({ lineId: 2, sku: "S", category: 7, categoryName: "Edging", cost: 3, price: 9, issues: [] })
+  ];
+  assert.deepEqual(scan.markMisplacedCosts(lines), []);
+  assert.equal(lines[0].misplacedFrom, undefined);
+});
+
+/* ─────────── finding a cost ─────────── */
+
+test("a description is matched on the product, whichever eye or prefix it carries, and wildcards stay literal", () => {
+  assert.equal(scan.descriptionPattern("Left Lens: Plastic CR-39 Bifocal"), "%Plastic CR-39 Bifocal%");
+  assert.equal(scan.descriptionPattern("Right: Resin Poly 1.59"), "%Resin Poly 1.59%");
+  assert.equal(scan.descriptionPattern("Edging Charge"), "%Edging Charge%");
+  assert.equal(scan.descriptionPattern("AR"), null, "too little to match on");
+  assert.equal(scan.descriptionPattern("  "), null);
+  assert.equal(scan.descriptionPattern("50%_off"), "%50\\%\\_off%");
+  assert.equal(scan.likeLiteral("50%_off[1]"), "50\\%\\_off\\[1]");
+});
+
+test("the search queries are parameterised and read-only", () => {
+  const all = [
+    scan.buildSearchLensQuery(scan.LENS_OPC_COLUMNS), scan.buildSearchLensByNameQuery(), scan.buildSearchMiscQuery(), scan.buildSimilarLinesQuery()
+  ].join("\n");
+  assert.doesNotMatch(all, /vw\.StockItems/);
+  assert.doesNotMatch(all, /\b(UPDATE|INSERT|DELETE|MERGE|DROP|EXEC)\b/i);
+  assert.match(all, /@prefix/);
+  assert.match(scan.buildSimilarLinesQuery(), /LIKE @pattern ESCAPE/);
+  assert.match(scan.buildSearchMiscQuery(), /ESCAPE/);
+});
+
+test("searching with nothing to look for is refused", async () => {
+  await assert.rejects(scan.searchCostItems({ query: "a" }), /at least 2/);
+  await assert.rejects(scan.searchCostItems({ query: "x".repeat(65) }), /at least 2|too long/);
+});
+
+/* ─────────── moving a cost between lines ─────────── */
+
+function linePool(byId) {
+  return {
+    request() {
+      let id = null;
+      return { input(name, type, value) { id = value; return this; }, query: async () => ({ recordset: byId[id] ? [byId[id]] : [] }) };
+    }
+  };
+}
+
+test("a cost can be moved to the right line, zeroing the wrong one, in one guarded change", async () => {
+  let asked = null;
+  const service = { requestChallenge: (req) => { asked = req; return { challengeId: "c", sql: req.sql }; } };
+  const pool = linePool({
+    4351: { InvoiceLineID: 4351, CostPrice: 0, Description: "Left Lens: X", OrderID: 1700 },
+    4353: { InvoiceLineID: 4353, CostPrice: 9, Description: "Edging Charge", OrderID: 1700 }
+  });
+  const out = await fixes.prepareCostFix(
+    { type: "line-costs", changes: [{ lineId: 4351, newCost: 9 }, { lineId: 4353, newCost: 0 }] }, { userId: "u" }, { pool, service }
+  );
+  assert.equal(out.preview.changes.length, 2);
+  assert.match(asked.sql, /CostPrice = 9\.0000.*InvoiceLineID = 4351 AND ISNULL\(CostPrice, 0\) = 0\.0000;/);
+  assert.match(asked.sql, /CostPrice = 0\.0000.*InvoiceLineID = 4353 AND ISNULL\(CostPrice, 0\) = 9\.0000;/);
+});
+
+test("a multi-line change refuses mixed orders, duplicates, blanks and no-ops", async () => {
+  const service = { requestChallenge() { throw new Error("must not be called"); } };
+  const pool = linePool({
+    1: { InvoiceLineID: 1, CostPrice: 0, Description: "a", OrderID: 10 },
+    2: { InvoiceLineID: 2, CostPrice: 5, Description: "b", OrderID: 11 },
+    3: { InvoiceLineID: 3, CostPrice: 5, Description: "c", OrderID: 10 }
+  });
+  const run = (changes) => fixes.prepareCostFix({ type: "line-costs", changes }, { userId: "u" }, { pool, service });
+  await assert.rejects(run([{ lineId: 1, newCost: 5 }, { lineId: 2, newCost: 0 }]), /same order/);
+  await assert.rejects(run([{ lineId: 1, newCost: 5 }, { lineId: 1, newCost: 6 }]), /only appear once/);
+  await assert.rejects(run([{ lineId: 1, newCost: "" }]), /cost/i);
+  await assert.rejects(run([{ lineId: 1, newCost: 0 }, { lineId: 3, newCost: 5 }]), /already carry/);
+  await assert.rejects(run([]), /between 1 and/i);
+});
+
+test("zero is only accepted when moving a cost, never as a plain correction", async () => {
+  assert.equal(fixes.validCost(0, { allowZero: true }), 0);
+  assert.throws(() => fixes.validCost(0), /greater than zero/);
+  assert.throws(() => fixes.validCost(-1, { allowZero: true }), /cost/i);
+});
