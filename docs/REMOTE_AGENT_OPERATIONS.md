@@ -108,6 +108,8 @@ npm run app:restart
 node scripts/monitor-harness.js verify
 ```
 
+The host follows `master`. After a branch is merged, the monitor (or the automatic Git check) offers the update and applies it from master; nobody needs to switch branches on the host first. An agent that deployed a branch for testing may leave the host on it, but that branch is then outside automatic updates until it is merged or the host is returned to master.
+
 For a deployment that must first fast-forward the host from a shared remote,
 use the guarded update script instead of manually pulling and restarting:
 

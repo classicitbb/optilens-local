@@ -55,6 +55,8 @@ internal sealed class OptiLensHostMonitor : Form
     private Form updateProgressWindow;
     private TextBox updateProgressBox;
     private Label updateProgressSummary;
+    private ProgressBar updateProgressBar;
+    private string updatePendingNotes = "";
     private bool restartInProgress;
     private DateTime restartProgressStartedAt;
     private string restartProgressRunId = "";
@@ -299,43 +301,150 @@ internal sealed class OptiLensHostMonitor : Form
             var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
             var available = Convert.ToBoolean(Value(status, "available"));
             var applying = Convert.ToBoolean(Value(status, "applying"));
+            var git = Map(Value(status, "git"));
+            var plan = Map(Value(status, "plan"));
+            var localChanges = git != null && Convert.ToBoolean(Value(git, "localChanges"));
+            var run = Map(Value(status, "updateRun"));
             var areas = Value(status, "changedAreas") as object[];
-            updateStatus.Text = applying ? "Update in progress — waiting for service restart" : available ? "Updates ready: " + (areas == null ? "pushed changes" : areas.Length + " area(s)") : "Updates: up to date";
-            updateStatus.ForeColor = applying || available ? Color.DarkGoldenrod : Color.ForestGreen;
-            applyUpdatesButton.Enabled = !updateInProgress && !applying && available && Convert.ToBoolean(Value(Value(status, "plan") as IDictionary<string, object>, "restartService"));
+
+            updatePendingNotes = DescribePending(git);
+            if (applying)
+            {
+                updateStatus.Text = "Update in progress: " + (run == null ? "starting" : S(Value(run, "phase")) + " (" + S(Value(run, "percent")) + "%)");
+                updateStatus.ForeColor = Color.DarkGoldenrod;
+            }
+            else if (available && localChanges)
+            {
+                updateStatus.Text = "Updates ready, but blocked by local changes: " + JoinList(Value(git, "dirtyFiles"), 3);
+                updateStatus.ForeColor = Color.Firebrick;
+            }
+            else if (available)
+            {
+                var behind = git == null ? 0 : Convert.ToInt32(Value(git, "behind") ?? 0);
+                updateStatus.Text = "Updates ready: " + (behind > 0 ? behind + " new commit(s) on " + S(Value(git, "branch")) : (areas == null ? "pushed changes" : areas.Length + " area(s)"));
+                updateStatus.ForeColor = Color.DarkGoldenrod;
+            }
+            else if (git != null && !string.IsNullOrEmpty(S(Value(git, "error"))))
+            {
+                updateStatus.Text = "Update check: " + S(Value(git, "error"));
+                updateStatus.ForeColor = Color.Firebrick;
+            }
+            else
+            {
+                var testing = git != null && Convert.ToBoolean(Value(git, "holdsUnmergedWork"));
+                updateStatus.Text = testing ? "Up to date. Host is running " + S(Value(git, "currentBranch")) + " (not " + S(Value(git, "branch")) + ")" : "Updates: up to date";
+                updateStatus.ForeColor = Color.ForestGreen;
+            }
+            applyUpdatesButton.Enabled = !updateInProgress && !applying && available && !localChanges && Convert.ToBoolean(Value(plan, "restartService"));
         }
         catch (Exception error) { updateStatus.Text = "Update check failed: " + error.Message; updateStatus.ForeColor = Color.Firebrick; applyUpdatesButton.Enabled = false; }
     }
 
+    private static string JoinList(object value, int max)
+    {
+        var items = value as object[];
+        if (items == null || items.Length == 0) return "";
+        return string.Join(", ", items.Take(max).Select(S)) + (items.Length > max ? " ..." : "");
+    }
+
+    // What the operator is about to apply, in words: the commits, and what happens to the branch.
+    private string DescribePending(IDictionary<string, object> git)
+    {
+        if (git == null) return "";
+        var text = new StringBuilder();
+        var commits = Value(git, "pendingCommits") as object[];
+        if (commits != null && commits.Length > 0)
+        {
+            text.AppendLine("New on " + S(Value(git, "branch")) + ":");
+            foreach (var commit in commits.Take(8)) text.AppendLine("  " + S(commit));
+        }
+        if (Convert.ToBoolean(Value(git, "switchRequired")))
+        {
+            text.AppendLine();
+            text.AppendLine("This host is on branch " + S(Value(git, "currentBranch")) + "; the update switches it to " + S(Value(git, "branch")) + ".");
+            if (Convert.ToBoolean(Value(git, "holdsUnmergedWork")))
+                text.AppendLine("WARNING: that branch has " + S(Value(git, "ahead")) + " commit(s) not on " + S(Value(git, "branch")) + ". They stay on the branch, but the host stops running them.");
+        }
+        return text.ToString().TrimEnd();
+    }
+
     private async Task ApplyUpdates()
     {
-        if (MessageBox.Show("Apply the pushed OptiLens Local update and restart the service?", "Confirm update", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        var prompt = "Apply the pushed OptiLens Local update and restart the service?" + (updatePendingNotes.Length > 0 ? Environment.NewLine + Environment.NewLine + updatePendingNotes : "");
+        if (MessageBox.Show(prompt, "Confirm update", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
         updateInProgress = true;
         applyUpdatesButton.Enabled = false;
         ShowUpdateProgress();
+        var requestedAt = DateTime.UtcNow.AddSeconds(-5);
         try
         {
             var result = Map(json.DeserializeObject(await Api("/api/monitor/updates/apply", "POST")));
             updateStatus.Text = S(Value(result, "message")); updateStatus.ForeColor = Color.DarkGoldenrod;
-            AppendUpdateProgress("Update accepted. The monitor will show each runner step and reconnect after the service restart.");
-            for (var attempt = 1; attempt <= 180; attempt++)
+            AppendUpdateProgress("Update accepted. The monitor follows each runner step and reconnects after the service restart.");
+            // The runner writes its own durable state (data/update-state.json), so the verdict is the
+            // runner's, not a guess from whether files still differ. Wait for it; a restart and a
+            // dependency install can take minutes.
+            var verdict = "";
+            for (var attempt = 1; attempt <= 900 && verdict.Length == 0; attempt++)
             {
                 await RefreshUpdateProgress();
                 await Task.Delay(1000);
-                if (await IsUpdateComplete()) break;
+                verdict = await RunnerVerdict(requestedAt);
             }
+            await RefreshUpdateProgress();
+            if (verdict.Length == 0) FinishUpdateProgress(false, "The update runner did not report a result within 15 minutes. Check data/local-update.log.");
         }
         catch (Exception error)
         {
             updateStatus.Text = "Update failed to start: " + error.Message; updateStatus.ForeColor = Color.Firebrick;
             AppendUpdateProgress("UPDATE REQUEST FAILED: " + error.Message);
+            FinishUpdateProgress(false, error.Message);
         }
         finally
         {
             updateInProgress = false;
         }
-        await RefreshUpdateProgress();
         await RefreshAll();
+        await CheckUpdates();
+    }
+
+    // "" while the run is still going; otherwise "completed" or "failed" (after showing it).
+    private async Task<string> RunnerVerdict(DateTime requestedAt)
+    {
+        try
+        {
+            var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
+            var run = Map(Value(status, "updateRun"));
+            if (run == null) return "";
+            DateTime updated;
+            if (!DateTime.TryParse(S(Value(run, "updatedAt")), null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out updated) || updated < requestedAt) return "";
+            var state = S(Value(run, "status"));
+            var percent = 0; int.TryParse(S(Value(run, "percent")), out percent);
+            if (updateProgressBar != null) updateProgressBar.Value = Math.Max(0, Math.Min(100, percent));
+            if (state == "running")
+            {
+                if (updateProgressSummary != null) { updateProgressSummary.Text = S(Value(run, "phase")) + " - " + percent + "%"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+                return "";
+            }
+            if (state == "completed") { FinishUpdateProgress(true, S(Value(run, "message"))); return "completed"; }
+            if (state == "failed") { FinishUpdateProgress(false, S(Value(run, "error")).Length > 0 ? S(Value(run, "error")) : S(Value(run, "message"))); return "failed"; }
+            return "";
+        }
+        catch { return ""; } // the service is restarting; keep waiting
+    }
+
+    private void FinishUpdateProgress(bool ok, string message)
+    {
+        if (updateProgressSummary != null)
+        {
+            updateProgressSummary.Text = (ok ? "Update completed. " : "Update did not complete. ") + message;
+            updateProgressSummary.ForeColor = ok ? Color.ForestGreen : Color.Firebrick;
+        }
+        if (updateProgressBar != null && ok) updateProgressBar.Value = 100;
+        updateStatus.Text = ok ? "Updates: up to date" : "Update failed: " + message;
+        updateStatus.ForeColor = ok ? Color.ForestGreen : Color.Firebrick;
+        AppendUpdateProgress((ok ? "COMPLETED: " : "FAILED: ") + message);
+        tray.ShowBalloonTip(5000, "OptiLens Local update", (ok ? "Completed. " : "Failed. ") + message, ok ? ToolTipIcon.Info : ToolTipIcon.Error);
     }
 
     private void ShowUpdateProgress()
@@ -345,7 +454,9 @@ internal sealed class OptiLensHostMonitor : Form
             updateProgressWindow = new Form { Text = "OptiLens Local Update Progress", ClientSize = new Size(820, 520), StartPosition = FormStartPosition.CenterParent, MinimizeBox = true };
             updateProgressSummary = new Label { Text = "Preparing update runner…", Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 8, 10, 0), ForeColor = Color.DarkGoldenrod };
             updateProgressBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill, Font = new Font("Consolas", 9) };
+            updateProgressBar = new ProgressBar { Dock = DockStyle.Top, Height = 14, Minimum = 0, Maximum = 100, Style = ProgressBarStyle.Continuous };
             updateProgressWindow.Controls.Add(updateProgressBox);
+            updateProgressWindow.Controls.Add(updateProgressBar);
             updateProgressWindow.Controls.Add(updateProgressSummary);
         }
         updateProgressWindow.Show();
@@ -384,19 +495,6 @@ internal sealed class OptiLensHostMonitor : Form
         {
             if (updateProgressSummary != null) { updateProgressSummary.Text = "Waiting for service to restart: " + error.Message; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
         }
-    }
-
-    private async Task<bool> IsUpdateComplete()
-    {
-        try
-        {
-            var status = Map(json.DeserializeObject(await Api("/api/monitor/updates")));
-            if (Convert.ToBoolean(Value(status, "available"))) return false;
-            if (updateProgressSummary != null) { updateProgressSummary.Text = "Update completed and service is reachable."; updateProgressSummary.ForeColor = Color.ForestGreen; }
-            updateStatus.Text = "Updates: up to date"; updateStatus.ForeColor = Color.ForestGreen;
-            return true;
-        }
-        catch { return false; }
     }
 
     private async Task ReportIncident(List<string> failedConnections)

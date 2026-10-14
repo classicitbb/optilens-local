@@ -1042,7 +1042,7 @@ async function refreshGitUpdatesOnSchedule() {
     });
     return;
   }
-  if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && !status.git.localChanges && !scheduledUpdate) {
+  if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && status.git.autoApplySafe && !status.git.localChanges && !scheduledUpdate) {
     scheduleApplicationUpdate(status);
   }
 }
@@ -1391,7 +1391,8 @@ const server = http.createServer(async (req, res) => {
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
-        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        const changed = (status.git.dirtyFiles || []).slice(0, 5).join(", ");
+        const error = new Error("Remote updates are available, but this checkout has local changes" + (changed ? " (" + changed + ")" : "") + ". Commit or stash them before applying the Git update.");
         error.statusCode = 409;
         throw error;
       }
@@ -1434,7 +1435,8 @@ const server = http.createServer(async (req, res) => {
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
-        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        const changed = (status.git.dirtyFiles || []).slice(0, 5).join(", ");
+        const error = new Error("Remote updates are available, but this checkout has local changes" + (changed ? " (" + changed + ")" : "") + ". Commit or stash them before applying the Git update.");
         error.statusCode = 409;
         throw error;
       }
