@@ -1,18 +1,18 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — Inventory Intelligence drawer identity and active-user assignment selector are source-complete; deployment and authenticated browser verification remain
+- Status: Complete — no active handoff
 - Last synchronized: 2026-10-14
 
 ## Objective and current state
 
-### Inventory Intelligence lens identity and assignee choices — source complete
+### Inventory Intelligence lens identity and assignee choices — deployed
 
 The drawer now resolves a readable lens name from the exact six-part Innovations key and displays material, manufacturer, lens type, and option in that order. The lookup is a single parameterized read-only SELECT and leaves the drawer usable if the source is unavailable. Shelf-count and task-assignment dialogs now use a native dropdown populated by active app users; the stored assignee remains the selected username. The minimal assignee API requires Inventory write permission. No count or approval path gained an Innovations write.
 
-Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `test/inventory-intelligence-http.test.js`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Host focused Inventory tests passed 96/96; full `npm test` passed 491/491; changed JavaScript syntax and `git diff --check` passed. A harmless host source read returned all four names for the example lens, and an app database count found eight active assignable users. No production scan, task assignment, shelf count, approval, source write, app restart, or browser check of the new UI was performed.
+Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `test/inventory-intelligence-http.test.js`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Host focused Inventory tests passed 96/96; full `npm test` passed 491/491; changed JavaScript syntax and `git diff --check` passed. A harmless host source read returned all four names for the example lens, and an app database count found eight active assignable users. The guarded updater passed smoke, full tests, restart, and monitor verification. The live signed-in drawer showed the composite name; both assignment dialogs showed nine dropdown options (placeholder plus eight active users), with the existing assignee selected in the task dialog. Both dialogs were closed without saving. No production scan, task assignment, shelf count, approval, or source write was performed.
 
-The count form has one combined quantity while Innovations separately tracks right, left, and pair balances. Direct count writeback needs a verified stock-adjustment contract, eye/pair allocation, reconciliation, audit, and explicit authorization. Approved settings currently belong only to the app database; field mapping and a supported Innovations write contract are unverified. Approval required: host deployment of the UI/API change, and separate authorization if source-system writeback is ever requested. Next executable action: on deployment authorization run the guarded updater from the committed host branch without a Git pull, verify monitor health, and inspect the signed-in drawer and both assignment dialogs. The running monitor executable remains a known tracked generated change and blocks a guarded Git pull until controlled maintenance.
+The count form has one combined quantity while Innovations separately tracks right, left, and pair balances. Direct count writeback needs a verified stock-adjustment contract, eye/pair allocation, reconciliation, audit, and explicit authorization. Approved settings currently belong only to the app database; field mapping and a supported Innovations write contract are unverified. The host's generated monitor executable was independently committed after the source change, leaving the branch clean. The deployed branch remains separate from `master`; automatic updates from `master` require merge or returning the host to `master`.
 
 ### Inventory Intelligence compact queue and splitter — deployed
 
