@@ -279,18 +279,21 @@ test("a database outage is reported as 'unavailable', not as an empty queue", as
 
 /* ─────────── visibility: no customer-facing surface ─────────── */
 
-test("the Business Metrics page that hosts the cockpit is administrator-only", () => {
+test("the dedicated cockpit route is administrator-only", () => {
   const server = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
-  assert.match(server, /"\/business-metrics\.html": \["platform\.admin"\]/);
-  assert.match(server, /"\/modules\/business-metrics": \["platform\.admin"\]/);
+  assert.match(server, /"\/inventory-intelligence\.html": \["platform\.admin"\]/);
+  assert.match(server, /"\/modules\/inventory-intelligence": \["platform\.admin"\]/);
+  assert.match(server, /"\/modules\/inventory-intelligence": "inventory-intelligence\.html"/);
   assert.match(server, /handleInventoryRoute\(\{ req, res, url, readJsonBody, currentUser, sendJson \}\)/);
 });
 
 test("only staff-side code references the cockpit: no portal, website connector or public API does", () => {
   const allowed = new Set([
-    "server.js", "lib/migrations.js", "public/business-metrics.html", "public/business-metrics-inventory-intelligence.js",
+    "server.js", "lib/migrations.js", "public/business-metrics.html", "public/inventory-intelligence.html",
+    "public/app.js", "public/shared.js", "public/business-metrics-inventory-intelligence.js",
     "public/styles/pages/inventory-intelligence.css", "scripts/run-inventory-intelligence-scan.js",
-    "docs/INVENTORY_INTELLIGENCE_COCKPIT_BUILD_TASK.md", "docs/INVENTORY_INTELLIGENCE.md"
+    "docs/INVENTORY_INTELLIGENCE_COCKPIT_BUILD_TASK.md", "docs/INVENTORY_INTELLIGENCE.md",
+    "docs/agent/PROJECT_KNOWLEDGE.md", "docs/agent/HANDOFF.md"
   ]);
   const roots = ["server.js", "lib", "public", "scripts", "extensions", "templates", "docs"];
   const hits = [];
@@ -318,13 +321,15 @@ test("only staff-side code references the cockpit: no portal, website connector 
   }
 });
 
-test("the Business Metrics page wires in the cockpit tab, panel, stylesheet and script", () => {
-  const html = fs.readFileSync(path.join(ROOT, "public", "business-metrics.html"), "utf8");
-  assert.match(html, /<button type="button" data-tab="inventory-intelligence">Inventory Intelligence<\/button>/);
-  assert.match(html, /<section class="workflow-panel" id="inventory-intelligence">[\s\S]*id="inventoryIntelligenceRoot"/);
+test("Business Metrics links to the dedicated cockpit workspace", () => {
+  const metrics = fs.readFileSync(path.join(ROOT, "public", "business-metrics.html"), "utf8");
+  assert.match(metrics, /href="\/modules\/inventory-intelligence">Inventory Intelligence<\/a>/);
+  assert.doesNotMatch(metrics, /id="inventoryIntelligenceRoot"/);
+  const html = fs.readFileSync(path.join(ROOT, "public", "inventory-intelligence.html"), "utf8");
+  assert.match(html, /id="inventoryIntelligenceRoot"/);
   assert.match(html, /href="\/styles\/pages\/inventory-intelligence\.css"/);
   assert.match(html, /src="\/business-metrics-inventory-intelligence\.js"/);
-  assert.ok(html.indexOf("inventory-intelligence.css") < html.indexOf("/styles/system.css"), "the shared system stylesheet still loads last");
+  assert.ok(html.indexOf("/styles/system.css") < html.indexOf("inventory-intelligence.css"), "workspace styles follow the shared system stylesheet");
 
   const script = fs.readFileSync(path.join(ROOT, "public", "business-metrics-inventory-intelligence.js"), "utf8");
   assert.doesNotThrow(() => new Function(script), "the page script parses");

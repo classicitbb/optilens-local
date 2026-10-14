@@ -105,6 +105,14 @@ const platformApplications = [
     permissions: ["platform.admin"]
   },
   {
+    id: "inventory-intelligence",
+    name: "Inventory Intelligence",
+    href: "/modules/inventory-intelligence",
+    summary: "Replenishment evidence, work queues, approvals, and draft PO previews.",
+    status: "first-build",
+    permissions: ["platform.admin"]
+  },
+  {
     id: "cost-check",
     name: "Cost Check",
     href: "/modules/cost-check",
@@ -261,6 +269,16 @@ function wireHomeAuthForm() {
   const form = document.querySelector("#homeAuthForm");
   if (!form) return;
   form.addEventListener("submit", submitHomeAuth);
+  const password = document.querySelector("#homeAuthPassword");
+  const toggle = document.querySelector("#homePasswordToggle");
+  toggle?.addEventListener("click", () => {
+    const showing = password.type === "password";
+    password.type = showing ? "text" : "password";
+    toggle.setAttribute("aria-pressed", String(showing));
+    toggle.setAttribute("aria-label", showing ? "Hide password" : "Show password");
+    toggle.querySelector(".material-symbols-outlined").textContent = showing ? "visibility_off" : "visibility";
+    password.focus();
+  });
 }
 
 async function submitHomeAuth(event) {

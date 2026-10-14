@@ -10,10 +10,10 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/pages/business-metrics.css">
   <link rel="stylesheet" href="/styles/pages/inventory.css">
-  <link rel="stylesheet" href="/styles/pages/inventory-intelligence.css">
   <link rel="stylesheet" href="/styles/system.css">
+  <link rel="stylesheet" href="/styles/pages/business-metrics-layout.css">
 </head>
-<body class="module-body">
+<body class="module-body business-metrics-page">
 
   <div id="app-shell-header"></div>
 <script>
@@ -42,7 +42,7 @@
         <button type="button" data-tab="cost-lists">Cost lists</button>
         <button type="button" data-tab="data-quality">Data quality</button>
         <button type="button" data-tab="inventory">Inventory</button>
-        <button type="button" data-tab="inventory-intelligence">Inventory Intelligence</button>
+        <a class="workflow-module-link" href="/modules/inventory-intelligence">Inventory Intelligence</a>
       </nav>
 
       <!-- Every panel is rendered by a module and loads its own data on first open:
@@ -58,7 +58,6 @@
       <section class="workflow-panel" id="cost-lists"><div class="ov-root" data-section="cost-lists"></div></section>
       <section class="workflow-panel" id="data-quality"><div class="ov-root" data-section="data-quality"></div></section>
       <section class="workflow-panel" id="inventory"><div class="ov-root inv-root" data-section="inventory"></div></section>
-      <section class="workflow-panel" id="inventory-intelligence"><div class="ii-root" id="inventoryIntelligenceRoot"></div></section>
     </section>
   </main>
 
@@ -68,6 +67,5 @@
   <script src="/business-metrics-overview.js"></script>
   <script src="/business-metrics-tabs.js"></script>
   <script src="/business-metrics-inventory.js"></script>
-  <script src="/business-metrics-inventory-intelligence.js"></script>
 </body>
 </html>

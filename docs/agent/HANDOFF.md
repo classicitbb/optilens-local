@@ -1,10 +1,18 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — RX Capture output, catalogue-availability, and recent-orders table refinements are deployed and healthy; no RX file was generated or released
-- Last synchronized: 2026-09-28
+- Status: In progress — local Inventory Intelligence workspace and sign-in/layout changes need host deployment and authenticated browser verification; prior handoffs remain below
+- Last synchronized: 2026-10-14
 
 ## Objective and current state
+
+### Inventory Intelligence workspace and annotated sign-in/layout changes — local only
+
+Moved Inventory Intelligence from a Business Metrics tab to administrator-only `/modules/inventory-intelligence`, retained a Business Metrics navigation link, added launcher and Launch Pad entries, and made the new workspace edge-to-edge. Scoped Business Metrics main/title padding to the annotated values and set the cockpit filter navigation to 12px. The Launch Pad username field requests autocomplete off; the password keeps `current-password` and now has an accessible reveal button. Browsers may override the username autocomplete hint.
+
+Affected files: `server.js`, `public/index.html`, `public/app.js`, `public/shared.js`, `public/business-metrics.html`, `public/inventory-intelligence.html`, `public/business-metrics-inventory-intelligence.js`, `public/styles/components.css`, `public/styles/pages/business-metrics-layout.css`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `docs/INVENTORY_INTELLIGENCE.md`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Focused tests: `node --test test/inventory-intelligence-http.test.js test/business-metrics-overview.test.js test/design-system.test.js` passed 46/46 after the documentation update. `npm run check`, changed-JS `node --check`, and `git diff --check` passed. No host action, deployment, data write, or authenticated browser check was performed.
+
+Blocker: this task's supplied instructions require an explicit production/host deployment authorization; the current user request authorizes local source work but does not name deployment. The full `npm test` run was stopped after seven passing assistant tests because the unrelated assistant suite was progressing slowly; no full-suite result is claimed. Approval required: authorize the guarded production deployment. Next executable action: deploy the reviewed changes through `docs/REMOTE_AGENT_OPERATIONS.md` after authorization, run the full suite in the guarded workflow, and verify health plus signed-in browser behavior at desktop and narrow widths.
 
 ### PR #57 RX outbox fixture coverage — local tests complete; live submission pending
 

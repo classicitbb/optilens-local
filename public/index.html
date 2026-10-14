@@ -50,7 +50,7 @@
           <p id="homeAuthCopy">Use your OptiLens Local account.</p>
         </div>
         <label>Username
-          <input id="homeAuthUsername" name="username" autocomplete="username" required>
+          <input id="homeAuthUsername" name="username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
         </label>
         <label id="homeAuthDisplayNameWrap" hidden>Display name
           <input id="homeAuthDisplayName" name="displayName" autocomplete="name">
@@ -58,9 +58,13 @@
         <label id="homeAuthEmailWrap" hidden>Email
           <input id="homeAuthEmail" name="email" type="email" autocomplete="email">
         </label>
-        <label>Password
-          <input id="homeAuthPassword" name="password" type="password" autocomplete="current-password" required>
-        </label>
+        <div class="home-password-group">
+          <label for="homeAuthPassword">Password</label>
+          <div class="home-password-field">
+            <input id="homeAuthPassword" name="password" type="password" autocomplete="current-password" required>
+            <button id="homePasswordToggle" class="home-password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="homeAuthPassword"><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button>
+          </div>
+        </div>
         <div class="auth-error" id="homeAuthError" role="alert"></div>
         <button class="button primary" id="homeAuthSubmit" type="submit">Sign in</button>
       </form>

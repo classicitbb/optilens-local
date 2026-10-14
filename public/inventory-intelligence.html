@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Inventory Intelligence - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/system.css">
+  <link rel="stylesheet" href="/styles/pages/inventory-intelligence.css">
+</head>
+<body class="module-body inventory-intelligence-page">
+  <div id="app-shell-header"></div>
+  <script>window.OptiLensPage = { crumb: "Inventory Intelligence" };</script>
+  <main class="module-main">
+    <section class="module-workspace">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Inventory workspace</p>
+          <h1>Inventory Intelligence</h1>
+        </div>
+        <a class="ii-back-link" href="/modules/business-metrics">Business Metrics</a>
+      </div>
+      <div class="ii-root" id="inventoryIntelligenceRoot"></div>
+    </section>
+  </main>
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/business-metrics-inventory-intelligence.js"></script>
+</body>
+</html>

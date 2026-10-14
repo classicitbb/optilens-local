@@ -15,7 +15,6 @@
 (function () {
   "use strict";
 
-  var SECTION = "inventory-intelligence";
   var BASE = "/api/inventory-intelligence/";
   var PAGE_SIZE = 50;
 
@@ -152,14 +151,6 @@
     if (message && tone !== "error") liveTimer = setTimeout(function () { notify(""); }, 9000);
   }
 
-  function setBadge(text, cls) {
-    var badge = document.getElementById("statusBadge");
-    var panel = document.getElementById(SECTION);
-    if (!badge || !panel || !panel.classList.contains("active")) return;
-    badge.textContent = text;
-    badge.className = "badge " + cls;
-  }
-
   /* ───────────── data loading ───────────── */
 
   async function loadSummary() {
@@ -167,10 +158,8 @@
       state.summary = await api("summary");
       state.canApprove = Boolean(state.summary.capabilities && state.summary.capabilities.canApprove);
       state.summaryError = null;
-      setBadge(state.summary.dataStatus === "ok" ? "Live" : "Check scan", state.summary.dataStatus === "ok" ? "ready-for-import" : "credentials-needed");
     } catch (error) {
       state.summaryError = error.message;
-      setBadge("Unavailable", "credentials-needed");
     }
     renderHeader();
     renderCards();
@@ -1142,14 +1131,7 @@
   function init() {
     state.root = document.getElementById("inventoryIntelligenceRoot");
     if (!state.root) return;
-    var button = document.querySelector('.workflow-tabs button[data-tab="' + SECTION + '"]');
-    if (button) {
-      button.addEventListener("click", function () {
-        if (!state.started) start(); else loadSummary();
-      });
-    }
-    var panel = document.getElementById(SECTION);
-    if (panel && panel.classList.contains("active")) start();
+    start();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

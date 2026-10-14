@@ -1,6 +1,6 @@
 # Inventory Intelligence
 
-Internal replenishment cockpit under Business Metrics. It reads stock, usage and open
+Internal replenishment cockpit at `/modules/inventory-intelligence`, linked from Business Metrics. It reads stock, usage and open
 purchase orders from Innovations (read-only), calculates deterministic recommendations,
 and turns each actionable one into a task a person decides. Nothing here orders anything,
 writes to Innovations or changes the lens table. Build brief:
@@ -19,7 +19,7 @@ Code is in `lib/inventory/`: `calculator.js` (rules), `confidence.js` (data qual
 `source-adapter.js` (the only code that touches Innovations), `recommendations-service.js`,
 `task-service.js`, `settings-service.js`, `count-service.js`, `events.js` (durable queue),
 `scan-runner.js`, `draft-po-service.js`, `audit-service.js`, `routes.js`. UI is
-`public/business-metrics-inventory-intelligence.js`.
+`public/business-metrics-inventory-intelligence.js`, mounted by `public/inventory-intelligence.html`.
 
 ## Rules the code enforces
 
@@ -59,12 +59,12 @@ Code is in `lib/inventory/`: `calculator.js` (rules), `confidence.js` (data qual
 
 Reads need `inventory.read`, `delivery.read` (the existing Business Metrics read authority) or
 `platform.admin`. Anything that changes state needs `inventory.write` or `platform.admin`.
-The page itself is administrator-only (`/business-metrics.html`).
+The page itself is administrator-only (`/modules/inventory-intelligence`).
 
 ## Operating it
 
 Apply migration `053-inventory-intelligence.sql` through the normal update path (it is in
-`lib/migrations.js`). Then, from the Inventory Intelligence tab, **Run full scan**.
+`lib/migrations.js`). Then, from the Inventory Intelligence workspace, **Run full scan**.
 
 The scheduled full scan is a command, not an installed task:
 

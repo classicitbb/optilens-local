@@ -1,4 +1,4 @@
-/* Inventory Intelligence cockpit - Business Metrics.
+/* Inventory Intelligence standalone cockpit.
  *
  * Built on the shared tokens so light and dark follow the rest of the app.
  * Evidence and recommended actions are deliberately different materials:
@@ -115,6 +115,21 @@
   border: 1px solid var(--ii-line); background: var(--ii-surface); color: var(--ii-text);
 }
 .ii-chip[aria-pressed="true"], .ii-chip[aria-current="true"] { background: var(--ii-accent); border-color: var(--ii-accent); color: var(--color-surface); }
+
+/* The cockpit fills its own route and keeps dense filters on one row when space allows. */
+.inventory-intelligence-page .module-main { margin: 0; max-width: none; padding: 0; }
+.inventory-intelligence-page .module-workspace {
+  min-height: calc(100dvh - 56px); border: 0; border-radius: 0; box-shadow: none;
+}
+.inventory-intelligence-page .module-title { padding: 4px 12px 6px; }
+.inventory-intelligence-page .ii-root { padding: 12px; }
+.inventory-intelligence-page .ii-nav { font-size: 12px; }
+.inventory-intelligence-page .ii-chip { font-size: inherit; }
+.ii-back-link { color: var(--color-text-muted); font-size: .8rem; }
+@media (max-width: 760px) {
+  .inventory-intelligence-page .module-title { padding-inline: var(--space-4); }
+  .inventory-intelligence-page .ii-root { padding: var(--space-4); }
+}
 
 .ii-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); justify-content: space-between; align-items: center; }
 .ii-toolbar-group { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }

@@ -2322,6 +2322,16 @@ textarea.ci-line-input {
   display: none;
 }
 
+.home-password-group { display: grid; gap: 6px; }
+.home-password-field { position: relative; }
+.home-password-field input { width: 100%; padding-right: 44px; }
+.home-password-toggle {
+  position: absolute; inset-block: 0; inset-inline-end: 0; width: 44px;
+  display: grid; place-items: center; border: 0; background: transparent;
+  color: var(--muted); cursor: pointer;
+}
+.home-password-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 6px; }
+
 .home-auth-head h2 {
   margin: 0 0 4px;
   font-size: 17px;
