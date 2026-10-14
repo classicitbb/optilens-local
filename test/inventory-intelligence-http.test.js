@@ -60,7 +60,7 @@ test("the handler ignores every path outside its own prefix", async () => {
 test("every endpoint requires an authenticated session", async () => {
   await seeded();
   const endpoints = [
-    ["GET", "/summary"], ["GET", "/queue"], ["GET", "/recommendations/00000000-0000-4000-8000-000000000000"],
+    ["GET", "/summary"], ["GET", "/queue"], ["GET", "/item-identity"], ["GET", "/assignees"], ["GET", "/recommendations/00000000-0000-4000-8000-000000000000"],
     ["GET", "/tasks"], ["GET", "/draft-po"], ["GET", "/audit"], ["GET", "/scan/status"], ["GET", "/settings/1:1:1:1:1:101/history"],
     ["POST", "/recommendations/approve-all"], ["POST", "/recommendations/approve-selected"],
     ["POST", "/recommendations/00000000-0000-4000-8000-000000000000/approve"], ["POST", "/tasks/assign-shelf-count"],
@@ -107,6 +107,33 @@ test("the summary tells the page whether this user can approve", async () => {
   await seeded();
   assert.equal((await call("GET", `${API}/summary`, { user: "admin" })).body.capabilities.canApprove, true);
   assert.equal((await call("GET", `${API}/summary`, { user: "reader" })).body.capabilities.canApprove, false);
+});
+
+test("lens identity uses the full source key and returns the readable lens name", async () => {
+  setup();
+  const statements = fakeSource([liveRow({ materialName: "Polycarbonate", manufacturerName: "Vision-Ease",
+    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300" })]);
+  const result = await call("GET", `${API}/item-identity`, { query: "?itemId=1%3A1%3A1%3A1%3A1%3A100" });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.identity.name, "Polycarbonate · Vision-Ease · Single Vision · Clear");
+  assert.equal(statements.length, 1);
+  assert.match(statements[0].text, /FROM dbo\.LensItem li/);
+  assert.match(statements[0].text, /li\.MaterialGroup = @mg[\s\S]*li\.Num = @it/);
+  assert.equal((await call("GET", `${API}/item-identity`, { query: "?itemId=invalid" })).status, 400);
+});
+
+test("assignment choices are limited to active app users and inventory writers", async () => {
+  setup();
+  let query = "";
+  mock.method(db, "getAppPool", async () => ({ request: () => ({ query: async (text) => {
+    query = text;
+    return { recordset: [{ username: "greg", displayName: "Greg" }] };
+  } }) }));
+  assert.equal((await call("GET", `${API}/assignees`, { user: "inventoryReader" })).status, 403);
+  const result = await call("GET", `${API}/assignees`, { user: "inventoryWriter" });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.users, [{ username: "greg", displayName: "Greg" }]);
+  assert.match(query, /WHERE is_active = 1/);
 });
 
 test("the queue endpoint filters, validates and bounds its parameters", async () => {

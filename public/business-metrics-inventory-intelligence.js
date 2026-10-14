@@ -63,7 +63,7 @@
     scans: null,
     selected: {},                // recommendationId -> true
     evidenceShare: 64,           // percentage of the queue table reserved for source evidence
-    detail: null, detailError: null, detailId: null,
+    detail: null, detailError: null, detailId: null, itemIdentity: null,
     pollTimer: null, pollCount: 0
   };
 
@@ -623,6 +623,7 @@
   async function openDrawer(id) {
     state.detailId = id;
     state.detail = null;
+    state.itemIdentity = null;
     state.detailError = null;
     var dialog = el("iiDrawer");
     renderDrawer();
@@ -633,6 +634,16 @@
       state.detailError = error.message;
     }
     renderDrawer();
+    if (state.detail && state.detail.recommendation) {
+      try {
+        var result = await api("item-identity?itemId=" + encodeURIComponent(state.detail.recommendation.itemId));
+        if (state.detailId === id && dialog.open) {
+          state.itemIdentity = result.identity;
+          var title = dialog.querySelector("#iiDrawerTitle");
+          if (title && result.identity && result.identity.name) title.textContent = result.identity.name;
+        }
+      } catch (_) { /* The recommendation remains usable when its source name cannot be read. */ }
+    }
   }
 
   function kv(rows) {
@@ -775,8 +786,8 @@
     }
 
     dialog.innerHTML =
-      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle">' + esc(r.itemLabel || r.itemId) + '</h3>' +
-        '<div class="ii-sub">' + statusBadge(r.status) + ' <span>' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span><span>' + (r.sku ? 'SKU ' + esc(r.sku) : '') + '</span><span>' + esc(r.itemId) + '</span></div></div>' +
+      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle" title="' + esc(r.itemId) + '">' + esc((state.itemIdentity && state.itemIdentity.name) || r.itemLabel || r.itemId) + '</h3>' +
+        '<div class="ii-sub">' + statusBadge(r.status) + ' <span>' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span></div></div>' +
         '<button type="button" class="ii-btn small" data-action="close-drawer">Close</button></div>' +
       '<div class="ii-dialog-body">' + supersededNotice(d, r) + '<div class="ii-split">' + left + right + '</div>' + history + '</div>' +
       '<div class="ii-dialog-foot">' + foot + '</div>';
@@ -932,19 +943,38 @@
     var r = findRecommendation(id); if (!r) return;
     openModal("Mark reviewed: " + (r.itemLabel || r.itemId), '<p class="ii-small-print">Records your review outcome. It does not write anything off in the books.</p>' + reasonField("Review outcome", true), "Mark reviewed", "primary", { kind: "complete", id: id });
   }
-  function openShelf(ids) {
+  function assigneeField(users, current) {
+    return '<label class="ii-field">Assign to (required)<select class="ii-input" name="assignee" required>' +
+      '<option value="">Select an active user</option>' + users.map(function (user) {
+        var selected = String(user.username).toLowerCase() === String(current || "").toLowerCase() ? ' selected' : '';
+        return '<option value="' + esc(user.username) + '"' + selected + '>' + esc(user.displayName || user.username) +
+          (user.displayName && user.displayName !== user.username ? ' (' + esc(user.username) + ')' : '') + '</option>';
+      }).join("") + '</select></label>';
+  }
+  async function loadAssignees() {
+    var result = await api("assignees");
+    if (!result.users || !result.users.length) throw new Error("No active app users are available for assignment.");
+    return result.users;
+  }
+  async function openShelf(ids) {
+    var users;
+    try { users = await loadAssignees(); }
+    catch (error) { notify(error.message, "error"); return; }
     var many = ids.length > 1;
     var first = findRecommendation(ids[0]);
     openModal(many ? "Assign shelf count to " + ids.length + " items" : "Assign shelf count: " + (first ? first.itemLabel || first.itemId : ""),
       '<p class="ii-small-print">Creates the shelf-count task, or assigns the one that already exists.</p>' +
-      '<label class="ii-field">Assign to (required)<input class="ii-input" name="assignee" maxlength="120" required autocomplete="off"></label>' +
+      assigneeField(users) +
       '<label class="ii-field">Due date<input class="ii-input" type="date" name="dueDate"></label>' +
       '<label class="ii-field">Note<textarea class="ii-textarea" name="note" maxlength="500"></textarea></label>',
       "Assign", "primary", { kind: "shelf", ids: ids });
   }
-  function openAssignTask(id) {
+  async function openAssignTask(id) {
     var d = state.detail, task = d && d.task; if (!task) return;
-    openModal("Assign task", '<label class="ii-field">Assign to<input class="ii-input" name="assignee" maxlength="120" value="' + esc(task.assignee || "") + '" required autocomplete="off"></label>' +
+    var users;
+    try { users = await loadAssignees(); }
+    catch (error) { notify(error.message, "error"); return; }
+    openModal("Assign task", assigneeField(users, task.assignee) +
       '<label class="ii-field">Due date<input class="ii-input" type="date" name="dueDate" value="' + esc(task.dueDate || "") + '"></label>', "Save", "primary", { kind: "assign-task", taskId: task.taskId, id: id });
   }
   function openRecordCount(id) {
