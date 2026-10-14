@@ -126,6 +126,8 @@ const {
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
 const { getProductionStatus, getProductionOrders } = require("./lib/metrics/production-status");
+const { scanCosting } = require("./lib/metrics/costing-scan");
+const { prepareCostFix, canWriteSource } = require("./lib/metrics/costing-fix");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
 const { getDetailSection } = require("./lib/metrics/detail");
@@ -1562,6 +1564,30 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Cost Check: scan orders and lenses and see their costing. Reads Innovations only.
+  if (url.pathname === "/api/costing/scan" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "pricing.read");
+      const body = await readJsonBody(req);
+      const result = await scanCosting(body.codes);
+      // What this user may do about a problem, so the page only offers buttons that can work.
+      result.capabilities = {
+        canFix: user.permissions.includes("platform.admin") && canWriteSource(),
+        canExempt: user.permissions.includes("pricing.write")
+      };
+      return result;
+    });
+  }
+
+  // Prepares a guarded correction and opens the audited privileged-access challenge. It does not
+  // write: the administrator still confirms the exact statement via /api/admin/data-access/execute.
+  if (url.pathname === "/api/costing/fix/prepare" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "platform.admin");
+      return prepareCostFix(await readJsonBody(req), actor);
+    });
+  }
+
   // Production Status: throughput, WIP totals and work-order aging from live Innovations.
   if (url.pathname === "/api/production-status" && req.method === "GET") {
     return handleCachedApi(
@@ -2955,7 +2981,9 @@ function canAccessPage(requestPath, user) {
     "/modules/business-metrics": ["platform.admin"],
     "/business-metrics.html": ["platform.admin"],
     "/modules/production-status": ["platform.admin"],
-    "/production-status.html": ["platform.admin"]
+    "/production-status.html": ["platform.admin"],
+    "/modules/cost-check": ["pricing.read"],
+    "/cost-check.html": ["pricing.read"]
   };
 
   const required = pagePermissions[route];
@@ -3011,6 +3039,7 @@ function resolveStaticPath(requestPath) {
     "/modules/automation/supplier-email": "supplier-email.html",
     "/modules/business-metrics":    "business-metrics.html",
     "/modules/production-status":   "production-status.html",
+    "/modules/cost-check":          "cost-check.html",
     "/rx-capture":                  "rx-capture.html",
     "/admin/users":                 "admin-users.html",
     "/modules/chemistry-clips":     "chemistry-clips.html"
