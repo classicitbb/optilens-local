@@ -59,6 +59,7 @@
     summary: null, summaryError: null,
     list: null, listError: null, listLoading: false,
     draft: null, draftError: null, draftLoading: false,
+    poMode: "po", poQuery: "", poSearch: null, poDetail: null, poError: null, poLoading: false,
     audit: null, auditError: null, auditLoading: false, auditFilter: { action: "", entityType: "", scanRunId: "" },
     scans: null,
     selected: {},                // recommendationId -> true
@@ -305,6 +306,14 @@
     el("iiDrawer").addEventListener("close", function () { state.detail = null; state.detailId = null; });
 
     state.root.addEventListener("click", onClick);
+    state.root.addEventListener("submit", function (event) {
+      if (event.target.id !== "iiPoSearchForm") return;
+      event.preventDefault();
+      var form = event.target;
+      state.poMode = form.elements.mode.value;
+      state.poQuery = form.elements.q.value.trim();
+      if (state.poQuery) searchPo();
+    });
     state.root.addEventListener("change", onChange);
 
     var search = el("iiSearch");
@@ -810,18 +819,68 @@
 
   /* ───────────── draft PO and audit views ───────────── */
 
+  async function searchPo() {
+    state.poLoading = true; state.poError = null; state.poDetail = null; state.poSearch = null;
+    renderDraft();
+    try {
+      state.poSearch = await api("purchase-orders?" + new URLSearchParams({ mode: state.poMode, q: state.poQuery }));
+      if (state.poMode === "po" && state.poSearch.orders.length) {
+        state.poDetail = await api("purchase-orders/" + encodeURIComponent(state.poSearch.orders[0].poNumber));
+      }
+    } catch (error) { state.poError = error.message; }
+    state.poLoading = false;
+    renderDraft();
+  }
+
+  async function openPo(number) {
+    state.poLoading = true; state.poError = null;
+    renderDraft();
+    try { state.poDetail = await api("purchase-orders/" + encodeURIComponent(number)); }
+    catch (error) { state.poError = error.message; }
+    state.poLoading = false;
+    renderDraft();
+    var detail = el("iiPoDetail");
+    if (detail) detail.scrollIntoView({ block: "nearest" });
+  }
+
+  function renderPoLookup() {
+    var s = state.poSearch, d = state.poDetail;
+    var html = '<section class="ii-pane" aria-label="Innovations purchase order review"><h3>Review Innovations purchase orders</h3>' +
+      '<p class="ii-small-print">Read-only source records. PO status comes from Innovations. Committed time is not proof of supplier transmission.</p>' +
+      '<form id="iiPoSearchForm" class="ii-toolbar" action="/api/inventory-intelligence/purchase-orders" method="get">' +
+      '<label class="ii-field">Search by<select class="ii-select" name="mode"><option value="po"' + (state.poMode === "po" ? ' selected' : '') + '>PO number</option><option value="barcode"' + (state.poMode === "barcode" ? ' selected' : '') + '>Lens barcode / SKU</option></select></label>' +
+      '<label class="ii-field">PO number or lens barcode<input class="ii-input" name="q" type="search" required maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="' + esc(state.poQuery) + '"></label>' +
+      '<button class="ii-btn primary" type="submit">Search Innovations</button></form>';
+    if (state.poLoading) html += '<p role="status">Loading purchase orders...</p>';
+    if (state.poError) html += '<p class="ii-form-error" role="alert">' + esc(state.poError) + '</p>';
+    if (s && !s.orders.length) html += '<p role="status">No Innovations purchase orders match this ' + (s.mode === "po" ? 'PO number' : 'lens barcode / SKU') + '.</p>';
+    if (s && s.orders.length) {
+      html += '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Innovations purchase order matches"><table class="ii-table"><thead><tr><th scope="col">PO</th><th scope="col">Vendor</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Committed in Innovations</th><th class="num" scope="col">Lines</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th scope="col"></th></tr></thead><tbody>' +
+        s.orders.map(function (o) { return '<tr><td><strong>' + esc(o.poNumber) + '</strong></td><td>' + esc(o.vendor || '-') + '</td><td>' + esc(o.status || ('Code ' + o.statusCode)) + '</td><td>' + esc(when(o.createdAt)) + '</td><td>' + esc(when(o.committedAt)) + '</td><td class="num">' + num(o.lineCount) + '</td><td class="num">' + num(o.orderedUnits) + '</td><td class="num">' + num(o.receivedUnits) + '</td><td><button type="button" class="ii-btn small" data-action="po-lines" data-id="' + esc(o.poNumber) + '">View lines</button></td></tr>'; }).join('') + '</tbody></table></div>';
+      if (s.truncated) html += '<p class="ii-small-print">Showing the 50 newest matching POs. Refine by PO number for older records.</p>';
+    }
+    if (d) {
+      var o = d.order;
+      html += '<div id="iiPoDetail"><h4>PO ' + esc(o.poNumber) + ' · ' + esc(o.status || ('Code ' + o.statusCode)) + '</h4>' +
+        '<p class="ii-small-print">' + esc(o.vendor || 'Unknown vendor') + ' · Created ' + esc(when(o.createdAt)) + ' · Committed in Innovations ' + esc(when(o.committedAt)) + ' · Closed ' + esc(when(o.closedAt)) + ' · Promised ' + esc(when(o.promisedAt)) + '</p>' +
+        '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Lines on purchase order ' + esc(o.poNumber) + '"><table class="ii-table"><thead><tr><th scope="col">Line</th><th scope="col">Lens / item</th><th scope="col">Side</th><th scope="col">SKU</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th class="num" scope="col">Outstanding</th><th class="num" scope="col">Unit cost</th></tr></thead><tbody>' +
+        d.lines.map(function (l) { return '<tr><td>' + num(l.lineNumber) + '</td><td>' + esc(l.lensName || l.lensAbbrev || ('Stock item ' + l.stockItemId)) + '</td><td>' + esc(l.lensSide || '-') + '</td><td>' + esc(l.sku || '-') + '</td><td class="num">' + num(l.orderedQuantity) + '</td><td class="num">' + num(l.receivedQuantity) + '</td><td class="num">' + num(Math.max(0, Number(l.orderedQuantity || 0) - Number(l.receivedQuantity || 0))) + '</td><td class="num">' + money(l.unitCost) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    }
+    return html + '</section>';
+  }
+
   function renderDraft() {
     var host = el("iiPoView");
     if (!host) return;
-    if (state.draftLoading && !state.draft) { host.innerHTML = '<div class="ii-state">Building the draft from approved settings...</div>'; return; }
+    if (state.draftLoading && !state.draft) { host.innerHTML = renderPoLookup() + '<div class="ii-state">Building the draft from approved settings...</div>'; return; }
     if (state.draftError) {
-      host.innerHTML = '<div class="ii-state error" role="alert"><strong>The draft PO could not be built.</strong><span>' + esc(state.draftError) +
+      host.innerHTML = renderPoLookup() + '<div class="ii-state error" role="alert"><strong>The draft PO could not be built.</strong><span>' + esc(state.draftError) +
         '</span><span class="ii-sub">It needs live stock figures; it will not guess them.</span><button type="button" class="ii-btn" data-action="refresh">Try again</button></div>';
       return;
     }
     var d = state.draft;
-    if (!d) { host.innerHTML = ""; return; }
-    var html = '<div class="ii-disclaimer">' + esc(d.disclaimer) + '</div>' +
+    if (!d) { host.innerHTML = renderPoLookup(); return; }
+    var html = renderPoLookup() + '<div class="ii-disclaimer">' + esc(d.disclaimer) + '</div>' +
       '<p class="ii-small-print">Built ' + esc(when(d.generatedAt)) + ' from ' + num(d.approvedSettingsCount) + ' approved setting(s); stock read ' + esc(when(d.evidenceAsOf)) +
       '. Pending recommendations are never used.' + (d.evidenceTruncated ? ' <strong>The stock read was truncated; some items may be missing.</strong>' : '') + '</p>' +
       '<p><strong>' + num(d.totalLines) + '</strong> line(s), <strong>' + num(d.totalUnits) + '</strong> units, estimated <strong>' + money(d.grandTotalCost) + '</strong></p>';
@@ -1157,6 +1216,7 @@
         renderNav();
         if (state.view === "queue") loadList(); else if (state.view === "draft-po") loadDraft(); else loadAudit();
         break;
+      case "po-lines": openPo(id); break;
       case "sort":
         if (state.sortBy === node.dataset.key) state.sortDir = state.sortDir === "ASC" ? "DESC" : "ASC";
         else { state.sortBy = node.dataset.key; state.sortDir = "ASC"; }

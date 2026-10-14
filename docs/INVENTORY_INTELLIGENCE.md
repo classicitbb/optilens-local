@@ -21,6 +21,8 @@ Code is in `lib/inventory/`: `calculator.js` (rules), `confidence.js` (data qual
 `scan-runner.js`, `draft-po-service.js`, `audit-service.js`, `routes.js`. UI is
 `public/business-metrics-inventory-intelligence.js`, mounted by `public/inventory-intelligence.html`.
 
+The Draft PO preview also offers read-only review of existing Innovations purchase orders. Search by exact numeric PO number or a lens OPC/UserSKU barcode, then open a PO to inspect all its lines and ordered/received quantities. Barcode matches use the stock item's chiral side and return at most the 50 newest matching POs; exact PO lookup has no such history limit. Status labels come from Innovations `POStatus`, while `CommitDate` is labeled as an Innovations commit time rather than proof of supplier transmission. This review reads `POHeaders`, `POItems`, `POStatus`, `Vendors`, `StockItems`, and `LensItem` through the read-only source connection; it never creates or changes a PO.
+
 ## Rules the code enforces
 
 - **Usage** is `0.7 x (30-day / 30) + 0.3 x (90-day / 90)`; weights are rows in

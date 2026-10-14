@@ -61,7 +61,7 @@ test("every endpoint requires an authenticated session", async () => {
   await seeded();
   const endpoints = [
     ["GET", "/summary"], ["GET", "/queue"], ["GET", "/item-identity"], ["GET", "/assignees"], ["GET", "/recommendations/00000000-0000-4000-8000-000000000000"],
-    ["GET", "/tasks"], ["GET", "/draft-po"], ["GET", "/audit"], ["GET", "/scan/status"], ["GET", "/settings/1:1:1:1:1:101/history"],
+    ["GET", "/tasks"], ["GET", "/draft-po"], ["GET", "/purchase-orders"], ["GET", "/purchase-orders/20181890"], ["GET", "/audit"], ["GET", "/scan/status"], ["GET", "/settings/1:1:1:1:1:101/history"],
     ["POST", "/recommendations/approve-all"], ["POST", "/recommendations/approve-selected"],
     ["POST", "/recommendations/00000000-0000-4000-8000-000000000000/approve"], ["POST", "/tasks/assign-shelf-count"],
     ["POST", "/scan/run"], ["POST", "/recalculate-event"]
@@ -76,7 +76,7 @@ test("every endpoint requires an authenticated session", async () => {
 test("a customer-facing or unrelated role gets nothing, not even an empty payload", async () => {
   await seeded();
   for (const user of ["customer", "nobody"]) {
-    for (const [method, p] of [["GET", "/summary"], ["GET", "/queue"], ["GET", "/audit"], ["GET", "/draft-po"], ["POST", "/scan/run"]]) {
+    for (const [method, p] of [["GET", "/summary"], ["GET", "/queue"], ["GET", "/audit"], ["GET", "/draft-po"], ["GET", "/purchase-orders"], ["GET", "/purchase-orders/20181890"], ["POST", "/scan/run"]]) {
       const result = await call(method, API + p, { user });
       assert.equal(result.status, 403, `${user} ${method} ${p}`);
       assert.equal(result.body.items, undefined);
