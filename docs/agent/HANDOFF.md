@@ -6,6 +6,14 @@
 
 ## Objective and current state
 
+### Inventory Intelligence purchase order review refinements — complete and deployed
+
+Saved purchase orders now load by default; the read-only review also filters On Order, Back Order, or All. A blank search browses the chosen status, while exact PO and side-specific barcode search remain available. Every summary column sorts through an allowlisted source query (Created descending by default), and View lines expands immediately under its PO row. The PO review spans the workspace edge to edge with square table corners and a visible action column. Audit trail is collapsed within Scan history until opened or selected from a scan. The result cap is 50 in the chosen sort order. No Innovations PO or stock data was changed.
+
+Affected files: `lib/inventory/po-review-service.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `docs/INVENTORY_INTELLIGENCE.md`, and `docs/agent/PROJECT_KNOWLEDGE.md`. Focused inventory HTTP tests passed 24/24; full `npm test` passed 494/494, and `npm run check`, changed JavaScript syntax, and `git diff --check` passed. Harmless Innovations reads confirmed Saved browse and barcode search. PR #73 merged without conflict. The guarded updater deployed merge `c085e72`, passed smoke and full application tests, restarted the app, and refreshed the monitor. `node scripts/monitor-harness.js verify` reported all systems online; `master` was clean and equal to `origin/master`. A signed-in live browser check confirmed Saved as default, Back Order filtering, inline line expansion, sortable headings, and the nested Audit trail. No merge or health recovery step remains.
+
+Status: Complete — no active handoff.
+
 ### Innovations purchase order review — complete and deployed
 
 Inventory Intelligence's Draft PO preview now includes a separate, read-only Innovations PO review. Staff can search an exact PO number or scan a lens OPC/UserSKU barcode and press Enter, then inspect source status, vendor, dates, all lines, ordered quantities, received quantities, and outstanding quantities. Barcode search is side-specific and limited to the 50 newest matching POs; exact PO lookup can retrieve older POs. The status name comes from Innovations `POStatus`. Innovations `CommitDate` is shown as a commit timestamp; the inspected source schema did not establish a supplier transmission event or actual sent timestamp. The app-owned Draft PO proposal still creates no source PO.
