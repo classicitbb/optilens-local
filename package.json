@@ -10,6 +10,7 @@
     "dev:watch": "node --watch server.js",
     "check": "node --check server.js",
     "test": "node --test test/*.test.js",
+    "inventory:scan": "node scripts/run-inventory-intelligence-scan.js",
     "rx:sync-catalog": "node scripts/sync-rx-catalog.js",
     "rx:verify-catalog": "node scripts/verify-rx-catalog.js",
     "rx:sync-task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-rx-catalog-sync-task.ps1",

@@ -140,6 +140,7 @@ const {
   getRecommendations,
   recordDecision: recordRecommendationDecision
 } = require("./lib/metrics/inventory-recommendations");
+const { handleInventoryRoute } = require("./lib/inventory/routes");
 const { ask: askAssistant, systemAsk, executeAction, ACTION_TOOLS, getAssistantStatus, loadProviderConfig, saveProviderConfig, transcribeAudio, getKnowledgeStatus } = require("./lib/metrics/assistant");
 const { getLensSummary, getLensDetails, streamLensCsv } = require("./lib/lens-grid-service");
 const {
@@ -1070,6 +1071,7 @@ const server = http.createServer(async (req, res) => {
 
   if (await handleEmailRoute({ req, res, url, handleApi, readJsonBody })) return;
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleInventoryRoute({ req, res, url, readJsonBody, currentUser, sendJson })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
