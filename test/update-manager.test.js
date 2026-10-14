@@ -98,7 +98,11 @@ test("tails host log files without failing when they are missing", () => {
 
 test("guarded updater handles a clean porcelain status without a PowerShell null method call", () => {
   const script = fs.readFileSync(path.join(__dirname, "..", "scripts", "apply-local-update.ps1"), "utf8");
-  assert.match(script, /\$dirty = \(\(& git -c "safe\.directory=\$ProjectRoot" status --porcelain\) -join "`n"\)\.Trim\(\)/);
+  const helpers = fs.readFileSync(path.join(__dirname, "..", "scripts", "update-git-helpers.ps1"), "utf8");
+  // A clean `git status` yields no pipeline object; the helper joins before trimming so a clean
+  // checkout stays on the guarded path instead of failing with a null method call.
+  assert.match(script, /\$dirty = \(Get-TrackedChanges \$ProjectRoot\)\.Trim\(\)/);
+  assert.match(helpers, /\(\(\$output \| ForEach-Object \{ "\$_" \}\) -join "`n"\)\.Trim\(\)/);
 });
 
 test("guarded updater verifies and repairs production dependencies before smoke checks", () => {

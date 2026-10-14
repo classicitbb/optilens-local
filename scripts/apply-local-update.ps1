@@ -32,6 +32,9 @@ if (-not (Test-Path $logDirectory)) {
     New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 }
 
+. (Join-Path $PSScriptRoot "update-git-helpers.ps1")
+$script:gitState = $null
+
 function Write-UpdateLog {
     param([string] $Message)
     $line = "$(Get-Date -Format o) $Message"
@@ -77,7 +80,7 @@ function Write-UpdateStatus {
 function Invoke-UpdateStep {
     param([string] $Name, [scriptblock] $Action)
     $percentByStep = @{
-        "git fetch" = 10; "git fast-forward" = 18; "production dependency installation" = 32
+        "git fetch" = 10; "git branch" = 14; "git fast-forward" = 18; "production dependency installation" = 32
         "server syntax check" = 42; "application tests" = 55; "application migrations" = 70
         "application restart" = 86; "bounded self-repair" = 90
     }
@@ -134,8 +137,7 @@ function Import-OptiLensEnvironment {
 function Restore-PreviousRevision {
     if (-not $originalRevision -or $migrationsStarted) { return }
     Write-UpdateLog "Restoring source revision $originalRevision after failed pre-restart update."
-    & git -c "safe.directory=$ProjectRoot" reset --hard $originalRevision *>> $logFile
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Restore-SourceState)) {
         Write-UpdateLog "Could not restore source revision. Manual intervention is required."
         return
     }
@@ -144,6 +146,47 @@ function Restore-PreviousRevision {
         & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
         if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restart the service after dependency restore. Manual intervention is required." }
     }
+}
+
+# Back to the exact pre-update source: the original branch (or commit), with the deploy branch
+# pointing where it did before. Without a recorded switch it is a plain reset to the old revision.
+function Restore-SourceState {
+    if ($script:gitState) {
+        return (Restore-GitState $ProjectRoot $script:gitState)
+    }
+    & git -c "safe.directory=$ProjectRoot" reset --hard $originalRevision *>> $logFile
+    return ($LASTEXITCODE -eq 0)
+}
+
+# The monitor window is the operator's view of this very update, so it is left alone unless its
+# own source changed. When it did, the exe is rebuilt (it cannot be while it is running) and
+# relaunched; an exe that no longer matches its source is how monitor fixes silently never ship.
+function Update-HostMonitor {
+    $source = Join-Path $PSScriptRoot "OptiLensHostMonitorLauncher.cs"
+    $iconScript = Join-Path $PSScriptRoot "build-monitor-icon.ps1"
+    $hashFile = Join-Path $logDirectory "monitor-build.hash"
+    $current = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash + ":" + (Get-FileHash -LiteralPath $iconScript -Algorithm SHA256).Hash
+    $built = if (Test-Path $hashFile) { (Get-Content -LiteralPath $hashFile -Raw).Trim() } else { "" }
+    $exe = Join-Path $ProjectRoot "OptiLensHostMonitor.exe"
+    if ($built -eq $current -and (Test-Path $exe)) { return $false }
+
+    Write-UpdateLog "Host monitor source changed since its last build; rebuilding OptiLensHostMonitor.exe."
+    Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+    try {
+        & (Join-Path $PSScriptRoot "build-monitor-exe.ps1") -ProjectRoot $ProjectRoot *>> $logFile
+        if ($LASTEXITCODE -ne 0) { throw "build exited with code $LASTEXITCODE" }
+        Set-Content -LiteralPath $hashFile -Value $current
+        Write-UpdateLog "Host monitor rebuilt."
+    } catch {
+        Write-UpdateLog "Host monitor rebuild failed ($($_.Exception.Message)); keeping the previous executable."
+    }
+    if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
+        Start-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue
+    } else {
+        Write-UpdateLog "No 'OptiLens Local Host Monitor' scheduled task is installed; start the monitor from its shortcut."
+    }
+    return $true
 }
 
 function Test-ProductionDependencies {
@@ -215,8 +258,7 @@ function Invoke-AutomaticRollback {
     Write-UpdateStatus -State "rolling_back" -Message "New revision failed health check; reverting to $originalRevision."
     try {
         Invoke-UpdateStep "automatic rollback" {
-            & git -c "safe.directory=$ProjectRoot" reset --hard $originalRevision *>> $logFile
-            if ($LASTEXITCODE -ne 0) { throw "Rollback git reset failed with exit code $LASTEXITCODE." }
+            if (-not (Restore-SourceState)) { throw "Rollback could not restore the previous source revision." }
             $exitCode = Invoke-NpmCi
             if ($exitCode -ne 0) { throw "Rollback dependency reinstall failed with exit code $exitCode." }
             & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
@@ -262,13 +304,25 @@ try {
         # PowerShell, so join it first before trimming. This keeps a clean
         # checkout on the guarded update path instead of treating it as an
         # updater failure.
-        $dirty = ((& git -c "safe.directory=$ProjectRoot" status --porcelain) -join "`n").Trim()
-        if ($dirty) { throw "Refusing to pull into a checkout with local changes." }
+        $dirty = (Get-TrackedChanges $ProjectRoot).Trim()
+        if ($dirty) {
+            $files = (($dirty -split "`n") | Select-Object -First 6) -join "; "
+            throw "Refusing to pull into a checkout with local changes: $files"
+        }
         Invoke-UpdateStep "git fetch" {
             & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
             if ($LASTEXITCODE -ne 0) { throw "Git fetch failed with exit code $LASTEXITCODE." }
         }
         $pulledRevision = (& git -c "safe.directory=$ProjectRoot" rev-parse "$GitRemote/$GitBranch").Trim()
+        # The host runs the deploy branch. If it is resting on another branch (a feature branch an
+        # agent deployed from, say), move to the deploy branch first; a failure from here until the
+        # restart puts the original branch back exactly as it was.
+        Invoke-UpdateStep "git branch" {
+            $script:gitState = Enter-DeployBranch $ProjectRoot $GitRemote $GitBranch
+            if ($script:gitState.Switched) {
+                Write-UpdateLog "Switched the checkout from $($script:gitState.Branch) to the deploy branch $GitBranch."
+            }
+        }
         Invoke-UpdateStep "git fast-forward" {
             & git -c "safe.directory=$ProjectRoot" merge --ff-only $pulledRevision *>> $logFile
             if ($LASTEXITCODE -ne 0) { throw "Git fast-forward merge failed with exit code $LASTEXITCODE." }
@@ -350,10 +404,7 @@ try {
         if ($canRollBack -and (Invoke-AutomaticRollback)) {
             Write-UpdateLog "Update did not go live; the service was reverted to $originalRevision and is healthy."
             Write-UpdateStatus -State "rolled_back" -Message "Revision $pulledRevision failed its health check and was reverted to $originalRevision."
-            Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
-                Start-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue
-            }
+            Write-UpdateState "failed" "rolled back" 0 "Update rolled back." "The new revision failed its health check and the host was reverted to $originalRevision."
             if (Get-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue) {
                 Start-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue
             }
@@ -368,19 +419,23 @@ try {
         Write-UpdateLog "Self-repair after update succeeded."
     }
 
-    Write-UpdateState "running" "monitor" 95 "Relaunching host monitor and watchdog task."
-    Write-UpdateLog "Relaunching host monitor and watchdog task."
-    Get-Process -Name "OptiLensHostMonitor" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    if (Get-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue) {
-        Start-ScheduledTask -TaskName "OptiLens Local Host Monitor" -ErrorAction SilentlyContinue
-    }
+    Write-UpdateState "running" "monitor" 95 "Refreshing the host monitor and watchdog task."
+    Write-UpdateLog "Refreshing the host monitor and watchdog task."
+    $monitorRelaunched = $false
+    try { $monitorRelaunched = [bool](Update-HostMonitor) } catch { Write-UpdateLog "Host monitor refresh failed: $($_.Exception.Message)" }
     if (Get-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue) {
         Start-ScheduledTask -TaskName "OptiLens Local Watchdog" -ErrorAction SilentlyContinue
     }
 
-    Write-UpdateState "completed" "complete" 100 "Update completed successfully."
-    Write-UpdateLog "Update completed."
-    Write-UpdateStatus -State "succeeded" -Message "Update completed."
+    $finalMessage = "Update completed successfully."
+    if ($PullGit -and $pulledRevision -and $pulledRevision -ne $originalRevision) {
+        $subject = (& git -c "safe.directory=$ProjectRoot" log -1 --format=%s $pulledRevision).Trim()
+        $finalMessage = "Updated to $($pulledRevision.Substring(0, 7)): $subject"
+    }
+    if ($monitorRelaunched) { $finalMessage += " (host monitor was rebuilt and restarted)" }
+    Write-UpdateState "completed" "complete" 100 $finalMessage
+    Write-UpdateLog $finalMessage
+    Write-UpdateStatus -State "succeeded" -Message $finalMessage
 } catch {
     Write-UpdateState "failed" "failed" 0 "Update failed." $_.Exception.Message
     Write-UpdateLog "Update failed: $($_.Exception.Message)"
