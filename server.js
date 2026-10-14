@@ -126,7 +126,7 @@ const {
 const { runMigrations } = require("./lib/migrations");
 const { getBusinessMetrics } = require("./lib/business-metrics");
 const { getProductionStatus, getProductionOrders } = require("./lib/metrics/production-status");
-const { scanCosting } = require("./lib/metrics/costing-scan");
+const { scanCosting, searchCostItems } = require("./lib/metrics/costing-scan");
 const { prepareCostFix, canWriteSource } = require("./lib/metrics/costing-fix");
 const { getOverviewSummary } = require("./lib/metrics/summary");
 const { getDrill } = require("./lib/metrics/drill");
@@ -1043,7 +1043,7 @@ async function refreshGitUpdatesOnSchedule() {
     });
     return;
   }
-  if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && !status.git.localChanges && !scheduledUpdate) {
+  if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && status.git.autoApplySafe && !status.git.localChanges && !scheduledUpdate) {
     scheduleApplicationUpdate(status);
   }
 }
@@ -1393,7 +1393,8 @@ const server = http.createServer(async (req, res) => {
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
-        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        const changed = (status.git.dirtyFiles || []).slice(0, 5).join(", ");
+        const error = new Error("Remote updates are available, but this checkout has local changes" + (changed ? " (" + changed + ")" : "") + ". Commit or stash them before applying the Git update.");
         error.statusCode = 409;
         throw error;
       }
@@ -1436,7 +1437,8 @@ const server = http.createServer(async (req, res) => {
       }
       if (!status.available) return { ...status, applying: false, message: "OptiLens Local is already up to date." };
       if (status.plan.pullGit && status.git.localChanges) {
-        const error = new Error("Remote updates are available, but this checkout has local changes. Commit or stash them before applying the Git update.");
+        const changed = (status.git.dirtyFiles || []).slice(0, 5).join(", ");
+        const error = new Error("Remote updates are available, but this checkout has local changes" + (changed ? " (" + changed + ")" : "") + ". Commit or stash them before applying the Git update.");
         error.statusCode = 409;
         throw error;
       }
@@ -1578,6 +1580,16 @@ const server = http.createServer(async (req, res) => {
         canExempt: user.permissions.includes("pricing.write")
       };
       return result;
+    });
+  }
+
+  // Cost Check "find the right cost": item masters by SKU/name and what lines with the same
+  // description were costed at. Read-only, so anyone who can see costing can search.
+  if (url.pathname === "/api/costing/search" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "pricing.read");
+      const body = await readJsonBody(req);
+      return searchCostItems({ query: body.query, description: body.description });
     });
   }
 
