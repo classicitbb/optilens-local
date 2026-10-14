@@ -44,6 +44,7 @@
 ## Knowledge maintenance
 
 - Inventory Intelligence has its own administrator-only workspace route, `/modules/inventory-intelligence`, mounted by `public/inventory-intelligence.html`. Business Metrics links to it; the cockpit UI remains in `public/business-metrics-inventory-intelligence.js`, and its API remains under `/api/inventory-intelligence/`.
+- Its queue remains a semantic table. `#iiResults` owns a container-width responsive layout: a compact fixed-column table fits typical laptop widths, a keyboard/pointer separator reallocates evidence versus recommendation width, and the Actions column stays visible when horizontal scrolling is necessary. The full recommendation stays available in the Review drawer when row text is clamped.
 - The Launch Pad sign-in asks browsers not to suggest usernames while leaving `current-password` enabled and offering an accessible password reveal control. Browser and password-manager autofill heuristics may override the username hint; the page cannot enforce their UI behavior.
 
 - PR #57 RX outbox fixture coverage runs with `node --test test/rx-order-submitter.test.js`. It preserves cloud-rendered OD-only/OS-only Hashref bytes and tests watcher accepted/rejected/pending verdicts and worker completion payloads without network or file-drop writes. Single-eye `rx_eye` codes 1/2 remain provisional until live Innovations intake is verified. Current watcher acceptance means file disappearance only; pending also produces `ok: true`, so neither proves creation of an Innovations order.

@@ -1,10 +1,16 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: In progress — local Inventory Intelligence workspace and sign-in/layout changes need host deployment and authenticated browser verification; prior handoffs remain below
+- Status: In progress — local Inventory Intelligence queue-density and splitter refinements need host deployment and authenticated browser verification; prior handoffs remain below
 - Last synchronized: 2026-10-14
 
 ## Objective and current state
+
+### Inventory Intelligence compact queue and splitter — local only
+
+Applied the annotated cockpit density changes in `public/business-metrics-inventory-intelligence.js` and `public/styles/pages/inventory-intelligence.css`: removed the duplicate header title, tightened the description/scan text, scan button, caveat banner, and KPI cards; widened and shortened Search; added 6px beneath its toolbar; made the queue table edge to edge with square corners and shorter rows. The table now budgets evidence and action column widths, exposes a 2px draggable divider with arrow-key control, and keeps Actions visible when a narrow container must scroll horizontally. Recommendation text is limited to two visible lines with its full value in the Review drawer. The divider is hidden only when the queue container is narrower than the table's 1180px minimum; Actions remains sticky there.
+
+Checks: `node --test test/inventory-intelligence-http.test.js test/design-system.test.js` passed 23/23; `node --check public/business-metrics-inventory-intelligence.js` and `git diff --check` passed. A temporary local fixture rendered the actual cockpit script/styles in headless Chrome at 1366px and 1024px: the 1366px queue and actions fit; at 1024px Actions stayed visible while the remaining table scrolled. The temporary fixture and server were removed. No authenticated browser check, host deployment, data write, or production action has been performed. Blocker: supplied task instructions require explicit host deployment authorization. Approval required: guarded host deployment. Next executable action: after authorization, use `docs/REMOTE_AGENT_OPERATIONS.md` to deploy and verify health, then inspect the signed-in queue at 1366px and 1864px widths, drag and keyboard-resize the divider, and confirm Review/Approve/Edit/Reject remain reachable without a horizontal scroll at laptop width.
 
 ### Inventory Intelligence workspace and annotated sign-in/layout changes — local only
 
