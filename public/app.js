@@ -105,6 +105,14 @@ const platformApplications = [
     permissions: ["platform.admin"]
   },
   {
+    id: "cost-check",
+    name: "Cost Check",
+    href: "/modules/cost-check",
+    summary: "Scan an order or lens to see its costs and margins, and fix missing or wrong costing.",
+    status: "first-build",
+    permissions: ["pricing.read"]
+  },
+  {
     id: "release-notes",
     name: "Release Notes",
     href: "/release-notes",
