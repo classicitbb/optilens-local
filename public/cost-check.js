@@ -113,7 +113,14 @@
     els.hint.textContent = "Scan as many orders and lenses as you like. Each one is checked against Innovations and added below.";
     var codes = raw.split(/[\r\n,;]+/);
     feedback();
-    scan(codes).then(function () { els.input.focus(); });
+    scan(codes).then(refocusIfIdle);
+  }
+
+  // Return to the scan field after a scan, but never pull focus away from
+  // something the user moved to while the scan was running.
+  function refocusIfIdle() {
+    var a = document.activeElement;
+    if (!a || a === document.body || a === els.input) els.input.focus();
   }
 
   /* ─────────── rendering ─────────── */
@@ -516,11 +523,6 @@
   // Many scanners finish with Tab instead of Enter.
   els.input.addEventListener("keydown", function (e) {
     if (e.key === "Tab" && els.input.value.trim()) { e.preventDefault(); submitInput(); }
-  });
-  // Keep the field ready for the next scan unless the user is working in a dialog.
-  document.addEventListener("click", function (e) {
-    if (e.target.closest("dialog, input, textarea, button, a")) return;
-    els.input.focus();
   });
 
   els.keyboard.addEventListener("click", function () {
