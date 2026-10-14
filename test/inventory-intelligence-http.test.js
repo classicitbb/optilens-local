@@ -122,6 +122,42 @@ test("lens identity uses the full source key and returns the readable lens name"
   assert.equal((await call("GET", `${API}/item-identity`, { query: "?itemId=invalid" })).status, 400);
 });
 
+test("purchase order browse defaults to Saved and binds status and sort", async () => {
+  setup();
+  const statements = fakeSource([{ poNumber: 20181890, status: "Saved", statusCode: 20 }]);
+  const result = await call("GET", `${API}/purchase-orders`);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "SAVED");
+  assert.equal(result.body.sortBy, "created");
+  assert.equal(result.body.sortDir, "DESC");
+  assert.equal(result.body.orders.length, 1);
+  assert.match(statements[0].text, /SELECT TOP \(51\)/);
+  assert.match(statements[0].text, /h\.POStatus = @statusCode/);
+  assert.match(statements[0].text, /ORDER BY h\.CreateDate DESC/);
+  assert.equal(statements[0].inputs.statusCode, 20);
+});
+
+test("purchase order barcode search can include all statuses and sort received units", async () => {
+  setup();
+  const statements = fakeSource([]);
+  const result = await call("GET", `${API}/purchase-orders`, {
+    query: "?mode=barcode&q=0024407793&status=ALL&sortBy=received&sortDir=ASC"
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "ALL");
+  assert.match(statements[0].text, /WITH matched AS/);
+  assert.match(statements[0].text, /ORDER BY receivedUnits ASC/);
+  assert.equal(statements[0].inputs.code, "0024407793");
+  assert.equal(statements[0].inputs.statusCode, undefined);
+});
+
+test("purchase order status and sort values are allowlisted", async () => {
+  setup();
+  for (const query of ["?status=unknown", "?sortBy=rawSql", "?sortDir=SIDEWAYS"]) {
+    assert.equal((await call("GET", `${API}/purchase-orders`, { query })).status, 400);
+  }
+});
+
 test("assignment choices are limited to active app users and inventory writers", async () => {
   setup();
   let query = "";

@@ -59,8 +59,10 @@
     summary: null, summaryError: null,
     list: null, listError: null, listLoading: false,
     draft: null, draftError: null, draftLoading: false,
-    poMode: "po", poQuery: "", poSearch: null, poDetail: null, poError: null, poLoading: false,
+    poMode: "po", poQuery: "", poStatus: "SAVED", poSortBy: "created", poSortDir: "DESC",
+    poSearch: null, poDetail: null, poDetailNumber: null, poError: null, poLoading: false, poDetailLoading: false, poToken: 0,
     audit: null, auditError: null, auditLoading: false, auditFilter: { action: "", entityType: "", scanRunId: "" },
+    auditTrailOpen: false,
     scans: null,
     selected: {},                // recommendationId -> true
     evidenceShare: 64,           // percentage of the queue table reserved for source evidence
@@ -222,7 +224,7 @@
   function refreshAll() {
     loadSummary();
     if (state.view === "queue") loadList();
-    else if (state.view === "draft-po") loadDraft();
+    else if (state.view === "draft-po") { loadDraft(); searchPo(); }
     else loadAudit();
   }
 
@@ -312,7 +314,8 @@
       var form = event.target;
       state.poMode = form.elements.mode.value;
       state.poQuery = form.elements.q.value.trim();
-      if (state.poQuery) searchPo();
+      state.poStatus = form.elements.status.value;
+      searchPo();
     });
     state.root.addEventListener("change", onChange);
 
@@ -820,51 +823,88 @@
   /* ───────────── draft PO and audit views ───────────── */
 
   async function searchPo() {
-    state.poLoading = true; state.poError = null; state.poDetail = null; state.poSearch = null;
+    var token = ++state.poToken;
+    state.poLoading = true; state.poError = null; state.poDetail = null; state.poDetailNumber = null; state.poSearch = null;
     renderDraft();
     try {
-      state.poSearch = await api("purchase-orders?" + new URLSearchParams({ mode: state.poMode, q: state.poQuery }));
-      if (state.poMode === "po" && state.poSearch.orders.length) {
-        state.poDetail = await api("purchase-orders/" + encodeURIComponent(state.poSearch.orders[0].poNumber));
+      var result = await api("purchase-orders?" + new URLSearchParams({ mode: state.poMode, q: state.poQuery,
+        status: state.poStatus, sortBy: state.poSortBy, sortDir: state.poSortDir }));
+      if (token !== state.poToken) return;
+      state.poSearch = result;
+      if (state.poMode === "po" && state.poQuery && result.orders.length) {
+        state.poDetailNumber = String(result.orders[0].poNumber);
+        state.poDetail = await api("purchase-orders/" + encodeURIComponent(state.poDetailNumber));
       }
-    } catch (error) { state.poError = error.message; }
+    } catch (error) { if (token === state.poToken) state.poError = error.message; }
+    if (token !== state.poToken) return;
     state.poLoading = false;
     renderDraft();
   }
 
   async function openPo(number) {
-    state.poLoading = true; state.poError = null;
+    if (state.poDetailNumber === String(number)) {
+      state.poDetailNumber = null; state.poDetail = null; state.poDetailLoading = false; ++state.poToken;
+      renderDraft();
+      return;
+    }
+    var token = ++state.poToken;
+    state.poDetailNumber = String(number); state.poDetail = null; state.poDetailLoading = true; state.poError = null;
     renderDraft();
-    try { state.poDetail = await api("purchase-orders/" + encodeURIComponent(number)); }
-    catch (error) { state.poError = error.message; }
-    state.poLoading = false;
+    try {
+      var detail = await api("purchase-orders/" + encodeURIComponent(number));
+      if (token === state.poToken) state.poDetail = detail;
+    } catch (error) { if (token === state.poToken) state.poError = error.message; }
+    if (token !== state.poToken) return;
+    state.poDetailLoading = false;
     renderDraft();
     var detail = el("iiPoDetail");
     if (detail) detail.scrollIntoView({ block: "nearest" });
   }
 
+  function poSortHeader(key, title, numeric) {
+    var active = state.poSortBy === key;
+    var direction = active ? (state.poSortDir === "ASC" ? "ascending" : "descending") : "none";
+    return '<th scope="col" aria-sort="' + direction + '"' + (numeric ? ' class="num"' : '') +
+      '><button type="button" class="ii-po-sort" data-action="po-sort" data-key="' + key + '" aria-label="Sort by ' + title + '">' +
+      title + (active ? (state.poSortDir === "ASC" ? ' ↑' : ' ↓') : '') + '</button></th>';
+  }
+
+  function renderPoLines(d) {
+    var o = d.order;
+    return '<div id="iiPoDetail"><strong>PO ' + esc(o.poNumber) + ' · ' + esc(o.status || ('Code ' + o.statusCode)) + '</strong>' +
+      '<p class="ii-small-print">' + esc(o.vendor || 'Unknown vendor') + ' · Created ' + esc(when(o.createdAt)) + ' · Committed in Innovations ' + esc(when(o.committedAt)) + ' · Closed ' + esc(when(o.closedAt)) + ' · Promised ' + esc(when(o.promisedAt)) + '</p>' +
+      '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Lines on purchase order ' + esc(o.poNumber) + '"><table class="ii-table"><thead><tr><th scope="col">Line</th><th scope="col">Lens / item</th><th scope="col">Side</th><th scope="col">SKU</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th class="num" scope="col">Outstanding</th><th class="num" scope="col">Unit cost</th></tr></thead><tbody>' +
+      d.lines.map(function (l) { return '<tr><td>' + num(l.lineNumber) + '</td><td>' + esc(l.lensName || l.lensAbbrev || ('Stock item ' + l.stockItemId)) + '</td><td>' + esc(l.lensSide || '-') + '</td><td>' + esc(l.sku || '-') + '</td><td class="num">' + num(l.orderedQuantity) + '</td><td class="num">' + num(l.receivedQuantity) + '</td><td class="num">' + num(Math.max(0, Number(l.orderedQuantity || 0) - Number(l.receivedQuantity || 0))) + '</td><td class="num">' + money(l.unitCost) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+  }
+
   function renderPoLookup() {
     var s = state.poSearch, d = state.poDetail;
-    var html = '<section class="ii-pane" aria-label="Innovations purchase order review"><h3>Review Innovations purchase orders</h3>' +
+    var html = '<section class="ii-pane ii-po-review" aria-label="Innovations purchase order review"><h3>Review Innovations purchase orders</h3>' +
       '<p class="ii-small-print">Read-only source records. PO status comes from Innovations. Committed time is not proof of supplier transmission.</p>' +
-      '<form id="iiPoSearchForm" class="ii-toolbar" action="/api/inventory-intelligence/purchase-orders" method="get">' +
+      '<form id="iiPoSearchForm" class="ii-po-search" action="/api/inventory-intelligence/purchase-orders" method="get">' +
       '<label class="ii-field">Search by<select class="ii-select" name="mode"><option value="po"' + (state.poMode === "po" ? ' selected' : '') + '>PO number</option><option value="barcode"' + (state.poMode === "barcode" ? ' selected' : '') + '>Lens barcode / SKU</option></select></label>' +
-      '<label class="ii-field">PO number or lens barcode<input class="ii-input" name="q" type="search" required maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="' + esc(state.poQuery) + '"></label>' +
+      '<label class="ii-field ii-po-query">PO number or lens barcode<input class="ii-input" name="q" type="search" maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="' + esc(state.poQuery) + '" placeholder="Leave blank to browse"></label>' +
+      '<label class="ii-field">Status<select class="ii-select" name="status">' +
+      [["SAVED", "Saved"], ["ON_ORDER", "On order"], ["BACK_ORDER", "Back order"], ["ALL", "All"]].map(function (option) {
+        return '<option value="' + option[0] + '"' + (state.poStatus === option[0] ? ' selected' : '') + '>' + option[1] + '</option>';
+      }).join('') + '</select></label>' +
       '<button class="ii-btn primary" type="submit">Search Innovations</button></form>';
     if (state.poLoading) html += '<p role="status">Loading purchase orders...</p>';
     if (state.poError) html += '<p class="ii-form-error" role="alert">' + esc(state.poError) + '</p>';
-    if (s && !s.orders.length) html += '<p role="status">No Innovations purchase orders match this ' + (s.mode === "po" ? 'PO number' : 'lens barcode / SKU') + '.</p>';
+    if (s && !s.orders.length) html += '<p role="status">No purchase orders match this search and status. Choose All to include other statuses.</p>';
     if (s && s.orders.length) {
-      html += '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Innovations purchase order matches"><table class="ii-table"><thead><tr><th scope="col">PO</th><th scope="col">Vendor</th><th scope="col">Status</th><th scope="col">Created</th><th scope="col">Committed in Innovations</th><th class="num" scope="col">Lines</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th scope="col"></th></tr></thead><tbody>' +
-        s.orders.map(function (o) { return '<tr><td><strong>' + esc(o.poNumber) + '</strong></td><td>' + esc(o.vendor || '-') + '</td><td>' + esc(o.status || ('Code ' + o.statusCode)) + '</td><td>' + esc(when(o.createdAt)) + '</td><td>' + esc(when(o.committedAt)) + '</td><td class="num">' + num(o.lineCount) + '</td><td class="num">' + num(o.orderedUnits) + '</td><td class="num">' + num(o.receivedUnits) + '</td><td><button type="button" class="ii-btn small" data-action="po-lines" data-id="' + esc(o.poNumber) + '">View lines</button></td></tr>'; }).join('') + '</tbody></table></div>';
-      if (s.truncated) html += '<p class="ii-small-print">Showing the 50 newest matching POs. Refine by PO number for older records.</p>';
-    }
-    if (d) {
-      var o = d.order;
-      html += '<div id="iiPoDetail"><h4>PO ' + esc(o.poNumber) + ' · ' + esc(o.status || ('Code ' + o.statusCode)) + '</h4>' +
-        '<p class="ii-small-print">' + esc(o.vendor || 'Unknown vendor') + ' · Created ' + esc(when(o.createdAt)) + ' · Committed in Innovations ' + esc(when(o.committedAt)) + ' · Closed ' + esc(when(o.closedAt)) + ' · Promised ' + esc(when(o.promisedAt)) + '</p>' +
-        '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Lines on purchase order ' + esc(o.poNumber) + '"><table class="ii-table"><thead><tr><th scope="col">Line</th><th scope="col">Lens / item</th><th scope="col">Side</th><th scope="col">SKU</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th class="num" scope="col">Outstanding</th><th class="num" scope="col">Unit cost</th></tr></thead><tbody>' +
-        d.lines.map(function (l) { return '<tr><td>' + num(l.lineNumber) + '</td><td>' + esc(l.lensName || l.lensAbbrev || ('Stock item ' + l.stockItemId)) + '</td><td>' + esc(l.lensSide || '-') + '</td><td>' + esc(l.sku || '-') + '</td><td class="num">' + num(l.orderedQuantity) + '</td><td class="num">' + num(l.receivedQuantity) + '</td><td class="num">' + num(Math.max(0, Number(l.orderedQuantity || 0) - Number(l.receivedQuantity || 0))) + '</td><td class="num">' + money(l.unitCost) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+      html += '<div class="ii-table-wrap ii-po-table-wrap" tabindex="0" role="region" aria-label="Innovations purchase order matches"><table class="ii-table ii-po-table"><thead><tr>' +
+        poSortHeader('number', 'PO') + poSortHeader('vendor', 'Vendor') + poSortHeader('status', 'Status') +
+        poSortHeader('created', 'Created') + poSortHeader('committed', 'Committed in Innovations') +
+        poSortHeader('lines', 'Lines', true) + poSortHeader('ordered', 'Ordered', true) +
+        poSortHeader('received', 'Received', true) + '<th scope="col">Lines</th></tr></thead><tbody>' +
+        s.orders.map(function (o) {
+          var expanded = state.poDetailNumber === String(o.poNumber);
+          var row = '<tr><th scope="row">' + esc(o.poNumber) + '</th><td>' + esc(o.vendor || '-') + '</td><td>' + esc(o.status || ('Code ' + o.statusCode)) + '</td><td>' + esc(when(o.createdAt)) + '</td><td>' + esc(when(o.committedAt)) + '</td><td class="num">' + num(o.lineCount) + '</td><td class="num">' + num(o.orderedUnits) + '</td><td class="num">' + num(o.receivedUnits) + '</td><td><button type="button" class="ii-btn small" data-action="po-lines" data-id="' + esc(o.poNumber) + '" aria-expanded="' + expanded + '"' + (expanded ? ' aria-controls="iiPoDetail"' : '') + '>' + (expanded ? 'Hide lines' : 'View lines') + '</button></td></tr>';
+          if (expanded) row += '<tr class="ii-po-detail-row"><td colspan="9">' + (d ? renderPoLines(d) : '<p role="status">' + (state.poDetailLoading ? 'Loading PO lines...' : 'PO lines are unavailable.') + '</p>') + '</td></tr>';
+          return row;
+        }).join('') + '</tbody></table></div>';
+      if (s.truncated) html += '<p class="ii-small-print">Showing the first 50 matching POs in this sort order. Refine by PO number or barcode for more.</p>';
     }
     return html + '</section>';
   }
@@ -931,9 +971,10 @@
               '<td class="ii-sub">' + esc(when(wm.evidenceAsOf)) + (wm.truncated ? '<br>truncated' : '') + '</td><td class="ii-sub">' + esc(wm.policyVersion || "-") + '</td>' +
               '<td><button type="button" class="ii-link" data-action="audit-scan" data-id="' + esc(s.scanRunId) + '">Audit</button></td></tr>';
           }).join("") + '</tbody></table></div>'
-        : '<p class="ii-small-print">No scans yet.</p>') + '</section>';
+        : '<p class="ii-small-print">No scans yet.</p>');
 
-    html += '<section class="ii-pane"><h4>Audit trail</h4><p class="ii-small-print">Append-only. Records cannot be edited or removed, in the app or in the database.</p>' +
+    html += '<details class="ii-audit-trail" id="iiAuditDetails"' + (state.auditTrailOpen ? ' open' : '') + '><summary>Audit trail</summary>' +
+      '<p class="ii-small-print">Append-only. Records cannot be edited or removed, in the app or in the database.</p>' +
       '<div class="ii-toolbar-group"><label class="ii-field">Action<select class="ii-select" id="iiAuditAction"><option value="">All actions</option>' +
         AUDIT_ACTIONS.map(function (a) { return '<option value="' + a + '"' + (f.action === a ? " selected" : "") + '>' + a.replace(/_/g, " ").toLowerCase() + '</option>'; }).join("") + '</select></label>' +
       (f.scanRunId ? '<span class="ii-badge" data-tone="medium">Scan ' + esc(f.scanRunId.slice(0, 8)) + '</span><button type="button" class="ii-link" data-action="audit-clear-scan">Clear</button>' : '') + '</div>' +
@@ -945,8 +986,10 @@
             return '<tr><td class="ii-sub">' + esc(when(a.createdAt)) + '</td><td>' + esc(a.actor) + '</td><td><strong>' + esc(a.action.replace(/_/g, " ").toLowerCase()) + '</strong></td>' +
               '<td>' + esc(a.entityType) + '<div class="ii-sub">' + esc(a.entityId) + '</div></td><td>' + esc(a.reason || "-") + detail + '</td><td class="ii-sub">' + esc(a.correlationId || "-") + '</td></tr>';
           }).join("") + '</tbody></table></div>'
-        : '<div class="ii-state">No audit events match.</div>') + '</section>';
+        : '<div class="ii-state">No audit events match.</div>') + '</details></section>';
     host.innerHTML = html;
+    var auditDetails = el("iiAuditDetails");
+    if (auditDetails) auditDetails.addEventListener("toggle", function () { state.auditTrailOpen = auditDetails.open; });
     var select = el("iiAuditAction");
     if (select) select.addEventListener("change", function () { state.auditFilter.action = select.value; loadAudit(); });
   }
@@ -1188,7 +1231,12 @@
 
   function onChange(event) {
     var target = event.target;
-    if (target.matches('[data-action="select"]')) {
+    if (target.matches('#iiPoSearchForm [name="status"]')) {
+      state.poMode = target.form.elements.mode.value;
+      state.poQuery = target.form.elements.q.value.trim();
+      state.poStatus = target.value;
+      searchPo();
+    } else if (target.matches('[data-action="select"]')) {
       // Update in place: rebuilding the table here would drop keyboard focus.
       if (target.checked) state.selected[target.dataset.id] = true; else delete state.selected[target.dataset.id];
       var row = target.closest("tr");
@@ -1214,9 +1262,16 @@
       case "view":
         state.view = node.dataset.view;
         renderNav();
-        if (state.view === "queue") loadList(); else if (state.view === "draft-po") loadDraft(); else loadAudit();
+        if (state.view === "queue") loadList();
+        else if (state.view === "draft-po") { loadDraft(); if (!state.poSearch) searchPo(); }
+        else loadAudit();
         break;
       case "po-lines": openPo(id); break;
+      case "po-sort":
+        if (state.poSortBy === node.dataset.key) state.poSortDir = state.poSortDir === "ASC" ? "DESC" : "ASC";
+        else { state.poSortBy = node.dataset.key; state.poSortDir = ["number", "created", "committed", "lines", "ordered", "received"].includes(node.dataset.key) ? "DESC" : "ASC"; }
+        searchPo();
+        break;
       case "sort":
         if (state.sortBy === node.dataset.key) state.sortDir = state.sortDir === "ASC" ? "DESC" : "ASC";
         else { state.sortBy = node.dataset.key; state.sortDir = "ASC"; }
@@ -1240,7 +1295,7 @@
       case "record-count": openRecordCount(id); break;
       case "approve-all": openApproveAll(); break;
       case "approve-selected": openApproveSelected(); break;
-      case "audit-scan": state.auditFilter.scanRunId = id; loadAudit(); break;
+      case "audit-scan": state.auditFilter.scanRunId = id; state.auditTrailOpen = true; loadAudit(); break;
       case "audit-clear-scan": state.auditFilter.scanRunId = ""; loadAudit(); break;
       default: break;
     }
