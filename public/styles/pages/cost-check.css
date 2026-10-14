@@ -1,0 +1,112 @@
+/* Cost Check — layout for a scan-and-review page used on phones; primitives live in system.css */
+.cc-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.cc-fresh { display:flex; align-items:center; gap:10px; }
+.cc-hint, .cc-empty, .cc-note { color:var(--muted); font-size:.8rem; margin:0; }
+.cc-hint { margin:6px 0 12px; }
+.cc-empty { padding:28px 0; text-align:center; }
+.cc-error { color:var(--red); }
+
+/* The scan bar stays in reach while the results scroll under it */
+.cc-scanbar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:8px; padding:10px 0; background:var(--surface, #fff); }
+.cc-input { flex:1 1 220px; min-width:0; min-height:48px; padding:0 14px; font:inherit; font-size:1.15rem; letter-spacing:.02em; border:2px solid var(--line); border-radius:8px; background:var(--surface, #fff); color:var(--ink); }
+.cc-input:focus { outline:none; border-color:var(--blue); }
+.cc-scanbar .button { min-height:48px; }
+
+/* Batch summary */
+.cc-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:8px; margin:0 0 12px; }
+.cc-stat { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; }
+.cc-stat b { font-size:1.35rem; font-variant-numeric:tabular-nums; line-height:1.1; }
+.cc-stat span { color:var(--muted); font-size:.75rem; }
+.cc-stat.is-bad b { color:var(--red); }
+.cc-stat.is-warn b { color:#b45309; }
+.cc-stat.is-good b { color:#118a1c; }
+
+.cc-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 0 12px; }
+.cc-toggle { display:flex; align-items:center; gap:6px; font-size:.9rem; min-height:44px; }
+.cc-toggle input { width:20px; height:20px; }
+
+/* One card per scan */
+.cc-list { display:flex; flex-direction:column; gap:10px; }
+.cc-card { border:1px solid var(--line); border-left-width:6px; border-radius:8px; background:var(--surface, #fff); min-width:0; }
+.cc-card.sev-ok { border-left-color:#118a1c; }
+.cc-card.sev-info { border-left-color:#6b7a90; }
+.cc-card.sev-warning { border-left-color:#f7931e; }
+.cc-card.sev-critical { border-left-color:#e5252a; }
+.cc-card.sev-none { border-left-color:var(--line); }
+.cc-head { display:flex; align-items:center; gap:10px; width:100%; padding:12px; border:0; background:transparent; font:inherit; color:inherit; text-align:left; cursor:pointer; min-height:56px; }
+.cc-head:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }
+.cc-head-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.cc-title { font-weight:600; overflow-wrap:anywhere; }
+.cc-sub { color:var(--muted); font-size:.8rem; overflow-wrap:anywhere; }
+.cc-fig { text-align:right; font-variant-numeric:tabular-nums; font-size:.85rem; white-space:nowrap; }
+.cc-fig b { display:block; font-size:1rem; }
+.cc-body { padding:0 12px 12px; display:flex; flex-direction:column; gap:12px; border-top:1px solid var(--line); }
+.cc-body[hidden] { display:none; }
+
+.cc-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:600; white-space:nowrap; color:#fff; }
+.cc-pill.sev-ok { background:#118a1c; }
+.cc-pill.sev-info { background:#6b7a90; }
+.cc-pill.sev-warning { background:#d97706; }
+.cc-pill.sev-critical { background:#e5252a; }
+.cc-pill.sev-none { background:var(--muted); }
+
+.cc-issues { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.cc-issue { display:flex; gap:8px; align-items:flex-start; font-size:.85rem; }
+.cc-issue .cc-pill { margin-top:1px; }
+
+.cc-kv { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px 16px; margin:10px 0 0; }
+.cc-kv div { display:flex; flex-direction:column; min-width:0; }
+.cc-kv dt { color:var(--muted); font-size:.72rem; }
+.cc-kv dd { margin:0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+
+.cc-h { margin:6px 0 0; font-size:.9rem; font-weight:600; color:var(--blue); }
+
+/* Invoice lines as stacked rows: readable at phone width, no sideways scrolling */
+.cc-lines { display:flex; flex-direction:column; }
+.cc-line { padding:10px 0; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:6px; }
+.cc-line:last-child { border-bottom:0; }
+.cc-line-top { display:flex; justify-content:space-between; gap:12px; }
+.cc-line-desc { min-width:0; overflow-wrap:anywhere; font-size:.9rem; }
+.cc-line-desc small { display:block; color:var(--muted); }
+.cc-line-nums { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px; font-size:.8rem; font-variant-numeric:tabular-nums; }
+.cc-line-nums span { display:flex; flex-direction:column; }
+.cc-line-nums em { font-style:normal; color:var(--muted); font-size:.68rem; }
+.cc-line.is-package .cc-line-desc { font-weight:600; }
+.cc-neg { color:var(--red); }
+
+.cc-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.cc-actions .button { min-height:44px; font-size:.85rem; }
+
+.cc-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.cc-table th, .cc-table td { padding:6px 8px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; font-weight:inherit; }
+.cc-table th { color:var(--muted); font-size:.72rem; }
+.cc-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.cc-scroll { overflow-x:auto; }
+.cc-link { border:0; background:transparent; padding:0; color:var(--blue); font:inherit; text-decoration:underline; cursor:pointer; min-height:32px; }
+
+/* Dialogs: full-bleed sheets on phones */
+.cc-dialog { width:min(560px, 96vw); max-height:92vh; padding:0; border:1px solid var(--line); border-radius:12px; background:var(--surface, #fff); color:var(--ink); }
+.cc-dialog::backdrop { background:rgba(11, 30, 53, .6); }
+.cc-dialog-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
+.cc-dialog-head h2 { margin:0; font-size:1.05rem; }
+.cc-dialog-body { padding:14px 16px 18px; display:flex; flex-direction:column; gap:12px; overflow:auto; max-height:calc(92vh - 64px); }
+.cc-video { width:100%; max-height:60vh; background:#000; border-radius:8px; object-fit:cover; }
+.cc-field { display:flex; flex-direction:column; gap:4px; }
+.cc-field label { font-size:.8rem; color:var(--muted); }
+.cc-field input, .cc-field textarea { min-height:48px; padding:8px 12px; font:inherit; font-size:1.1rem; border:2px solid var(--line); border-radius:8px; background:var(--surface, #fff); color:var(--ink); }
+.cc-field textarea { font-size:1rem; min-height:84px; }
+.cc-sql { margin:0; padding:10px; background:color-mix(in srgb, var(--line) 35%, transparent); border-radius:6px; font-size:.78rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+.cc-confirm { display:flex; gap:10px; align-items:flex-start; font-size:.9rem; }
+.cc-confirm input { width:22px; height:22px; flex:none; margin-top:2px; }
+.cc-result { padding:10px 12px; border-radius:8px; font-size:.9rem; }
+.cc-result.ok { background:color-mix(in srgb, #118a1c 14%, transparent); }
+.cc-result.bad { background:color-mix(in srgb, #e5252a 14%, transparent); }
+
+@media (max-width:560px) {
+  .cc-scanbar .button { flex:1 1 30%; }
+  .cc-scanbar button[type="submit"] { flex:1 1 100%; }
+  .cc-dialog { width:100vw; max-width:100vw; max-height:100dvh; height:100dvh; border-radius:0; }
+  .cc-dialog-body { max-height:calc(100dvh - 64px); }
+}
+
+.module-workspace.cc-bare { border:0; background:transparent; box-shadow:none; border-radius:0; }

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Cost Check - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/cost-check.css">
+  <link rel="stylesheet" href="/styles/system.css">
+</head>
+<body class="module-body">
+
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Cost Check"
+  };
+</script>
+
+  <main class="module-main">
+    <section class="module-workspace cc-bare">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Costing</p>
+          <h1>Cost Check</h1>
+        </div>
+        <div class="cc-fresh">
+          <span class="badge planned" id="ccStatus">Ready</span>
+        </div>
+      </div>
+
+      <form class="cc-scanbar" id="ccForm" autocomplete="off">
+        <label class="cc-sr" for="ccInput">Scan or type an order number or lens code</label>
+        <input class="cc-input" id="ccInput" name="code" type="text" inputmode="none"
+               enterkeyhint="go" autocapitalize="characters" autocorrect="off" spellcheck="false"
+               placeholder="Scan an order or lens…" autofocus>
+        <button class="button primary" type="submit">Check</button>
+        <button class="button secondary" type="button" id="ccKeyboard" aria-pressed="false" title="Show the on-screen keyboard">Keyboard</button>
+        <button class="button secondary" type="button" id="ccCamera" title="Scan with the camera">Camera</button>
+      </form>
+      <p class="cc-hint" id="ccHint">Scan as many orders and lenses as you like. Each one is checked against Innovations and added below.</p>
+
+      <div class="cc-summary" id="ccSummary" hidden></div>
+
+      <div class="cc-toolbar" id="ccToolbar" hidden>
+        <label class="cc-toggle"><input type="checkbox" id="ccProblems"> Problems only</label>
+        <button class="button secondary" type="button" id="ccRefresh">Refresh all</button>
+        <button class="button secondary" type="button" id="ccClear">Clear</button>
+      </div>
+
+      <div id="ccList" class="cc-list" aria-live="polite"></div>
+      <p class="cc-empty" id="ccEmpty">Nothing scanned yet.</p>
+    </section>
+  </main>
+
+  <dialog class="cc-dialog" id="ccCameraDialog" aria-labelledby="ccCameraTitle">
+    <header class="cc-dialog-head">
+      <h2 id="ccCameraTitle">Camera scan</h2>
+      <button class="button secondary" type="button" id="ccCameraClose">Done</button>
+    </header>
+    <div class="cc-dialog-body">
+      <video id="ccVideo" class="cc-video" playsinline muted></video>
+      <p class="cc-hint" id="ccCameraMsg">Point at a barcode. Each code is added as it is read.</p>
+    </div>
+  </dialog>
+
+  <dialog class="cc-dialog" id="ccFixDialog" aria-labelledby="ccFixTitle">
+    <header class="cc-dialog-head">
+      <h2 id="ccFixTitle">Fix</h2>
+      <button class="button secondary" type="button" id="ccFixClose">Cancel</button>
+    </header>
+    <div class="cc-dialog-body" id="ccFixBody"></div>
+  </dialog>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/cost-check.js"></script>
+</body>
+</html>
