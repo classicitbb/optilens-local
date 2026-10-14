@@ -225,7 +225,8 @@
 
   function lineRow(order, l) {
     var neg = l.margin < 0 ? " cc-neg" : "";
-    var src = l.costSource === "supplier-list" ? " · matches supplier list" : l.costSource === "item-master" ? " · item master" : "";
+    var src = l.costSource === "supplier-list" ? " · matches supplier list"
+      : l.costSource === "item-master" ? " · item master" + (l.master && l.master.name ? " “" + l.master.name + "”" : "") : "";
     return '<div class="cc-line' + (l.isPackage ? " is-package" : "") + '">' +
       '<div class="cc-line-top"><div class="cc-line-desc">' + esc(l.description || "—") +
       "<small>" + esc([l.categoryName, l.sku].filter(Boolean).join(" · ")) + (l.isPackage ? " · costed through its components" : "") + esc(src) + "</small></div></div>" +
@@ -242,6 +243,9 @@
     var b = [];
     var base = ' data-line="' + l.lineId + '" data-desc="' + esc(l.description || "") + '" data-cost="' + l.cost + '"';
     if (state.caps.canFix) {
+      if (l.misplacedFrom) {
+        b.push('<button type="button" class="button secondary" data-action="find-cost" data-line="' + l.lineId + '" data-move="' + l.misplacedFrom.lineId + '">Move ' + money(l.misplacedFrom.cost) + " here from " + esc(l.misplacedFrom.categoryName || "the other line") + "…</button>");
+      }
       if (l.suggestedCost && Math.abs(l.suggestedCost - l.cost) > 0.005) {
         b.push('<button type="button" class="button primary" data-action="fix-line" data-amount="' + l.suggestedCost + '"' + base + ">Use supplier list " + money(l.suggestedCost) + "</button>");
       }
@@ -251,12 +255,14 @@
       if (l.master && l.master.cost === 0 && l.cost > 0) {
         b.push('<button type="button" class="button secondary" data-action="fix-item" data-kind="' + l.master.kind + '" data-ids="' + l.master.ids.join(",") + '" data-amount="' + l.cost + '" data-label="' + esc(l.description || l.sku || "") + '" data-current="0">Set item master to ' + money(l.cost) + "</button>");
       }
-      b.push('<button type="button" class="button secondary" data-action="fix-line"' + base + ">Enter cost…</button>");
     }
+    // Finding the right cost is read-only, so it is offered to everyone who can see costing.
+    b.push('<button type="button" class="button secondary" data-action="find-cost" data-line="' + l.lineId + '">Find the right cost…</button>');
     if (state.caps.canExempt && l.sku && (codes.indexOf("no-cost") >= 0)) {
       b.push('<button type="button" class="button secondary" data-action="exempt" data-sku="' + esc(l.sku) + '" data-desc="' + esc(l.description || "") + '">Zero cost is correct</button>');
     }
-    return b.length ? '<div class="cc-actions">' + b.join("") + "</div>" : '<p class="cc-note">Ask an administrator to apply a correction.</p>';
+    return '<div class="cc-actions">' + b.join("") + "</div>" +
+      (state.caps.canFix ? "" : '<p class="cc-note">You can look up the right cost here; an administrator applies the correction.</p>');
   }
 
   function itemBody(r) {
@@ -325,9 +331,19 @@
     var out = byId("ccFixOut");
     var cost = parseFloat(byId("ccFixCost").value);
     if (!(cost > 0)) { out.innerHTML = fixMessage("Enter a cost greater than zero.", false); return; }
+    var body = Object.assign({ type: fix.type, newCost: cost }, fix.payload);
+    if (fix.companion) {
+      // Moving a cost: this line and the line it came from change together, in one reviewed step.
+      var raw = byId("ccCompanionCost").value.trim();
+      var other = parseFloat(raw);
+      if (!raw || !(other >= 0)) {
+        out.innerHTML = fixMessage("Enter what the other line's cost should be now (0 if it carries none).", false);
+        return;
+      }
+      body = { type: "line-costs", changes: [{ lineId: fix.payload.lineId, newCost: cost }, { lineId: fix.companion.lineId, newCost: other }] };
+    }
     out.innerHTML = '<p class="cc-note">Preparing…</p>';
     try {
-      var body = Object.assign({ type: fix.type, newCost: cost }, fix.payload);
       var prepared = await api("/api/costing/fix/prepare", body);
       fix.challenge = prepared.challenge;
       var p = prepared.preview;
@@ -390,6 +406,110 @@
     }
   }
 
+  /* ─────────── find the right cost ─────────── */
+
+  function findLine(code, lineId) {
+    var r = state.results.filter(function (x) { return x.code.toUpperCase() === String(code).toUpperCase(); })[0];
+    if (!r || r.kind !== "order") return null;
+    var line = r.lines.filter(function (l) { return l.lineId === lineId; })[0];
+    return line ? { order: r, line: line } : null;
+  }
+
+  function pickButton(amount, title, detail, extra) {
+    return '<button type="button" class="cc-pick" data-fix="pick" data-amount="' + amount + '"' + (extra || "") + ">" +
+      "<b>" + money(amount) + "</b><span>" + esc(title) + (detail ? "<small>" + esc(detail) + "</small>" : "") + "</span></button>";
+  }
+
+  /**
+   * Opens the "find the right cost" dialog for one invoice line. The suggestions are the costs
+   * already on the order or in the masters; the search covers everything else. A cost taken from
+   * another line of the order is a MOVE: that line is changed in the same reviewed step.
+   */
+  function findCostDialog(code, lineId, moveId) {
+    var hit = findLine(code, lineId);
+    if (!hit) return;
+    var l = hit.line, picks = [];
+    hit.order.lines.filter(function (o) {
+      return o.lineId !== l.lineId && o.type === 1 && !o.isPackage && o.cost > 0 && o.category !== l.category;
+    }).sort(function (a, b) { return (b.lineId === moveId) - (a.lineId === moveId); }).forEach(function (o) {
+      var over = o.price > 0 && o.cost >= o.price - 0.005;
+      picks.push(pickButton(o.cost, "Cost on “" + (o.description || "another line") + "” (" + (o.categoryName || "line") + ")",
+        "Moves it here; you then set that line's cost" + (over ? " · it is at or above that line's own price" : ""),
+        ' data-move="' + o.lineId + '" data-move-label="' + esc(o.description || "the other line") + '" data-move-cost="' + o.cost + '"'));
+    });
+    if (l.master && l.master.cost > 0) {
+      picks.push(pickButton(l.master.cost, "Item master" + (l.master.name ? " “" + l.master.name + "”" : ""), (l.master.kind === "lens" ? "Lens" : "Add-on") + " master cost for " + (l.sku || "this SKU")));
+    }
+    if (l.suggestedCost) picks.push(pickButton(l.suggestedCost, "Supplier cost list", "The lab's list price converted to base currency"));
+
+    var writable = state.caps.canFix;
+    openFix({
+      title: "Find the right cost", type: "line-cost", payload: { lineId: l.lineId }, rescan: [code], line: l, companion: null,
+      html: '<p class="cc-note"><b>' + esc(l.description || "Invoice line") + "</b><br>" + esc([l.categoryName, l.sku].filter(Boolean).join(" · ")) +
+        " · price " + money(l.price) + " · cost now " + money(l.cost) + "</p>" +
+        '<div class="cc-field"><label for="ccFixCost">New cost for this line (base currency, per eye / per unit)</label>' +
+        '<input id="ccFixCost" type="number" inputmode="decimal" step="0.01" min="0" value=""></div>' +
+        '<div id="ccCompanion"></div>' +
+        (picks.length ? '<h3 class="cc-h">Costs already in play</h3><div class="cc-picks">' + picks.join("") + "</div>" : "") +
+        '<h3 class="cc-h">Lines like this were costed at</h3><div id="ccSimilarOut" class="cc-picks"><p class="cc-note">Looking…</p></div>' +
+        '<h3 class="cc-h">Search</h3>' +
+        '<form id="ccFindForm" class="cc-find" autocomplete="off"><input id="ccFindInput" type="search" placeholder="Lens name, lens code or add-on…" aria-label="Search the item master">' +
+        '<button class="button secondary" type="submit">Search</button></form><div id="ccFindOut" class="cc-picks"></div>' +
+        (writable
+          ? '<div class="cc-actions"><button type="button" class="button primary" data-fix="review">Review change</button></div><div id="ccFixOut"></div>'
+          : '<p class="cc-note">Writing to Innovations is not available to this sign-in, so this shows where the cost comes from. Note the figure for an administrator.</p>')
+    });
+    if (moveId) {
+      var first = els.fixBody.querySelector('[data-move="' + moveId + '"]');
+      if (first) applyPick(first);
+    }
+    if (l.description) runFind("", byId("ccSimilarOut"));
+    else byId("ccSimilarOut").innerHTML = '<p class="cc-note">This line has no description to compare.</p>';
+  }
+
+  function applyPick(btn) {
+    if (!fix) return;
+    byId("ccFixCost").value = btn.getAttribute("data-amount");
+    var box = byId("ccCompanion");
+    Array.prototype.forEach.call(els.fixBody.querySelectorAll(".cc-pick"), function (b) { b.classList.toggle("is-picked", b === btn); });
+    if (btn.hasAttribute("data-move")) {
+      fix.companion = { lineId: Number(btn.getAttribute("data-move")) };
+      box.innerHTML = '<div class="cc-field cc-companion"><label for="ccCompanionCost">“' + esc(btn.getAttribute("data-move-label")) +
+        "” had " + money(btn.getAttribute("data-move-cost")) + ". What should its cost be now? (Enter 0 if it carries none.)</label>" +
+        '<input id="ccCompanionCost" type="number" inputmode="decimal" step="0.01" min="0" value=""></div>';
+    } else {
+      fix.companion = null;
+      box.innerHTML = "";
+    }
+    var next = byId(fix.companion ? "ccCompanionCost" : "ccFixCost");
+    if (next) next.focus();
+  }
+
+  /** Runs one search. An empty query asks only for lines with this line's description. */
+  async function runFind(query, target) {
+    var out = target || byId("ccFindOut");
+    var line = fix && fix.line;
+    if (!out || !line) return;
+    out.innerHTML = '<p class="cc-note">Searching…</p>';
+    try {
+      var data = await api("/api/costing/search", { query: query, description: query ? "" : line.description });
+      if (!data.online) throw new Error(data.error || "Innovations is not reachable.");
+      var rows = [];
+      data.items.forEach(function (it) {
+        var title = it.name || "Unnamed item";
+        var detail = (it.kind === "lens" ? "Lens master" : "Add-on master") + (it.skus.length ? " · " + it.skus.join(", ") : "") + " · price " + money(it.price);
+        rows.push(it.cost > 0 ? pickButton(it.cost, title, detail) : '<p class="cc-note">' + esc(title) + " · " + esc(detail) + " · no cost in the master</p>");
+      });
+      data.similar.forEach(function (s) {
+        rows.push(pickButton(s.cost, "Costed this way on " + s.lines + " line(s)", [s.categoryName, "last " + when(s.lastSold)].filter(Boolean).join(" · ")));
+      });
+      var notes = data.skipped && data.skipped.length ? '<p class="cc-note">Could not search ' + esc(data.skipped.join(", ")) + " in time.</p>" : "";
+      out.innerHTML = rows.length ? rows.join("") + notes : '<p class="cc-note">Nothing found.</p>' + notes;
+    } catch (err) {
+      out.innerHTML = fixMessage(err.message, false);
+    }
+  }
+
   /* ─────────── events ─────────── */
 
   els.form.addEventListener("submit", function (e) { e.preventDefault(); if (els.input.value.trim()) submitInput(); });
@@ -443,13 +563,23 @@
         });
         break;
       case "exempt": exemptForm(d.sku, d.desc, code); break;
+      case "find-cost": findCostDialog(code, Number(d.line), d.move ? Number(d.move) : 0); break;
     }
+  });
+
+  els.fixBody.addEventListener("submit", function (e) {
+    if (e.target.id !== "ccFindForm") return;
+    e.preventDefault();
+    var q = byId("ccFindInput").value.trim();
+    if (q.length < 2) { byId("ccFindOut").innerHTML = '<p class="cc-note">Type at least 2 characters.</p>'; return; }
+    runFind(q);
   });
 
   els.fixBody.addEventListener("click", function (e) {
     var t = e.target.closest("[data-fix]");
     if (!t) return;
-    if (t.dataset.fix === "review") reviewFix();
+    if (t.dataset.fix === "pick") applyPick(t);
+    else if (t.dataset.fix === "review") reviewFix();
     else if (t.dataset.fix === "apply") applyFix();
     else if (t.dataset.fix === "exempt") saveExemption();
   });
