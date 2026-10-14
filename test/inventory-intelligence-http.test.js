@@ -60,8 +60,8 @@ test("the handler ignores every path outside its own prefix", async () => {
 test("every endpoint requires an authenticated session", async () => {
   await seeded();
   const endpoints = [
-    ["GET", "/summary"], ["GET", "/queue"], ["GET", "/recommendations/00000000-0000-4000-8000-000000000000"],
-    ["GET", "/tasks"], ["GET", "/draft-po"], ["GET", "/audit"], ["GET", "/scan/status"], ["GET", "/settings/1:1:1:1:1:101/history"],
+    ["GET", "/summary"], ["GET", "/queue"], ["GET", "/item-identity"], ["GET", "/assignees"], ["GET", "/recommendations/00000000-0000-4000-8000-000000000000"],
+    ["GET", "/tasks"], ["GET", "/draft-po"], ["GET", "/purchase-orders"], ["GET", "/purchase-orders/20181890"], ["GET", "/audit"], ["GET", "/scan/status"], ["GET", "/settings/1:1:1:1:1:101/history"],
     ["POST", "/recommendations/approve-all"], ["POST", "/recommendations/approve-selected"],
     ["POST", "/recommendations/00000000-0000-4000-8000-000000000000/approve"], ["POST", "/tasks/assign-shelf-count"],
     ["POST", "/scan/run"], ["POST", "/recalculate-event"]
@@ -76,7 +76,7 @@ test("every endpoint requires an authenticated session", async () => {
 test("a customer-facing or unrelated role gets nothing, not even an empty payload", async () => {
   await seeded();
   for (const user of ["customer", "nobody"]) {
-    for (const [method, p] of [["GET", "/summary"], ["GET", "/queue"], ["GET", "/audit"], ["GET", "/draft-po"], ["POST", "/scan/run"]]) {
+    for (const [method, p] of [["GET", "/summary"], ["GET", "/queue"], ["GET", "/audit"], ["GET", "/draft-po"], ["GET", "/purchase-orders"], ["GET", "/purchase-orders/20181890"], ["POST", "/scan/run"]]) {
       const result = await call(method, API + p, { user });
       assert.equal(result.status, 403, `${user} ${method} ${p}`);
       assert.equal(result.body.items, undefined);
@@ -107,6 +107,69 @@ test("the summary tells the page whether this user can approve", async () => {
   await seeded();
   assert.equal((await call("GET", `${API}/summary`, { user: "admin" })).body.capabilities.canApprove, true);
   assert.equal((await call("GET", `${API}/summary`, { user: "reader" })).body.capabilities.canApprove, false);
+});
+
+test("lens identity uses the full source key and returns the readable lens name", async () => {
+  setup();
+  const statements = fakeSource([liveRow({ materialName: "Polycarbonate", manufacturerName: "Vision-Ease",
+    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300" })]);
+  const result = await call("GET", `${API}/item-identity`, { query: "?itemId=1%3A1%3A1%3A1%3A1%3A100" });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.identity.name, "Polycarbonate · Vision-Ease · Single Vision · Clear");
+  assert.equal(statements.length, 1);
+  assert.match(statements[0].text, /FROM dbo\.LensItem li/);
+  assert.match(statements[0].text, /li\.MaterialGroup = @mg[\s\S]*li\.Num = @it/);
+  assert.equal((await call("GET", `${API}/item-identity`, { query: "?itemId=invalid" })).status, 400);
+});
+
+test("purchase order browse defaults to Saved and binds status and sort", async () => {
+  setup();
+  const statements = fakeSource([{ poNumber: 20181890, status: "Saved", statusCode: 20 }]);
+  const result = await call("GET", `${API}/purchase-orders`);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "SAVED");
+  assert.equal(result.body.sortBy, "created");
+  assert.equal(result.body.sortDir, "DESC");
+  assert.equal(result.body.orders.length, 1);
+  assert.match(statements[0].text, /SELECT TOP \(51\)/);
+  assert.match(statements[0].text, /h\.POStatus = @statusCode/);
+  assert.match(statements[0].text, /ORDER BY h\.CreateDate DESC/);
+  assert.equal(statements[0].inputs.statusCode, 20);
+});
+
+test("purchase order barcode search can include all statuses and sort received units", async () => {
+  setup();
+  const statements = fakeSource([]);
+  const result = await call("GET", `${API}/purchase-orders`, {
+    query: "?mode=barcode&q=0024407793&status=ALL&sortBy=received&sortDir=ASC"
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "ALL");
+  assert.match(statements[0].text, /WITH matched AS/);
+  assert.match(statements[0].text, /ORDER BY receivedUnits ASC/);
+  assert.equal(statements[0].inputs.code, "0024407793");
+  assert.equal(statements[0].inputs.statusCode, undefined);
+});
+
+test("purchase order status and sort values are allowlisted", async () => {
+  setup();
+  for (const query of ["?status=unknown", "?sortBy=rawSql", "?sortDir=SIDEWAYS"]) {
+    assert.equal((await call("GET", `${API}/purchase-orders`, { query })).status, 400);
+  }
+});
+
+test("assignment choices are limited to active app users and inventory writers", async () => {
+  setup();
+  let query = "";
+  mock.method(db, "getAppPool", async () => ({ request: () => ({ query: async (text) => {
+    query = text;
+    return { recordset: [{ username: "greg", displayName: "Greg" }] };
+  } }) }));
+  assert.equal((await call("GET", `${API}/assignees`, { user: "inventoryReader" })).status, 403);
+  const result = await call("GET", `${API}/assignees`, { user: "inventoryWriter" });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.users, [{ username: "greg", displayName: "Greg" }]);
+  assert.match(query, /WHERE is_active = 1/);
 });
 
 test("the queue endpoint filters, validates and bounds its parameters", async () => {

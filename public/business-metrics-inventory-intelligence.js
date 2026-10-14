@@ -59,11 +59,14 @@
     summary: null, summaryError: null,
     list: null, listError: null, listLoading: false,
     draft: null, draftError: null, draftLoading: false,
+    poMode: "po", poQuery: "", poStatus: "SAVED", poSortBy: "created", poSortDir: "DESC",
+    poSearch: null, poDetail: null, poDetailNumber: null, poError: null, poLoading: false, poDetailLoading: false, poToken: 0,
     audit: null, auditError: null, auditLoading: false, auditFilter: { action: "", entityType: "", scanRunId: "" },
+    auditTrailOpen: false,
     scans: null,
     selected: {},                // recommendationId -> true
     evidenceShare: 64,           // percentage of the queue table reserved for source evidence
-    detail: null, detailError: null, detailId: null,
+    detail: null, detailError: null, detailId: null, itemIdentity: null,
     pollTimer: null, pollCount: 0
   };
 
@@ -221,7 +224,7 @@
   function refreshAll() {
     loadSummary();
     if (state.view === "queue") loadList();
-    else if (state.view === "draft-po") loadDraft();
+    else if (state.view === "draft-po") { loadDraft(); searchPo(); }
     else loadAudit();
   }
 
@@ -305,6 +308,15 @@
     el("iiDrawer").addEventListener("close", function () { state.detail = null; state.detailId = null; });
 
     state.root.addEventListener("click", onClick);
+    state.root.addEventListener("submit", function (event) {
+      if (event.target.id !== "iiPoSearchForm") return;
+      event.preventDefault();
+      var form = event.target;
+      state.poMode = form.elements.mode.value;
+      state.poQuery = form.elements.q.value.trim();
+      state.poStatus = form.elements.status.value;
+      searchPo();
+    });
     state.root.addEventListener("change", onChange);
 
     var search = el("iiSearch");
@@ -623,6 +635,7 @@
   async function openDrawer(id) {
     state.detailId = id;
     state.detail = null;
+    state.itemIdentity = null;
     state.detailError = null;
     var dialog = el("iiDrawer");
     renderDrawer();
@@ -633,6 +646,16 @@
       state.detailError = error.message;
     }
     renderDrawer();
+    if (state.detail && state.detail.recommendation) {
+      try {
+        var result = await api("item-identity?itemId=" + encodeURIComponent(state.detail.recommendation.itemId));
+        if (state.detailId === id && dialog.open) {
+          state.itemIdentity = result.identity;
+          var title = dialog.querySelector("#iiDrawerTitle");
+          if (title && result.identity && result.identity.name) title.textContent = result.identity.name;
+        }
+      } catch (_) { /* The recommendation remains usable when its source name cannot be read. */ }
+    }
   }
 
   function kv(rows) {
@@ -775,8 +798,8 @@
     }
 
     dialog.innerHTML =
-      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle">' + esc(r.itemLabel || r.itemId) + '</h3>' +
-        '<div class="ii-sub">' + statusBadge(r.status) + ' <span>' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span><span>' + (r.sku ? 'SKU ' + esc(r.sku) : '') + '</span><span>' + esc(r.itemId) + '</span></div></div>' +
+      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle" title="' + esc(r.itemId) + '">' + esc((state.itemIdentity && state.itemIdentity.name) || r.itemLabel || r.itemId) + '</h3>' +
+        '<div class="ii-sub">' + statusBadge(r.status) + ' <span>' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span></div></div>' +
         '<button type="button" class="ii-btn small" data-action="close-drawer">Close</button></div>' +
       '<div class="ii-dialog-body">' + supersededNotice(d, r) + '<div class="ii-split">' + left + right + '</div>' + history + '</div>' +
       '<div class="ii-dialog-foot">' + foot + '</div>';
@@ -799,18 +822,105 @@
 
   /* ───────────── draft PO and audit views ───────────── */
 
+  async function searchPo() {
+    var token = ++state.poToken;
+    state.poLoading = true; state.poError = null; state.poDetail = null; state.poDetailNumber = null; state.poSearch = null;
+    renderDraft();
+    try {
+      var result = await api("purchase-orders?" + new URLSearchParams({ mode: state.poMode, q: state.poQuery,
+        status: state.poStatus, sortBy: state.poSortBy, sortDir: state.poSortDir }));
+      if (token !== state.poToken) return;
+      state.poSearch = result;
+      if (state.poMode === "po" && state.poQuery && result.orders.length) {
+        state.poDetailNumber = String(result.orders[0].poNumber);
+        state.poDetail = await api("purchase-orders/" + encodeURIComponent(state.poDetailNumber));
+      }
+    } catch (error) { if (token === state.poToken) state.poError = error.message; }
+    if (token !== state.poToken) return;
+    state.poLoading = false;
+    renderDraft();
+  }
+
+  async function openPo(number) {
+    if (state.poDetailNumber === String(number)) {
+      state.poDetailNumber = null; state.poDetail = null; state.poDetailLoading = false; ++state.poToken;
+      renderDraft();
+      return;
+    }
+    var token = ++state.poToken;
+    state.poDetailNumber = String(number); state.poDetail = null; state.poDetailLoading = true; state.poError = null;
+    renderDraft();
+    try {
+      var detail = await api("purchase-orders/" + encodeURIComponent(number));
+      if (token === state.poToken) state.poDetail = detail;
+    } catch (error) { if (token === state.poToken) state.poError = error.message; }
+    if (token !== state.poToken) return;
+    state.poDetailLoading = false;
+    renderDraft();
+    var detail = el("iiPoDetail");
+    if (detail) detail.scrollIntoView({ block: "nearest" });
+  }
+
+  function poSortHeader(key, title, numeric) {
+    var active = state.poSortBy === key;
+    var direction = active ? (state.poSortDir === "ASC" ? "ascending" : "descending") : "none";
+    return '<th scope="col" aria-sort="' + direction + '"' + (numeric ? ' class="num"' : '') +
+      '><button type="button" class="ii-po-sort" data-action="po-sort" data-key="' + key + '" aria-label="Sort by ' + title + '">' +
+      title + (active ? (state.poSortDir === "ASC" ? ' ↑' : ' ↓') : '') + '</button></th>';
+  }
+
+  function renderPoLines(d) {
+    var o = d.order;
+    return '<div id="iiPoDetail"><strong>PO ' + esc(o.poNumber) + ' · ' + esc(o.status || ('Code ' + o.statusCode)) + '</strong>' +
+      '<p class="ii-small-print">' + esc(o.vendor || 'Unknown vendor') + ' · Created ' + esc(when(o.createdAt)) + ' · Committed in Innovations ' + esc(when(o.committedAt)) + ' · Closed ' + esc(when(o.closedAt)) + ' · Promised ' + esc(when(o.promisedAt)) + '</p>' +
+      '<div class="ii-table-wrap" tabindex="0" role="region" aria-label="Lines on purchase order ' + esc(o.poNumber) + '"><table class="ii-table"><thead><tr><th scope="col">Line</th><th scope="col">Lens / item</th><th scope="col">Side</th><th scope="col">SKU</th><th class="num" scope="col">Ordered</th><th class="num" scope="col">Received</th><th class="num" scope="col">Outstanding</th><th class="num" scope="col">Unit cost</th></tr></thead><tbody>' +
+      d.lines.map(function (l) { return '<tr><td>' + num(l.lineNumber) + '</td><td>' + esc(l.lensName || l.lensAbbrev || ('Stock item ' + l.stockItemId)) + '</td><td>' + esc(l.lensSide || '-') + '</td><td>' + esc(l.sku || '-') + '</td><td class="num">' + num(l.orderedQuantity) + '</td><td class="num">' + num(l.receivedQuantity) + '</td><td class="num">' + num(Math.max(0, Number(l.orderedQuantity || 0) - Number(l.receivedQuantity || 0))) + '</td><td class="num">' + money(l.unitCost) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+  }
+
+  function renderPoLookup() {
+    var s = state.poSearch, d = state.poDetail;
+    var html = '<section class="ii-pane ii-po-review" aria-label="Innovations purchase order review"><h3>Review Innovations purchase orders</h3>' +
+      '<p class="ii-small-print">Read-only source records. PO status comes from Innovations. Committed time is not proof of supplier transmission.</p>' +
+      '<form id="iiPoSearchForm" class="ii-po-search" action="/api/inventory-intelligence/purchase-orders" method="get">' +
+      '<label class="ii-field">Search by<select class="ii-select" name="mode"><option value="po"' + (state.poMode === "po" ? ' selected' : '') + '>PO number</option><option value="barcode"' + (state.poMode === "barcode" ? ' selected' : '') + '>Lens barcode / SKU</option></select></label>' +
+      '<label class="ii-field ii-po-query">PO number or lens barcode<input class="ii-input" name="q" type="search" maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="' + esc(state.poQuery) + '" placeholder="Leave blank to browse"></label>' +
+      '<label class="ii-field">Status<select class="ii-select" name="status">' +
+      [["SAVED", "Saved"], ["ON_ORDER", "On order"], ["BACK_ORDER", "Back order"], ["ALL", "All"]].map(function (option) {
+        return '<option value="' + option[0] + '"' + (state.poStatus === option[0] ? ' selected' : '') + '>' + option[1] + '</option>';
+      }).join('') + '</select></label>' +
+      '<button class="ii-btn primary" type="submit">Search Innovations</button></form>';
+    if (state.poLoading) html += '<p role="status">Loading purchase orders...</p>';
+    if (state.poError) html += '<p class="ii-form-error" role="alert">' + esc(state.poError) + '</p>';
+    if (s && !s.orders.length) html += '<p role="status">No purchase orders match this search and status. Choose All to include other statuses.</p>';
+    if (s && s.orders.length) {
+      html += '<div class="ii-table-wrap ii-po-table-wrap" tabindex="0" role="region" aria-label="Innovations purchase order matches"><table class="ii-table ii-po-table"><thead><tr>' +
+        poSortHeader('number', 'PO') + poSortHeader('vendor', 'Vendor') + poSortHeader('status', 'Status') +
+        poSortHeader('created', 'Created') + poSortHeader('committed', 'Committed in Innovations') +
+        poSortHeader('lines', 'Lines', true) + poSortHeader('ordered', 'Ordered', true) +
+        poSortHeader('received', 'Received', true) + '<th scope="col">Lines</th></tr></thead><tbody>' +
+        s.orders.map(function (o) {
+          var expanded = state.poDetailNumber === String(o.poNumber);
+          var row = '<tr><th scope="row">' + esc(o.poNumber) + '</th><td>' + esc(o.vendor || '-') + '</td><td>' + esc(o.status || ('Code ' + o.statusCode)) + '</td><td>' + esc(when(o.createdAt)) + '</td><td>' + esc(when(o.committedAt)) + '</td><td class="num">' + num(o.lineCount) + '</td><td class="num">' + num(o.orderedUnits) + '</td><td class="num">' + num(o.receivedUnits) + '</td><td><button type="button" class="ii-btn small" data-action="po-lines" data-id="' + esc(o.poNumber) + '" aria-expanded="' + expanded + '"' + (expanded ? ' aria-controls="iiPoDetail"' : '') + '>' + (expanded ? 'Hide lines' : 'View lines') + '</button></td></tr>';
+          if (expanded) row += '<tr class="ii-po-detail-row"><td colspan="9">' + (d ? renderPoLines(d) : '<p role="status">' + (state.poDetailLoading ? 'Loading PO lines...' : 'PO lines are unavailable.') + '</p>') + '</td></tr>';
+          return row;
+        }).join('') + '</tbody></table></div>';
+      if (s.truncated) html += '<p class="ii-small-print">Showing the first 50 matching POs in this sort order. Refine by PO number or barcode for more.</p>';
+    }
+    return html + '</section>';
+  }
+
   function renderDraft() {
     var host = el("iiPoView");
     if (!host) return;
-    if (state.draftLoading && !state.draft) { host.innerHTML = '<div class="ii-state">Building the draft from approved settings...</div>'; return; }
+    if (state.draftLoading && !state.draft) { host.innerHTML = renderPoLookup() + '<div class="ii-state">Building the draft from approved settings...</div>'; return; }
     if (state.draftError) {
-      host.innerHTML = '<div class="ii-state error" role="alert"><strong>The draft PO could not be built.</strong><span>' + esc(state.draftError) +
+      host.innerHTML = renderPoLookup() + '<div class="ii-state error" role="alert"><strong>The draft PO could not be built.</strong><span>' + esc(state.draftError) +
         '</span><span class="ii-sub">It needs live stock figures; it will not guess them.</span><button type="button" class="ii-btn" data-action="refresh">Try again</button></div>';
       return;
     }
     var d = state.draft;
-    if (!d) { host.innerHTML = ""; return; }
-    var html = '<div class="ii-disclaimer">' + esc(d.disclaimer) + '</div>' +
+    if (!d) { host.innerHTML = renderPoLookup(); return; }
+    var html = renderPoLookup() + '<div class="ii-disclaimer">' + esc(d.disclaimer) + '</div>' +
       '<p class="ii-small-print">Built ' + esc(when(d.generatedAt)) + ' from ' + num(d.approvedSettingsCount) + ' approved setting(s); stock read ' + esc(when(d.evidenceAsOf)) +
       '. Pending recommendations are never used.' + (d.evidenceTruncated ? ' <strong>The stock read was truncated; some items may be missing.</strong>' : '') + '</p>' +
       '<p><strong>' + num(d.totalLines) + '</strong> line(s), <strong>' + num(d.totalUnits) + '</strong> units, estimated <strong>' + money(d.grandTotalCost) + '</strong></p>';
@@ -861,9 +971,10 @@
               '<td class="ii-sub">' + esc(when(wm.evidenceAsOf)) + (wm.truncated ? '<br>truncated' : '') + '</td><td class="ii-sub">' + esc(wm.policyVersion || "-") + '</td>' +
               '<td><button type="button" class="ii-link" data-action="audit-scan" data-id="' + esc(s.scanRunId) + '">Audit</button></td></tr>';
           }).join("") + '</tbody></table></div>'
-        : '<p class="ii-small-print">No scans yet.</p>') + '</section>';
+        : '<p class="ii-small-print">No scans yet.</p>');
 
-    html += '<section class="ii-pane"><h4>Audit trail</h4><p class="ii-small-print">Append-only. Records cannot be edited or removed, in the app or in the database.</p>' +
+    html += '<details class="ii-audit-trail" id="iiAuditDetails"' + (state.auditTrailOpen ? ' open' : '') + '><summary>Audit trail</summary>' +
+      '<p class="ii-small-print">Append-only. Records cannot be edited or removed, in the app or in the database.</p>' +
       '<div class="ii-toolbar-group"><label class="ii-field">Action<select class="ii-select" id="iiAuditAction"><option value="">All actions</option>' +
         AUDIT_ACTIONS.map(function (a) { return '<option value="' + a + '"' + (f.action === a ? " selected" : "") + '>' + a.replace(/_/g, " ").toLowerCase() + '</option>'; }).join("") + '</select></label>' +
       (f.scanRunId ? '<span class="ii-badge" data-tone="medium">Scan ' + esc(f.scanRunId.slice(0, 8)) + '</span><button type="button" class="ii-link" data-action="audit-clear-scan">Clear</button>' : '') + '</div>' +
@@ -875,8 +986,10 @@
             return '<tr><td class="ii-sub">' + esc(when(a.createdAt)) + '</td><td>' + esc(a.actor) + '</td><td><strong>' + esc(a.action.replace(/_/g, " ").toLowerCase()) + '</strong></td>' +
               '<td>' + esc(a.entityType) + '<div class="ii-sub">' + esc(a.entityId) + '</div></td><td>' + esc(a.reason || "-") + detail + '</td><td class="ii-sub">' + esc(a.correlationId || "-") + '</td></tr>';
           }).join("") + '</tbody></table></div>'
-        : '<div class="ii-state">No audit events match.</div>') + '</section>';
+        : '<div class="ii-state">No audit events match.</div>') + '</details></section>';
     host.innerHTML = html;
+    var auditDetails = el("iiAuditDetails");
+    if (auditDetails) auditDetails.addEventListener("toggle", function () { state.auditTrailOpen = auditDetails.open; });
     var select = el("iiAuditAction");
     if (select) select.addEventListener("change", function () { state.auditFilter.action = select.value; loadAudit(); });
   }
@@ -932,19 +1045,38 @@
     var r = findRecommendation(id); if (!r) return;
     openModal("Mark reviewed: " + (r.itemLabel || r.itemId), '<p class="ii-small-print">Records your review outcome. It does not write anything off in the books.</p>' + reasonField("Review outcome", true), "Mark reviewed", "primary", { kind: "complete", id: id });
   }
-  function openShelf(ids) {
+  function assigneeField(users, current) {
+    return '<label class="ii-field">Assign to (required)<select class="ii-input" name="assignee" required>' +
+      '<option value="">Select an active user</option>' + users.map(function (user) {
+        var selected = String(user.username).toLowerCase() === String(current || "").toLowerCase() ? ' selected' : '';
+        return '<option value="' + esc(user.username) + '"' + selected + '>' + esc(user.displayName || user.username) +
+          (user.displayName && user.displayName !== user.username ? ' (' + esc(user.username) + ')' : '') + '</option>';
+      }).join("") + '</select></label>';
+  }
+  async function loadAssignees() {
+    var result = await api("assignees");
+    if (!result.users || !result.users.length) throw new Error("No active app users are available for assignment.");
+    return result.users;
+  }
+  async function openShelf(ids) {
+    var users;
+    try { users = await loadAssignees(); }
+    catch (error) { notify(error.message, "error"); return; }
     var many = ids.length > 1;
     var first = findRecommendation(ids[0]);
     openModal(many ? "Assign shelf count to " + ids.length + " items" : "Assign shelf count: " + (first ? first.itemLabel || first.itemId : ""),
       '<p class="ii-small-print">Creates the shelf-count task, or assigns the one that already exists.</p>' +
-      '<label class="ii-field">Assign to (required)<input class="ii-input" name="assignee" maxlength="120" required autocomplete="off"></label>' +
+      assigneeField(users) +
       '<label class="ii-field">Due date<input class="ii-input" type="date" name="dueDate"></label>' +
       '<label class="ii-field">Note<textarea class="ii-textarea" name="note" maxlength="500"></textarea></label>',
       "Assign", "primary", { kind: "shelf", ids: ids });
   }
-  function openAssignTask(id) {
+  async function openAssignTask(id) {
     var d = state.detail, task = d && d.task; if (!task) return;
-    openModal("Assign task", '<label class="ii-field">Assign to<input class="ii-input" name="assignee" maxlength="120" value="' + esc(task.assignee || "") + '" required autocomplete="off"></label>' +
+    var users;
+    try { users = await loadAssignees(); }
+    catch (error) { notify(error.message, "error"); return; }
+    openModal("Assign task", assigneeField(users, task.assignee) +
       '<label class="ii-field">Due date<input class="ii-input" type="date" name="dueDate" value="' + esc(task.dueDate || "") + '"></label>', "Save", "primary", { kind: "assign-task", taskId: task.taskId, id: id });
   }
   function openRecordCount(id) {
@@ -1099,7 +1231,12 @@
 
   function onChange(event) {
     var target = event.target;
-    if (target.matches('[data-action="select"]')) {
+    if (target.matches('#iiPoSearchForm [name="status"]')) {
+      state.poMode = target.form.elements.mode.value;
+      state.poQuery = target.form.elements.q.value.trim();
+      state.poStatus = target.value;
+      searchPo();
+    } else if (target.matches('[data-action="select"]')) {
       // Update in place: rebuilding the table here would drop keyboard focus.
       if (target.checked) state.selected[target.dataset.id] = true; else delete state.selected[target.dataset.id];
       var row = target.closest("tr");
@@ -1125,7 +1262,15 @@
       case "view":
         state.view = node.dataset.view;
         renderNav();
-        if (state.view === "queue") loadList(); else if (state.view === "draft-po") loadDraft(); else loadAudit();
+        if (state.view === "queue") loadList();
+        else if (state.view === "draft-po") { loadDraft(); if (!state.poSearch) searchPo(); }
+        else loadAudit();
+        break;
+      case "po-lines": openPo(id); break;
+      case "po-sort":
+        if (state.poSortBy === node.dataset.key) state.poSortDir = state.poSortDir === "ASC" ? "DESC" : "ASC";
+        else { state.poSortBy = node.dataset.key; state.poSortDir = ["number", "created", "committed", "lines", "ordered", "received"].includes(node.dataset.key) ? "DESC" : "ASC"; }
+        searchPo();
         break;
       case "sort":
         if (state.sortBy === node.dataset.key) state.sortDir = state.sortDir === "ASC" ? "DESC" : "ASC";
@@ -1150,7 +1295,7 @@
       case "record-count": openRecordCount(id); break;
       case "approve-all": openApproveAll(); break;
       case "approve-selected": openApproveSelected(); break;
-      case "audit-scan": state.auditFilter.scanRunId = id; loadAudit(); break;
+      case "audit-scan": state.auditFilter.scanRunId = id; state.auditTrailOpen = true; loadAudit(); break;
       case "audit-clear-scan": state.auditFilter.scanRunId = ""; loadAudit(); break;
       default: break;
     }
