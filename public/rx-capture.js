@@ -174,6 +174,7 @@
     row.setAttribute("aria-label", `Open ${order.patientName || "prescription"}`);
     const patient = document.createElement("strong");
     patient.textContent = order.patientName || "Patient not identified";
+    if (!order.patientName) patient.className = "is-unidentified";
     const patientCell = document.createElement("td");
     const accountCell = document.createElement("td");
     accountCell.className = "order-meta";
@@ -196,7 +197,11 @@
     dateCell.textContent = formatDate(order.createdAt);
     const statusCell = document.createElement("td");
     statusCell.append(status);
-    patientCell.append(patient);
+    // Narrow screens drop the Captured by column; the name carries it instead.
+    const byline = document.createElement("small");
+    byline.className = "order-byline";
+    byline.textContent = `by ${capturedByLabel(order)}`;
+    patientCell.append(patient, byline);
     row.append(patientCell, accountCell, rxNumberCell, lensCell, capturedByCell, dateCell, statusCell);
     // The row is the requested single action. Avoid a nested button, which
     // creates two competing interactive targets for assistive technology.
@@ -1266,7 +1271,10 @@
 
   function formatDate(value) {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    if (Number.isNaN(date.getTime())) return "";
+    // Compact for a dense list: the year only when it is not this one.
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleString([], { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }), hour: "numeric", minute: "2-digit" });
   }
 
   async function searchCustomers() {
