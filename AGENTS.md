@@ -43,7 +43,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 
 ## Workflow
 
-- Work only in the authoritative host checkout identified by secure host configuration.
+- Work in the authoritative host checkout identified by secure host configuration, or in the agent-first `C:\DEV\optilens-local` working copy. Check `git status` and the current branch first; deployment and restart still go through the host checkout.
 - Preserve unrelated human changes and use feature branches.
 - Use the guarded remote editing/deployment flow; do not edit multiple checkouts.
 - Run relevant syntax checks and `npm test`; finish deployments with the documented health verification.
