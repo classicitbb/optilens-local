@@ -1579,3 +1579,6 @@ label {
   font-size: 11px;
   font-weight: 500;
 }
+
+/* Editions without Automation have no assistant to open. */
+[data-no-assistant] .assistant-toggle-btn, [data-no-assistant] .global-assistant-fab, [data-no-assistant] .global-assistant-drawer { display: none !important; }

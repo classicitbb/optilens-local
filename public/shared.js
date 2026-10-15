@@ -1289,6 +1289,15 @@ function closeAllDropdowns() {
   document.querySelectorAll(".user-chip").forEach((c) => c.setAttribute("aria-expanded", "false"));
 }
 
+// A licensed edition hides what it does not include. The server already answers
+// 404 for those routes; this only keeps their buttons off the page.
+function applyEdition(edition) {
+  AUTH_STATE.edition = edition || null;
+  const modules = edition?.modules || [];
+  const restricted = Boolean(edition?.restricted);
+  document.documentElement.toggleAttribute("data-no-assistant", restricted && !modules.includes("automation"));
+}
+
 async function refreshAuthState() {
   const bootstrap = await authFetch("/api/auth/bootstrap-state").catch(() => ({ needsMigration: false, needsBootstrap: false }));
   AUTH_STATE.needsMigration = Boolean(bootstrap.needsMigration);
@@ -1296,6 +1305,7 @@ async function refreshAuthState() {
 
   const me = await authFetch("/api/auth/me").catch(() => ({ user: null }));
   AUTH_STATE.user = me.user || null;
+  applyEdition(me.edition);
   renderAuthChip();
   renderLauncherApps();
   window.dispatchEvent(new CustomEvent("optilens:auth-changed", {
@@ -1462,7 +1472,18 @@ function launcherTileColor(app) {
   return LAUNCHER_ICON_COLOR_OVERRIDES[app.id] || app.color;
 }
 
+// Which licensed module owns each launcher item; items not listed belong to the core.
+const SHELL_ITEM_MODULE = {
+  "delivery-export": "delivery-export", "pricing-automation": "pricing-automation", "cost-check": "pricing-automation",
+  integrations: "integrations", automation: "automation", "os-lab-status": "automation", "rx-capture": "rx-capture",
+  "business-metrics": "business-metrics", "production-status": "business-metrics", "inventory-intelligence": "inventory-intelligence",
+  credentials: "vault"
+};
+
 function canAccessSharedItem(item) {
+  const edition = AUTH_STATE.edition;
+  const owner = SHELL_ITEM_MODULE[item.id];
+  if (edition?.restricted && owner && !(edition.modules || []).includes(owner)) return false;
   const required = item.permissions || [];
   if (!required.length) return true;
   const permissions = AUTH_STATE.user?.permissions || [];

@@ -353,7 +353,7 @@ test("the dedicated cockpit route is administrator-only", () => {
 
 test("only staff-side code references the cockpit: no portal, website connector or public API does", () => {
   const allowed = new Set([
-    "server.js", "lib/migrations.js", "public/business-metrics.html", "public/inventory-intelligence.html",
+    "server.js", "lib/migrations.js", "lib/edition.js", "public/business-metrics.html", "public/inventory-intelligence.html",
     "public/app.js", "public/shared.js", "public/business-metrics-inventory-intelligence.js",
     "public/styles/pages/inventory-intelligence.css", "scripts/run-inventory-intelligence-scan.js",
     "docs/INVENTORY_INTELLIGENCE_COCKPIT_BUILD_TASK.md", "docs/INVENTORY_INTELLIGENCE.md",
