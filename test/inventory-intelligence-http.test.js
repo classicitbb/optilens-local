@@ -357,7 +357,7 @@ test("only staff-side code references the cockpit: no portal, website connector 
     "public/app.js", "public/shared.js", "public/business-metrics-inventory-intelligence.js",
     "public/styles/pages/inventory-intelligence.css", "scripts/run-inventory-intelligence-scan.js",
     "docs/INVENTORY_INTELLIGENCE_COCKPIT_BUILD_TASK.md", "docs/INVENTORY_INTELLIGENCE.md",
-    "docs/agent/PROJECT_KNOWLEDGE.md", "docs/agent/HANDOFF.md"
+    "docs/agent/PROJECT_KNOWLEDGE.md", "docs/agent/HANDOFF.md", "docs/EDITIONS.md"
   ]);
   const roots = ["server.js", "lib", "public", "scripts", "extensions", "templates", "docs"];
   const hits = [];
