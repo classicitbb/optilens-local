@@ -46,6 +46,8 @@
 
 - `lib/edition.js` decides which modules a site runs; `docs/EDITIONS.md` explains issuing a signed `data/edition.json` with `scripts/edition-sign.js`. No manifest means the full edition (nothing blocked). A licensed edition is default-deny for pages and APIs, tags migrations by module (`lib/migrations.js`), starts only licensed workers, and hides unlicensed launcher items and the assistant. Add every new route prefix to a module in `lib/edition.js` and tag every new migration, or a licensed site will not serve it. The private signing key stays outside the repository.
 
+- Site settings (`lib/site-settings.js`, gear button on the RX Capture page, `GET/PUT /api/rx-capture/site-settings`, administrators only) replace hand edits to `data/rx/config.json` for lab number, customer sequence, remote operator, agent name and the incoming/staging/archive folders. Precedence for the incoming folder: Credentials Vault entry, then site settings, then the checked-in config. A licensed edition cannot approve, submit or release until lab number, remote operator and incoming folder are saved.
+
 ## Knowledge maintenance
 
 - Inventory Intelligence has its own administrator-only workspace route, `/modules/inventory-intelligence`, mounted by `public/inventory-intelligence.html`. Business Metrics links to it; the cockpit UI remains in `public/business-metrics-inventory-intelligence.js`, and its API remains under `/api/inventory-intelligence/`.

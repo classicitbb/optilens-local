@@ -27,6 +27,12 @@ node scripts/edition-sign.js --verify data/edition.json
 
 The manifest is written to `data/edition.json` (not tracked). Restart the service to apply it. `GET /api/system/edition` (administrators) shows what is active. To trial a manifest without touching `data/`, set `OPTILENS_EDITION_FILE`.
 
+## Site settings
+
+The values that differ between labs are edited on the RX Capture page (gear button, administrators only), not in `data/rx/config.json`: lab number, customer sequence, remote operator, agent name, and the Innovations incoming, staging and archive folders. They are stored in `core.app_settings` (key `rx.site-settings`) and layered over the checked-in defaults: defaults, then site settings, then the Credentials Vault's incoming-folder entry. **Check folders** reports whether each folder is reachable and writable by the service without writing anything.
+
+A licensed edition refuses to approve, submit or release any order until the lab number, remote operator and incoming folder are saved, so a new lab never sends a file under another lab's number. The full edition is not affected.
+
 ## Limits to know
 
 - Gating hides and blocks; it does not remove code. A site that holds the full source could delete the manifest. A licensed distribution is therefore built from an allowlist of modules and carries `lib/edition-build.json` with `{ "requireManifest": true }`, so a missing manifest does not unlock anything.

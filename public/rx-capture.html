@@ -42,6 +42,7 @@
           <div class="orders-actions">
             <input id="ordersSearch" class="cb-field orders-search" type="search" autocomplete="off" placeholder="Patient, customer or account" aria-label="Search orders by patient, customer or account">
             <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders"><span class="material-symbols-outlined" aria-hidden="true">refresh</span></button>
+            <button id="siteSettingsButton" class="icon-button" type="button" aria-label="Site settings" title="Site settings" hidden><span class="material-symbols-outlined" aria-hidden="true">settings</span></button>
             <button id="bulkUploadButton" class="secondary-button" type="button"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><span class="btn-label">Bulk upload</span></button>
             <button id="newRxButton" class="primary-button" type="button"><span class="material-symbols-outlined" aria-hidden="true">add</span><span class="btn-label">New RX</span></button>
           </div>
@@ -141,6 +142,25 @@
         </div>
         <button id="submitCaptureButton" class="primary-button wide" type="submit">SUBMIT FOR EXTRACTION</button>
         <button id="manualEntryButton" class="secondary-button wide" type="button">ENTER RX MANUALLY</button>
+      </form>
+    </section>
+
+    <section id="settingsScreen" class="screen" aria-labelledby="settingsTitle">
+      <button class="back-button" type="button" data-back>← Recent orders</button>
+      <div class="page-heading">
+        <p class="eyebrow">Administrator</p>
+        <h1 id="settingsTitle">Site settings</h1>
+        <p>The lab details and Innovations folders for this site. A blank field uses the built-in default shown inside it.</p>
+      </div>
+      <form id="settingsForm" class="capture-card" novalidate>
+        <div id="settingsFields" class="settings-fields"></div>
+        <p id="settingsVaultNote" class="section-help" hidden>The incoming folder is also set in the Credentials Vault. The Vault entry is used, and this field is ignored.</p>
+        <p id="settingsMissing" class="section-help" role="status" hidden></p>
+        <div class="settings-actions">
+          <button id="settingsSave" class="primary-button" type="submit">SAVE SETTINGS</button>
+          <button id="settingsCheck" class="secondary-button" type="button">CHECK FOLDERS</button>
+        </div>
+        <ul id="settingsCheckResult" class="settings-check" aria-live="polite" hidden></ul>
       </form>
     </section>
 

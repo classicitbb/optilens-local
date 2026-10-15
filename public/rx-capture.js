@@ -51,6 +51,7 @@
       state.username = auth.user?.username || auth.user?.displayName || "";
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
       state.canRelease = (auth.user?.permissions || []).includes("rx-capture.release");
+      state.isAdmin = (auth.user?.permissions || []).includes("platform.admin");
       $("#newRxButton").hidden = !state.canWrite;
       $("#saveReviewButton").hidden = !state.canWrite;
       wireEvents();
@@ -78,6 +79,7 @@
     }));
     wireImageDropZone();
     wireBulkUpload();
+    wireSiteSettings();
     $("#manualEntryButton").addEventListener("click", startManualEntry);
     document.querySelectorAll("[data-mode]").forEach((button) => {
       button.addEventListener("click", () => switchMode(button.dataset.mode));
@@ -337,6 +339,102 @@
     window.addEventListener("focus", offerClipboardImage);
   }
 
+  // ---- Site settings (administrators) -----------------------------------------
+  // Lab number, operator, agent name and the Innovations folders for this site.
+  // A blank field uses the built-in default, shown as the placeholder.
+  function wireSiteSettings() {
+    $("#siteSettingsButton").hidden = !state.isAdmin;
+    $("#siteSettingsButton").addEventListener("click", openSiteSettings);
+    $("#settingsForm").addEventListener("submit", saveSiteSettings);
+    $("#settingsCheck").addEventListener("click", checkSiteFolders);
+    if (state.isAdmin) reminderForSiteSettings();
+  }
+
+  // A licensed site cannot submit until its own lab details are saved; tell
+  // the administrator on the first screen rather than on the first failed submit.
+  async function reminderForSiteSettings() {
+    try {
+      const view = await api("/api/rx-capture/site-settings");
+      if (view.missingForRelease?.length) showNotice("Site settings are not saved yet. Open Site settings and enter the lab number, remote operator and Innovations incoming folder before submitting any order.", true);
+    } catch { /* the settings screen reports its own errors */ }
+  }
+
+  async function openSiteSettings() {
+    try {
+      const view = await api("/api/rx-capture/site-settings");
+      renderSiteSettings(view);
+      showScreen("settingsScreen");
+    } catch (error) {
+      showNotice(error.message, true);
+    }
+  }
+
+  function renderSiteSettings(view) {
+    const container = $("#settingsFields");
+    container.replaceChildren(...view.fields.map((field) => {
+      const label = document.createElement("label");
+      label.textContent = field.label;
+      const input = document.createElement("input");
+      input.name = field.key;
+      input.maxLength = field.max;
+      input.autocomplete = "off";
+      input.value = view.saved[field.key] || "";
+      input.placeholder = view.effective[field.key] ? `Default: ${view.effective[field.key]}` : "Not set";
+      if (field.key === "incomingFolder" && view.incomingFromVault) input.title = "The Credentials Vault entry overrides this value.";
+      label.append(input);
+      return label;
+    }));
+    $("#settingsVaultNote").hidden = !view.incomingFromVault;
+    const missing = view.missingForRelease || [];
+    const note = $("#settingsMissing");
+    note.hidden = missing.length === 0;
+    note.textContent = missing.length ? "Still needed before this site can submit to Innovations: lab number, remote operator and incoming folder." : "";
+    $("#settingsCheckResult").hidden = true;
+  }
+
+  async function saveSiteSettings(event) {
+    event.preventDefault();
+    const settings = Object.fromEntries([...$("#settingsForm").querySelectorAll("input[name]")].map((input) => [input.name, input.value.trim()]));
+    const button = $("#settingsSave");
+    button.disabled = true;
+    try {
+      const view = await api("/api/rx-capture/site-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings })
+      });
+      renderSiteSettings(view);
+      showNotice("Site settings saved.");
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function checkSiteFolders() {
+    const list = $("#settingsCheckResult");
+    const button = $("#settingsCheck");
+    button.disabled = true;
+    try {
+      const { folders } = await api("/api/rx-capture/site-settings/check", { method: "POST" });
+      list.replaceChildren(...folders.map((folder) => {
+        const item = document.createElement("li");
+        const ok = folder.configured && folder.exists && folder.writable;
+        item.dataset.ok = String(ok);
+        item.textContent = !folder.configured ? `${folder.label}: not set`
+          : ok ? `${folder.label}: reachable and writable`
+            : `${folder.label}: ${folder.exists ? "not writable" : "not found"}${folder.error ? ` (${folder.error})` : ""}`;
+        return item;
+      }));
+      list.hidden = false;
+    } catch (error) {
+      showNotice(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   // ---- Bulk upload ------------------------------------------------------------
   // Drag 10 to 100 PDFs or images onto Recent orders or onto the New prescription
   // drop area. Each file is uploaded as its own order for the customer picked
@@ -522,6 +620,8 @@
     try {
       const payload = await api(`/api/rx-capture/batches/${encodeURIComponent(batch.id)}`);
       if (state.batch !== batch) return;
+      // An upload whose orders were all discarded (or that no longer exists) has nothing to follow.
+      if (!payload.batch.total) return dismissBatch();
       batch.summary = payload.batch;
       renderBatchBanner();
       if ($("#ordersScreen").classList.contains("active")) await loadOrders();

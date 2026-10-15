@@ -277,6 +277,8 @@ test("the page accepts dropped files on Recent orders and on the New prescriptio
   assert.match(client, /openBulk\(event\.dataTransfer\.files\)/);
   // Several files dropped on the New prescription area become a bulk upload.
   assert.match(client, /if \(dropped\.length > 1\) return openBulk\(dropped\)/);
+  // A remembered upload with no orders left is dropped instead of showing "Waiting…" forever.
+  assert.match(client, /if \(!payload\.batch\.total\) return dismissBatch\(\);/);
   // One order per file, tagged with the batch.
   assert.match(client, /batch: \{ id: batchId, fileName: item\.file\.name \}/);
 });
