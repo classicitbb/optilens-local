@@ -1305,6 +1305,17 @@ async function refreshAuthState() {
       needsBootstrap: AUTH_STATE.needsBootstrap
     }
   }));
+
+  loadAnnotateTools();
+}
+
+// Admin-only page annotation tool (header pencil menu). Loaded on demand so other users never download it.
+function loadAnnotateTools() {
+  if (!canManageUpdates() || document.querySelector("script[data-annotate]")) return;
+  const script = document.createElement("script");
+  script.src = "/annotate.js";
+  script.dataset.annotate = "";
+  document.head.appendChild(script);
 }
 
 function renderLauncherApps() {

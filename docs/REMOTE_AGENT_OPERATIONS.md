@@ -6,8 +6,9 @@ checkout:
 
 `C:\Users\Administrator\Documents\GitHub\optilens-local`
 
-Do not use `C:\DEV\optilens-local`. That checkout is for human work only and
-may have stale or uncommitted changes.
+`C:\DEV\optilens-local` is an agent-first working copy; humans use it second.
+Check `git status` before editing, as it may hold uncommitted agent or human
+changes. Deployment and restart still go through the host checkout above.
 
 ## Remote access
 
