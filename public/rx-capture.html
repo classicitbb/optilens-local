@@ -12,9 +12,8 @@
   <link rel="manifest" href="/rx-capture.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/optilens.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&display=swap">
+  <script>try { var t = localStorage.getItem("optilens.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/pages/rx-capture.css">
 </head>
 <body>
@@ -34,21 +33,18 @@
     <div id="globalStatus" class="notice" role="status" aria-live="polite" hidden></div>
 
     <section id="ordersScreen" class="screen active" aria-label="RX Capture">
-      <div class="hero">
-        <button id="newRxButton" class="primary-button" type="button">+ NEW RX</button>
-        <p>Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
-      </div>
-
       <section class="orders-panel" aria-labelledby="recentTitle">
         <div class="section-heading">
-          <div>
+          <div class="section-title">
             <p class="eyebrow">Team submissions</p>
-            <h2 id="recentTitle">RECENT ORDERS</h2>
+            <h2 id="recentTitle">Recent orders</h2>
           </div>
           <div class="orders-actions">
-            <input id="ordersSearch" class="cb-field orders-search" type="search" autocomplete="off" placeholder="Search patient, customer or account" aria-label="Search orders">
-            <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders">↻</button>
+            <input id="ordersSearch" class="cb-field orders-search" type="search" autocomplete="off" placeholder="Patient, customer or account" aria-label="Search orders by patient, customer or account">
+            <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders"><span class="material-symbols-outlined" aria-hidden="true">refresh</span></button>
+            <button id="newRxButton" class="primary-button" type="button"><span class="material-symbols-outlined" aria-hidden="true">add</span><span class="btn-label">New RX</span></button>
           </div>
+          <p class="section-note">Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
         </div>
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
         <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">ERP account</th><th scope="col">RX number</th><th class="orders-lens-column" scope="col">Selected lens</th><th scope="col">Captured by</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
@@ -77,7 +73,7 @@
         </div>
         <div id="photoMode" class="mode-panel">
         <div id="imageDropZone" class="file-card" data-image-slot="primary">
-          <span class="camera-icon" aria-hidden="true">⌁</span>
+          <span class="camera-icon material-symbols-outlined" aria-hidden="true">add_a_photo</span>
           <strong>Prescription image or PDF</strong>
           <span id="imageDropHint">Take a photo, choose an image or PDF, drag one here, or paste a copied image or screenshot (Ctrl+V).</span>
           <img id="primaryPreview" alt="Prescription preview" hidden>
@@ -142,7 +138,7 @@
       </div>
 
       <form id="reviewForm" class="review-form" hidden>
-        <section class="review-card">
+        <section class="review-card patient-card">
           <h2>Patient</h2>
           <div class="field-grid two">
             <label data-field-wrap="patient.name">Name<input data-path="patient.name" autocomplete="off"></label>
@@ -240,8 +236,9 @@
           <ul id="issuesList"></ul>
         </section>
 
-        <section class="review-card">
-          <label>Instructions<textarea data-path="instructions" rows="3"></textarea></label>
+        <section class="review-card instructions-card">
+          <h2 id="instructionsHeading">Instructions</h2>
+          <textarea data-path="instructions" rows="2" aria-labelledby="instructionsHeading"></textarea>
         </section>
 
         <section class="submission-bar" aria-label="Innovations submission">

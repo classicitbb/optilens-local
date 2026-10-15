@@ -456,7 +456,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(html, /Employee prescription intake — photograph a prescription/);
   assert.doesNotMatch(html, /id="ordersTitle"/);
   assert.match(css, /\[hidden\] \{ display: none !important; \}/);
-  assert.match(css, /#reviewTitle \{ color: #cf0707; \}/);
+  assert.doesNotMatch(css, /#reviewTitle/);
+  assert.match(html, /<link rel="stylesheet" href="\/styles\/tokens\.css">/);
   assert.doesNotMatch(html, /shared\.js/);
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
@@ -468,7 +469,7 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(css, /\.orders-table-wrap \{ overflow: visible; \}/);
   assert.doesNotMatch(css, /\.orders-table \{[^}]*min-width: 1060px/);
   assert.match(css, /\.rx-app:has\(#ordersScreen\.active\) \{ width: min\(100%, 1400px\); \}/);
-  assert.match(css, /\.orders-table th:nth-child\(7\) \{ width: 14%; \}/);
+  assert.match(css, /\.orders-table td\.order-lens \{ width: 100%;/);
   assert.match(css, /\.orders-table th \{ position: sticky;/);
   assert.match(css, /\.orders-lens-column \{ display: none; \}/);
   assert.match(css, /\.orders-actions \{ display: flex;/);
