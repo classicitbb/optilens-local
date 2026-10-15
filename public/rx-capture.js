@@ -1,5 +1,5 @@
 (() => {
-  const state = { orders: [], current: null, pollTimer: null, submissionReturnTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, pdDerived: new Set(), edTouched: false, mode: "photo", voice: emptyVoice(), frequentCustomers: null };
+  const state = { orders: [], current: null, pollTimer: null, submissionReturnTimer: null, customerTimer: null, selectedCustomer: null, canWrite: false, canRelease: false, userId: null, username: "", catalog: null, coatings: null, lensLabels: {}, lensCombos: {}, images: {}, pdDerived: new Set(), edTouched: false, mode: "photo", voice: emptyVoice(), frequentCustomers: null, bulk: { items: [], uploading: false, batchId: null }, batch: null, batchTimer: null };
   const $ = (selector) => document.querySelector(selector);
   const screens = [...document.querySelectorAll(".screen")];
   const pathLabels = {
@@ -54,6 +54,7 @@
       $("#newRxButton").hidden = !state.canWrite;
       $("#saveReviewButton").hidden = !state.canWrite;
       wireEvents();
+      restoreBatch();
       await loadOrders();
     } catch (error) {
       if (error.status !== 401) showNotice(error.message, true);
@@ -76,6 +77,7 @@
       if (file) setImage(file);
     }));
     wireImageDropZone();
+    wireBulkUpload();
     $("#manualEntryButton").addEventListener("click", startManualEntry);
     document.querySelectorAll("[data-mode]").forEach((button) => {
       button.addEventListener("click", () => switchMode(button.dataset.mode));
@@ -150,6 +152,7 @@
     const query = $("#ordersSearch").value.trim();
     const params = new URLSearchParams({ limit: query ? "100" : "30" });
     if (query) params.set("q", query);
+    if (state.batch && $("#batchOnly").checked) { params.set("batch", state.batch.id); params.set("limit", "300"); }
     const payload = await api(`/api/rx-capture/orders?${params}`);
     // A slower earlier response must not overwrite results for newer text.
     if ($("#ordersSearch").value.trim() !== query) return;
@@ -158,6 +161,7 @@
     list.replaceChildren(...state.orders.map((order) => orderButton(order)));
     $("#ordersEmpty").textContent = query ? `No orders match "${query}".` : "No RX captures yet.";
     $("#ordersEmpty").hidden = state.orders.length > 0;
+    updateNextReady();
   }
 
   let ordersSearchTimer = null;
@@ -173,7 +177,7 @@
     row.setAttribute("role", "button");
     row.setAttribute("aria-label", `Open ${order.patientName || "prescription"}`);
     const patient = document.createElement("strong");
-    patient.textContent = order.patientName || "Patient not identified";
+    patient.textContent = order.patientName || order.fileName || "Patient not identified";
     if (!order.patientName) patient.className = "is-unidentified";
     const patientCell = document.createElement("td");
     const accountCell = document.createElement("td");
@@ -301,6 +305,7 @@
   function wireImageDropZone() {
     const zone = $("#imageDropZone");
     const captureActive = () => $("#captureScreen").classList.contains("active");
+    const ordersActive = () => $("#ordersScreen").classList.contains("active");
     const imageFrom = (items) => [...(items || [])].find((item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf"))?.getAsFile() || null;
     let depth = 0;
     zone.addEventListener("dragenter", (event) => { event.preventDefault(); depth += 1; zone.classList.add("dragging"); });
@@ -310,12 +315,14 @@
       event.preventDefault();
       depth = 0;
       zone.classList.remove("dragging");
-      const file = [...(event.dataTransfer?.files || [])][0] || imageFrom(event.dataTransfer?.items);
+      const dropped = [...(event.dataTransfer?.files || [])];
+      if (dropped.length > 1) return openBulk(dropped);
+      const file = dropped[0] || imageFrom(event.dataTransfer?.items);
       if (file) setImage(file);
     });
     // A file dropped beside the card must not navigate away from the form.
-    window.addEventListener("dragover", (event) => { if (captureActive()) event.preventDefault(); });
-    window.addEventListener("drop", (event) => { if (captureActive()) event.preventDefault(); });
+    window.addEventListener("dragover", (event) => { if (captureActive() || ordersActive()) event.preventDefault(); });
+    window.addEventListener("drop", (event) => { if (captureActive() || ordersActive()) event.preventDefault(); });
     document.addEventListener("paste", (event) => {
       if (!captureActive()) return;
       const file = imageFrom(event.clipboardData?.items);
@@ -330,9 +337,248 @@
     window.addEventListener("focus", offerClipboardImage);
   }
 
+  // ---- Bulk upload ------------------------------------------------------------
+  // Drag 10 to 100 PDFs or images onto Recent orders or onto the New prescription
+  // drop area. Each file is uploaded as its own order for the customer picked
+  // here, queued on the server, read a few at a time, and listed as Ready to
+  // submit when finished. A person still reviews every order before it is sent.
+  const BATCH_STORAGE_KEY = "optilens.rxCapture.batch";
+
+  function wireBulkUpload() {
+    const zone = $("#bulkDropZone");
+    let zoneDepth = 0;
+    zone.addEventListener("dragenter", (event) => { event.preventDefault(); zoneDepth += 1; zone.classList.add("dragging"); });
+    zone.addEventListener("dragleave", () => { zoneDepth = Math.max(0, zoneDepth - 1); if (!zoneDepth) zone.classList.remove("dragging"); });
+    zone.addEventListener("dragover", (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; });
+    zone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      zoneDepth = 0;
+      zone.classList.remove("dragging");
+      addBulkFiles(event.dataTransfer?.files);
+    });
+    $("#bulkFiles").addEventListener("change", (event) => {
+      const files = [...event.target.files];
+      event.target.value = "";
+      addBulkFiles(files);
+    });
+    $("#bulkClear").addEventListener("click", () => resetBulk());
+    $("#bulkUploadButton").addEventListener("click", () => openBulk([]));
+
+    // Recent orders is a drop target too: dropping files there opens the bulk
+    // list, where the customer is chosen before anything is uploaded.
+    const panel = document.querySelector(".orders-panel");
+    let panelDepth = 0;
+    const hasFiles = (event) => [...(event.dataTransfer?.types || [])].includes("Files");
+    panel.addEventListener("dragenter", (event) => { if (!hasFiles(event)) return; event.preventDefault(); panelDepth += 1; panel.classList.add("dragging"); });
+    panel.addEventListener("dragleave", () => { panelDepth = Math.max(0, panelDepth - 1); if (!panelDepth) panel.classList.remove("dragging"); });
+    panel.addEventListener("dragover", (event) => { if (!hasFiles(event)) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; });
+    panel.addEventListener("drop", (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      panelDepth = 0;
+      panel.classList.remove("dragging");
+      if (!state.canWrite) return showNotice("You do not have permission to create RX Capture orders.", true);
+      openBulk(event.dataTransfer.files);
+    });
+
+    $("#batchDismiss").addEventListener("click", dismissBatch);
+    $("#batchOnly").addEventListener("change", () => loadOrders().catch((error) => showNotice(error.message, true)));
+    $("#nextReadyButton").addEventListener("click", openNextReady);
+  }
+
+  // Opens the capture screen in bulk mode and adds any dropped files.
+  function openBulk(files) {
+    showScreen("captureScreen");
+    if (!switchMode("bulk")) return;
+    if (files && files.length) addBulkFiles(files);
+    else renderBulk();
+  }
+
+  function addBulkFiles(files) {
+    const { accepted, rejected } = window.RxBulk.acceptFiles(files, state.bulk.items);
+    state.bulk.items.push(...accepted);
+    renderBulk();
+    if (rejected.length) {
+      const shown = rejected.slice(0, 3).map((item) => `${item.name} (${item.reason})`).join("; ");
+      showNotice(`${rejected.length} file${rejected.length === 1 ? " was" : "s were"} not added: ${shown}${rejected.length > 3 ? "…" : ""}`, true);
+    }
+  }
+
+  function resetBulk() {
+    state.bulk = { items: [], uploading: false, batchId: null };
+    renderBulk();
+  }
+
+  const BULK_STATE_LABELS = { ready: "Ready", uploading: "Uploading…", queued: "Queued", duplicate: "Already uploaded", error: "Failed" };
+
+  function renderBulk() {
+    const items = state.bulk.items;
+    const list = $("#bulkList");
+    list.replaceChildren(...items.map((item) => {
+      const row = document.createElement("li");
+      row.className = "bulk-item";
+      row.dataset.status = item.status;
+      const name = document.createElement("span");
+      name.className = "bulk-name";
+      name.textContent = item.file.name;
+      const size = document.createElement("small");
+      size.textContent = window.RxBulk.formatSize(item.file.size);
+      const status = document.createElement("span");
+      status.className = "bulk-state";
+      status.textContent = BULK_STATE_LABELS[item.status] || item.status;
+      if (item.message && ["duplicate", "error"].includes(item.status)) status.title = item.message;
+      row.append(name, size, status);
+      if (item.status === "ready" && !state.bulk.uploading) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "bulk-remove";
+        remove.setAttribute("aria-label", `Remove ${item.file.name}`);
+        remove.textContent = "×";
+        remove.addEventListener("click", () => { state.bulk.items = state.bulk.items.filter((entry) => entry !== item); renderBulk(); });
+        row.append(remove);
+      }
+      return row;
+    }));
+    const counts = window.RxBulk.countItems(items);
+    const waiting = counts.ready + counts.error;
+    const summary = $("#bulkSummary");
+    summary.hidden = items.length === 0;
+    summary.textContent = [
+      `${items.length} file${items.length === 1 ? "" : "s"}`,
+      counts.queued ? `${counts.queued} uploaded` : "",
+      counts.duplicate ? `${counts.duplicate} already uploaded` : "",
+      counts.error ? `${counts.error} failed` : ""
+    ].filter(Boolean).join(" · ");
+    $("#bulkClear").hidden = items.length === 0 || state.bulk.uploading;
+    renderSubmitLabel();
+    $("#submitCaptureButton").disabled = state.mode === "bulk" && (state.bulk.uploading || waiting === 0);
+  }
+
+  function renderSubmitLabel() {
+    const button = $("#submitCaptureButton");
+    if (state.mode !== "bulk") { button.textContent = "SUBMIT FOR EXTRACTION"; button.disabled = false; return; }
+    const counts = window.RxBulk.countItems(state.bulk.items);
+    const waiting = counts.ready + counts.error;
+    if (state.bulk.uploading) button.textContent = "UPLOADING…";
+    else if (counts.error && !counts.ready) button.textContent = `RETRY ${counts.error} FAILED`;
+    else button.textContent = waiting ? `UPLOAD ${waiting} FILE${waiting === 1 ? "" : "S"}` : "ADD FILES TO UPLOAD";
+  }
+
+  async function submitBulk() {
+    if (state.bulk.uploading) return;
+    if (!state.selectedCustomer) return showNotice("Select the ERP customer before uploading the prescriptions.", true);
+    const items = state.bulk.items;
+    if (!items.some((item) => item.status === "ready" || item.status === "error")) return showNotice("Add the prescription files first.", true);
+    const customer = state.selectedCustomer;
+    state.bulk.batchId ||= window.RxBulk.newBatchId();
+    const batchId = state.bulk.batchId;
+    state.bulk.uploading = true;
+    renderBulk();
+    try {
+      await window.RxBulk.uploadAll(items, async (item) => {
+        const dataUrl = await imageDataUrl(item.file);
+        await api("/api/rx-capture/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ images: [{ name: item.file.name, dataUrl }], customer, batch: { id: batchId, fileName: item.file.name } })
+        });
+      }, { onUpdate: renderBulk });
+    } finally {
+      state.bulk.uploading = false;
+    }
+    const counts = window.RxBulk.countItems(items);
+    if (counts.queued) watchBatch(batchId, customer.name);
+    if (counts.error || counts.duplicate) {
+      renderBulk();
+      showNotice(`${counts.queued} file${counts.queued === 1 ? "" : "s"} queued. ${counts.error + counts.duplicate} need attention below; the rest are being read.`, counts.error > 0);
+      return;
+    }
+    resetBulk();
+    resetCapture();
+    await returnToRecentOrders();
+    showNotice(`${counts.queued} prescription${counts.queued === 1 ? "" : "s"} queued. They are read a few at a time and appear below as Ready to submit.`);
+  }
+
+  // Follows one bulk upload until every file has been read.
+  function watchBatch(batchId, customerName) {
+    state.batch = { id: batchId, customer: customerName || "", summary: null };
+    try { sessionStorage.setItem(BATCH_STORAGE_KEY, JSON.stringify({ id: batchId, customer: customerName || "" })); } catch { /* private window */ }
+    $("#batchOnly").checked = true;
+    pollBatch();
+  }
+
+  function restoreBatch() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(BATCH_STORAGE_KEY) || "null");
+      if (saved && typeof saved.id === "string") state.batch = { id: saved.id, customer: saved.customer || "", summary: null };
+    } catch { /* nothing remembered */ }
+    if (state.batch) pollBatch();
+  }
+
+  async function pollBatch() {
+    clearTimeout(state.batchTimer);
+    const batch = state.batch;
+    if (!batch) return;
+    try {
+      const payload = await api(`/api/rx-capture/batches/${encodeURIComponent(batch.id)}`);
+      if (state.batch !== batch) return;
+      batch.summary = payload.batch;
+      renderBatchBanner();
+      if ($("#ordersScreen").classList.contains("active")) await loadOrders();
+      if (!payload.batch.finished) state.batchTimer = setTimeout(pollBatch, 3000);
+    } catch (error) {
+      if (state.batch === batch) state.batchTimer = setTimeout(pollBatch, 8000);
+    }
+  }
+
+  function renderBatchBanner() {
+    const banner = $("#batchBanner");
+    const batch = state.batch;
+    banner.hidden = !batch;
+    if (!batch) return;
+    const summary = batch.summary;
+    $("#batchTitle").textContent = batch.customer ? `Bulk upload · ${batch.customer}` : "Bulk upload";
+    $("#batchProgress").textContent = window.RxBulk.progressText(summary);
+    $("#batchBar").value = window.RxBulk.percentDone(summary);
+    banner.dataset.finished = String(Boolean(summary?.finished));
+  }
+
+  function dismissBatch() {
+    clearTimeout(state.batchTimer);
+    state.batch = null;
+    try { sessionStorage.removeItem(BATCH_STORAGE_KEY); } catch { /* private window */ }
+    renderBatchBanner();
+    loadOrders().catch((error) => showNotice(error.message, true));
+  }
+
+  // From a finished review, jump to the next order that is ready to submit
+  // (oldest first, after the one on screen).
+  function nextReadyOrder() {
+    const current = state.current;
+    const ready = state.orders
+      .filter((order) => order.status === "READY_FOR_REVIEW" && order.id !== current?.id)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (!ready.length) return null;
+    const after = ready.find((order) => !current || new Date(order.createdAt) >= new Date(current.createdAt));
+    return after || ready[0];
+  }
+
+  function updateNextReady() {
+    const button = $("#nextReadyButton");
+    if (!button) return;
+    const next = $("#reviewScreen").classList.contains("active") ? nextReadyOrder() : null;
+    button.hidden = !next;
+  }
+
+  function openNextReady() {
+    const next = nextReadyOrder();
+    if (next) openOrder(next.id);
+  }
+
   async function submitCapture(event) {
     event.preventDefault();
     if (state.mode === "voice") return submitDictation();
+    if (state.mode === "bulk") return submitBulk();
     const { primary } = state.images;
     if (!state.selectedCustomer) return showNotice("Select the ERP customer before submitting the prescription.", true);
     if (!primary) return showNotice("Choose a prescription image first.", true);
@@ -391,6 +637,7 @@
     $("#clipboardOffer").hidden = true;
     previewFile("primary");
     state.voice = emptyVoice();
+    resetBulk();
     state.frequentCustomers = null;
     renderSegmentBoxes();
     renderClips();
@@ -413,9 +660,11 @@
     $("#reviewStatus").dataset.status = order.status;
     $("#reviewStatus").textContent = statusLabel(order.status);
     $("#reviewCapturedBy").textContent = `Captured by ${capturedByLabel(order)}`;
-    $("#processingPanel").hidden = order.status !== "PROCESSING";
+    const waiting = ["NEW", "PROCESSING"].includes(order.status);
+    $("#processingPanel").hidden = !waiting;
+    $("#processingNote").textContent = order.status === "NEW" ? "This prescription is waiting in line. It is read automatically; you can return to recent orders." : "This usually takes less than a minute. You can return to recent orders while it processes.";
     $("#failedPanel").hidden = order.status !== "FAILED";
-    $("#reviewForm").hidden = !order.normalizedOrder || order.status === "PROCESSING";
+    $("#reviewForm").hidden = !order.normalizedOrder || waiting;
     const failureMessage = order.errorMessage || "Try the extraction again or create a new capture.";
     $("#failedMessage").textContent = order.normalizedOrder
       ? `${failureMessage} The last saved values remain available below for review.`
@@ -428,7 +677,7 @@
     state.renderedOrderId = order.id;
     $("#reprocessButton").hidden = !editable;
     $("#saveReviewButton").hidden = !editable;
-    const discardable = canEdit && ["NEEDS_INFO", "READY_FOR_REVIEW", "FAILED"].includes(order.status);
+    const discardable = canEdit && ["NEW", "NEEDS_INFO", "READY_FOR_REVIEW", "FAILED"].includes(order.status);
     document.querySelectorAll("[data-discard]").forEach((button) => { button.hidden = !discardable; });
     document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
     if (order.normalizedOrder) {
@@ -440,7 +689,8 @@
     runValidation();
     renderApprovalActions(order);
     stopPolling();
-    if (order.status === "PROCESSING") state.pollTimer = setTimeout(pollCurrentOrder, 1800);
+    if (waiting) state.pollTimer = setTimeout(pollCurrentOrder, 1800);
+    updateNextReady();
   }
 
   async function pollCurrentOrder() {
@@ -1266,6 +1516,7 @@
 
   function statusLabel(status) {
     if (status === "READY_FOR_REVIEW") return "READY TO SUBMIT";
+    if (status === "NEW") return "QUEUED";
     return String(status || "NEW").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
@@ -1419,16 +1670,20 @@
     if (mode === state.mode) return true;
     const hasPhotos = Boolean(state.images.primary);
     const hasDictation = hasVoiceContent();
-    if (mode === "voice" && hasPhotos && !confirm("Discard the selected photos and dictate instead?")) return false;
-    if (mode === "photo" && (hasDictation || state.voice.recording) && !confirm("Discard the dictation and use photos instead?")) return false;
-    if (mode === "voice") {
+    const hasBulk = state.bulk.items.some((item) => item.status === "ready" || item.status === "error");
+    if (state.mode === "photo" && hasPhotos && !confirm(mode === "voice" ? "Discard the selected photos and dictate instead?" : "Discard the selected photo and upload files in bulk instead?")) return false;
+    if (state.mode === "voice" && (hasDictation || state.voice.recording) && !confirm(mode === "photo" ? "Discard the dictation and use photos instead?" : "Discard the dictation and upload files in bulk instead?")) return false;
+    if (state.mode === "bulk" && hasBulk && !confirm("Clear the files waiting to upload?")) return false;
+    if (state.mode === "photo") {
       state.images = {};
       previewFile("primary");
-    } else {
+    } else if (state.mode === "voice") {
       stopRecording(true);
       state.voice = emptyVoice();
       renderSegmentBoxes();
       renderClips();
+    } else if (state.mode === "bulk") {
+      resetBulk();
     }
     state.mode = mode;
     document.querySelectorAll("[data-mode]").forEach((button) => {
@@ -1438,6 +1693,9 @@
     });
     $("#photoMode").hidden = mode !== "photo";
     $("#voiceMode").hidden = mode !== "voice";
+    $("#bulkMode").hidden = mode !== "bulk";
+    $("#manualEntryButton").hidden = mode === "bulk";
+    renderBulk();
     if (mode === "voice") checkVoiceReadiness();
     return true;
   }

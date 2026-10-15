@@ -42,10 +42,23 @@
           <div class="orders-actions">
             <input id="ordersSearch" class="cb-field orders-search" type="search" autocomplete="off" placeholder="Patient, customer or account" aria-label="Search orders by patient, customer or account">
             <button id="refreshOrdersButton" class="icon-button" type="button" aria-label="Refresh recent orders"><span class="material-symbols-outlined" aria-hidden="true">refresh</span></button>
+            <button id="bulkUploadButton" class="secondary-button" type="button"><span class="material-symbols-outlined" aria-hidden="true">upload_file</span><span class="btn-label">Bulk upload</span></button>
             <button id="newRxButton" class="primary-button" type="button"><span class="material-symbols-outlined" aria-hidden="true">add</span><span class="btn-label">New RX</span></button>
           </div>
           <p class="section-note">Employee prescription intake — photograph a prescription, review every extracted value, and correct anything uncertain.</p>
         </div>
+        <section id="batchBanner" class="batch-banner" aria-label="Bulk upload progress" hidden>
+          <div class="batch-banner-text">
+            <strong id="batchTitle">Bulk upload</strong>
+            <span id="batchProgress" role="status" aria-live="polite"></span>
+          </div>
+          <progress id="batchBar" max="100" value="0" aria-label="Prescriptions read"></progress>
+          <div class="batch-banner-actions">
+            <label class="batch-filter"><input id="batchOnly" type="checkbox" checked> Only this upload</label>
+            <button id="batchDismiss" class="secondary-button" type="button">Dismiss</button>
+          </div>
+        </section>
+        <p id="ordersDropHint" class="orders-drop-hint">Drag prescription PDFs or images here to upload them in bulk (up to 100).</p>
         <div id="ordersEmpty" class="empty-state">No RX captures yet.</div>
         <div class="orders-table-wrap"><table class="orders-table"><thead><tr><th scope="col">Patient name</th><th scope="col">ERP account</th><th scope="col">RX number</th><th class="orders-lens-column" scope="col">Selected lens</th><th scope="col">Captured by</th><th scope="col">Submission date</th><th scope="col">Status</th></tr></thead><tbody id="ordersList"></tbody></table></div>
       </section>
@@ -70,6 +83,7 @@
         <div class="mode-switch" role="radiogroup" aria-label="How to enter the prescription">
           <button type="button" class="mode-option" role="radio" data-mode="photo" aria-checked="true" tabindex="0">Photo</button>
           <button type="button" class="mode-option" role="radio" data-mode="voice" aria-checked="false" tabindex="-1" aria-keyshortcuts="Alt+V">Voice / type</button>
+          <button type="button" class="mode-option" role="radio" data-mode="bulk" aria-checked="false" tabindex="-1">Bulk upload</button>
         </div>
         <div id="photoMode" class="mode-panel">
         <div id="imageDropZone" class="file-card" data-image-slot="primary">
@@ -111,6 +125,20 @@
           <div id="segmentBoxes" class="segment-boxes" aria-label="Dictation, split by section. Check and correct the words before extraction."></div>
           <p class="privacy-note">Recordings are sent from this server for transcription and are not kept. Only the checked text is saved with the order. You can also type straight into the boxes.</p>
         </div>
+        <div id="bulkMode" class="mode-panel" hidden>
+          <div id="bulkDropZone" class="file-card bulk-drop" tabindex="0">
+            <span class="camera-icon material-symbols-outlined" aria-hidden="true">upload_file</span>
+            <strong>Drop up to 100 prescription PDFs or images</strong>
+            <span>Every file becomes one order. They are read a few at a time and appear in Recent orders as Queued, Reading, then Ready to submit.</span>
+            <div class="file-actions">
+              <label class="file-button" for="bulkFiles">Choose files<input id="bulkFiles" type="file" multiple accept="image/*,application/pdf,.pdf"></label>
+              <button id="bulkClear" class="file-button" type="button" hidden>Clear list</button>
+            </div>
+          </div>
+          <p id="bulkSummary" class="bulk-summary" role="status" aria-live="polite" hidden></p>
+          <ul id="bulkList" class="bulk-list" aria-label="Files to upload"></ul>
+          <p class="privacy-note">Files are sent from this server for extraction and deleted locally after successful processing. Every order is still reviewed by a person before it goes to Innovations.</p>
+        </div>
         <button id="submitCaptureButton" class="primary-button wide" type="submit">SUBMIT FOR EXTRACTION</button>
         <button id="manualEntryButton" class="secondary-button wide" type="button">ENTER RX MANUALLY</button>
       </form>
@@ -120,6 +148,7 @@
       <div class="review-topline">
         <button class="back-button" type="button" data-back>← Recent orders</button>
         <span id="reviewStatus" class="status-pill"></span> <span id="reviewCapturedBy" class="order-meta"></span>
+        <button id="nextReadyButton" class="secondary-button next-ready" type="button" hidden>Next ready order →</button>
       </div>
       <div class="page-heading review-heading">
         <h1 id="reviewTitle">Check extracted values</h1>
@@ -127,7 +156,7 @@
 
       <div id="processingPanel" class="processing-panel" hidden>
         <span class="spinner" aria-hidden="true"></span>
-        <div><strong>Reading prescription</strong><p>This usually takes less than a minute. You can return to recent orders while it processes.</p></div>
+        <div><strong>Reading prescription</strong><p id="processingNote">This usually takes less than a minute. You can return to recent orders while it processes.</p></div>
       </div>
 
       <div id="failedPanel" class="failed-panel" hidden>
@@ -257,6 +286,7 @@
   </main>
   <script src="/rx-capture-validation.js" defer></script>
   <script src="/rx-capture-voice.js" defer></script>
+  <script src="/rx-capture-bulk.js" defer></script>
   <script src="/rx-combobox.js" defer></script>
   <script src="/rx-capture.js" defer></script>
   <script src="/pwa.js" defer></script>
