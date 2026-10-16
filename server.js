@@ -198,6 +198,7 @@ const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
+const { getEdition } = require("./lib/edition");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { handleEmailRoute } = require("./lib/email/routes");
 const { startEmailSync } = require("./lib/email/service");
@@ -1055,6 +1056,22 @@ const server = http.createServer(async (req, res) => {
   // trust the LAN certificate yet come here to install it.
   if (await handleCertificateSetupRoute({ req, res, url })) return;
 
+  // A licensed edition serves only the core and its enabled modules; any other
+  // page or API route answers 404 as if it did not exist.
+  const editionDecision = getEdition().decide(url.pathname);
+  if (!editionDecision.allowed) {
+    return url.pathname.startsWith("/api/")
+      ? sendJson(res, { error: "This feature is not part of this edition." }, 404)
+      : sendText(res, "Not found", 404);
+  }
+
+  if (url.pathname === "/api/system/edition" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      return { edition: getEdition().describe() };
+    });
+  }
+
   if (url.pathname === "/api/connectors/live-gateway/direct") {
     writeLocalDevCors(res, req);
     if (req.method === "OPTIONS") {
@@ -1190,7 +1207,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/auth/me" && req.method === "GET") {
     return handleApi(res, async () => {
       const user = await currentUser(req);
-      return { user };
+      return { user, edition: getEdition().describe() };
     });
   }
 
@@ -1542,7 +1559,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/modules") {
     const user = await optionalCurrentUser(req);
-    return sendJson(res, { modules: filterModulesForUser(defaultModules, user) });
+    return sendJson(res, { modules: filterModulesForUser(defaultModules.filter((module) => getEdition().isModuleEnabled(module.id)), user) });
   }
 
   if (url.pathname === "/api/dashboard" && req.method === "GET") {
@@ -3848,10 +3865,15 @@ server.listen(port, host, () => {
     refreshGitUpdatesOnSchedule().catch(() => {});
   }, 5 * 60 * 1000);
   gitUpdateTimer.unref();
-  supplierMailboxPoller = startSupplierMailboxPoller();
-  supplierMailboxPoller.start();
-  startEmailSync();
-  startLiveGatewayOnBoot();
+  const edition = getEdition();
+  console.log(`Edition: ${edition.name}${edition.restricted ? ` (${edition.modules.join(", ") || "core only"})` : ""}${edition.reason ? ` - ${edition.reason}` : ""}`);
+  // Background workers belong to modules; a site starts only what it licenses.
+  if (edition.isModuleEnabled("automation")) {
+    supplierMailboxPoller = startSupplierMailboxPoller();
+    supplierMailboxPoller.start();
+  }
+  if (edition.isModuleEnabled("email")) startEmailSync();
+  if (edition.isModuleEnabled("integrations")) startLiveGatewayOnBoot();
   recoverRxCaptureProcessing()
     .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
     .catch((error) => console.error("RX Capture processing recovery did not start:", error.message));
