@@ -119,6 +119,7 @@
     { "match": "public/manifest.webmanifest", "owner": "core" },
     { "match": "public/styles.css", "owner": "core" },
 
+    { "match": "scripts/install/**", "owner": "core" },
     { "match": "scripts/edition-sign.js", "owner": "never" },
     { "match": "scripts/build-edition.js", "owner": "never" },
     { "match": "scripts/_tmp_*", "owner": "never" },

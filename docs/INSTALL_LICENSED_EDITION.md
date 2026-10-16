@@ -2,34 +2,78 @@
 
 This guide is for the person installing OptiLens RX Capture (for example the Value Optical edition) on a lab's server for the first time. It assumes an empty machine and an empty database. For upgrades, see `LOCAL_UPDATES.md` in the core repository; for how licensing works, see `EDITIONS.md`.
 
-You need three things from the vendor before you start. None of them is in the repository.
+You need three things from the vendor before you start.
 
 | Item | What it is |
 | --- | --- |
-| Source access | Read access to the edition's repository (for Value Optical, `classicitbb/optilens-value-optical`) |
-| `data/edition.json` | The signed licence for this lab. Without it the application starts with only the core (sign-in, users, settings) |
-| Lab details | The lab number, remote operator ID and the Innovations *incoming* folder path, which you enter in step 8 |
+| The code | The vendor puts the licensed build on the server (a folder containing `server.js` and `lib\edition-build.json`). You do not clone anything and need no repository access or tokens |
+| The licence | A signed `edition.json`, delivered separately from the code. Without it the application starts with only the core (sign-in, users, settings) |
+| Lab details | The lab number, remote operator ID, the Innovations *incoming* folder path and the name you want for the lab's administrator |
+
+## Automated install (recommended)
+
+From an **elevated** PowerShell, in the folder the vendor delivered:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install\Install-OptiLens.ps1
+```
+
+It installs Node.js and SQL Server Express with `winget`, asks for the answers it needs, and finishes with the app running and checked. Add `-DryRun` first to see the plan without changing anything. To skip the questions that have fixed answers, copy `scripts\install\install.config.example.json`, fill it in and pass `-ConfigFile`.
+
+What it asks:
+
+| Question | Notes |
+| --- | --- |
+| Path to the licence file | The `edition.json` from the vendor. It is verified before anything is installed |
+| Port | Default 8080 |
+| Innovations incoming, staging and archive folders | Full paths. Incoming must already be reachable; staging and archive are created |
+| Lab number, customer sequence, remote operator, agent name | Saved as the lab's site settings |
+| Administrator username, display name, email | Not `optilens`; that account is the built-in one and is turned off |
+| Administrator password | Typed twice at a masked prompt |
+| Use an existing SQL Server instance? | Only asked when an instance with room is found (see below) |
+| Windows password for the service account | Asked once by the Windows credentials dialog, for the scheduled task that keeps the app running |
+
+**SQL Server.** The installer looks for instances already on the machine. An instance is offered only if it is running, you can sign in to it as a sysadmin with your Windows account, it is SQL Server 2016 or later, its disk has at least 5 GB free, and (for Express) its databases total under 6 GB, because Express shares 1.4 GB of memory across all databases. If it qualifies, you are asked whether to use it. If it needs a restart (mixed sign-in or a fixed TCP port), you are asked to allow that. Otherwise, or if you answer no, it installs a new Express instance: `SQLEXPRESS`, or `OPTILENS` if that name is taken. It never installs over an existing instance. Either way it ends with `optilens_local` fully migrated and a dedicated `optilens_app` login whose password is generated and kept only in `.env`.
+
+**Passwords.** The installer never reads a password from a file, a parameter or an environment variable. Its own passwords it generates. Yours you type at the prompt. Nothing secret is written to `data\install.log`.
+
+**Repeating it.** Each step checks whether it is already done, so after a failure fix the cause and run it again. Answers already given are remembered in `data\install-state.json` (no secrets). A second run never resets the administrator's password or the database login.
+
+**Updates.** The code was delivered by the vendor, not cloned, so there is no Git remote to pull from. The installer sets `OPTILENS_AUTO_APPLY_UPDATES=false` when the folder has no `.git`. The vendor delivers updates; see the vendor's instructions.
+
+### For an agent running the installer
+
+1. Read this document, then run `Install-OptiLens.ps1 -DryRun` and read the plan.
+2. Collect the non-secret answers from the person, write them to a config file outside the repository, and run the installer with `-ConfigFile`.
+3. The installer needs a terminal where a person can type the administrator password and the Windows password. Do not ask for these in chat, and do not try to supply them yourself. Open a visible terminal for the person, or ask them to run the command.
+4. The output is one `PASS`, `SKIP`, `FAIL` or `PLAN` line per step. On `FAIL` the message says what to fix. Fix it and run the same command again.
+5. Do not edit `data\edition.json`, and do not change `.env` by hand while the installer is running.
+6. When it ends with `OptiLens is installed`, open the URL it prints and confirm the sign-in page loads.
+
+The rest of this document is the same procedure by hand. Use it if the installer cannot run, or to understand what it did.
+
+# Manual install
 
 Do not write passwords, keys or connection strings in this repository, in tickets or in shell history. The commands below prompt for them.
 
 ## 1. Prepare the server
 
 - Windows with an administrator account for the install.
-- **Node.js 20 or later** (`node --version`) and **Git**.
+- **Node.js 20 or later** (`node --version`). Git is not needed.
 - **SQL Server** (Express is enough) with TCP/IP enabled, plus `sqlcmd` on the server, or SQL Server Management Studio on any machine that can reach it.
 - The server can open the Innovations incoming folder (a network share or a local path). Whoever runs the service must be able to write there.
 - Outbound HTTPS to the licence renewal address, if the licence has one (trials and annual licences do). If the network blocks it, nothing breaks, but renewals will not arrive.
 
 ## 2. Get the code
 
+The vendor has put the licensed build in a folder on the server. Install its packages from inside that folder:
+
 ```powershell
-cd C:\
-git clone https://github.com/classicitbb/optilens-value-optical optilens
-cd optilens
+cd <the delivered folder>
 npm ci --omit=dev --no-audit --no-fund
 ```
 
-Check that this is a licensed build: `lib\edition-build.json` must exist and contain `{"requireManifest": true}`. If it does not, you have the wrong repository. Stop, because a copy of the full source would run every module.
+Check that this is a licensed build: `lib\edition-build.json` must exist and contain `{"requireManifest": true}`. If it does not, stop and ask the vendor, because a copy of the full source would run every module.
 
 ## 3. Create the database
 
@@ -147,5 +191,5 @@ Stop and start it with `scripts\stop-app.ps1` and `scripts\start-app.ps1`.
 
 ## Known gaps in this guide
 
-- The commands were checked against the build output and the code, not yet run on a blank server. Expect to correct details on the first real install, and send the corrections back as a pull request to core.
+- Neither the manual steps nor `Install-OptiLens.ps1` has run on a blank server yet. What is tested: the licence check, the password, `.env`, validation and SQL-capacity logic, both scripts parsing in PowerShell 5.1 and 7, and a dry run. What is not: the `winget` installs of Node.js and SQL Express (including `/INSTANCENAME` for a second instance), the registry changes that enable TCP/IP and mixed sign-in, and the scheduled task. Expect to correct details on the first real install, and send them back as a pull request to core.
 - Windows service installation is not covered. The scheduled-task watchdog is the supported way to keep the application up.
