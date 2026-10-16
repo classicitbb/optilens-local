@@ -1,0 +1,25 @@
+{
+  "edition": "value-optical",
+  "name": "Value Optical",
+  "modules": ["rx-capture", "vault"],
+  "downstream": {
+    "repo": "classicitbb/optilens-value-optical",
+    "branch": "main"
+  },
+  "package": {
+    "name": "optilens-value-optical",
+    "description": "OptiLens RX Capture for Value Optical, built from optilens-local core.",
+    "repository": { "type": "git", "url": "git+https://github.com/classicitbb/optilens-value-optical.git" },
+    "bugs": { "url": "https://github.com/classicitbb/optilens-value-optical/issues" },
+    "homepage": "https://github.com/classicitbb/optilens-value-optical#readme"
+  },
+  "jsonOverrides": {
+    "data/rx/config.json": {
+      "defaults.labNum": "",
+      "defaults.custNum": "",
+      "defaults.remoteOperator": "",
+      "defaults.shipName": "",
+      "folders.incoming": ""
+    }
+  }
+}

@@ -1296,6 +1296,13 @@ function applyEdition(edition) {
   const modules = edition?.modules || [];
   const restricted = Boolean(edition?.restricted);
   document.documentElement.toggleAttribute("data-no-assistant", restricted && !modules.includes("automation"));
+  // Trial countdown and ended-licence notice; the script does nothing for other editions.
+  if (restricted && (edition.trial || edition.reason) && !document.querySelector("script[data-edition-banner]")) {
+    const script = document.createElement("script");
+    script.src = "/edition-banner.js";
+    script.dataset.editionBanner = "";
+    document.head.appendChild(script);
+  }
 }
 
 async function refreshAuthState() {
