@@ -124,20 +124,44 @@ test("catalogue sync recognises the Innovations Custom Lens style as customer-su
   assert.equal(isCustomerSuppliedLens("Regular", "Custom Gray"), false);
 });
 
-test("catalogue sync keeps Custom Lens aliases only while their material, type and option are active", () => {
-  const { selectCatalogRows } = require("../lib/rx-catalog-sync");
-  const row = (alias, material, mfType, lensType, option, hasActive, group = 1) => ({ alias, material_group_code: group, material, mf_type: mfType, lens_type: lensType, option_name: option, has_active_item: hasActive });
+test("catalogue sync offers an alias only while every Lens Database level above it is on", () => {
+  const { selectCatalogRows, isAliasSelectable } = require("../lib/rx-catalog-sync");
+  const on = { group_on: 1, material_on: 1, mf_type_on: 1, lens_type_on: 1, option_on: 1 };
+  const row = (alias, lensType, option, off = {}) => ({ alias, material_group_code: 1, material: "Poly 1.59", mf_type: "Single Vision", lens_type: lensType, option_name: option, ...on, ...off });
   const rows = [
-    row("0000000100001", "Poly 1.59", "Single Vision", "Regular", "SRCoated", 1),
-    row("0000000100002", "Poly 1.59", "Single Vision", "Regular", "Trans 7 Gray", 1),
-    row("0010199900001", "Poly 1.59", "Single Vision", "Custom Lens", "SRCoated", 0),
-    row("0010199900002", "Poly 1.59", "Single Vision", "Custom lens", "Trans 7 Gray", 0),
-    row("0010199900003", "Poly 1.59", "Progressive", "Custom Lens", "SRCoated", 0),
-    row("0010199900004", "Poly 1.59", "Single Vision", "Custom Lens", "Retired Tint", 0),
-    row("0990199900001", "Retired 1.99", "Single Vision", "Custom Lens", "SRCoated", 0),
-    row("0000000200001", "Poly 1.59", "Single Vision", "Regular", "Retired Tint", 0)
+    row("0000000100001", "Regular", "SRCoated"),
+    // Digital designs have no LensItem; being on in the tree is enough.
+    row("0000000100002", "Classic PAL", "Photo Gray"),
+    row("0010199900001", "Custom Lens", "Trans 7 Gray"),
+    row("0000000200001", "Regular", "Retired Tint", { option_on: 0 }),
+    row("0000000300001", "Retired Design", "SRCoated", { lens_type_on: 0 }),
+    row("0000000400001", "Regular", "SRCoated", { mf_type_on: 0 }),
+    row("0000000500001", "Regular", "SRCoated", { material_on: 0 }),
+    row("0000000600001", "Regular", "SRCoated", { group_on: 0 }),
+    // An active LensItem underneath an off level does not bring the alias back.
+    { ...row("0000000700001", "Regular", "SRCoated", { lens_type_on: 0 }), has_active_item: 1 },
+    { alias: "0000000800001" }
   ];
-  assert.deepEqual(selectCatalogRows(rows).map((item) => item.alias), ["0000000100001", "0000000100002", "0010199900001", "0010199900002"]);
+  assert.deepEqual(selectCatalogRows(rows).map((item) => item.alias), ["0000000100001", "0000000100002", "0010199900001"]);
+  assert.equal(isAliasSelectable(undefined), false);
+});
+
+test("coating sync offers an item only while it and every group above it are on", () => {
+  const { selectCoatingItems, coatingGroupIds } = require("../lib/rx-catalog-sync");
+  const group = (id, parent, flags) => ({ group_id: id, parent_group_id: parent, flags });
+  const item = (item_id, group_id, flags) => ({ item_id, group_id, flags });
+  const groups = [group(3, 0, 6), group(92, 3, 6), group(89, 3, 5), group(500, 89, 6), group(501, 92, 6), group(7, 0, 6)];
+  const items = [
+    item(1, 3, 254034),
+    item(2, 92, 131650),
+    item(3, 92, 577),
+    item(4, 89, 131906),
+    item(5, 500, 131906),
+    item(6, 501, 131666),
+    item(7, 7, 131666)
+  ];
+  assert.deepEqual([...coatingGroupIds(groups)].sort((a, b) => a - b), [3, 92, 501]);
+  assert.deepEqual(selectCoatingItems(items, groups).map((row) => row.item_id), [1, 2, 6]);
 });
 
 test("lens guess limits itself to Custom Lens aliases when the lenses are the customer's own", () => {
@@ -395,9 +419,10 @@ test("public order response excludes local source image paths", () => {
   assert.doesNotMatch(JSON.stringify(response), /private|patient\.jpg/);
 });
 
-test("RX catalogue sync derives availability from active Innovations LensItem rows", () => {
+test("RX catalogue sync derives availability from the five Lens Database flag levels", () => {
   const sync = fs.readFileSync(path.join(__dirname, "..", "lib", "rx-catalog-sync.js"), "utf8");
-  assert.match(sync, /FROM dbo\.LensItem li[\s\S]*?li\.MaterialGroup = a\.GroupNum[\s\S]*?\(li\.Flags & 2\) = 0/);
+  assert.match(sync, /WHERE \(mg\.Flags & 2\) = 0 AND \(m\.Flags & 2\) = 0 AND \(mf\.Flags & 2\) = 0 AND \(lt\.Flags & 2\) = 0 AND \(lo\.Flags & 2\) = 0/);
+  assert.doesNotMatch(sync, /FROM dbo\.LensItem/);
   assert.match(sync, /active: true/);
 });
 
