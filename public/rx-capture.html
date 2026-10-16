@@ -14,20 +14,12 @@
   <link rel="apple-touch-icon" href="/icons/optilens.svg">
   <script>try { var t = localStorage.getItem("optilens.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
   <link rel="stylesheet" href="/styles/tokens.css">
+  <link rel="stylesheet" href="/styles/shell.css">
   <link rel="stylesheet" href="/styles/pages/rx-capture.css">
 </head>
 <body>
-  <header class="rx-topbar">
-    <div class="rx-brand">
-      <button id="mobileBackButton" class="mobile-back-button" type="button" data-back aria-label="Back to recent orders">←</button>
-      <a class="rx-mark" href="/" aria-label="Return to home">RX</a>
-      <strong>RX Capture</strong>
-    </div>
-    <div class="rx-account">
-      <span id="currentUser"></span>
-      <button id="logoutButton" class="link-button" type="button">Sign out</button>
-    </div>
-  </header>
+  <div id="app-shell-header"></div>
+  <script>window.OptiLensPage = { crumb: "RX Capture" };</script>
 
   <main class="rx-app">
     <div id="globalStatus" class="notice" role="status" aria-live="polite" hidden></div>
@@ -304,6 +296,7 @@
       </form>
     </section>
   </main>
+  <script src="/shared.js"></script>
   <script src="/rx-capture-validation.js" defer></script>
   <script src="/rx-capture-voice.js" defer></script>
   <script src="/rx-capture-bulk.js" defer></script>
