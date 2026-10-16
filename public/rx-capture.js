@@ -46,7 +46,6 @@
   async function init() {
     try {
       const auth = await api("/api/auth/me");
-      $("#currentUser").textContent = auth.user?.displayName || auth.user?.username || "";
       state.userId = auth.user?.userId || null;
       state.username = auth.user?.username || auth.user?.displayName || "";
       state.canWrite = (auth.user?.permissions || []).includes("rx-capture.write");
@@ -67,10 +66,6 @@
     $("#refreshOrdersButton").addEventListener("click", loadOrders);
     $("#ordersSearch").addEventListener("input", searchOrders);
     document.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => returnToRecentOrders()));
-    $("#logoutButton").addEventListener("click", async () => {
-      await api("/api/auth/logout", { method: "POST" }).catch(() => {});
-      location.assign("/");
-    });
     // Camera, gallery, drag-and-drop and paste all fill the one image; the latest wins.
     document.querySelectorAll("[data-image-input]").forEach((input) => input.addEventListener("change", () => {
       const file = input.files[0];
