@@ -52,7 +52,7 @@
     { "match": "lib/lens-*.js", "owner": "pricing-automation" },
     { "match": "lib/**", "owner": "core" },
 
-    { "match": "database/001-*.sql", "owner": "never" },
+    { "match": "database/001-*.sql", "owner": "core" },
     { "match": "database/005-*.sql", "owner": "never" },
     { "match": "database/020-*.sql", "owner": "never" },
     { "match": "database/innovations_mirror.generated.sql", "owner": "never" },
@@ -67,6 +67,7 @@
 
     { "match": "docs/rx-format-field-map.md", "owner": "rx-capture" },
     { "match": "docs/rx-capture-voice-input.md", "owner": "rx-capture" },
+    { "match": "docs/INSTALL_LICENSED_EDITION.md", "owner": "core" },
     { "match": "docs/**", "owner": "never" },
 
     { "match": "public/rx-capture*", "owner": "rx-capture" },
