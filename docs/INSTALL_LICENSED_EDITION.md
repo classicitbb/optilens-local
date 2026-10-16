@@ -86,17 +86,16 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8080/api/admin/migrate
 
 `/api/health/live` must answer. The migration call returns the list of files it applied. On a clean install, expect the core files, then the RX Capture files (`043` onward). It is safe to run again: files already applied are skipped. A licensed edition applies only its own modules' migrations.
 
-Open `http://<server>:8080/` in a browser and sign in as the built-in account `optilens`. Its password is set by migration `007-auth-hardening.sql`; ask the vendor for it.
+Open `http://<server>:8080/` in a browser. A clean install has no user accounts, so the sign-in dialog opens in **Create first admin** mode. Create the lab's first administrator there, with a name and password of the lab's own. There is no built-in account and no vendor password. Until that first administrator exists, anyone who can reach the port can create it, so do this straight away; if the server is on a shared network, start with `OPTILENS_HOST=127.0.0.1` in `.env` and do it from the server itself, then switch back to `0.0.0.0` and restart.
 
-Once signed in as an administrator, open `/api/system/edition` in the browser. It must show the licensee, the expected modules (for Value Optical, `rx-capture` and `vault`) and an end date that makes sense. If it does not, see Troubleshooting.
+Once signed in as that administrator, open `/api/system/edition` in the browser. It must show the licensee, the expected modules (for Value Optical, `rx-capture` and `vault`) and an end date that makes sense. If it does not, see Troubleshooting.
 
 **Do this immediately, before anyone else uses the system:**
 
-1. Open `/admin/users` and create a named administrator for the lab.
-2. Sign in as that administrator and set a password of your own.
-3. Disable the `optilens` account.
+1. Open `/admin/users` and create a named administrator for each person who will manage the system. Keep the first one as a spare.
+2. Confirm every account has a password its owner chose.
 
-Migration 007 re-enables `optilens` and resets its password every time migrations run, including when an update runs them. After each update, check `/admin/users` and disable it again until the vendor changes this.
+Migrations never create, enable or re-password an account, so updates do not change who can sign in.
 
 ## 8. Enter the lab's site settings
 
@@ -127,7 +126,7 @@ Stop and start it with `scripts\stop-app.ps1` and `scripts\start-app.ps1`.
 
 - [ ] `GET /api/health/live` answers, and the service restarts after a reboot.
 - [ ] `GET /api/system/edition` (signed in as an administrator) lists the expected modules and end date.
-- [ ] Named administrators exist, and `optilens` is disabled.
+- [ ] Named administrators exist, and no account has a password the lab did not choose.
 - [ ] **Check folders** reports all folders reachable and writable.
 - [ ] One test order went from capture to the Innovations incoming folder and the lab confirmed it.
 - [ ] The database is in the lab's backup job.
