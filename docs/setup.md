@@ -247,16 +247,11 @@ http://127.0.0.1:8080/admin/users
 
 If no password credential exists yet, the sign-in dialog switches to first-admin bootstrap mode. Create the first administrator there. Before the first credential exists, `/api/admin/migrate` remains available so a fresh install can create the auth tables. After bootstrap, migrations require `platform.admin`, and only an account with the `users.manage` permission can create, disable, or update users.
 
-The auth hardening migration also seeds and resets this default administrator each time migrations are run:
+The auth hardening migration no longer seeds a default administrator, and no migration creates, enables or re-passwords a user. Create the first administrator through the bootstrap dialog, then add named accounts from `/admin/users`.
 
-```text
-Username: optilens
-Password: optilens
-```
+Hosts that applied the earlier version of migration 007 still have an `optilens` account with the password `optilens`, because the migration is tracked in `dbo.app_migrations` and does not run again. Change that password or disable the account from `/admin/users` once a named administrator exists.
 
-Use this only as a bootstrap login. After setup, create named administrator accounts and disable the default `optilens` account from `/admin/users`.
-
-If the login page returns `Login failed for user 'optilens_app'`, the Node app cannot connect to the private app database yet. Fix or recreate the SQL Server login first, then rerun migrations so the `optilens` account is seeded:
+If the login page returns `Login failed for user 'optilens_app'`, the Node app cannot connect to the private app database yet. Fix or recreate the SQL Server login first, then rerun migrations:
 
 1. In SQL Server Management Studio, connect to `MSSQL-SVR` as a SQL admin.
 2. Open `O:\scripts\create-sql-login-template.sql`.
