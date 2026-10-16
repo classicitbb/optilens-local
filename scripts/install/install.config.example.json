@@ -1,0 +1,26 @@
+{
+  "_comment": "Non-secret answers for Install-OptiLens.ps1 -ConfigFile. Passwords are never read from here; the installer asks for them. Leave a value out to be asked.",
+  "licenceFile": "C:\\Licence\\edition.json",
+  "port": 8080,
+  "sql": {
+    "mode": "auto",
+    "instance": "",
+    "allowRestart": false
+  },
+  "folders": {
+    "incoming": "D:\\Innovations\\Incoming",
+    "staging": "",
+    "archive": ""
+  },
+  "admin": {
+    "username": "lab.admin",
+    "displayName": "Lab Administrator",
+    "email": ""
+  },
+  "site": {
+    "labNum": "",
+    "custSeqNum": "1",
+    "remoteOperator": "",
+    "agentName": ""
+  }
+}
