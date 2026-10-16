@@ -458,7 +458,10 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.doesNotMatch(css, /#reviewTitle/);
   assert.match(html, /<link rel="stylesheet" href="\/styles\/tokens\.css">/);
-  assert.doesNotMatch(html, /shared\.js/);
+  // The header is the shared shell, mounted by shared.js, not a page-local bar.
+  assert.match(html, /<div id="app-shell-header"><\/div>/);
+  assert.match(html, /<script src="\/shared\.js"><\/script>/);
+  assert.doesNotMatch(html, /rx-topbar|id="logoutButton"/);
   assert.doesNotMatch(client, /createObjectURL/);
   assert.match(client, /The last saved values remain available below for review/);
   assert.match(client, /function selectedLensLabel\(order\)/);
