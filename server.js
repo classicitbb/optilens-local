@@ -199,6 +199,7 @@ const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-acces
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
 const { getEdition } = require("./lib/edition");
+const { siteSettings } = require("./lib/site-settings");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { handleEmailRoute } = require("./lib/email/routes");
 const { startEmailSync } = require("./lib/email/service");
@@ -3874,6 +3875,7 @@ server.listen(port, host, () => {
   }
   if (edition.isModuleEnabled("email")) startEmailSync();
   if (edition.isModuleEnabled("integrations")) startLiveGatewayOnBoot();
+  siteSettings.refresh().catch((error) => console.error("Site settings were not loaded:", error.message));
   recoverRxCaptureProcessing()
     .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
     .catch((error) => console.error("RX Capture processing recovery did not start:", error.message));
