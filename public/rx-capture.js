@@ -86,6 +86,7 @@
     $("#customerSearch").addEventListener("focus", showFrequentCustomers);
     renderSegmentBoxes();
     $("#ownLensButton").addEventListener("click", chooseOwnLenses);
+    document.querySelectorAll("[data-clear-section]").forEach((button) => button.addEventListener("click", () => clearSection(button.dataset.clearSection)));
     $("#customerSearch").addEventListener("input", searchCustomers);
     $("#customerSearch").addEventListener("keydown", customerSearchKeys);
     $("#customerSearch").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("#customerSearch")) renderCustomerResults([]); }, 150));
@@ -775,6 +776,7 @@
     const discardable = canEdit && ["NEW", "NEEDS_INFO", "READY_FOR_REVIEW", "FAILED"].includes(order.status);
     document.querySelectorAll("[data-discard]").forEach((button) => { button.hidden = !discardable; });
     document.querySelectorAll("#reviewForm :is(input, select, textarea)").forEach((input) => { input.disabled = !editable; });
+    document.querySelectorAll("[data-clear-section]").forEach((button) => { button.hidden = !editable; });
     if (order.normalizedOrder) {
       renderOrder(order.normalizedOrder);
       renderFrameState();
@@ -956,6 +958,34 @@
     lensInput("design").classList.remove("guessed");
     onLensCommit("design");
     focusNextField(lensInput("design"));
+  }
+
+  // Empties every value in the Prescription or Lens selection card so the
+  // employee can re-enter it from scratch. Nothing is saved until Save/Submit.
+  function clearSection(section) {
+    if (!state.canEdit) return;
+    if (section === "prescription") {
+      document.querySelectorAll(".prescription-card [data-path]").forEach((input) => {
+        input.value = "";
+        input.classList.remove("missing", "uncertain");
+      });
+      state.pdDerived = new Set();
+      runValidation(false);
+      fieldForPath("prescription.od.sphere").focus();
+      return showNotice("Prescription cleared. Save the draft or enter the new values.");
+    }
+    for (const key of LENS_KEYS) {
+      setLensValue(key, "");
+      lensInput(key).classList.remove("guessed");
+    }
+    $("#lensGuessNote").hidden = true;
+    $("#lensEvidence").hidden = true;
+    const coating = fieldForPath("lensRequest.coatingSku");
+    if (coating) coating.value = "";
+    refreshLensLists();
+    runValidation(false);
+    lensInput("material").focus();
+    showNotice("Lens selection cleared. Choose the material, design and colour option again.");
   }
 
   function refreshLensLists() {

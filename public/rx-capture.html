@@ -221,7 +221,10 @@
         </section>
 
         <section class="review-card prescription-card">
-          <h2>Prescription</h2>
+          <div class="section-title-row">
+            <h2>Prescription</h2>
+            <button class="clear-section" type="button" data-clear-section="prescription">Clear</button>
+          </div>
           <div class="rx-table-wrap">
             <table class="rx-table">
               <thead><tr><th scope="col">Eye</th><th scope="col">Sphere</th><th scope="col">Cylinder</th><th scope="col">Axis</th><th scope="col">ADD</th><th scope="col">Dist PD</th><th scope="col">Near PD</th><th scope="col">OC HT</th><th scope="col">Prism</th><th scope="col">Base</th></tr></thead>
@@ -242,6 +245,7 @@
             <div class="lens-head-actions">
               <button id="ownLensButton" class="own-lens-chip" type="button" hidden aria-keyshortcuts="Alt+C" title="Customer's own lenses (Alt+C)"><span class="pin" aria-hidden="true">★</span> Customer's own lenses</button>
               <span id="lensComboCount" class="optional-badge"></span>
+              <button class="clear-section" type="button" data-clear-section="lens">Clear</button>
             </div>
           </div>
           <p class="section-help">Only combinations on the Innovations catalogue are offered. Choose in any order; each list narrows the others. Type to search.</p>
