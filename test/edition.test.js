@@ -155,7 +155,7 @@ test("the committed public key is a usable Ed25519 key and no private key is in 
 
 test("the server applies the edition before any route and starts only licensed workers", () => {
   const server = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
-  const gate = server.indexOf("getEdition().decide(url.pathname)");
+  const gate = server.indexOf("requestEdition.decide(url.pathname)");
   assert.ok(gate > 0, "the gate exists");
   assert.ok(gate < server.indexOf("handleRxCaptureRoute({ req, res, url"), "the gate runs before module routes");
   assert.ok(gate < server.indexOf('url.pathname === "/api/auth/bootstrap-state"'), "the gate runs before auth routes");

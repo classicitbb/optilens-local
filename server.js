@@ -199,6 +199,7 @@ const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-acces
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
 const { getEdition } = require("./lib/edition");
+const { inactivePageHtml, refreshManifest, renewalStatus, startEditionRenewal } = require("./lib/edition-renewal");
 const { siteSettings } = require("./lib/site-settings");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
 const { handleEmailRoute } = require("./lib/email/routes");
@@ -1059,8 +1060,16 @@ const server = http.createServer(async (req, res) => {
 
   // A licensed edition serves only the core and its enabled modules; any other
   // page or API route answers 404 as if it did not exist.
-  const editionDecision = getEdition().decide(url.pathname);
+  const requestEdition = getEdition();
+  const editionDecision = requestEdition.decide(url.pathname);
   if (!editionDecision.allowed) {
+    // A licence that ended (trial over, expired, withdrawn) says so; a module the
+    // site never bought still answers 404 as if it did not exist.
+    if (requestEdition.reason && editionDecision.module) {
+      return url.pathname.startsWith("/api/")
+        ? sendJson(res, { error: requestEdition.reason, code: "licence_inactive" }, 402)
+        : sendHtml(res, inactivePageHtml(requestEdition.describe()), 402);
+    }
     return url.pathname.startsWith("/api/")
       ? sendJson(res, { error: "This feature is not part of this edition." }, 404)
       : sendText(res, "Not found", 404);
@@ -1069,7 +1078,16 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/api/system/edition" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "platform.admin");
-      return { edition: getEdition().describe() };
+      return { edition: getEdition().describe(), renewal: renewalStatus() };
+    });
+  }
+
+  // Checks the vendor for a newer manifest now, e.g. right after a trial is paid for.
+  if (url.pathname === "/api/system/edition/refresh" && req.method === "POST") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      const result = await refreshManifest();
+      return { result, edition: getEdition().describe(), renewal: renewalStatus() };
     });
   }
 
@@ -3876,6 +3894,9 @@ server.listen(port, host, () => {
   if (edition.isModuleEnabled("email")) startEmailSync();
   if (edition.isModuleEnabled("integrations")) startLiveGatewayOnBoot();
   siteSettings.refresh().catch((error) => console.error("Site settings were not loaded:", error.message));
+  if (edition.restricted) {
+    startEditionRenewal({ onUpdate: (result) => console.log(`Edition manifest updated: ${result.message} Restart the service to start or stop background workers.`) });
+  }
   recoverRxCaptureProcessing()
     .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
     .catch((error) => console.error("RX Capture processing recovery did not start:", error.message));

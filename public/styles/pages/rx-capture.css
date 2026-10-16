@@ -255,6 +255,9 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 .field-optional { color: var(--color-text-muted); font-weight: 500; }
 .inline-action { margin-top: 8px; padding: 4px 0; border: 0; background: transparent; color: var(--color-interactive); font-size: .8125rem; font-weight: 700; }
 .inline-action:hover, .inline-action:focus-visible { text-decoration: underline; text-underline-offset: 3px; outline: none; }
+.clear-section { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 999px; background: transparent; color: var(--color-interactive); font-size: .75rem; font-weight: 700; cursor: pointer; }
+.clear-section:hover, .clear-section:focus-visible { border-color: var(--color-interactive); background: color-mix(in srgb, var(--color-interactive) 8%, var(--color-surface)); outline: none; }
+.clear-section[hidden] { display: none; }
 .frame-measurements { margin-top: 8px; }
 .frame-defaults-note { margin: 8px 0 0; }
 .patient-card .field-grid { grid-template-columns: 1fr; }

@@ -1,0 +1,128 @@
+name: Sync edition
+
+# A tagged core release builds each licensed edition from the allowlist and opens
+# a pull request in that edition's repository. Nothing is pushed to its main
+# branch directly, and a file edited downstream stops the sync (see docs/EDITIONS.md).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: "Edition to build (a file in editions/)"
+        default: value-optical
+        required: true
+      dry_run:
+        description: "Build and test only; do not push or open a pull request"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edition-sync-${{ inputs.edition || 'value-optical' }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EDITION: ${{ inputs.edition || 'value-optical' }}
+      SOURCE_REF: ${{ github.ref_name }}
+    steps:
+      - name: Check out core
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check the allowlist and the edition code
+        run: |
+          node scripts/build-edition.js --edition "$EDITION" --check
+          node --test test/edition.test.js test/edition-trial.test.js test/edition-build.test.js test/edition-sign.test.js test/site-settings.test.js
+
+      - name: Read the downstream settings
+        id: target
+        run: |
+          node -e '
+            const d = require("./editions/" + process.env.EDITION + ".json").downstream;
+            if (!d || !d.repo) { console.error("editions/" + process.env.EDITION + ".json has no downstream.repo"); process.exit(1); }
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "repo=" + d.repo + "\nbranch=" + (d.branch || "main") + "\n");
+          '
+
+      - name: Build the edition
+        run: |
+          EDITION_SOURCE_TAG="$SOURCE_REF" node scripts/build-edition.js --edition "$EDITION" --out "build/$EDITION"
+
+      - name: Test the built tree on its own
+        working-directory: build/${{ env.EDITION }}
+        run: |
+          npm ci
+          node --check server.js
+          node --test test/*.test.js
+
+      - name: Check out the downstream repository
+        if: ${{ !(inputs.dry_run) }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.target.outputs.repo }}
+          ref: ${{ steps.target.outputs.branch }}
+          token: ${{ secrets.EDITION_SYNC_TOKEN }}
+          path: downstream
+          fetch-depth: 0
+
+      - name: Apply the build to the downstream checkout
+        if: ${{ !(inputs.dry_run) }}
+        run: |
+          set +e
+          node scripts/build-edition.js --apply-build "build/$EDITION" --apply downstream
+          status=$?
+          if [ "$status" -eq 2 ]; then
+            echo "::error::Files synced from core were edited downstream. Send those changes to core as a pull request, then run this again."
+          fi
+          exit "$status"
+
+      - name: Test the downstream tree with its own files in place
+        if: ${{ !(inputs.dry_run) }}
+        working-directory: downstream
+        run: |
+          npm ci
+          node --check server.js
+          node --test test/*.test.js
+
+      - name: Open a pull request downstream
+        if: ${{ !(inputs.dry_run) }}
+        working-directory: downstream
+        env:
+          GH_TOKEN: ${{ secrets.EDITION_SYNC_TOKEN }}
+          TARGET_REPO: ${{ steps.target.outputs.repo }}
+          TARGET_BRANCH: ${{ steps.target.outputs.branch }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Downstream is already up to date with $SOURCE_REF."
+            exit 0
+          fi
+          branch="core-sync/${SOURCE_REF//[^A-Za-z0-9._-]/-}-r${RUN_ATTEMPT}"
+          git config user.name "optilens-edition-sync"
+          git config user.email "edition-sync@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          git commit -m "Sync from optilens-local $SOURCE_REF" -m "Built from ${GITHUB_REPOSITORY}@${GITHUB_SHA}. See edition-sync.json for the files this sync owns."
+          git push origin "$branch"
+          gh pr create --repo "$TARGET_REPO" --base "$TARGET_BRANCH" --head "$branch" \
+            --title "Sync from optilens-local $SOURCE_REF" \
+            --body "Automated sync of the ${EDITION} edition from ${GITHUB_REPOSITORY} at ${SOURCE_REF} (${GITHUB_SHA}).
+
+          Only files listed in edition-sync.json are touched. Downstream-only files are left alone. The downstream tests passed before this pull request was opened."

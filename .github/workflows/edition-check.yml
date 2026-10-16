@@ -1,0 +1,32 @@
+name: Edition check
+
+# Catches a new file nobody has classified for the licensed builds, and edition
+# regressions, before they reach a tagged release.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Allowlist covers every tracked file and every migration the edition runs
+        run: |
+          for file in editions/*.json; do
+            name="$(basename "$file" .json)"
+            [ "$name" = "file-map" ] && continue
+            node scripts/build-edition.js --edition "$name" --check
+          done
+      - name: Edition tests
+        run: node --test test/edition.test.js test/edition-trial.test.js test/edition-build.test.js test/edition-sign.test.js test/site-settings.test.js
