@@ -6,6 +6,16 @@
 
 ## Objective and current state
 
+### Inventory Intelligence lens descriptions — deployed
+
+Status: Complete — no active handoff.
+
+The queue now shows the readable lens name, diameter, base and add power, wrapped inside the Item column. Review shows the same description with SKU directly beneath. Each queue page resolves current identities in one bounded read-only Innovations lookup; saved recommendation evidence remains unchanged and available if the source lookup fails.
+
+Deployed code revision `16acdfd` on 2026-10-22 through the guarded updater from `codex/inventory-lens-labels`. Host checkout is clean; smoke check, all 606 host tests, restart and `node scripts/monitor-harness.js verify` passed. Signed-in external Edge verified the annotated item in Everything (its existing recommendation is already decided), the full Review heading and SKU, and queue label widths staying inside the Item column. No scan, business decision or source-system write was performed.
+
+Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, and these continuity records. Inventory tests passed 101/101 locally. The host remains on the deployment branch; automatic updates from master require the branch to be merged and the host returned to master through the guarded flow. Unrelated Status Update work remains local.
+
 ### Inventory Intelligence compact queue and splitter — deployed
 
 Applied the annotated cockpit density changes in `public/business-metrics-inventory-intelligence.js` and `public/styles/pages/inventory-intelligence.css`: removed the duplicate header title, tightened the description/scan text, scan button, caveat banner, and KPI cards; widened and shortened Search; added 6px beneath its toolbar; made the queue table edge to edge with square corners and shorter rows. The table now budgets evidence and action column widths, exposes a 2px draggable divider with arrow-key control, and keeps Actions visible when a narrow container must scroll horizontally. Recommendation text is limited to two visible lines with its full value in the Review drawer. The divider is hidden only when the queue container is narrower than the table's 1180px minimum; Actions remains sticky there.
