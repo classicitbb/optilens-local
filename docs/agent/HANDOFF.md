@@ -2,7 +2,7 @@
 
 - Repository: `classicitbb/optilens-local`
 - Status: Complete — no active handoff
-- Last synchronized: 2026-10-14
+- Last synchronized: 2026-10-22
 
 ## Objective and current state
 
@@ -14,15 +14,17 @@ The queue now shows the readable lens name, diameter, base and add power, wrappe
 
 Deployed code revision `16acdfd` on 2026-10-22 through the guarded updater from `codex/inventory-lens-labels`. Host checkout is clean; smoke check, all 606 host tests, restart and `node scripts/monitor-harness.js verify` passed. Signed-in external Edge verified the annotated item in Everything (its existing recommendation is already decided), the full Review heading and SKU, and queue label widths staying inside the Item column. No scan, business decision or source-system write was performed.
 
-Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, and these continuity records. Inventory tests passed 101/101 locally. The host remains on the deployment branch; automatic updates from master require the branch to be merged and the host returned to master through the guarded flow. Unrelated Status Update work remains local.
+Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, and these continuity records. Inventory tests passed 101/101 locally. The subsequent Status Update deployment below retains these changes. Automatic updates from master require the deployment branch to be merged and the host returned to master through the guarded flow.
 
-### Status Update reference layout — local implementation complete
+### Status Update reference layout — deployed
 
-Status: Complete — no active handoff for the scoped repository change. Production deployment is not authorized by this request.
+Status: Complete — no active handoff.
 
 Matched the mobile reference with an edge-to-edge light scanner screen, centered title/menu, initially empty white fixed-height results, compact Status/Tray ID rows, and underlined fields. The menu retains Apps and Live/Preview controls. Disabled assistant injection and shortcut initialization for this page, including after auth/edition refresh. Files: `public/job-floor.html`, `public/styles/pages/job-floor.css`, `public/shared.js`, `docs/JOB_FLOOR_STATUS_UPDATE.md`, and these continuity records.
 
-Verification: syntax checks and `npm run check` passed. Job Floor/source/design-system tests passed 35/35. Headless Edge with fixture API responses verified 320px, 446px, 600px, and 1366px widths, fixed result/input placement, no horizontal overflow, accessible Preview/Apps menu, no assistant after its shortcut, no page errors, and zero POST requests. This is local fixture proof, not deployed or physical-keyboard proof. Full `npm test`: 605/606 passed; the failure is the unrelated concurrently edited Inventory test `lens identity uses the full source key and returns the readable lens name`, with replacement characters instead of middle-dot separators. Preserve the unrelated Inventory edits.
+Deployed code revision `ed8d48b` on 2026-10-22 through the guarded updater from `codex/job-floor-reference` after explicit deployment approval. Smoke check, the host application suite, restart, and `node scripts/monitor-harness.js verify` passed. The host checkout was clean. Signed-in external Edge confirmed the live layout, selected source status, Apps/Live/Preview menu, 134px result area, tray field ending at 272px, no horizontal overflow at 446px, and zero assistant elements after Ctrl+Shift+A. The temporary viewport override was reset. No tray was entered or status update submitted; a physical mobile keyboard was not exercised. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow.
+
+Local verification: syntax checks and `npm run check` passed; Job Floor/source/design-system tests passed 35/35. Fixture Edge checks passed at 320px, 446px, 600px, and 1366px with no page errors or POST requests. The earlier local full-suite result was 605/606 during concurrent Inventory edits (separator encoding assertion); the authoritative host suite subsequently passed during deployment.
 
 ### Inventory Intelligence compact queue and splitter — deployed
 
