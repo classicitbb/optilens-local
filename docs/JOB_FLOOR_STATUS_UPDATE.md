@@ -2,8 +2,8 @@
 
 The Job Floor page updates an order's status by writing to the Innovations
 database itself, the way the Innovations Mobile app's server (InnovaAPI) does,
-instead of calling InnovaAPI. Job *staging* is unchanged and still uses
-InnovaAPI. Code: `lib/job-floor-source.js` (data layer), `lib/job-floor.js`
+instead of calling InnovaAPI. The module is status-update only: job staging and
+job queues were removed and nothing in it calls InnovaAPI. Code: `lib/job-floor-source.js` (data layer), `lib/job-floor.js`
 (gating, audit), `lib/job-floor-routes.js`, `public/job-floor.*`.
 
 ## What InnovaAPI actually writes
@@ -50,7 +50,7 @@ Observations that shaped the design:
   OptiLens user in Innovations for this; do not reuse a person's account.
 - **Separate write login.** Uses the `source-mssql` write profile, which must
   differ from the read login. Minimum grants: `SELECT` on `Orders`,
-  `OrderStatuses`, `StatusItems`, `GenStatus`, `UserAccounts`; `INSERT`+`UPDATE`
+  `OrderStatuses`, `StatusItems`, `GenStatus`, `UserAccounts`, `TrayTransactions`; `INSERT`+`UPDATE`
   on `OrderStatuses`; `UPDATE` on `Orders`. Nothing else.
 - **Status allow-list from flags.** Only statuses with `ShowInMobileApp = 1`,
   `Inactive = 0` and none of `Originating`, `Terminating`, `Cancellation`,
@@ -63,10 +63,16 @@ Observations that shaped the design:
   update is conditional on the status that was read; a read-back must match
   before commit; any failure rolls everything back.
 - **Idempotent.** An order already at the target status is a verified no-op.
+- **Finding the order.** By order ID, RX number (`Orders.JobID`), or tray number.
+  A tray's current job is its most recent `TrayTransactions` row for that
+  `TrayID` (highest `TrayTransactionID`); if that row has a `DateOut` the tray is
+  empty and the update is refused (`tray_empty`), because older rows for a tray
+  are frequently never closed. This resolution is inferred from the data; the
+  tray write itself was not traced, so it makes the same three writes as any
+  other update and does not touch `TrayTransactions`.
 - Orders must be live (`OrderType` 1 or 3, active `GenStatus`, non-empty
   `JobID`). An RX number matching more than one order is refused.
-- Not supported (rejected explicitly, never dropped silently): tray lookup,
-  notes and e-mail.
+- Not supported (rejected explicitly, never dropped silently): notes and e-mail.
 
 ## Known gaps
 
@@ -75,7 +81,7 @@ Observations that shaped the design:
   protected by the row lock and the stale check.
 - Hold-condition logic (`HoldConditions`, `HoldConditionLinks`) is not
   replicated; see the allow-list above.
-- Tray updates (`TrayTransactions`, `SMTrays`) and staging remain out of scope.
+- Tray *changes* (moving a job between trays: `TrayTransactions`, `SMTrays`) are out of scope; only status updates found by tray number are supported.
 
 ## Enabling
 

@@ -1,6 +1,6 @@
 /**
- * Job Floor — update an order's status or stage a job in Innovations through
- * /api/job-floor. Every action previews first (dryRun) unless the operator
+ * Job Floor — update an order's status in Innovations, found by tray number,
+ * RX number or order ID, through /api/job-floor. Every update previews first (dryRun) unless the operator
  * turns Preview only off; the server additionally refuses live writes unless
  * the job-floor writes setting is enabled.
  */
@@ -43,7 +43,6 @@
   function syncButtons() {
     var label = els.dryRun.checked ? "Preview" : "Send to Innovations";
     els.statusGo.textContent = label;
-    els.stageGo.textContent = label;
   }
 
   async function run(path, body, button) {
@@ -51,7 +50,7 @@
     button.disabled = true;
     try {
       var out = await api("/api/job-floor" + path, body);
-      showResult(out.dryRun ? "Preview only — nothing was sent." : "Sent to Innovations.", out, false);
+      showResult(out.dryRun ? "Preview only — nothing was sent." : "Status updated in Innovations.", out, false);
     } catch (e) {
       showResult(e.message, null, true);
     } finally {
@@ -66,44 +65,17 @@
     run("/status-update", body, els.statusGo);
   }
 
-  function onStageSubmit(e) {
-    e.preventDefault();
-    var body = { actionId: els.stageAction.value ? Number(els.stageAction.value) : undefined };
-    body[els.stageBy.value] = els.stageValue.value.trim();
-    run("/stage", body, els.stageGo);
-  }
-
-  function renderQueues(rows) {
-    if (!rows.length) { els.queues.innerHTML = '<p class="jf-hint">No job queues returned.</p>'; return; }
-    var cols = ["ID", "name", "priority", "inQueueStatus", "outQueueStatus", "trayRangeLow", "trayRangeHigh"].filter(function (k) { return k in rows[0]; });
-    els.queues.innerHTML = "<table><thead><tr>" + cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") +
-      "</tr></thead><tbody>" + rows.map(function (r) {
-        return "<tr>" + cols.map(function (c) { return "<td>" + esc(r[c]) + "</td>"; }).join("") + "</tr>";
-      }).join("") + "</tbody></table>";
-  }
-
   async function loadLists() {
     els.mode.textContent = "Checking…";
     els.mode.className = "badge planned";
     try {
-      // The status list comes from the database; staging lists come from InnovaAPI.
-      // Load them independently so one being unavailable does not hide the other.
-      var results = await Promise.allSettled([
+      var results = await Promise.all([
         api("/api/job-floor/status"),
-        api("/api/job-floor/status-items"),
-        api("/api/job-floor/staging-actions"),
-        api("/api/job-floor/job-queues")
+        api("/api/job-floor/status-items")
       ]);
-      var value = function (i) { return results[i].status === "fulfilled" ? results[i].value : null; };
-      if (!value(0)) throw results[0].reason;
-      els.mode.textContent = value(0).writesEnabled ? "Live writes enabled" : "Writes disabled";
-      els.mode.className = "badge " + (value(0).writesEnabled ? "ready" : "planned");
-      if (value(1)) fillSelect(els.statusItem, value(1).rows, "ID", function (r) { return r.name || r.ID; }, "Choose a status");
-      else fillSelect(els.statusItem, [], "ID", String, "Statuses unavailable");
-      fillSelect(els.stageAction, value(2) ? value(2).rows : [], "ID", function (r) { return r.description || r.ID; }, "Default action");
-      renderQueues(value(3) ? value(3).rows : []);
-      var failed = results.filter(function (r) { return r.status === "rejected"; });
-      if (failed.length) showResult(failed.map(function (r) { return r.reason.message; }).join(" · "), null, true);
+      els.mode.textContent = results[0].writesEnabled ? "Live writes enabled" : "Writes disabled";
+      els.mode.className = "badge " + (results[0].writesEnabled ? "ready" : "planned");
+      fillSelect(els.statusItem, results[1].rows, "ID", function (r) { return r.name || r.ID; }, "Choose a status");
     } catch (e) {
       els.mode.textContent = "Innovations unavailable";
       els.mode.className = "badge blocked";
@@ -113,11 +85,10 @@
 
   function init() {
     ["mode", "reload", "dryRun", "statusForm", "statusBy", "statusValue", "statusItem", "statusGo",
-      "stageForm", "stageBy", "stageValue", "stageAction", "stageGo", "resultMsg", "result", "queues"].forEach(function (k) {
+      "resultMsg", "result"].forEach(function (k) {
       els[k] = byId("jf" + k.charAt(0).toUpperCase() + k.slice(1));
     });
     els.statusForm.addEventListener("submit", onStatusSubmit);
-    els.stageForm.addEventListener("submit", onStageSubmit);
     els.dryRun.addEventListener("change", syncButtons);
     els.reload.addEventListener("click", loadLists);
     syncButtons();

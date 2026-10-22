@@ -29,11 +29,11 @@
         </div>
         <div class="jf-fresh">
           <span class="badge planned" id="jfMode">Checking…</span>
-          <button class="button secondary" type="button" id="jfReload">Reload lists</button>
+          <button class="button secondary" type="button" id="jfReload">Reload statuses</button>
         </div>
       </div>
 
-      <p class="jf-hint" id="jfHint">Changes go to Innovations. Each action is previewed first; nothing is sent until you turn off Preview only.</p>
+      <p class="jf-hint" id="jfHint">Status changes go to Innovations. Each update is previewed first; nothing is sent until you turn off Preview only.</p>
 
       <label class="jf-toggle"><input type="checkbox" id="jfDryRun" checked> Preview only (do not send)</label>
 
@@ -43,6 +43,7 @@
           <form id="jfStatusForm" class="jf-form" autocomplete="off">
             <label>Find job by
               <select id="jfStatusBy">
+                <option value="trayId">Tray number</option>
                 <option value="rxNumber">RX number</option>
                 <option value="orderId">Order ID</option>
               </select>
@@ -54,39 +55,12 @@
             <button class="button primary" type="submit" id="jfStatusGo">Preview</button>
           </form>
         </section>
-
-        <section class="jf-card" aria-labelledby="jfStageTitle">
-          <h2 id="jfStageTitle">Stage a job</h2>
-          <form id="jfStageForm" class="jf-form" autocomplete="off">
-            <label>Find job by
-              <select id="jfStageBy">
-                <option value="trayId">Tray ID</option>
-                <option value="rxNumber">RX number</option>
-                <option value="orderId">Order ID</option>
-                <option value="poNumber">PO number</option>
-                <option value="invoiceId">Invoice ID</option>
-                <option value="containerName">Container name</option>
-                <option value="sku">SKU</option>
-              </select>
-            </label>
-            <label>Value <input id="jfStageValue" class="jf-input" required></label>
-            <label>Staging action
-              <select id="jfStageAction"><option value="">Loading…</option></select>
-            </label>
-            <button class="button primary" type="submit" id="jfStageGo">Preview</button>
-          </form>
-        </section>
       </div>
 
       <section class="jf-card" aria-labelledby="jfResultTitle" aria-live="polite">
         <h2 id="jfResultTitle">Result</h2>
         <p class="jf-hint" id="jfResultMsg">Nothing run yet.</p>
         <pre class="jf-result" id="jfResult" hidden></pre>
-      </section>
-
-      <section class="jf-card" aria-labelledby="jfQueuesTitle">
-        <h2 id="jfQueuesTitle">Job queues</h2>
-        <div id="jfQueues" class="table-wrap"></div>
       </section>
     </section>
   </main>

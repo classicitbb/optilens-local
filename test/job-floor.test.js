@@ -3,12 +3,10 @@ const test = require("node:test");
 const jobFloor = require("../lib/job-floor");
 const jobFloorSource = require("../lib/job-floor-source");
 
-function makeDeps({ writes = "false", response = { data: { ok: true } }, fail = null, sourceFail = null } = {}) {
-  const calls = [];
+function makeDeps({ writes = "false", sourceFail = null } = {}) {
   const audits = [];
   const sourceCalls = [];
   return {
-    calls,
     audits,
     sourceCalls,
     source: {
@@ -16,13 +14,6 @@ function makeDeps({ writes = "false", response = { data: { ok: true } }, fail = 
       previewStatusUpdate: async (input) => { sourceCalls.push({ op: "preview", input }); if (sourceFail) throw sourceFail; return { orderId: 55, alreadyApplied: false }; },
       applyStatusUpdate: async (input) => { sourceCalls.push({ op: "apply", input }); if (sourceFail) throw sourceFail; return { orderId: 55, applied: true, verified: true }; },
       listAllowedStatuses: async () => [{ id: 27, name: "Focimeter 2 Final PASS" }],
-    },
-    api: {
-      request: async (method, path, opts = {}) => {
-        calls.push({ method, path, ...opts });
-        if (fail) throw new Error(fail);
-        return response;
-      },
     },
     getSetting: async (key) => (key === "job_floor.writes_enabled" ? writes : null),
     recordAuditEvent: async (event) => { audits.push(event); },
@@ -41,7 +32,6 @@ test("updateStatus defaults to a dry run: read-only preview, audited, no write",
   assert.deepEqual(result.request, { orderId: 55, statusItemId: 7, expectedCurrentStatusId: undefined });
   assert.deepEqual(deps.sourceCalls.map((c) => c.op), ["preview"]);
   assert.deepEqual(deps.audits.map((a) => a.eventType), ["job_floor.update_status.dry_run"]);
-  assert.equal(deps.calls.length, 0);
 });
 
 test("a live write is refused (403) and audited while writes are disabled", async () => {
@@ -85,12 +75,30 @@ test("source errors keep their code, are audited, and surface with the source st
   assert.equal(deps.audits[1].eventData.code, "stale_order");
 });
 
-test("direct status updates reject tray lookups, notes and e-mail rather than dropping them", async () => {
+test("a tray number is passed through to the source writer and audited as a tray", async () => {
+  process.env.JOB_FLOOR_SOURCE_USER_ACCOUNT_ID = "41";
+  const deps = makeDeps({ writes: "true" });
+  const preview = await jobFloor.updateStatus({ trayId: " 766 ", statusItemId: 27 }, {}, deps);
+  assert.deepEqual(preview.request, { trayId: "766", statusItemId: 27, expectedCurrentStatusId: undefined });
+  await jobFloor.updateStatus({ trayId: "766", statusItemId: 27 }, { dryRun: false }, deps);
+  assert.deepEqual(deps.sourceCalls.map((c) => [c.op, c.input.trayId]), [["preview", "766"], ["apply", "766"]]);
+  assert.equal(deps.audits[0].entityType, "tray");
+  assert.equal(deps.audits[0].entityId, "766");
+});
+
+test("direct status updates reject notes and e-mail rather than dropping them", async () => {
   const deps = makeDeps();
-  await assert.rejects(jobFloor.updateStatus({ trayId: "T1", statusItemId: 2 }, {}, deps), /Tray lookup/);
   await assert.rejects(jobFloor.updateStatus({ orderId: 1, statusItemId: 2, note: "hi" }, {}, deps), /Notes/);
   await assert.rejects(jobFloor.updateStatus({ orderId: 1, statusItemId: 2, email: true }, {}, deps), /Notes/);
   assert.equal(deps.sourceCalls.length, 0);
+});
+
+test("the module no longer exposes staging, job queues or InnovaAPI reads", () => {
+  for (const name of ["stageJob", "listJobQueues", "listStagingActions", "getRxJob"]) assert.equal(jobFloor[name], undefined, name);
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const routes = fs.readFileSync(path.join(__dirname, "..", "lib/job-floor-routes.js"), "utf8");
+  for (const gone of ["/stage", "/job-queues", "/staging-actions", "/rx-job"]) assert.equal(routes.includes(gone), false, gone);
 });
 
 test("env flag overrides the stored setting", async () => {
@@ -100,39 +108,18 @@ test("env flag overrides the stored setting", async () => {
   assert.equal(await jobFloor.writesEnabled(makeDeps({ writes: "false" })), true);
 });
 
-test("a failing API call is audited and rethrown", async () => {
-  const deps = makeDeps({ writes: "true", fail: "boom" });
-  await assert.rejects(jobFloor.stageJob({ trayId: "A1", actionId: 1 }, { dryRun: false }, deps), /boom/);
-  assert.deepEqual(deps.audits.map((a) => a.eventType), ["job_floor.stage_job.attempted", "job_floor.stage_job.failed"]);
-});
-
 test("input validation rejects ambiguous or malformed identifiers", async () => {
   const deps = makeDeps();
   await assert.rejects(jobFloor.updateStatus({ orderId: 1, rxNumber: "x", statusItemId: 2 }, {}, deps), /exactly one/);
+  await assert.rejects(jobFloor.updateStatus({ orderId: 1, trayId: "9", statusItemId: 2 }, {}, deps), /exactly one/);
   await assert.rejects(jobFloor.updateStatus({ statusItemId: 2 }, {}, deps), /exactly one/);
   await assert.rejects(jobFloor.updateStatus({ orderId: "abc", statusItemId: 2 }, {}, deps), /positive integer/);
   await assert.rejects(jobFloor.updateStatus({ orderId: 1, statusItemId: 0 }, {}, deps), /positive integer/);
-  await assert.rejects(jobFloor.stageJob({ actionId: 1 }, {}, deps), /Identify the job/);
   assert.equal(deps.audits.length, 0);
 });
 
-test("stageJob maps fields to the job_staging query names", async () => {
-  const deps = makeDeps();
-  const r = await jobFloor.stageJob({ trayId: "A1", actionId: "4", stagingAreaId: 2, checkInsOnly: true }, {}, deps);
-  assert.deepEqual(r.request.query, {
-    tray_id: "A1", order_id: undefined, rx_number: undefined, po_number: undefined, invoice_id: undefined,
-    action_id: 4, sku: undefined, container_name: undefined, check_ins_only: 1, staging_area_id: 2,
-  });
-});
-
-test("reads unwrap the data envelope and use the right endpoints", async () => {
-  const deps = makeDeps({ response: { data: { statusItem: [{ statusID: 1 }], jobQueue: [{ id: 2 }], jobStagingActions: [{ id: 3 }], rxJob: { orderID: 9 } } } });
-  assert.deepEqual(await jobFloor.listStatusItems({}, deps), [{ ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true }]);
-  assert.deepEqual(await jobFloor.listJobQueues(deps), [{ id: 2 }]);
-  assert.deepEqual(await jobFloor.listStagingActions(deps), [{ id: 3 }]);
-  assert.deepEqual(await jobFloor.getRxJob({ orderId: 9 }, deps), { orderID: 9 });
-  assert.deepEqual(deps.calls.map((c) => c.path), ["/job_queues", "/job_staging_actions", "/orders/9/rx_job"]);
-  await assert.rejects(jobFloor.getRxJob({}, deps), /exactly one/);
+test("status items come from the source writer in the shape the page expects", async () => {
+  assert.deepEqual(await jobFloor.listStatusItems({}, makeDeps()), [{ ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true }]);
 });
 
 test("job-floor page is wired into routes, permissions, edition and launcher", () => {

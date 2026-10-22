@@ -62,6 +62,7 @@ GRANT SELECT ON OBJECT::dbo.OrderStatuses  TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.StatusItems    TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.GenStatus      TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.UserAccounts   TO [optilens_jobfloor];
+GRANT SELECT ON OBJECT::dbo.TrayTransactions TO [optilens_jobfloor];   -- tray number -> current order
 
 -- The three writes, column-limited where the statement only touches a few columns.
 GRANT INSERT ON OBJECT::dbo.OrderStatuses TO [optilens_jobfloor];

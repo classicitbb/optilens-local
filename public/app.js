@@ -100,7 +100,7 @@ const platformApplications = [
     id: "job-floor",
     name: "Job Floor",
     href: "/modules/job-floor",
-    summary: "Update order status and stage jobs in Innovations, with dry-run preview and audited writes.",
+    summary: "Update an order's status by tray, RX number or order ID in Innovations, with dry-run preview and audited writes.",
     status: "first-build",
     permissions: ["automation.read", "automation.manage"]
   },

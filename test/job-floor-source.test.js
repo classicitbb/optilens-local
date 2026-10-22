@@ -9,6 +9,7 @@ function makeDb(overrides = {}) {
     user: { id: 41, active: 1 },
     orders: [{ orderId: 138998, jobId: "675", currentStatusId: 42, currentHistoryId: 774281, numberOfStatuses: 6, genStatusName: "In process" }],
     history: { id: 774281, statusItemId: 42, endDate: null, iteration: 2 },
+    tray: { id: 91520, orderId: 138998, dateIn: new Date(), dateOut: null },
     realCount: 6,
     updateRows: 1,
     readBack: null,
@@ -19,6 +20,7 @@ function makeDb(overrides = {}) {
   const exec = async (name, params = {}) => {
     log.push({ name, params });
     switch (name) {
+      case "latestTrayTransaction": return { recordset: state.tray ? [state.tray] : [] };
       case "target": return { recordset: state.target ? [state.target] : [] };
       case "user": return { recordset: state.user ? [state.user] : [] };
       case "orderById": case "orderByIdForUpdate": case "orderByRx": case "orderByRxForUpdate": return { recordset: state.orders };
@@ -121,6 +123,25 @@ test("a lost optimistic update or a failed read-back rolls the whole transaction
   await assert.rejects(source.applyStatusUpdate(input, bad.deps), (e) => e.code === "verification_failed");
   assert.equal(bad.flags.rolledBack, true);
   assert.equal(bad.flags.committed, false);
+});
+
+test("a tray number resolves to its current order and the write is otherwise identical", async () => {
+  const db = makeDb();
+  const result = await source.applyStatusUpdate({ trayId: " 675 ", statusItemId: 27, userAccountId: 41 }, db.deps);
+  assert.equal(result.applied, true);
+  assert.equal(result.tray.id, "675");
+  assert.deepEqual(db.names().slice(0, 4), ["target", "user", "latestTrayTransaction", "orderByIdForUpdate"]);
+  assert.deepEqual(db.log.find((l) => l.name === "latestTrayTransaction").params, { trayId: "675" });
+  assert.deepEqual(db.log.find((l) => l.name === "orderByIdForUpdate").params, { orderId: 138998 });
+});
+
+test("an unknown, empty or unlinked tray is refused before any write", async () => {
+  const run = (tray) => source.applyStatusUpdate({ trayId: "675", statusItemId: 27, userAccountId: 41 }, makeDb({ tray }).deps);
+  await assert.rejects(run(null), (e) => e.code === "tray_not_found" && e.statusCode === 404);
+  await assert.rejects(run({ id: 1, orderId: 138998, dateIn: new Date(), dateOut: new Date() }), (e) => e.code === "tray_empty");
+  await assert.rejects(run({ id: 1, orderId: 0, dateIn: new Date(), dateOut: null }), (e) => e.code === "tray_empty");
+  await assert.rejects(source.applyStatusUpdate({ trayId: "x".repeat(41), statusItemId: 27, userAccountId: 41 }, makeDb().deps), (e) => e.code === "invalid_input");
+  await assert.rejects(source.applyStatusUpdate({ trayId: "675", orderId: 5, statusItemId: 27, userAccountId: 41 }, makeDb().deps), (e) => e.code === "invalid_input");
 });
 
 test("live writes require a source user, and require exactly one order identifier", async () => {
