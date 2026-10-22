@@ -97,6 +97,14 @@ const platformApplications = [
     permissions: ["automation.read", "automation.manage"]
   },
   {
+    id: "job-floor",
+    name: "Job Floor",
+    href: "/modules/job-floor",
+    summary: "Update order status and stage jobs in Innovations, with dry-run preview and audited writes.",
+    status: "first-build",
+    permissions: ["automation.read", "automation.manage"]
+  },
+  {
     id: "business-metrics",
     name: "Business Metrics",
     href: "/modules/business-metrics",
@@ -475,6 +483,7 @@ function moduleIcon(moduleId) {
     "integrations": "link",
     "automation": "bolt",
     "os-lab-status": "mark_email_read",
+    "job-floor": "assignment_turned_in",
     "rx-capture": "document_scanner"
   };
   return icons[moduleId] || "apps";

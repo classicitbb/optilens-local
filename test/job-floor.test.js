@@ -92,3 +92,22 @@ test("reads unwrap the data envelope and use the right endpoints", async () => {
   assert.equal(deps.calls[0].query.active, true);
   await assert.rejects(jobFloor.getRxJob({}, deps), /exactly one/);
 });
+
+test("job-floor page is wired into routes, permissions, edition and launcher", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
+  const html = read("public/job-floor.html");
+  assert.match(html, /href="\/styles\/system\.css"/);
+  assert.match(html, /job-floor\.js/);
+  assert.match(read("public/job-floor.js"), /\/api\/job-floor/);
+  const server = read("server.js");
+  assert.match(server, /"\/modules\/job-floor":\s+"job-floor\.html"/);
+  assert.match(server, /"\/modules\/job-floor": \["automation\.read", "automation\.manage"\]/);
+  assert.match(server, /handleJobFloorRoute\(/);
+  const edition = read("lib/edition.js");
+  assert.match(edition, /"\/modules\/job-floor"/);
+  assert.match(edition, /"\/api\/job-floor"/);
+  assert.match(read("public/shared.js"), /id: "job-floor"/);
+  assert.match(read("public/app.js"), /id: "job-floor"/);
+});

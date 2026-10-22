@@ -1,0 +1,19 @@
+/* Job Floor — layout for the status-update and staging forms; primitives live in system.css */
+.jf-fresh { display:flex; align-items:center; gap:10px; }
+.jf-hint { color:var(--muted); font-size:.85rem; margin:6px 0 12px; }
+.jf-error { color:var(--red); }
+.jf-toggle { display:flex; align-items:center; gap:8px; font-size:.9rem; min-height:44px; margin:0 0 12px; }
+.jf-toggle input { width:20px; height:20px; }
+
+.jf-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap:12px; margin:0 0 12px; }
+.jf-card { border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--surface, #fff); min-width:0; margin:0 0 12px; }
+.jf-grid .jf-card { margin:0; }
+.jf-card h2 { font-size:1rem; margin:0 0 10px; }
+
+.jf-form { display:flex; flex-direction:column; gap:10px; }
+.jf-form label { display:flex; flex-direction:column; gap:4px; font-size:.8rem; color:var(--muted); }
+.jf-form select, .jf-input { min-height:44px; padding:0 12px; font:inherit; font-size:1rem; border:2px solid var(--line); border-radius:8px; background:var(--surface, #fff); color:var(--ink); min-width:0; }
+.jf-form select:focus, .jf-input:focus { outline:none; border-color:var(--blue); }
+.jf-form .button { min-height:44px; align-self:flex-start; }
+
+.jf-result { margin:0; padding:10px 12px; max-height:22rem; overflow:auto; border:1px solid var(--line); border-radius:8px; font-size:.8rem; white-space:pre-wrap; word-break:break-word; }

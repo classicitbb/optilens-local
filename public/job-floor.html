@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Job Floor - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/job-floor.css">
+  <link rel="stylesheet" href="/styles/system.css">
+</head>
+<body class="module-body">
+
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Job Floor"
+  };
+</script>
+
+  <main class="module-main">
+    <section class="module-workspace jf-bare">
+      <div class="module-title">
+        <div>
+          <p class="eyebrow">Operations</p>
+          <h1>Job Floor</h1>
+        </div>
+        <div class="jf-fresh">
+          <span class="badge planned" id="jfMode">Checking…</span>
+          <button class="button secondary" type="button" id="jfReload">Reload lists</button>
+        </div>
+      </div>
+
+      <p class="jf-hint" id="jfHint">Changes go to Innovations. Each action is previewed first; nothing is sent until you turn off Preview only.</p>
+
+      <label class="jf-toggle"><input type="checkbox" id="jfDryRun" checked> Preview only (do not send)</label>
+
+      <div class="jf-grid">
+        <section class="jf-card" aria-labelledby="jfStatusTitle">
+          <h2 id="jfStatusTitle">Update status</h2>
+          <form id="jfStatusForm" class="jf-form" autocomplete="off">
+            <label>Find job by
+              <select id="jfStatusBy">
+                <option value="rxNumber">RX number</option>
+                <option value="orderId">Order ID</option>
+                <option value="trayId">Tray ID</option>
+              </select>
+            </label>
+            <label>Value <input id="jfStatusValue" class="jf-input" required></label>
+            <label>New status
+              <select id="jfStatusItem" required><option value="">Loading…</option></select>
+            </label>
+            <label>Note (optional) <input id="jfStatusNote" class="jf-input"></label>
+            <button class="button primary" type="submit" id="jfStatusGo">Preview</button>
+          </form>
+        </section>
+
+        <section class="jf-card" aria-labelledby="jfStageTitle">
+          <h2 id="jfStageTitle">Stage a job</h2>
+          <form id="jfStageForm" class="jf-form" autocomplete="off">
+            <label>Find job by
+              <select id="jfStageBy">
+                <option value="trayId">Tray ID</option>
+                <option value="rxNumber">RX number</option>
+                <option value="orderId">Order ID</option>
+                <option value="poNumber">PO number</option>
+                <option value="invoiceId">Invoice ID</option>
+                <option value="containerName">Container name</option>
+                <option value="sku">SKU</option>
+              </select>
+            </label>
+            <label>Value <input id="jfStageValue" class="jf-input" required></label>
+            <label>Staging action
+              <select id="jfStageAction"><option value="">Loading…</option></select>
+            </label>
+            <button class="button primary" type="submit" id="jfStageGo">Preview</button>
+          </form>
+        </section>
+      </div>
+
+      <section class="jf-card" aria-labelledby="jfResultTitle" aria-live="polite">
+        <h2 id="jfResultTitle">Result</h2>
+        <p class="jf-hint" id="jfResultMsg">Nothing run yet.</p>
+        <pre class="jf-result" id="jfResult" hidden></pre>
+      </section>
+
+      <section class="jf-card" aria-labelledby="jfQueuesTitle">
+        <h2 id="jfQueuesTitle">Job queues</h2>
+        <div id="jfQueues" class="table-wrap"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/job-floor.js"></script>
+</body>
+</html>

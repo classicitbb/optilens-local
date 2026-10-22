@@ -12,6 +12,7 @@ const SHELL_APP_CATALOG = [
   { id: "integrations",      label: "Integrations",      meta: "Module",   icon: "link",          href: "/modules/integrations",       color: "#0B1E35", permissions: ["integrations.read", "integrations.manage"] },
   { id: "automation",        label: "Automation",        meta: "Module",   icon: "bolt",          href: "/modules/automation",         color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
   { id: "os-lab-status",     label: "OS Lab Status Inbox", meta: "Module", icon: "mark_email_read", href: "/modules/os-lab-status",   color: "#c89130", permissions: ["automation.read", "automation.manage"] },
+  { id: "job-floor",         label: "Job Floor",         meta: "Module",   icon: "assignment_turned_in", href: "/modules/job-floor",      color: "#0f7c86", permissions: ["automation.read", "automation.manage"] },
   { id: "rx-capture",        label: "RX Capture",        meta: "Module",   icon: "document_scanner", href: "/rx-capture",                    color: "#0f7c86", permissions: ["rx-capture.read", "rx-capture.write"] },
   { id: "business-metrics",  label: "Business Metrics",  meta: "Module",   icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["platform.admin"] },
   { id: "inventory-intelligence", label: "Inventory Intelligence", meta: "Module", icon: "inventory", href: "/modules/inventory-intelligence", color: "#1A8A9C", permissions: ["platform.admin"] },
@@ -209,6 +210,12 @@ function getShellPageConfig() {
     },
     "/inventory-intelligence.html": {
       crumb: "Inventory Intelligence"
+    },
+    "/modules/job-floor": {
+      crumb: "Job Floor"
+    },
+    "/job-floor.html": {
+      crumb: "Job Floor"
     },
     "/modules/cost-check": {
       crumb: "Cost Check"
@@ -1482,7 +1489,7 @@ function launcherTileColor(app) {
 // Which licensed module owns each launcher item; items not listed belong to the core.
 const SHELL_ITEM_MODULE = {
   "delivery-export": "delivery-export", "pricing-automation": "pricing-automation", "cost-check": "pricing-automation",
-  integrations: "integrations", automation: "automation", "os-lab-status": "automation", "rx-capture": "rx-capture",
+  integrations: "integrations", automation: "automation", "os-lab-status": "automation", "job-floor": "automation", "rx-capture": "rx-capture",
   "business-metrics": "business-metrics", "production-status": "business-metrics", "inventory-intelligence": "inventory-intelligence",
   credentials: "vault"
 };
