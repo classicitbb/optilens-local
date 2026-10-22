@@ -194,6 +194,7 @@ const { recordAuditEvent } = require("./lib/audit");
 const { service: fileDropDestinations } = require("./lib/file-drop-destinations");
 const { handleOperationsRoute } = require("./lib/operations/routes");
 const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
+const { handleJobFloorRoute } = require("./lib/job-floor-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
@@ -1109,6 +1110,7 @@ const server = http.createServer(async (req, res) => {
   if (await handleOperationsRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleInventoryRoute({ req, res, url, readJsonBody, currentUser, sendJson })) return;
   if (await handleQboInvoiceRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
+  if (await handleJobFloorRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handlePrivilegedDataAccessRoute({ req, res, url, handleApi, readJsonBody, requirePermission })) return;
   if (await handleChemistryRoute({ req, res, url, handleApi, readJsonBody })) return;
   if (await handleRxCaptureRoute({ req, res, url, handleApi, readJsonBody, requirePermission, searchCustomers: listCustomers })) return;
