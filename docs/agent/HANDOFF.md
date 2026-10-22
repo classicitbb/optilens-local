@@ -6,6 +6,18 @@
 
 ## Objective and current state
 
+### Inventory Intelligence bins, name-only queue and vertical density — deployed
+
+Status: Complete — no active handoff.
+
+Queue names show the readable lens name alone, omitting diameter, base and add power; Review retains those optical details and the SKU. Queue metadata retains SKU and replaces the visible six-part database key with source bin locations. The read-only identity lookup now joins `MFTypes` and reads `LensItem.Bin_R` / `Bin_L`; Single Vision shows R only, and Progressive/Bifocal show R and L separately. Trifocal/Double Segs follow the same two-bin convention. Unknown families and missing bins remain explicit. Read-only source schema and family/bin sample queries succeeded; family numbers vary by material, so classification uses the source family name.
+
+Queue cell padding, line height, header controls and action gaps are tighter. A queue-only checkbox rule removes the shared 40px input minimum that inflated headers and short rows. Local external Edge with synthetic data at the annotated 1528px width verified both-bin versus right-only display, missing-bin fallback, no database key in item metadata, and full lens descriptions. The same fixture's header shrank from about 81px to 44px, with shorter body rows in both evidence and recommendation sections.
+
+Deployed revision `42dd3c5` on 2026-10-22 from `codex/inventory-bins-density` through the guarded updater after explicit approval. Smoke check, all 611 host tests, restart and `node scripts/monitor-harness.js verify` passed; the host checkout is clean. Signed-in external Edge at 1528px verified queue names without optical labels, R/L bifocal and progressive bins, R-only single-vision bins, and retained optical details in Review. The live table header measures about 44px; the temporary viewport override was reset. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow.
+
+Affected files: `lib/inventory/source-adapter.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `test/inventory-intelligence-labels.test.js`, and these records. Focused inventory tests passed 106/106; `npm run check`, changed-JS syntax checks and `git diff --check` passed. No application scan, business decision or source write was performed; the earlier fixture scan used the automated-test in-memory store only.
+
 ### Inventory Intelligence lens descriptions — deployed
 
 Status: Complete — no active handoff.
