@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- interactive-widget=resizes-visual: the on-screen keyboard overlays the page instead of reflowing it. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
   <meta name="theme-color" content="#0B1E35">
-  <title>Job Floor - OptiLens Local</title>
+  <title>Status Update - OptiLens Local</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
@@ -16,56 +17,38 @@
   <div id="app-shell-header"></div>
 <script>
   window.OptiLensPage = {
-    crumb: "Job Floor"
+    crumb: "Status Update"
   };
 </script>
 
   <main class="module-main">
-    <section class="module-workspace jf-bare">
-      <div class="module-title">
-        <div>
-          <p class="eyebrow">Operations</p>
-          <h1>Job Floor</h1>
-        </div>
-        <div class="jf-fresh">
-          <span class="badge planned" id="jfMode">Checking…</span>
-          <button class="button secondary" type="button" id="jfReload">Reload statuses</button>
+    <section class="jf-screen" aria-labelledby="jfTitle">
+      <div class="jf-titlebar">
+        <h1 id="jfTitle">Status Update</h1>
+        <div class="jf-mode">
+          <span class="jf-badge" id="jfBadge">Checking…</span>
+          <label title="Preview only reads the order and reports what would change; nothing is sent.">
+            <input type="checkbox" id="jfDryRun"> Preview only
+          </label>
         </div>
       </div>
 
-      <p class="jf-hint" id="jfHint">Status changes go to Innovations. Each update is previewed first; nothing is sent until you turn off Preview only.</p>
+      <div class="jf-result-bar">
+        <span class="jf-icon" id="jfIcon" aria-hidden="true"></span>
+        <h2>Result</h2>
+      </div>
+      <ul class="jf-log" id="jfLog" aria-live="polite" aria-label="Result">
+        <li class="jf-log-empty">Nothing run yet.</li>
+      </ul>
 
-      <label class="jf-toggle"><input type="checkbox" id="jfDryRun" checked> Preview only (do not send)</label>
+      <form id="jfStatusForm" class="jf-fields" autocomplete="off">
+        <label class="jf-field" for="jfStatusItem">Status:</label>
+        <select id="jfStatusItem" class="jf-control" required><option value="">Loading…</option></select>
 
-      <section class="jf-card jf-main" aria-labelledby="jfStatusTitle">
-        <h2 id="jfStatusTitle">Status update</h2>
-        <form id="jfStatusForm" class="jf-form" autocomplete="off">
-          <label>Status
-            <select id="jfStatusItem" required><option value="">Loading…</option></select>
-          </label>
-          <label>Find job by
-            <select id="jfStatusBy">
-              <option value="trayId">Tray ID</option>
-              <option value="rxNumber">RX number</option>
-              <option value="orderId">Order ID</option>
-            </select>
-          </label>
-          <label><span id="jfValueLabel">Tray ID</span>
-            <input id="jfStatusValue" class="jf-input" required inputmode="numeric" enterkeyhint="go">
-          </label>
-          <button class="button primary" type="submit" id="jfStatusGo">Preview</button>
-        </form>
-        <p class="jf-hint">Scan or type a tray ID and press Enter. The status stays selected, so you can go straight to the next tray.</p>
-
-        <h3 class="jf-log-title" id="jfLogTitle">Result</h3>
-        <ul class="jf-log" id="jfLog" aria-live="polite" aria-labelledby="jfLogTitle">
-          <li class="jf-log-empty">Nothing run yet.</li>
-        </ul>
-        <details class="jf-details" id="jfDetails" hidden>
-          <summary>Technical detail of the last request</summary>
-          <pre class="jf-result" id="jfResult"></pre>
-        </details>
-      </section>
+        <label class="jf-field jf-field-key" for="jfStatusValue">Tray ID:</label>
+        <input id="jfStatusValue" class="jf-control" required enterkeyhint="done"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
+      </form>
     </section>
   </main>
 
