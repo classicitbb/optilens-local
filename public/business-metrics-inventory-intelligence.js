@@ -483,13 +483,13 @@
     return html + '</div>';
   }
 
-  function lensLabel(r, identity) {
+  function lensLabel(r, identity, compact) {
     var name = (identity && identity.name) || r.itemLabel || r.itemId;
     if (!identity) return name;
     var specs = [];
-    if (identity.diameter != null) specs.push("Diameter " + num(identity.diameter, 2) + " mm");
-    if (identity.base != null) specs.push("Base " + Number(identity.base).toFixed(2));
-    if (identity.addPower != null) specs.push("Add " + (Number(identity.addPower) > 0 ? "+" : "") + Number(identity.addPower).toFixed(2));
+    if (identity.diameter != null) specs.push((compact ? "" : "Diameter ") + num(identity.diameter, 2) + " mm");
+    if (identity.base != null) specs.push((compact ? "" : "Base ") + Number(identity.base).toFixed(2));
+    if (identity.addPower != null) specs.push((compact ? "" : "Add ") + (Number(identity.addPower) > 0 ? "+" : "") + Number(identity.addPower).toFixed(2));
     return name + (specs.length ? " · " + specs.join(" · ") : "");
   }
 
@@ -512,7 +512,7 @@
     var actionText = (p.recommendedActions && p.recommendedActions[0]) || p.rationale || "";
     return '<tr data-selected="' + Boolean(state.selected[r.recommendationId]) + '">' +
       '<td>' + (canDecide(r) ? '<input type="checkbox" data-action="select" data-id="' + esc(r.recommendationId) + '" aria-label="Select ' + esc(r.itemLabel || r.itemId) + '"' + checked + '>' : '') + '</td>' +
-      '<td><div class="ii-item-name">' + esc((r.itemIdentity && r.itemIdentity.name) || r.itemLabel || r.itemId) + '</div>' +
+      '<td><div class="ii-item-name">' + esc(lensLabel(r, r.itemIdentity, true)) + '</div>' +
         '<div class="ii-sub ii-item-meta">' +
         (r.sku ? '<span>SKU ' + esc(r.sku) + '</span>' : '') +
         ' <span>' + esc(binLabel(r.itemIdentity)) + '</span></div>' + evidenceSummary(r) + '</td>' +

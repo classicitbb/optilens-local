@@ -18,11 +18,11 @@ function renderMetadata(identity) {
   return renderRow(identity).match(/<div class="ii-sub ii-item-meta">([\s\S]*?)<\/div>/)[1];
 }
 
-test("queue lens names omit diameter, base and add power", () => {
+test("queue lens names include optical values without diameter, base and add labels", () => {
   const row = renderRow({ name: "Plastic 1.50 · Vision-Ease · Flat Top 28 · UNCoated", diameter: 70,
     base: 4, addPower: 3, familyName: "Bifocal", bins: { right: "C2", left: "C2" } });
   const name = row.match(/<div class="ii-item-name">([\s\S]*?)<\/div>/)[1];
-  assert.equal(name, "Plastic 1.50 · Vision-Ease · Flat Top 28 · UNCoated");
+  assert.equal(name, "Plastic 1.50 · Vision-Ease · Flat Top 28 · UNCoated · 70 mm · 4.00 · +3.00");
   assert.doesNotMatch(name, /Diameter|Base|Add/);
 });
 
