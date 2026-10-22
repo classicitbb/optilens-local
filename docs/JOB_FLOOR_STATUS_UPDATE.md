@@ -86,6 +86,20 @@ Observations that shaped the design:
   `JobID`). An RX number matching more than one order is refused.
 - Not supported (rejected explicitly, never dropped silently): notes and e-mail.
 
+## Scanner screen layout
+
+The Status Update screen uses its own edge-to-edge light layout at every width,
+with a centered title, a 134px scrollable white result log, and 32px Status/Tray ID
+rows. The title uses a 25px line inside a 42px bar (17px additional vertical space)
+with 4px horizontal padding, matching the mobile reference without a narrow-only
+breakpoint. Result height is independent of viewport height so opening the keyboard
+does not move the fields. The initial result is empty; real failures remain visible.
+
+The hamburger menu exposes Apps and the existing Live/Preview controls. The shared
+shell header is omitted. `window.OptiLensPage.assistant = false` prevents assistant
+overlay injection and shortcut wiring and survives edition/auth refresh. It is a
+page preference, not a change to assistant permissions or status-write gates.
+
 ## Known gaps
 
 - The desktop `RxJob` cooperative lock (`Locks` table) is not taken, so a

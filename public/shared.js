@@ -531,8 +531,10 @@ function injectOverlays() {
   if (!document.getElementById("accountOverlay")) html += accountHtml;
   if (!document.getElementById("updateLogOverlay")) html += updateLogHtml;
   if (!document.getElementById("updateProgressOverlay")) html += updateProgressHtml;
-  if (!document.getElementById("globalAssistantFab")) html += assistantFabHtml;
-  if (!document.getElementById("globalAssistantDrawer")) html += assistantDrawerHtml;
+  if (window.OptiLensPage?.assistant !== false) {
+    if (!document.getElementById("globalAssistantFab")) html += assistantFabHtml;
+    if (!document.getElementById("globalAssistantDrawer")) html += assistantDrawerHtml;
+  }
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
 }
 
@@ -1302,7 +1304,7 @@ function applyEdition(edition) {
   AUTH_STATE.edition = edition || null;
   const modules = edition?.modules || [];
   const restricted = Boolean(edition?.restricted);
-  document.documentElement.toggleAttribute("data-no-assistant", restricted && !modules.includes("automation"));
+  document.documentElement.toggleAttribute("data-no-assistant", window.OptiLensPage?.assistant === false || (restricted && !modules.includes("automation")));
   // Trial countdown and ended-licence notice; the script does nothing for other editions.
   if (restricted && (edition.trial || edition.reason) && !document.querySelector("script[data-edition-banner]")) {
     const script = document.createElement("script");
@@ -1702,6 +1704,7 @@ const GLOBAL_ASSISTANT_STATE = {
 };
 
 function wireGlobalAssistant() {
+  if (window.OptiLensPage?.assistant === false) return;
   const toggleBtn = document.querySelector("#globalAssistantToggle");
   const fabBtn = document.querySelector("#globalAssistantFab");
   const drawer = document.querySelector("#globalAssistantDrawer");

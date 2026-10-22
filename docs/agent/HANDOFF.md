@@ -16,6 +16,14 @@ Deployed code revision `16acdfd` on 2026-10-22 through the guarded updater from 
 
 Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, and these continuity records. Inventory tests passed 101/101 locally. The host remains on the deployment branch; automatic updates from master require the branch to be merged and the host returned to master through the guarded flow. Unrelated Status Update work remains local.
 
+### Status Update reference layout — local implementation complete
+
+Status: Complete — no active handoff for the scoped repository change. Production deployment is not authorized by this request.
+
+Matched the mobile reference with an edge-to-edge light scanner screen, centered title/menu, initially empty white fixed-height results, compact Status/Tray ID rows, and underlined fields. The menu retains Apps and Live/Preview controls. Disabled assistant injection and shortcut initialization for this page, including after auth/edition refresh. Files: `public/job-floor.html`, `public/styles/pages/job-floor.css`, `public/shared.js`, `docs/JOB_FLOOR_STATUS_UPDATE.md`, and these continuity records.
+
+Verification: syntax checks and `npm run check` passed. Job Floor/source/design-system tests passed 35/35. Headless Edge with fixture API responses verified 320px, 446px, 600px, and 1366px widths, fixed result/input placement, no horizontal overflow, accessible Preview/Apps menu, no assistant after its shortcut, no page errors, and zero POST requests. This is local fixture proof, not deployed or physical-keyboard proof. Full `npm test`: 605/606 passed; the failure is the unrelated concurrently edited Inventory test `lens identity uses the full source key and returns the readable lens name`, with replacement characters instead of middle-dot separators. Preserve the unrelated Inventory edits.
+
 ### Inventory Intelligence compact queue and splitter — deployed
 
 Applied the annotated cockpit density changes in `public/business-metrics-inventory-intelligence.js` and `public/styles/pages/inventory-intelligence.css`: removed the duplicate header title, tightened the description/scan text, scan button, caveat banner, and KPI cards; widened and shortened Search; added 6px beneath its toolbar; made the queue table edge to edge with square corners and shorter rows. The table now budgets evidence and action column widths, exposes a 2px draggable divider with arrow-key control, and keeps Actions visible when a narrow container must scroll horizontally. Recommendation text is limited to two visible lines with its full value in the Review drawer. The divider is hidden only when the queue container is narrower than the table's 1180px minimum; Actions remains sticky there.

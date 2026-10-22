@@ -1,41 +1,45 @@
-/*
-  Status Update (job-floor) — mirrors the Innovations Mobile app's Status Update screen:
-  result log on top, Status and Tray ID rows underneath, no buttons. Everything sits in the
-  upper part of the page so the on-screen keyboard (which overlays, see the viewport meta)
-  never covers the fields or reflows the layout. Primitives live in system.css.
-*/
-.jf-screen { max-width:34rem; margin:0 auto; padding:0 0 12px; }
-
-.jf-titlebar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 0 8px; }
-.jf-titlebar h1 { margin:0; font-size:1.25rem; }
-.jf-mode { display:flex; align-items:center; gap:10px; font-size:.8rem; color:var(--muted); }
-.jf-mode label { display:flex; align-items:center; gap:6px; min-height:32px; cursor:pointer; }
+/* Status Update owns a compact scanner layout at every width. Fixed result
+   height keeps both fields above the keyboard without viewport-height reflow. */
+body.job-floor-page {
+  --font-sans: Roboto, "Segoe UI", Arial, sans-serif;
+  --color-text: #111;
+  margin: 0;
+  background: #eee;
+  color: #111;
+  font-family: var(--font-sans);
+  color-scheme: light;
+}
+.job-floor-page .module-main { max-width:none; margin:0; padding:0 4px; }
+.jf-screen { width:100%; margin:0; padding:0 0 12px; }
+.jf-titlebar { position:relative; display:flex; align-items:center; justify-content:center; height:42px; padding:0 4px; box-sizing:border-box; border-bottom:1px solid #111; }
+.jf-titlebar h1 { margin:0; font-size:18px; font-weight:600; line-height:25px; letter-spacing:normal; }
+.jf-menu { position:absolute; inset:0 auto auto 0; z-index:2; }
+.jf-menu summary { display:grid; place-items:center; width:40px; height:41px; cursor:pointer; list-style:none; font-size:16px; }
+.jf-menu summary::-webkit-details-marker { display:none; }
+.jf-menu-panel { width:260px; padding:12px; background:#eee; border:1px solid #999; box-shadow:0 4px 12px #0003; }
+.jf-menu-panel button { min-height:40px; width:100%; color:#111; }
+.jf-mode { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:8px; font-size:14px; }
+.jf-mode label { display:flex; align-items:center; gap:6px; min-height:40px; cursor:pointer; }
 .jf-mode input { width:18px; height:18px; }
-.jf-badge { padding:2px 8px; border-radius:999px; font-weight:600; font-size:.75rem; background:rgba(127,127,127,.15); }
+.jf-badge { padding:2px 8px; border-radius:999px; font-weight:600; font-size:12px; background:#ddd; }
 .jf-badge.is-live { color:#fff; background:#2e9e4f; }
 .jf-badge.is-preview { color:#5f4300; background:#f6d98a; }
-
-.jf-result-bar { display:flex; align-items:center; justify-content:center; position:relative; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--surface-2, rgba(127,127,127,.08)); min-height:44px; }
-.jf-result-bar h2 { margin:0; font-size:1rem; font-weight:600; }
-.jf-icon { position:absolute; left:8px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:16px; font-weight:700; color:#fff; background:var(--muted, #888); }
-.jf-icon::before { content:"–"; }
-.jf-icon.is-ok { background:#2e9e4f; }
+.jf-result-bar { display:flex; align-items:center; justify-content:center; position:relative; height:26px; }
+.jf-result-bar h2 { margin:0; font-size:16px; font-weight:600; line-height:normal; letter-spacing:normal; }
+.jf-icon { position:absolute; left:8px; font-size:16px; font-weight:700; }
+.jf-icon.is-ok { color:#2e9e4f; }
 .jf-icon.is-ok::before { content:"\2713"; }
-.jf-icon.is-fail { background:#d93025; }
+.jf-icon.is-fail { color:#d93025; }
 .jf-icon.is-fail::before { content:"\2715"; }
-
-/* Fixed-height result area so the fields below never move as results arrive. */
-.jf-log { list-style:none; margin:0; padding:6px 10px; height:clamp(6.5rem, 20vh, 13rem); overflow-y:auto; overscroll-behavior:contain; border-bottom:1px solid var(--line); }
-.jf-log li { padding:3px 0; font-size:1rem; line-height:1.35; overflow-wrap:anywhere; }
+.jf-log { box-sizing:border-box; list-style:none; margin:0 4px 5px; padding:4px; height:134px; overflow-y:auto; overscroll-behavior:contain; background:#fff; }
+.jf-log li { padding:3px 0; font-size:16px; line-height:1.35; overflow-wrap:anywhere; }
 .jf-log li::before { content:"\2022"; margin-right:8px; }
 .jf-log-fail { color:#d93025; }
-.jf-log-empty { color:var(--muted); }
-.jf-log-empty::before { content:none !important; }
-
-.jf-fields { display:grid; grid-template-columns:6.5rem minmax(0, 1fr); align-items:center; gap:6px 12px; padding:14px 10px 0; }
-.jf-field { color:#e07b00; font-size:1rem; }
+.jf-fields { display:grid; grid-template-columns:70px minmax(0, 1fr); align-items:center; gap:0 12px; padding:0 0 0 4px; border-top:1px solid #111; }
+.jf-field { color:#ed8500; font-size:14px; font-weight:400; }
 .jf-field-key { text-decoration:underline; }
-/* 16px+ text so mobile browsers do not zoom the page when a field is focused. */
-.jf-control { min-height:48px; padding:0 4px; font:inherit; font-size:1.1rem; color:var(--ink); background:transparent; border:0; border-bottom:2px solid var(--line-strong, #9aa0a6); border-radius:0; min-width:0; width:100%; }
-.jf-control:focus { outline:none; border-bottom-color:#1a9a8a; }
+/* Specificity preserves underline inputs against the shared system primitives.
+   16px prevents mobile focus zoom. */
+.job-floor-page .jf-control { box-sizing:border-box; height:32px; min-height:0; padding:0 3px; font:16px var(--font-sans); color:#111; background:transparent; border:0; border-bottom:1px solid #d5d5d5; border-radius:0; box-shadow:none; outline:none; min-width:0; width:100%; }
+.job-floor-page .jf-control:focus { border-bottom:2px solid #1a9a8a; box-shadow:none; outline:none; }
 select.jf-control { appearance:auto; }
