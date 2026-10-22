@@ -104,6 +104,34 @@ a status-load failure returns it to preview. Server permissions and write gates
 remain authoritative. `window.OptiLensPage.assistant = false` prevents assistant
 overlay injection and shortcut wiring and survives edition/auth refresh.
 
+## Scanner feedback and repeat scans
+
+`public/job-floor-sound.js` synthesizes a loud double high toot for a confirmed
+success and a three-note descending buzz for errors. The fixed result area also
+shows a labeled, colored result without moving focus or opening a dialog. Native
+validation, empty scans, missing statuses, source/HTTP/network errors and malformed
+or unverified responses use the error cue. Preview results remain labeled Preview.
+
+Audio is created/resumed from a tap/key gesture. Enable sound is visible until the
+context runs; clicking it plays the success cue for a safe sound check. Suspended,
+blocked or unavailable audio keeps visible feedback and does not interrupt the
+scan queue. Device media volume, mute and browser policy still control audibility.
+See [Web Audio autoplay guidance](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices).
+
+Identical tray/status/mode entries already queued in the same page produce an
+explicit Duplicate error cue and send no second request. A later repeat reaches
+the existing locked source check: `alreadyApplied` remains a verified no-op with
+no new history row, displayed as Duplicate with the error cue, not a new success.
+Different trays remain queued in order; completed/failed entries can be retried.
+No arbitrary time-based debounce or source-write rule was added. A held Enter key
+is ignored after its first keydown. UI/audio regression coverage runs with
+`node --test test/job-floor-ui.test.js`; source no-op coverage is in
+`test/job-floor-source.test.js`.
+
+Status Update overrides the shell's normal breadcrumb hiding below 900px, keeping
+the app name visible after OptiLens Local. At very narrow widths the brand wraps
+instead of hiding the app identity.
+
 ## Known gaps
 
 - The desktop `RxJob` cooperative lock (`Locks` table) is not taken, so a

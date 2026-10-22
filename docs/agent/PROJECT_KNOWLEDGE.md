@@ -50,6 +50,8 @@
 
 ## Knowledge maintenance
 
+- Status Update uses `public/job-floor-sound.js` for gesture-unlocked synthesized success/error cues and a safe Enable sound check; sound availability never blocks scans. `public/job-floor.js` suppresses only identical pending tray/status/mode requests, reports verified source `alreadyApplied` no-ops as Duplicate with the error cue, and accepts a live success only with `verified: true`. The fixed result area retains visible labels/colors when device audio is muted or blocked. `test/job-floor-ui.test.js` covers scan outcomes, pending duplicates, ordered distinct trays, retries, malformed responses and sound activation/patterns. The page keeps its breadcrumb visible below the shared 900px cutoff and wraps the brand at narrow widths.
+
 - Status Update (`public/job-floor.html`, `public/styles/pages/job-floor.css`) uses the default shared header with `headerTools: false`, `search: false`, and `assistant: false` to omit updates, notifications, annotation loading, help, AI and search/shortcut. It has no separate title/menu or Live/Preview control; scans retain their existing default of live only when the server reports writes enabled. Its compact scanner layout keeps a fixed 134px result log so keyboard display does not move the two input rows. Other screens retain their default header controls.
 
 - Inventory Intelligence has its own administrator-only workspace route, `/modules/inventory-intelligence`, mounted by `public/inventory-intelligence.html`. Business Metrics links to it; the cockpit UI remains in `public/business-metrics-inventory-intelligence.js`, and its API remains under `/api/inventory-intelligence/`.

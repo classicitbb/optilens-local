@@ -7,9 +7,16 @@ body.job-floor-page {
   color-scheme: light;
 }
 .job-floor-page .module-main { max-width:none; margin:0; padding:0 4px; }
+/* Keep the app identity visible below the shell's usual 900px cutoff. On very
+   narrow screens the brand wraps rather than hiding the app name. */
+.job-floor-page .top-crumb { display:inline; }
+.job-floor-page .brand { white-space:normal; flex-wrap:wrap; gap:2px 6px; }
+.job-floor-page .top-left, .job-floor-page .brand { min-width:0; }
 .jf-screen { --font-sans:Roboto, "Segoe UI", Arial, sans-serif; --color-text:#111; font-family:var(--font-sans); width:100%; margin:0; padding:0 0 12px; }
 .jf-result-bar { display:flex; align-items:center; justify-content:center; position:relative; height:26px; }
 .jf-result-bar h2 { margin:0; font-size:16px; font-weight:600; line-height:normal; letter-spacing:normal; }
+.jf-sound-button { position:absolute; right:0; min-height:24px; padding:1px 6px; border:1px solid #888; border-radius:2px; background:#fff; color:#111; font:12px var(--font-sans); cursor:pointer; }
+.jf-sound-button:focus-visible { outline:2px solid #0f7c86; outline-offset:1px; }
 .jf-icon { position:absolute; left:8px; font-size:16px; font-weight:700; }
 .jf-icon.is-ok { color:#2e9e4f; }
 .jf-icon.is-ok::before { content:"\2713"; }
@@ -19,6 +26,10 @@ body.job-floor-page {
 .jf-log li { padding:3px 0; font-size:16px; line-height:1.35; overflow-wrap:anywhere; }
 .jf-log li::before { content:"\2022"; margin-right:8px; }
 .jf-log-fail { color:#d93025; }
+.jf-log-ok { color:#166534; }
+.jf-log li:first-child { font-weight:600; }
+.jf-log[data-outcome="success"] { box-shadow:inset 4px 0 #238448; }
+.jf-log[data-outcome="error"] { box-shadow:inset 4px 0 #d93025; }
 .jf-fields { display:grid; grid-template-columns:70px minmax(0, 1fr); align-items:center; gap:0 12px; padding:0 0 0 4px; border-top:1px solid #111; }
 .jf-field { color:#ed8500; font-size:14px; font-weight:400; }
 .jf-field-key { text-decoration:underline; }
