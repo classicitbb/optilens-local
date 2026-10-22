@@ -158,6 +158,7 @@
 .ii-queue-table .ii-badge { font-size: .62rem; padding: 0 .25rem; }
 .ii-queue-table .ii-evidence-summary { margin-top: .1rem; font-size: .66rem; }
 .ii-queue-table .ii-item-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ii-queue-table .ii-item-name { white-space: normal; }
 .ii-queue-table .ii-rec-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .ii-queue-table .ii-rec-text { max-width: none; }
 .ii-queue-table .ii-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
