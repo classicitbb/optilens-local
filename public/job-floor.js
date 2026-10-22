@@ -61,7 +61,7 @@
 
   function onStatusSubmit(e) {
     e.preventDefault();
-    var body = { statusItemId: Number(els.statusItem.value), note: els.statusNote.value.trim() || undefined };
+    var body = { statusItemId: Number(els.statusItem.value) };
     body[els.statusBy.value] = els.statusValue.value.trim();
     run("/status-update", body, els.statusGo);
   }
@@ -86,18 +86,24 @@
     els.mode.textContent = "Checking…";
     els.mode.className = "badge planned";
     try {
-      var results = await Promise.all([
+      // The status list comes from the database; staging lists come from InnovaAPI.
+      // Load them independently so one being unavailable does not hide the other.
+      var results = await Promise.allSettled([
         api("/api/job-floor/status"),
         api("/api/job-floor/status-items"),
         api("/api/job-floor/staging-actions"),
         api("/api/job-floor/job-queues")
       ]);
-      els.mode.textContent = results[0].writesEnabled ? "Live writes enabled" : "Writes disabled";
-      els.mode.className = "badge " + (results[0].writesEnabled ? "ready" : "planned");
-      var statuses = results[1].rows.filter(function (r) { return !r.inactive && (r.showInMobileApp || r.showInQuickUpdate); });
-      fillSelect(els.statusItem, statuses.length ? statuses : results[1].rows, "ID", function (r) { return r.name || r.ID; }, "Choose a status");
-      fillSelect(els.stageAction, results[2].rows, "ID", function (r) { return r.description || r.ID; }, "Default action");
-      renderQueues(results[3].rows);
+      var value = function (i) { return results[i].status === "fulfilled" ? results[i].value : null; };
+      if (!value(0)) throw results[0].reason;
+      els.mode.textContent = value(0).writesEnabled ? "Live writes enabled" : "Writes disabled";
+      els.mode.className = "badge " + (value(0).writesEnabled ? "ready" : "planned");
+      if (value(1)) fillSelect(els.statusItem, value(1).rows, "ID", function (r) { return r.name || r.ID; }, "Choose a status");
+      else fillSelect(els.statusItem, [], "ID", String, "Statuses unavailable");
+      fillSelect(els.stageAction, value(2) ? value(2).rows : [], "ID", function (r) { return r.description || r.ID; }, "Default action");
+      renderQueues(value(3) ? value(3).rows : []);
+      var failed = results.filter(function (r) { return r.status === "rejected"; });
+      if (failed.length) showResult(failed.map(function (r) { return r.reason.message; }).join(" · "), null, true);
     } catch (e) {
       els.mode.textContent = "Innovations unavailable";
       els.mode.className = "badge blocked";
@@ -106,7 +112,7 @@
   }
 
   function init() {
-    ["mode", "reload", "dryRun", "statusForm", "statusBy", "statusValue", "statusItem", "statusNote", "statusGo",
+    ["mode", "reload", "dryRun", "statusForm", "statusBy", "statusValue", "statusItem", "statusGo",
       "stageForm", "stageBy", "stageValue", "stageAction", "stageGo", "resultMsg", "result", "queues"].forEach(function (k) {
       els[k] = byId("jf" + k.charAt(0).toUpperCase() + k.slice(1));
     });
