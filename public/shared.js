@@ -136,33 +136,33 @@ function renderShellHeader() {
       <button class="back-btn" type="button" aria-label="Go back" onclick="history.back()">
         <span class="material-symbols-outlined">arrow_back</span>
       </button>
-      <button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)"${config.searchHref ? ` data-search-href="${esc(config.searchHref)}"` : ""}>
+      ${config.search !== false ? `<button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)"${config.searchHref ? ` data-search-href="${esc(config.searchHref)}"` : ""}>
         <span class="material-symbols-outlined">search</span>
         <span class="sb-text">Search modules, wiki, settings…</span>
         <kbd>Ctrl+K</kbd>
-      </button>
+      </button>` : ""}
     </div>
 
     <div class="top-right">
-      <button class="top-action-btn update-check-btn" id="updateCheckBtn" type="button" aria-label="Check for updates" title="Check for updates" hidden>
+      ${config.headerTools !== false ? `<button class="top-action-btn update-check-btn" id="updateCheckBtn" type="button" aria-label="Check for updates" title="Check for updates" hidden>
         <span class="material-symbols-outlined" id="updateCheckIcon">system_update</span>
         <span class="notif-count" id="updateCount" hidden>0</span>
-      </button>
-      ${config.showNotifications ? `
+      </button>` : ""}
+      ${config.headerTools !== false && config.showNotifications ? `
       <button class="top-action-btn" id="notifBtn" type="button" aria-label="Notifications">
         <span class="material-symbols-outlined">notifications</span>
         <span class="notif-count" id="notifCount" hidden>0</span>
       </button>` : ""}
-      ${config.showDashboardEdit ? `
+      ${config.headerTools !== false && config.showDashboardEdit ? `
       <button class="${editClasses.join(" ")}" id="dashboardEditToggle" type="button" aria-pressed="false" aria-label="Edit dashboard">
         <span class="material-symbols-outlined">edit</span>
       </button>` : ""}
-      <button class="${helpClasses.join(" ")}" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
+      ${config.headerTools !== false ? `<button class="${helpClasses.join(" ")}" type="button" aria-label="Help" onclick="window.open('/api/health','_blank')">
         <span class="material-symbols-outlined">help</span>
-      </button>
-      <button class="top-action-btn assistant-toggle-btn" id="globalAssistantToggle" type="button" aria-label="OptiLens AI Assistant" title="OptiLens AI Assistant (Ctrl+Shift+A)">
+      </button>` : ""}
+      ${config.assistant !== false ? `<button class="top-action-btn assistant-toggle-btn" id="globalAssistantToggle" type="button" aria-label="OptiLens AI Assistant" title="OptiLens AI Assistant (Ctrl+Shift+A)">
         <span class="material-symbols-outlined">smart_toy</span>
-      </button>
+      </button>` : ""}
       <button class="top-action-btn theme-toggle material-symbols-outlined" id="themeToggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">dark_mode</button>
       <button class="${userChipClasses.join(" ")}" type="button" aria-label="User">
         <span class="user-avatar">IN</span>
@@ -572,6 +572,7 @@ function wireLauncher() {
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 function wireSearch() {
+  if (getShellPageConfig().search === false) return;
   const trigger = document.querySelector("#searchTrigger");
   const overlay = document.querySelector("#searchOverlay");
   const input   = document.querySelector("#searchInput");
@@ -1337,6 +1338,7 @@ async function refreshAuthState() {
 
 // Admin-only page annotation tool (header pencil menu). Loaded on demand so other users never download it.
 function loadAnnotateTools() {
+  if (getShellPageConfig().headerTools === false) return;
   if (!canManageUpdates() || document.querySelector("script[data-annotate]")) return;
   const script = document.createElement("script");
   script.src = "/annotate.js";

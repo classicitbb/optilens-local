@@ -1,29 +1,13 @@
 /* Status Update owns a compact scanner layout at every width. Fixed result
    height keeps both fields above the keyboard without viewport-height reflow. */
 body.job-floor-page {
-  --font-sans: Roboto, "Segoe UI", Arial, sans-serif;
-  --color-text: #111;
   margin: 0;
   background: #eee;
   color: #111;
-  font-family: var(--font-sans);
   color-scheme: light;
 }
 .job-floor-page .module-main { max-width:none; margin:0; padding:0 4px; }
-.jf-screen { width:100%; margin:0; padding:0 0 12px; }
-.jf-titlebar { position:relative; display:flex; align-items:center; justify-content:center; height:42px; padding:0 4px; box-sizing:border-box; border-bottom:1px solid #111; }
-.jf-titlebar h1 { margin:0; font-size:18px; font-weight:600; line-height:25px; letter-spacing:normal; }
-.jf-menu { position:absolute; inset:0 auto auto 0; z-index:2; }
-.jf-menu summary { display:grid; place-items:center; width:40px; height:41px; cursor:pointer; list-style:none; font-size:16px; }
-.jf-menu summary::-webkit-details-marker { display:none; }
-.jf-menu-panel { width:260px; padding:12px; background:#eee; border:1px solid #999; box-shadow:0 4px 12px #0003; }
-.jf-menu-panel button { min-height:40px; width:100%; color:#111; }
-.jf-mode { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:8px; font-size:14px; }
-.jf-mode label { display:flex; align-items:center; gap:6px; min-height:40px; cursor:pointer; }
-.jf-mode input { width:18px; height:18px; }
-.jf-badge { padding:2px 8px; border-radius:999px; font-weight:600; font-size:12px; background:#ddd; }
-.jf-badge.is-live { color:#fff; background:#2e9e4f; }
-.jf-badge.is-preview { color:#5f4300; background:#f6d98a; }
+.jf-screen { --font-sans:Roboto, "Segoe UI", Arial, sans-serif; --color-text:#111; font-family:var(--font-sans); width:100%; margin:0; padding:0 0 12px; }
 .jf-result-bar { display:flex; align-items:center; justify-content:center; position:relative; height:26px; }
 .jf-result-bar h2 { margin:0; font-size:16px; font-weight:600; line-height:normal; letter-spacing:normal; }
 .jf-icon { position:absolute; left:8px; font-size:16px; font-weight:700; }

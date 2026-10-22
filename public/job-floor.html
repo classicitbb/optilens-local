@@ -14,30 +14,18 @@
 </head>
 <body class="module-body job-floor-page">
 
+  <div id="app-shell-header"></div>
 <script>
   window.OptiLensPage = {
     crumb: "Status Update",
-    assistant: false
+    assistant: false,
+    headerTools: false,
+    search: false
   };
 </script>
 
   <main class="module-main">
-    <section class="jf-screen" aria-labelledby="jfTitle">
-      <div class="jf-titlebar">
-        <details class="jf-menu">
-          <summary aria-label="Status Update menu">☰</summary>
-          <div class="jf-menu-panel">
-            <button id="launcherBtn" type="button" aria-label="Open app launcher">Apps</button>
-            <div class="jf-mode">
-              <span class="jf-badge" id="jfBadge">Checking…</span>
-              <label title="Preview only reads the order and reports what would change; nothing is sent.">
-                <input type="checkbox" id="jfDryRun"> Preview only
-              </label>
-            </div>
-          </div>
-        </details>
-        <h1 id="jfTitle">Status Update</h1>
-      </div>
+    <section class="jf-screen" aria-label="Status Update">
 
       <div class="jf-result-bar">
         <span class="jf-icon" id="jfIcon" aria-hidden="true"></span>

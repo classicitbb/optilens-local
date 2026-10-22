@@ -12,7 +12,7 @@
   var STATUS_KEY = "jobFloor.statusItemId";
   var MAX_LOG = 200;
   var els = {};
-  var state = { writesEnabled: false, modeChosen: false };
+  var state = { writesEnabled: false };
   var queue = Promise.resolve();
 
   function byId(id) { return document.getElementById(id); }
@@ -64,14 +64,6 @@
     setIcon(ok ? "ok" : "fail");
   }
 
-  function renderMode() {
-    var live = state.writesEnabled && !els.dryRun.checked;
-    if (!state.writesEnabled) els.dryRun.checked = true;
-    els.dryRun.disabled = !state.writesEnabled;
-    els.badge.textContent = !state.writesEnabled ? "Writes disabled" : (live ? "Live" : "Preview");
-    els.badge.className = "jf-badge " + (live ? "is-live" : "is-preview");
-  }
-
   function describe(out, statusName, value) {
     var plan = out.dryRun ? out.plan : out.result;
     var where = "Tray ID: " + value + (plan && plan.holdsNotEvaluated ? " (hold rules not evaluated)" : "");
@@ -96,7 +88,7 @@
     if (!els.statusItem.value) { logLine(false, "Choose a status first."); return; }
     var statusItemId = Number(els.statusItem.value);
     var statusName = els.statusItem.options[els.statusItem.selectedIndex].text;
-    var dryRun = els.dryRun.checked || els.dryRun.disabled;
+    var dryRun = !state.writesEnabled;
     els.statusValue.value = "";
     queue = queue.then(function () { return processEntry(statusItemId, statusName, value, dryRun); });
   }
@@ -105,19 +97,16 @@
     try {
       var results = await Promise.all([api("/api/job-floor/status"), api("/api/job-floor/status-items")]);
       state.writesEnabled = Boolean(results[0].writesEnabled);
-      // Scanning writes in the Mobile app, so default to live whenever the server allows writes.
-      if (!state.modeChosen) els.dryRun.checked = !state.writesEnabled;
-      renderMode();
+      // Keep the existing default: live only when the server allows writes.
       fillStatuses(results[1].rows);
     } catch (e) {
-      els.badge.textContent = "Unavailable";
-      els.badge.className = "jf-badge";
+      state.writesEnabled = false;
       logLine(false, e.message);
     }
   }
 
   function init() {
-    ["statusForm", "statusItem", "statusValue", "dryRun", "badge", "log", "icon"].forEach(function (k) {
+    ["statusForm", "statusItem", "statusValue", "log", "icon"].forEach(function (k) {
       els[k] = byId("jf" + k.charAt(0).toUpperCase() + k.slice(1));
     });
     els.statusForm.addEventListener("submit", function (e) { e.preventDefault(); submit(); });
@@ -126,11 +115,6 @@
     });
     els.statusItem.addEventListener("change", function () {
       remember(STATUS_KEY, els.statusItem.value);
-      els.statusValue.focus();
-    });
-    els.dryRun.addEventListener("change", function () {
-      state.modeChosen = true;
-      renderMode();
       els.statusValue.focus();
     });
     document.addEventListener("visibilitychange", function () { if (!document.hidden) loadStatuses(); });

@@ -88,17 +88,21 @@ Observations that shaped the design:
 
 ## Scanner screen layout
 
-The Status Update screen uses its own edge-to-edge light layout at every width,
-with a centered title, a 134px scrollable white result log, and 32px Status/Tray ID
-rows. The title uses a 25px line inside a 42px bar (17px additional vertical space)
-with 4px horizontal padding, matching the mobile reference without a narrow-only
-breakpoint. Result height is independent of viewport height so opening the keyboard
+The Status Update screen uses the default shared header with launcher, brand,
+theme and user controls. Page options `headerTools: false`, `search: false`, and
+`assistant: false` omit updates, notifications, annotation loading, help, AI, and
+search (including its shortcut). Other screens retain their defaults.
+
+Below the header, the edge-to-edge light scanner layout uses a 134px scrollable
+white result log and 32px Status/Tray ID rows, without a narrow-only breakpoint.
+Result height is independent of viewport height so opening the keyboard
 does not move the fields. The initial result is empty; real failures remain visible.
 
-The hamburger menu exposes Apps and the existing Live/Preview controls. The shared
-shell header is omitted. `window.OptiLensPage.assistant = false` prevents assistant
-overlay injection and shortcut wiring and survives edition/auth refresh. It is a
-page preference, not a change to assistant permissions or status-write gates.
+There is no separate title/menu or Live/Preview control. The client retains the
+existing default: `dryRun` is true unless the server reports writes enabled;
+a status-load failure returns it to preview. Server permissions and write gates
+remain authoritative. `window.OptiLensPage.assistant = false` prevents assistant
+overlay injection and shortcut wiring and survives edition/auth refresh.
 
 ## Known gaps
 
