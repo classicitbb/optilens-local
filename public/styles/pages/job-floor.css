@@ -1,4 +1,4 @@
-/* Job Floor — layout for the status-update and staging forms; primitives live in system.css */
+/* Job Floor — layout for the status-update form and result log; primitives live in system.css */
 .jf-fresh { display:flex; align-items:center; gap:10px; }
 .jf-hint { color:var(--muted); font-size:.85rem; margin:6px 0 12px; }
 .jf-error { color:var(--red); }
@@ -17,3 +17,14 @@
 .jf-form .button { min-height:44px; align-self:flex-start; }
 
 .jf-result { margin:0; padding:10px 12px; max-height:22rem; overflow:auto; border:1px solid var(--line); border-radius:8px; font-size:.8rem; white-space:pre-wrap; word-break:break-word; }
+
+.jf-main { max-width:36rem; }
+.jf-log-title { font-size:.9rem; margin:16px 0 6px; }
+.jf-log { list-style:none; margin:0; padding:0; max-height:20rem; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+.jf-log li { padding:8px 12px; font-size:.95rem; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.jf-log li:last-child { border-bottom:0; }
+.jf-log-ok { color:var(--ink); }
+.jf-log-fail { color:var(--red); }
+.jf-log-empty { color:var(--muted); }
+.jf-details { margin-top:10px; font-size:.85rem; }
+.jf-details summary { cursor:pointer; min-height:32px; }

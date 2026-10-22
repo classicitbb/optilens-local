@@ -33,10 +33,21 @@
     select.innerHTML = options.join("");
   }
 
-  function showResult(message, payload, isError) {
-    els.resultMsg.textContent = message;
-    els.resultMsg.className = "jf-hint" + (isError ? " jf-error" : "");
-    els.result.hidden = payload == null;
+  var LABELS = { trayId: "Tray ID", rxNumber: "RX number", orderId: "Order ID" };
+  var MAX_LOG = 200;
+
+  function logLine(ok, text) {
+    var first = els.log.firstElementChild;
+    if (first && first.className === "jf-log-empty") els.log.removeChild(first);
+    var li = document.createElement("li");
+    li.className = ok ? "jf-log-ok" : "jf-log-fail";
+    li.textContent = (ok ? "✓ " : "✗ ") + text;
+    els.log.insertBefore(li, els.log.firstChild);
+    while (els.log.children.length > MAX_LOG) els.log.removeChild(els.log.lastChild);
+  }
+
+  function showDetail(payload) {
+    els.details.hidden = payload == null;
     els.result.textContent = payload == null ? "" : JSON.stringify(payload, null, 2);
   }
 
@@ -45,24 +56,35 @@
     els.statusGo.textContent = label;
   }
 
-  async function run(path, body, button) {
-    body.dryRun = els.dryRun.checked;
-    button.disabled = true;
-    try {
-      var out = await api("/api/job-floor" + path, body);
-      showResult(out.dryRun ? "Preview only — nothing was sent." : "Status updated in Innovations.", out, false);
-    } catch (e) {
-      showResult(e.message, null, true);
-    } finally {
-      button.disabled = false;
-    }
+  function describe(out, statusName, label, value) {
+    var plan = out.dryRun ? out.plan : out.result;
+    var where = label + ": " + value;
+    if (out.dryRun) return "Preview: " + statusName + " would apply to " + where + (plan && plan.alreadyApplied ? " (already at this status)" : "");
+    if (plan && plan.alreadyApplied) return statusName + " already set on " + where;
+    return statusName + " applied to " + where;
   }
 
-  function onStatusSubmit(e) {
+  async function onStatusSubmit(e) {
     e.preventDefault();
-    var body = { statusItemId: Number(els.statusItem.value) };
-    body[els.statusBy.value] = els.statusValue.value.trim();
-    run("/status-update", body, els.statusGo);
+    var by = els.statusBy.value;
+    var value = els.statusValue.value.trim();
+    var statusName = els.statusItem.options[els.statusItem.selectedIndex].text;
+    if (!value || !els.statusItem.value) return;
+    var body = { statusItemId: Number(els.statusItem.value), dryRun: els.dryRun.checked };
+    body[by] = value;
+    els.statusGo.disabled = true;
+    try {
+      var out = await api("/api/job-floor/status-update", body);
+      logLine(true, describe(out, statusName, LABELS[by], value));
+      showDetail(out);
+    } catch (err) {
+      logLine(false, LABELS[by] + ": " + value + " — " + err.message);
+      showDetail(null);
+    } finally {
+      els.statusGo.disabled = false;
+      els.statusValue.value = "";
+      els.statusValue.focus();
+    }
   }
 
   async function loadLists() {
@@ -79,20 +101,26 @@
     } catch (e) {
       els.mode.textContent = "Innovations unavailable";
       els.mode.className = "badge blocked";
-      showResult(e.message, null, true);
+      logLine(false, e.message);
     }
   }
 
   function init() {
     ["mode", "reload", "dryRun", "statusForm", "statusBy", "statusValue", "statusItem", "statusGo",
-      "resultMsg", "result"].forEach(function (k) {
+      "valueLabel", "log", "details", "result"].forEach(function (k) {
       els[k] = byId("jf" + k.charAt(0).toUpperCase() + k.slice(1));
     });
     els.statusForm.addEventListener("submit", onStatusSubmit);
     els.dryRun.addEventListener("change", syncButtons);
+    els.statusBy.addEventListener("change", function () {
+      els.valueLabel.textContent = LABELS[els.statusBy.value];
+      els.statusValue.inputMode = els.statusBy.value === "rxNumber" ? "text" : "numeric";
+      els.statusValue.focus();
+    });
     els.reload.addEventListener("click", loadLists);
     syncButtons();
     loadLists();
+    els.statusValue.focus();
   }
 
   document.addEventListener("DOMContentLoaded", init);
