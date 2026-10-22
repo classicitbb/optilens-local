@@ -6,6 +6,18 @@
 
 ## Objective and current state
 
+### Status Update scanner sounds, duplicate feedback and breadcrumb — deployed
+
+Status: Complete — no active handoff.
+
+Deployed code revision `cf8a91d` on 2026-10-22 from `codex/job-floor-scan-alerts` through the guarded updater, continuing the approved screen deployment. Successes play a loud synthesized double high toot; validation/source/network/HTTP and unconfirmed-result errors play three descending low notes. The fixed result area retains labeled success/error text and colored cues. Enable sound unlocks audio from a gesture and plays a safe success sound check; interaction also unlocks audio automatically, including immediate validation feedback while the first resume completes. Browser/mute/device volume still controls actual audibility; physical scanner/mobile speaker loudness has not been measured.
+
+Identical tray/status/mode entries still queued in this page are rejected visibly/audibly without a second request. Other trays remain ordered and failed/completed entries can be retried. Existing source row locks and the verified `alreadyApplied` no-op remain unchanged; that no-op now displays Duplicate/no change with the error cue instead of a fresh success. No arbitrary time-based debounce or source write rule was added. The default header keeps Status Update after OptiLens Local below the shell's 900px cutoff, wrapping on very narrow screens.
+
+Validation: `npm run check`, JS syntax, whitespace checks, focused UI/source tests and full local suite passed (619/619). The host suite, smoke check, restart and `node scripts/monitor-harness.js verify` passed; host checkout was clean. Headless Edge fixtures at 320/446/530/1366px verified breadcrumb visibility, no horizontal overflow, audio activation, confirmed success/error/no-op cues and rapid duplicate suppression with no page errors. Real OfflineAudioContext rendering produced non-silent unclipped success/error waveforms (peak below 0.8). Four intercepted fixture-only POSTs exercised outcomes; none reached a source system. Signed-in external Edge at 530px confirmed the live breadcrumb, Enable sound changing to ready, and an empty-input validation error with the tray field blank. No live tray/order request was submitted. The test error was cleared by reload and the viewport override was reset.
+
+Affected files: `public/job-floor.html`, `public/job-floor.js`, new `public/job-floor-sound.js`, `public/styles/pages/job-floor.css`, new `test/job-floor-ui.test.js`, `docs/JOB_FLOOR_STATUS_UPDATE.md` and these records. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow. This deployment record may be a documentation-only commit ahead of the running code revision.
+
 ### Status Update default header refinement — deployed
 
 Status: Complete — no active handoff.
