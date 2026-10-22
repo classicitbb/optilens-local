@@ -2,9 +2,63 @@
 
 - Repository: `classicitbb/optilens-local`
 - Status: Complete — no active handoff
-- Last synchronized: 2026-10-14
+- Last synchronized: 2026-10-22
 
 ## Objective and current state
+
+### Status Update scanner sounds, duplicate feedback and breadcrumb — deployed
+
+Status: Complete — no active handoff.
+
+Deployed code revision `cf8a91d` on 2026-10-22 from `codex/job-floor-scan-alerts` through the guarded updater, continuing the approved screen deployment. Successes play a loud synthesized double high toot; validation/source/network/HTTP and unconfirmed-result errors play three descending low notes. The fixed result area retains labeled success/error text and colored cues. Enable sound unlocks audio from a gesture and plays a safe success sound check; interaction also unlocks audio automatically, including immediate validation feedback while the first resume completes. Browser/mute/device volume still controls actual audibility; physical scanner/mobile speaker loudness has not been measured.
+
+Identical tray/status/mode entries still queued in this page are rejected visibly/audibly without a second request. Other trays remain ordered and failed/completed entries can be retried. Existing source row locks and the verified `alreadyApplied` no-op remain unchanged; that no-op now displays Duplicate/no change with the error cue instead of a fresh success. No arbitrary time-based debounce or source write rule was added. The default header keeps Status Update after OptiLens Local below the shell's 900px cutoff, wrapping on very narrow screens.
+
+Validation: `npm run check`, JS syntax, whitespace checks, focused UI/source tests and full local suite passed (619/619). The host suite, smoke check, restart and `node scripts/monitor-harness.js verify` passed; host checkout was clean. Headless Edge fixtures at 320/446/530/1366px verified breadcrumb visibility, no horizontal overflow, audio activation, confirmed success/error/no-op cues and rapid duplicate suppression with no page errors. Real OfflineAudioContext rendering produced non-silent unclipped success/error waveforms (peak below 0.8). Four intercepted fixture-only POSTs exercised outcomes; none reached a source system. Signed-in external Edge at 530px confirmed the live breadcrumb, Enable sound changing to ready, and an empty-input validation error with the tray field blank. No live tray/order request was submitted. The test error was cleared by reload and the viewport override was reset.
+
+Affected files: `public/job-floor.html`, `public/job-floor.js`, new `public/job-floor-sound.js`, `public/styles/pages/job-floor.css`, new `test/job-floor-ui.test.js`, `docs/JOB_FLOOR_STATUS_UPDATE.md` and these records. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow. This deployment record may be a documentation-only commit ahead of the running code revision.
+
+### Status Update default header refinement — deployed
+
+Status: Complete — no active handoff.
+
+Replaced the separate scanner title/menu with the default shared header. Status Update retains launcher, brand/home, theme and account controls; it omits update/notification/annotation/help/AI icons and search, including search and AI shortcuts. It skips update polling/notices because this screen has no update control. Live/Preview controls and their obsolete CSS/DOM dependencies were removed. Scans retain the prior default: live only when the server reports writes enabled, otherwise preview; a failed status reload also returns to preview. Server authorization/write gates remain unchanged. This supersedes the custom header/menu description in the earlier Status Update record below.
+
+Code revisions `255db1b` and `50c5564` deployed on 2026-10-22 through the guarded updater from `codex/job-floor-default-header`, under the ongoing screen deployment authorization. Local `npm test` passed 611/611; syntax and whitespace checks passed. Both guarded runs passed smoke checks and host tests. Signed-in external Edge at the annotated 530px width confirmed the default header, no removed controls/annotation script, working launcher, inactive search/AI shortcuts, 134px result log and no horizontal overflow. Local fixtures passed at 320px, 446px, 530px, 600px and 1366px; two intercepted fixture-only submissions verified the enabled/disabled scan modes, with no real source write. The live tray field was left blank, and the temporary viewport override was reset.
+
+Affected files: `public/job-floor.html`, `public/job-floor.js`, `public/shared.js`, `public/styles/pages/job-floor.css`, `docs/JOB_FLOOR_STATUS_UPDATE.md`, and these continuity records. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow. The deployment record may be a documentation-only commit ahead of the running code revision.
+
+### Inventory Intelligence bins, compact queue values and vertical density — deployed
+
+Status: Complete — no active handoff.
+
+Queue names show the readable lens name plus compact diameter/base/add values, for example `70 mm · 4.00 · +3.00`, without the words Diameter, Base or Add. This supersedes the name-only interpretation in the preceding deployment. Review retains the explicit optical labels and SKU. Queue metadata retains SKU and replaces the visible six-part database key with source bin locations. The read-only identity lookup joins `MFTypes` and reads `LensItem.Bin_R` / `Bin_L`; Single Vision shows R only, and Progressive/Bifocal show R and L separately. Trifocal/Double Segs follow the same two-bin convention. Unknown families and missing bins remain explicit. Read-only source schema and family/bin sample queries succeeded; family numbers vary by material, so classification uses the source family name.
+
+Queue cell padding, line height, header controls and action gaps are tighter. A queue-only checkbox rule removes the shared 40px input minimum that inflated headers and short rows. Local external Edge with synthetic data at the annotated 1528px width verified both-bin versus right-only display, missing-bin fallback, no database key in item metadata, and full lens descriptions. The same fixture's header shrank from about 81px to 44px, with shorter body rows in both evidence and recommendation sections.
+
+Deployed correction revision `66ff9b4` on 2026-10-22 from `codex/inventory-bins-density` through the guarded updater, continuing the approved deployment. Smoke check, all 611 host tests, restart and `node scripts/monitor-harness.js verify` passed; the host checkout is clean. Signed-in external Edge at 1528px verified restored optical values without field labels in queue names and preserved side-specific bins. The prior live check verified explicit optical details in Review; its display path is unchanged by this correction. The live table header measures about 44px; the temporary viewport override was reset. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow.
+
+Affected files: `lib/inventory/source-adapter.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, `test/inventory-intelligence-labels.test.js`, and these records. Focused inventory tests passed 106/106; `npm run check`, changed-JS syntax checks and `git diff --check` passed. No application scan, business decision or source write was performed; the earlier fixture scan used the automated-test in-memory store only.
+
+### Inventory Intelligence lens descriptions — deployed
+
+Status: Complete — no active handoff.
+
+The queue now shows the readable lens name, diameter, base and add power, wrapped inside the Item column. Review shows the same description with SKU directly beneath. Each queue page resolves current identities in one bounded read-only Innovations lookup; saved recommendation evidence remains unchanged and available if the source lookup fails.
+
+Deployed code revision `16acdfd` on 2026-10-22 through the guarded updater from `codex/inventory-lens-labels`. Host checkout is clean; smoke check, all 606 host tests, restart and `node scripts/monitor-harness.js verify` passed. Signed-in external Edge verified the annotated item in Everything (its existing recommendation is already decided), the full Review heading and SKU, and queue label widths staying inside the Item column. No scan, business decision or source-system write was performed.
+
+Affected files: `lib/inventory/source-adapter.js`, `lib/inventory/routes.js`, `public/business-metrics-inventory-intelligence.js`, `public/styles/pages/inventory-intelligence.css`, `test/inventory-intelligence-http.test.js`, and these continuity records. Inventory tests passed 101/101 locally. The subsequent Status Update deployment below retains these changes. Automatic updates from master require the deployment branch to be merged and the host returned to master through the guarded flow.
+
+### Status Update reference layout — deployed
+
+Status: Complete — no active handoff.
+
+Matched the mobile reference with an edge-to-edge light scanner screen, centered title/menu, initially empty white fixed-height results, compact Status/Tray ID rows, and underlined fields. The menu retains Apps and Live/Preview controls. Disabled assistant injection and shortcut initialization for this page, including after auth/edition refresh. Files: `public/job-floor.html`, `public/styles/pages/job-floor.css`, `public/shared.js`, `docs/JOB_FLOOR_STATUS_UPDATE.md`, and these continuity records.
+
+Deployed code revision `ed8d48b` on 2026-10-22 through the guarded updater from `codex/job-floor-reference` after explicit deployment approval. Smoke check, the host application suite, restart, and `node scripts/monitor-harness.js verify` passed. The host checkout was clean. Signed-in external Edge confirmed the live layout, selected source status, Apps/Live/Preview menu, 134px result area, tray field ending at 272px, no horizontal overflow at 446px, and zero assistant elements after Ctrl+Shift+A. The temporary viewport override was reset. No tray was entered or status update submitted; a physical mobile keyboard was not exercised. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow.
+
+Local verification: syntax checks and `npm run check` passed; Job Floor/source/design-system tests passed 35/35. Fixture Edge checks passed at 320px, 446px, 600px, and 1366px with no page errors or POST requests. The earlier local full-suite result was 605/606 during concurrent Inventory edits (separator encoding assertion); the authoritative host suite subsequently passed during deployment.
 
 ### Inventory Intelligence compact queue and splitter — deployed
 

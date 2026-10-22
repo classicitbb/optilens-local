@@ -483,6 +483,27 @@
     return html + '</div>';
   }
 
+  function lensLabel(r, identity, compact) {
+    var name = (identity && identity.name) || r.itemLabel || r.itemId;
+    if (!identity) return name;
+    var specs = [];
+    if (identity.diameter != null) specs.push((compact ? "" : "Diameter ") + num(identity.diameter, 2) + " mm");
+    if (identity.base != null) specs.push((compact ? "" : "Base ") + Number(identity.base).toFixed(2));
+    if (identity.addPower != null) specs.push((compact ? "" : "Add ") + (Number(identity.addPower) > 0 ? "+" : "") + Number(identity.addPower).toFixed(2));
+    return name + (specs.length ? " · " + specs.join(" · ") : "");
+  }
+
+  function binLabel(identity) {
+    if (!identity || !identity.familyName) return "Bins unavailable";
+    var bins = identity.bins || {};
+    var family = identity.familyName.trim().toLowerCase();
+    if (family === "single vision") return "Bin R " + (bins.right || "not set");
+    if (["progressive", "bifocal", "trifocal", "double segs"].indexOf(family) >= 0) {
+      return "Bins R " + (bins.right || "not set") + " / L " + (bins.left || "not set");
+    }
+    return "Bins unavailable";
+  }
+
   function renderRow(r) {
     var ev = r.evidence || {};
     var p = r.proposedSettings || {};
@@ -491,9 +512,10 @@
     var actionText = (p.recommendedActions && p.recommendedActions[0]) || p.rationale || "";
     return '<tr data-selected="' + Boolean(state.selected[r.recommendationId]) + '">' +
       '<td>' + (canDecide(r) ? '<input type="checkbox" data-action="select" data-id="' + esc(r.recommendationId) + '" aria-label="Select ' + esc(r.itemLabel || r.itemId) + '"' + checked + '>' : '') + '</td>' +
-      '<td><div class="ii-item-name">' + esc(r.itemLabel || r.itemId) + '</div>' +
-        '<div class="ii-sub ii-item-meta" title="' + esc((r.sku ? 'SKU ' + r.sku + ' · ' : '') + r.itemId) + '">' +
-        (r.sku ? 'SKU ' + esc(r.sku) + ' · ' : '') + esc(r.itemId) + '</div>' + evidenceSummary(r) + '</td>' +
+      '<td><div class="ii-item-name">' + esc(lensLabel(r, r.itemIdentity, true)) + '</div>' +
+        '<div class="ii-sub ii-item-meta">' +
+        (r.sku ? '<span>SKU ' + esc(r.sku) + '</span>' : '') +
+        ' <span>' + esc(binLabel(r.itemIdentity)) + '</span></div>' + evidenceSummary(r) + '</td>' +
       '<td>' + (r.supplierName ? esc(r.supplierName) : '<span class="ii-sub">Unmapped</span>') + '</td>' +
       '<td class="num' + (ev.onHand < 0 ? ' ii-neg' : '') + '">' + num(ev.onHand) + '</td>' +
       '<td class="num">' + num(ev.openPoQuantity) + '</td>' +
@@ -652,7 +674,7 @@
         if (state.detailId === id && dialog.open) {
           state.itemIdentity = result.identity;
           var title = dialog.querySelector("#iiDrawerTitle");
-          if (title && result.identity && result.identity.name) title.textContent = result.identity.name;
+          if (title) title.textContent = lensLabel(state.detail.recommendation, result.identity);
         }
       } catch (_) { /* The recommendation remains usable when its source name cannot be read. */ }
     }
@@ -798,7 +820,8 @@
     }
 
     dialog.innerHTML =
-      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle" title="' + esc(r.itemId) + '">' + esc((state.itemIdentity && state.itemIdentity.name) || r.itemLabel || r.itemId) + '</h3>' +
+      '<div class="ii-dialog-head"><div><h3 id="iiDrawerTitle" title="' + esc(r.itemId) + '">' + esc(lensLabel(r, state.itemIdentity || r.itemIdentity)) + '</h3>' +
+        '<div class="ii-sub">' + (r.sku ? 'SKU ' + esc(r.sku) : 'SKU unavailable') + '</div>' +
         '<div class="ii-sub">' + statusBadge(r.status) + ' <span>' + esc(label(TYPE_LABELS, r.recommendationType)) + '</span></div></div>' +
         '<button type="button" class="ii-btn small" data-action="close-drawer">Close</button></div>' +
       '<div class="ii-dialog-body">' + supersededNotice(d, r) + '<div class="ii-split">' + left + right + '</div>' + history + '</div>' +

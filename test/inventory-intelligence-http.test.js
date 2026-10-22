@@ -44,6 +44,7 @@ const API = "/api/inventory-intelligence";
 
 async function seeded() {
   setup();
+  fakeSource([]);
   await runInventoryScan({ useFixtures: true });
   const orderMore = (await recs.listRecommendations({ queue: "ORDER_MORE" })).items[0];
   return { orderMore };
@@ -112,14 +113,51 @@ test("the summary tells the page whether this user can approve", async () => {
 test("lens identity uses the full source key and returns the readable lens name", async () => {
   setup();
   const statements = fakeSource([liveRow({ materialName: "Polycarbonate", manufacturerName: "Vision-Ease",
-    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300" })]);
+    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300", diameter: 70, base: 4.25, addPower: 3,
+    familyName: " Bifocal ", binRight: " C2 ", binLeft: " C3 " })]);
   const result = await call("GET", `${API}/item-identity`, { query: "?itemId=1%3A1%3A1%3A1%3A1%3A100" });
   assert.equal(result.status, 200);
   assert.equal(result.body.identity.name, "Polycarbonate · Vision-Ease · Single Vision · Clear");
+  assert.equal(result.body.identity.diameter, 70);
+  assert.equal(result.body.identity.base, 4.25);
+  assert.equal(result.body.identity.addPower, 3);
+  assert.equal(result.body.identity.familyName, "Bifocal");
+  assert.deepEqual(result.body.identity.bins, { right: "C2", left: "C3" });
   assert.equal(statements.length, 1);
+  assert.match(statements[0].text, /li\.Diameter \/ 100\.0 AS diameter/);
+  assert.match(statements[0].text, /li\.Base_Sphere \/ 100\.0 AS base/);
+  assert.match(statements[0].text, /li\.Add_Cyl \/ 100\.0 AS addPower/);
+  assert.match(statements[0].text, /li\.Bin_R AS binRight, li\.Bin_L AS binLeft/);
+  assert.match(statements[0].text, /mf\.GroupNum = li\.MaterialGroup AND mf\.MtrlNum = li\.Material AND mf\.MFNum = li\.MFType/);
   assert.match(statements[0].text, /FROM dbo\.LensItem li/);
   assert.match(statements[0].text, /li\.MaterialGroup = @mg[\s\S]*li\.Num = @it/);
   assert.equal((await call("GET", `${API}/item-identity`, { query: "?itemId=invalid" })).status, 400);
+});
+
+test("queue resolves existing recommendation names in one source read without changing evidence", async () => {
+  await seeded();
+  const before = await recs.listRecommendations();
+  const statements = fakeSource([liveRow({ it: 101, materialName: "CR-39", lensTypeName: "Single Vision",
+    diameter: 65, base: 0, addPower: 0 })]);
+  const result = await call("GET", `${API}/queue`);
+  assert.equal(result.status, 200);
+  const item = result.body.items.find((row) => row.itemId === "1:1:1:1:1:101");
+  assert.equal(item.itemIdentity.name, "CR-39 · Single Vision");
+  assert.equal(item.itemIdentity.base, 0);
+  assert.equal(item.itemIdentity.addPower, 0);
+  assert.equal(statements.length, 1);
+  assert.equal(Object.keys(statements[0].inputs).length, 6 * before.items.length);
+  assert.deepEqual(await recs.listRecommendations(), before);
+});
+
+test("saved queue remains available when source descriptions cannot be read", async () => {
+  await seeded();
+  mock.method(db, "getLiveSourcePool", async () => { throw new Error("source offline"); });
+  const result = await call("GET", `${API}/queue`);
+  assert.equal(result.status, 200);
+  assert.ok(result.body.items.length);
+  assert.ok(result.body.items[0].itemLabel);
+  assert.equal(result.body.items[0].itemIdentity, undefined);
 });
 
 test("purchase order browse defaults to Saved and binds status and sort", async () => {

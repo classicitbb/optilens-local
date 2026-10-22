@@ -151,17 +151,22 @@
 .inventory-intelligence-page #iiResults { margin-inline: -12px; container-type: inline-size; }
 .inventory-intelligence-page #iiResults .ii-table-wrap { position: relative; border-inline: 0; border-radius: 0; }
 .ii-table.ii-queue-table { table-layout: fixed; min-width: 1180px; font-size: .72rem; }
-.ii-table.ii-queue-table th, .ii-table.ii-queue-table td { padding: .3rem .35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.ii-table.ii-queue-table th, .ii-table.ii-queue-table td { padding: 2px .3rem; line-height: 1.1; overflow-wrap: anywhere; }
+.ii-table.ii-queue-table th { height: auto; }
+.ii-queue-table input[type="checkbox"] { width: 16px; height: 16px; min-height: 0; margin: 0; vertical-align: middle; }
+.ii-queue-table .ii-sort { min-height: 0; padding: 0; line-height: inherit; }
 .ii-table.ii-queue-table thead th { font-size: .64rem; white-space: normal; }
 .ii-table.ii-queue-table thead tr.ii-group th { font-size: .68rem; }
 .ii-queue-table .ii-sub { font-size: .66rem; }
 .ii-queue-table .ii-badge { font-size: .62rem; padding: 0 .25rem; }
-.ii-queue-table .ii-evidence-summary { margin-top: .1rem; font-size: .66rem; }
-.ii-queue-table .ii-item-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ii-queue-table .ii-evidence-summary { margin-top: 0; font-size: .66rem; }
+.ii-queue-table .ii-item-meta { display: flex; flex-wrap: wrap; column-gap: .35rem; }
+.ii-queue-table .ii-item-meta span { white-space: nowrap; }
+.ii-queue-table .ii-item-name { white-space: normal; }
 .ii-queue-table .ii-rec-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .ii-queue-table .ii-rec-text { max-width: none; }
-.ii-queue-table .ii-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
-.ii-queue-table .ii-actions .ii-btn { min-width: 0; padding: 2px 3px; font-size: .66rem; white-space: normal; }
+.ii-queue-table .ii-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; }
+.ii-queue-table .ii-actions .ii-btn { min-width: 0; padding: 1px 3px; line-height: 1.1; font-size: .66rem; white-space: normal; }
 .ii-queue-table th.ii-group-action.first, .ii-queue-table td.ii-act.first { border-left: 0; }
 .ii-queue-splitter {
   position: absolute; z-index: 4; top: 0; bottom: 0; width: 2px;
