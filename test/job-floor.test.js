@@ -13,7 +13,7 @@ function makeDeps({ writes = "false", sourceFail = null } = {}) {
       SourceStatusError: jobFloorSource.SourceStatusError,
       previewStatusUpdate: async (input) => { sourceCalls.push({ op: "preview", input }); if (sourceFail) throw sourceFail; return { orderId: 55, alreadyApplied: false }; },
       applyStatusUpdate: async (input) => { sourceCalls.push({ op: "apply", input }); if (sourceFail) throw sourceFail; return { orderId: 55, applied: true, verified: true }; },
-      listAllowedStatuses: async (opts) => { sourceCalls.push({ op: "list", opts }); return [{ id: 27, name: "Focimeter 2 Final PASS", holdChecked: false }]; },
+      listAllowedStatuses: async (opts) => { sourceCalls.push({ op: "list", opts }); return [{ id: 27, name: "Focimeter 2 Final PASS", holdChecked: false, writable: true, reason: null }, { id: 193, name: "Unhold", holdChecked: true, writable: false, reason: "not supported from OptiLens yet" }]; },
     },
     getSetting: async (key) => (key === "job_floor.writes_enabled" ? writes : null),
     recordAuditEvent: async (event) => { audits.push(event); },
@@ -119,7 +119,10 @@ test("input validation rejects ambiguous or malformed identifiers", async () => 
 });
 
 test("status items come from the source writer in the shape the page expects", async () => {
-  assert.deepEqual(await jobFloor.listStatusItems({}, makeDeps()), [{ ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true, holdChecked: false }]);
+  assert.deepEqual(await jobFloor.listStatusItems({}, makeDeps()), [
+    { ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true, holdChecked: false, writable: true, reason: null },
+    { ID: 193, name: "Unhold", inactive: false, showInMobileApp: true, holdChecked: true, writable: false, reason: "not supported from OptiLens yet" },
+  ]);
 });
 
 test("job-floor page is wired into routes, permissions, edition and launcher", () => {

@@ -12,7 +12,7 @@ function makeDb(overrides = {}) {
     tray: { id: 91520, orderId: 138998, dateIn: new Date(), dateOut: null },
     holds: { links: 0, assignments: 0 },
     allowedRows: [
-      { id: 27, name: "Focimeter 2 Final PASS", checksHold: 0 },
+      { id: 27, name: " Focimeter 2 Final PASS", checksHold: 0 },
       { id: 79, name: "Focimeter 1 PASS", checksHold: 1 },
       { id: 80, name: "Hardcoat", checksHold: 1 },
       { id: 193, name: "Unhold", checksHold: 1 },
@@ -195,11 +195,13 @@ test("Unhold and any other hold-checked status can never be enabled, even if lis
   assert.deepEqual(source.HOLD_GUARDED_STATUS_IDS, [79, 80]);
 });
 
-test("the status list includes hold-checked statuses only when enabled, and never Unhold", async () => {
-  const ids = async (enabled) => (await source.listAllowedStatuses({ holdCheckedStatusIds: enabled }, makeDb().deps)).map((r) => r.id);
-  assert.deepEqual(await ids([]), [27]);
-  assert.deepEqual(await ids([79]), [27, 79]);
-  assert.deepEqual(await ids([79, 80, 193]), [27, 79, 80]);
+test("the status list shows every mobile status, marking which are writable and why not", async () => {
+  const list = async (enabled) => source.listAllowedStatuses({ holdCheckedStatusIds: enabled }, makeDb().deps);
+  const summary = (rows) => rows.map((r) => `${r.id}:${r.writable ? "ok" : r.reason}`);
+  assert.deepEqual(summary(await list([])), ["27:ok", "79:hold checks: not enabled", "80:hold checks: not enabled", "193:not supported from OptiLens yet"]);
+  assert.deepEqual(summary(await list([79, 80])), ["27:ok", "79:ok", "80:ok", "193:not supported from OptiLens yet"]);
+  assert.deepEqual(summary(await list([79, 80, 193])), ["27:ok", "79:ok", "80:ok", "193:not supported from OptiLens yet"]);
+  assert.equal((await list([])).find((r) => r.id === 79).holdChecked, true);
 });
 
 test("live writes require a source user, and require exactly one order identifier", async () => {

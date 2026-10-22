@@ -68,7 +68,7 @@ Observations that shaped the design:
   Evidence it is safe in practice: 79 was written 4,045 times in 180 days with
   no hold follow-up rows, and the last hold link it created was March 2024.
   Residual risk: a hold the desktop app would have created is not created.
-  Unhold (193) and every other hold-checked status can never be enabled; Unhold
+  The page lists every status the Mobile app offers, in the app's order; ones OptiLens will not write are shown greyed out with the reason. Unhold (193) and every other hold-checked status can never be enabled; Unhold
   releases holds (links, assignment, return status) and needs its own trace.
 - **Transactional.** One transaction; `UPDLOCK, ROWLOCK` on the order and its
   latest history row; optional `expectedCurrentStatusId` stale check; the order

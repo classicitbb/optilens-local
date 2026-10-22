@@ -28,7 +28,9 @@
   function fillSelect(select, rows, valueKey, labelFn, placeholder) {
     var options = ['<option value="">' + esc(placeholder) + "</option>"];
     rows.forEach(function (r) {
-      options.push('<option value="' + esc(r[valueKey]) + '">' + esc(labelFn(r)) + "</option>");
+      var off = r.writable === false;
+      options.push('<option value="' + esc(r[valueKey]) + '"' + (off ? " disabled" : "") + ">" +
+        esc(labelFn(r) + (off && r.reason ? " (" + r.reason + ")" : "")) + "</option>");
     });
     select.innerHTML = options.join("");
   }
