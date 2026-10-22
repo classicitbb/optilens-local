@@ -6,6 +6,16 @@
 
 ## Objective and current state
 
+### Status Update default header refinement — deployed
+
+Status: Complete — no active handoff.
+
+Replaced the separate scanner title/menu with the default shared header. Status Update retains launcher, brand/home, theme and account controls; it omits update/notification/annotation/help/AI icons and search, including search and AI shortcuts. It skips update polling/notices because this screen has no update control. Live/Preview controls and their obsolete CSS/DOM dependencies were removed. Scans retain the prior default: live only when the server reports writes enabled, otherwise preview; a failed status reload also returns to preview. Server authorization/write gates remain unchanged. This supersedes the custom header/menu description in the earlier Status Update record below.
+
+Code revisions `255db1b` and `50c5564` deployed on 2026-10-22 through the guarded updater from `codex/job-floor-default-header`, under the ongoing screen deployment authorization. Local `npm test` passed 611/611; syntax and whitespace checks passed. Both guarded runs passed smoke checks and host tests. Signed-in external Edge at the annotated 530px width confirmed the default header, no removed controls/annotation script, working launcher, inactive search/AI shortcuts, 134px result log and no horizontal overflow. Local fixtures passed at 320px, 446px, 530px, 600px and 1366px; two intercepted fixture-only submissions verified the enabled/disabled scan modes, with no real source write. The live tray field was left blank, and the temporary viewport override was reset.
+
+Affected files: `public/job-floor.html`, `public/job-floor.js`, `public/shared.js`, `public/styles/pages/job-floor.css`, `docs/JOB_FLOOR_STATUS_UPDATE.md`, and these continuity records. The host remains on the deployment branch outside automatic master updates until merge/return through the guarded flow. The deployment record may be a documentation-only commit ahead of the running code revision.
+
 ### Inventory Intelligence bins, compact queue values and vertical density — deployed
 
 Status: Complete — no active handoff.
