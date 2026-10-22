@@ -493,6 +493,17 @@
     return name + (specs.length ? " · " + specs.join(" · ") : "");
   }
 
+  function binLabel(identity) {
+    if (!identity || !identity.familyName) return "Bins unavailable";
+    var bins = identity.bins || {};
+    var family = identity.familyName.trim().toLowerCase();
+    if (family === "single vision") return "Bin R " + (bins.right || "not set");
+    if (["progressive", "bifocal", "trifocal", "double segs"].indexOf(family) >= 0) {
+      return "Bins R " + (bins.right || "not set") + " / L " + (bins.left || "not set");
+    }
+    return "Bins unavailable";
+  }
+
   function renderRow(r) {
     var ev = r.evidence || {};
     var p = r.proposedSettings || {};
@@ -501,9 +512,10 @@
     var actionText = (p.recommendedActions && p.recommendedActions[0]) || p.rationale || "";
     return '<tr data-selected="' + Boolean(state.selected[r.recommendationId]) + '">' +
       '<td>' + (canDecide(r) ? '<input type="checkbox" data-action="select" data-id="' + esc(r.recommendationId) + '" aria-label="Select ' + esc(r.itemLabel || r.itemId) + '"' + checked + '>' : '') + '</td>' +
-      '<td><div class="ii-item-name">' + esc(lensLabel(r, r.itemIdentity)) + '</div>' +
-        '<div class="ii-sub ii-item-meta" title="' + esc((r.sku ? 'SKU ' + r.sku + ' · ' : '') + r.itemId) + '">' +
-        (r.sku ? 'SKU ' + esc(r.sku) + ' · ' : '') + esc(r.itemId) + '</div>' + evidenceSummary(r) + '</td>' +
+      '<td><div class="ii-item-name">' + esc((r.itemIdentity && r.itemIdentity.name) || r.itemLabel || r.itemId) + '</div>' +
+        '<div class="ii-sub ii-item-meta">' +
+        (r.sku ? '<span>SKU ' + esc(r.sku) + '</span>' : '') +
+        ' <span>' + esc(binLabel(r.itemIdentity)) + '</span></div>' + evidenceSummary(r) + '</td>' +
       '<td>' + (r.supplierName ? esc(r.supplierName) : '<span class="ii-sub">Unmapped</span>') + '</td>' +
       '<td class="num' + (ev.onHand < 0 ? ' ii-neg' : '') + '">' + num(ev.onHand) + '</td>' +
       '<td class="num">' + num(ev.openPoQuantity) + '</td>' +

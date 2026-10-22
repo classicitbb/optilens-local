@@ -113,17 +113,22 @@ test("the summary tells the page whether this user can approve", async () => {
 test("lens identity uses the full source key and returns the readable lens name", async () => {
   setup();
   const statements = fakeSource([liveRow({ materialName: "Polycarbonate", manufacturerName: "Vision-Ease",
-    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300", diameter: 70, base: 4.25, addPower: 3 })]);
+    lensTypeName: "Single Vision", optionName: "Clear", itemName: "70S 425/300", diameter: 70, base: 4.25, addPower: 3,
+    familyName: " Bifocal ", binRight: " C2 ", binLeft: " C3 " })]);
   const result = await call("GET", `${API}/item-identity`, { query: "?itemId=1%3A1%3A1%3A1%3A1%3A100" });
   assert.equal(result.status, 200);
   assert.equal(result.body.identity.name, "Polycarbonate · Vision-Ease · Single Vision · Clear");
   assert.equal(result.body.identity.diameter, 70);
   assert.equal(result.body.identity.base, 4.25);
   assert.equal(result.body.identity.addPower, 3);
+  assert.equal(result.body.identity.familyName, "Bifocal");
+  assert.deepEqual(result.body.identity.bins, { right: "C2", left: "C3" });
   assert.equal(statements.length, 1);
   assert.match(statements[0].text, /li\.Diameter \/ 100\.0 AS diameter/);
   assert.match(statements[0].text, /li\.Base_Sphere \/ 100\.0 AS base/);
   assert.match(statements[0].text, /li\.Add_Cyl \/ 100\.0 AS addPower/);
+  assert.match(statements[0].text, /li\.Bin_R AS binRight, li\.Bin_L AS binLeft/);
+  assert.match(statements[0].text, /mf\.GroupNum = li\.MaterialGroup AND mf\.MtrlNum = li\.Material AND mf\.MFNum = li\.MFType/);
   assert.match(statements[0].text, /FROM dbo\.LensItem li/);
   assert.match(statements[0].text, /li\.MaterialGroup = @mg[\s\S]*li\.Num = @it/);
   assert.equal((await call("GET", `${API}/item-identity`, { query: "?itemId=invalid" })).status, 400);
