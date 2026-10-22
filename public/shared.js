@@ -623,6 +623,7 @@ function wireSearch() {
 // ─── Authentication ─────────────────────────────────────────────────────────
 
 function wireUpdateCheck() {
+  if (getShellPageConfig().headerTools === false) return;
   const button = document.querySelector("#updateCheckBtn");
   const updateLogOverlay = document.querySelector("#updateLogOverlay");
   const updateLogClose = document.querySelector("#updateLogClose");
