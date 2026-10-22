@@ -10,6 +10,13 @@ function makeDb(overrides = {}) {
     orders: [{ orderId: 138998, jobId: "675", currentStatusId: 42, currentHistoryId: 774281, numberOfStatuses: 6, genStatusName: "In process" }],
     history: { id: 774281, statusItemId: 42, endDate: null, iteration: 2 },
     tray: { id: 91520, orderId: 138998, dateIn: new Date(), dateOut: null },
+    holds: { links: 0, assignments: 0 },
+    allowedRows: [
+      { id: 27, name: "Focimeter 2 Final PASS", checksHold: 0 },
+      { id: 79, name: "Focimeter 1 PASS", checksHold: 1 },
+      { id: 80, name: "Hardcoat", checksHold: 1 },
+      { id: 193, name: "Unhold", checksHold: 1 },
+    ],
     realCount: 6,
     updateRows: 1,
     readBack: null,
@@ -20,6 +27,8 @@ function makeDb(overrides = {}) {
   const exec = async (name, params = {}) => {
     log.push({ name, params });
     switch (name) {
+      case "openHolds": return { recordset: [state.holds] };
+      case "allowedStatuses": return { recordset: state.allowedRows };
       case "latestTrayTransaction": return { recordset: state.tray ? [state.tray] : [] };
       case "target": return { recordset: state.target ? [state.target] : [] };
       case "user": return { recordset: state.user ? [state.user] : [] };
@@ -144,6 +153,55 @@ test("an unknown, empty or unlinked tray is refused before any write", async () 
   await assert.rejects(source.applyStatusUpdate({ trayId: "675", orderId: 5, statusItemId: 27, userAccountId: 41 }, makeDb().deps), (e) => e.code === "invalid_input");
 });
 
+const holdTarget = (id, name) => ({ id, name, allowed: 1, checksHold: 1 });
+const holdInput = (id, extra = {}) => ({ orderId: 138998, statusItemId: id, userAccountId: 41, holdCheckedStatusIds: [79, 80], ...extra });
+
+test("hold-checked statuses are refused unless enabled, and never touch the database when refused", async () => {
+  const db = makeDb({ target: holdTarget(79, "Focimeter 1 PASS") });
+  await assert.rejects(source.applyStatusUpdate({ ...holdInput(79), holdCheckedStatusIds: [] }, db.deps), (e) => e.code === "target_status_hold_checked");
+  assert.equal(db.names().some((n) => ["insertHistory", "updateOrder", "openHolds"].includes(n)), false);
+  assert.equal(db.flags.committed, false);
+});
+
+test("an enabled hold-checked status writes normally when the order has no open hold, and says holds were not evaluated", async () => {
+  const db = makeDb({
+    target: holdTarget(79, "Focimeter 1 PASS"),
+    readBack: { currentStatusId: 79, currentHistoryId: 774368, numberOfStatuses: 7, historyStatusItemId: 79, historyUserAccountId: 41 },
+  });
+  const result = await source.applyStatusUpdate(holdInput(79), db.deps);
+  assert.equal(result.applied, true);
+  assert.equal(result.holdsNotEvaluated, true);
+  assert.deepEqual(db.names().slice(0, 6), ["target", "user", "orderByIdForUpdate", "latestHistoryForUpdate", "realStatusCount", "openHolds"]);
+  const preview = await source.previewStatusUpdate(holdInput(80), makeDb({ target: holdTarget(80, "Hardcoat") }).deps);
+  assert.equal(preview.holdsNotEvaluated, true);
+});
+
+test("an order with an open hold link or open assignment is refused and rolled back", async () => {
+  for (const holds of [{ links: 1, assignments: 0 }, { links: 0, assignments: 2 }]) {
+    const db = makeDb({ target: holdTarget(79, "Focimeter 1 PASS"), holds });
+    await assert.rejects(source.applyStatusUpdate(holdInput(79), db.deps), (e) => e.code === "order_on_hold" && e.statusCode === 409);
+    assert.equal(db.names().includes("insertHistory"), false);
+    assert.equal(db.flags.rolledBack, true);
+    assert.equal(db.flags.committed, false);
+  }
+});
+
+test("Unhold and any other hold-checked status can never be enabled, even if listed", async () => {
+  for (const id of [193, 10, 83]) {
+    const db = makeDb({ target: holdTarget(id, "x") });
+    await assert.rejects(source.applyStatusUpdate(holdInput(id, { holdCheckedStatusIds: [id] }), db.deps), (e) => e.code === "target_status_restricted");
+    assert.equal(db.names().includes("insertHistory"), false);
+  }
+  assert.deepEqual(source.HOLD_GUARDED_STATUS_IDS, [79, 80]);
+});
+
+test("the status list includes hold-checked statuses only when enabled, and never Unhold", async () => {
+  const ids = async (enabled) => (await source.listAllowedStatuses({ holdCheckedStatusIds: enabled }, makeDb().deps)).map((r) => r.id);
+  assert.deepEqual(await ids([]), [27]);
+  assert.deepEqual(await ids([79]), [27, 79]);
+  assert.deepEqual(await ids([79, 80, 193]), [27, 79, 80]);
+});
+
 test("live writes require a source user, and require exactly one order identifier", async () => {
   const db = makeDb();
   await assert.rejects(source.applyStatusUpdate({ orderId: 1, statusItemId: 27 }, db.deps), (e) => e.code === "source_user_missing");
@@ -180,7 +238,10 @@ test("statements only write OrderStatuses and Orders, and never touch locks, cou
   assert.match(source.STATEMENTS.updateOrder.text, /UPDATE dbo\.Orders/);
   for (const [, s] of writes) assert.doesNotMatch(s.text, /Locks|TransactionIDs|Transactions|QueuedChanges|DELETE/i);
   // the allow-list guards every status with side effects this module does not replicate
-  for (const guard of ["Originating = 0", "Terminating = 0", "Cancellation = 0", "Unship = 0", "CheckHoldConditions = 0", "StockFlags = 0", "ReceiveFarmout = 0", "Inactive = 0", "ShowInMobileApp = 1"]) {
+  assert.equal(source.BASE_STATUS_PREDICATE.includes("CheckHoldConditions"), false);
+  assert.ok(source.ALLOWED_STATUS_PREDICATE.includes("CheckHoldConditions = 0"));
+  assert.match(source.STATEMENTS.openHolds.text, /^\s*SELECT/i);
+  for (const guard of ["Originating = 0", "Terminating = 0", "Cancellation = 0", "Unship = 0", "StockFlags = 0", "ReceiveFarmout = 0", "Inactive = 0", "ShowInMobileApp = 1"]) {
     assert.ok(source.ALLOWED_STATUS_PREDICATE.includes(guard), guard);
   }
 });

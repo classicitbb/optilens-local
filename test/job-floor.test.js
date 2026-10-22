@@ -13,7 +13,7 @@ function makeDeps({ writes = "false", sourceFail = null } = {}) {
       SourceStatusError: jobFloorSource.SourceStatusError,
       previewStatusUpdate: async (input) => { sourceCalls.push({ op: "preview", input }); if (sourceFail) throw sourceFail; return { orderId: 55, alreadyApplied: false }; },
       applyStatusUpdate: async (input) => { sourceCalls.push({ op: "apply", input }); if (sourceFail) throw sourceFail; return { orderId: 55, applied: true, verified: true }; },
-      listAllowedStatuses: async () => [{ id: 27, name: "Focimeter 2 Final PASS" }],
+      listAllowedStatuses: async (opts) => { sourceCalls.push({ op: "list", opts }); return [{ id: 27, name: "Focimeter 2 Final PASS", holdChecked: false }]; },
     },
     getSetting: async (key) => (key === "job_floor.writes_enabled" ? writes : null),
     recordAuditEvent: async (event) => { audits.push(event); },
@@ -59,7 +59,7 @@ test("a live write goes through only when enabled and attributed, with attempt a
   const deps = makeDeps({ writes: "true" });
   const result = await jobFloor.updateStatus({ orderId: 9, statusItemId: 2, expectedCurrentStatusId: 5 }, { dryRun: false, actorUserId: 1 }, deps);
   assert.equal(result.dryRun, false);
-  assert.deepEqual(deps.sourceCalls, [{ op: "apply", input: { orderId: 9, statusItemId: 2, expectedCurrentStatusId: 5, userAccountId: 41 } }]);
+  assert.deepEqual(deps.sourceCalls, [{ op: "apply", input: { orderId: 9, statusItemId: 2, expectedCurrentStatusId: 5, userAccountId: 41, holdCheckedStatusIds: [] } }]);
   assert.deepEqual(deps.audits.map((a) => a.eventType), ["job_floor.update_status.attempted", "job_floor.update_status.succeeded"]);
 });
 
@@ -119,7 +119,7 @@ test("input validation rejects ambiguous or malformed identifiers", async () => 
 });
 
 test("status items come from the source writer in the shape the page expects", async () => {
-  assert.deepEqual(await jobFloor.listStatusItems({}, makeDeps()), [{ ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true }]);
+  assert.deepEqual(await jobFloor.listStatusItems({}, makeDeps()), [{ ID: 27, name: "Focimeter 2 Final PASS", inactive: false, showInMobileApp: true, holdChecked: false }]);
 });
 
 test("job-floor page is wired into routes, permissions, edition and launcher", () => {
@@ -139,4 +139,25 @@ test("job-floor page is wired into routes, permissions, edition and launcher", (
   assert.match(edition, /"\/api\/job-floor"/);
   assert.match(read("public/shared.js"), /id: "job-floor"/);
   assert.match(read("public/app.js"), /id: "job-floor"/);
+});
+
+test("hold-checked statuses are off by default and enabled only through the setting or env", async () => {
+  assert.deepEqual(await jobFloor.holdCheckedStatusIds(makeDeps()), []);
+  const setting = makeDeps();
+  setting.getSetting = async (key) => (key === "job_floor.hold_checked_status_ids" ? "79, 80,x,-1" : null);
+  assert.deepEqual(await jobFloor.holdCheckedStatusIds(setting), [79, 80]);
+  process.env.JOB_FLOOR_HOLD_CHECKED_STATUS_IDS = "80";
+  try {
+    assert.deepEqual(await jobFloor.holdCheckedStatusIds(setting), [80]);
+  } finally {
+    delete process.env.JOB_FLOOR_HOLD_CHECKED_STATUS_IDS;
+  }
+});
+
+test("the enabled hold-checked ids reach the preview and the status list", async () => {
+  const deps = makeDeps();
+  deps.getSetting = async (key) => (key === "job_floor.hold_checked_status_ids" ? "79" : null);
+  await jobFloor.updateStatus({ orderId: 5, statusItemId: 79 }, {}, deps);
+  await jobFloor.listStatusItems({}, deps);
+  assert.deepEqual(deps.sourceCalls.map((c) => [c.op, (c.input ?? c.opts).holdCheckedStatusIds]), [["preview", [79]], ["list", [79]]]);
 });

@@ -50,14 +50,26 @@ Observations that shaped the design:
   OptiLens user in Innovations for this; do not reuse a person's account.
 - **Separate write login.** Uses the `source-mssql` write profile, which must
   differ from the read login. Minimum grants: `SELECT` on `Orders`,
-  `OrderStatuses`, `StatusItems`, `GenStatus`, `UserAccounts`, `TrayTransactions`; `INSERT`+`UPDATE`
+  `OrderStatuses`, `StatusItems`, `GenStatus`, `UserAccounts`, `TrayTransactions`, `HoldConditionLinks`, `Assignments`; `INSERT`+`UPDATE`
   on `OrderStatuses`; `UPDATE` on `Orders`. Nothing else.
-- **Status allow-list from flags.** Only statuses with `ShowInMobileApp = 1`,
+- **Status allow-list from flags.** Plain statuses only: `ShowInMobileApp = 1`,
   `Inactive = 0` and none of `Originating`, `Terminating`, `Cancellation`,
-  `Unship`, `CheckHoldConditions`, `ReceiveFarmout`, `UseFarmoutLabStatus`,
-  `StockFlags` (7 statuses at the time of writing). Statuses that run hold
-  checks, stock moves or farm-out logic in the desktop app are refused until
-  that logic is replicated.
+  `Unship`, `ReceiveFarmout`, `UseFarmoutLabStatus`, `StockFlags`,
+  `CheckHoldConditions` (7 statuses at the time of writing). Statuses that run
+  stock moves or farm-out logic in the desktop app are refused.
+- **Hold-checked statuses (opt-in, guarded).** Focimeter 1 PASS (79) and
+  Hardcoat (80) make the desktop app evaluate hold conditions, a rules engine
+  (`HoldConditions` -> `RuleLinks` type 13 -> `Rules`/`RuleItems`) that OptiLens
+  does not replicate. They are off by default. List them in
+  `job_floor.hold_checked_status_ids` (or `JOB_FLOOR_HOLD_CHECKED_STATUS_IDS`),
+  e.g. `79,80`, to allow them. Even then, an order that has any
+  `HoldConditionLinks` row or an unclosed `Assignments` row is refused
+  (`order_on_hold`), and results are labelled "hold rules not evaluated".
+  Evidence it is safe in practice: 79 was written 4,045 times in 180 days with
+  no hold follow-up rows, and the last hold link it created was March 2024.
+  Residual risk: a hold the desktop app would have created is not created.
+  Unhold (193) and every other hold-checked status can never be enabled; Unhold
+  releases holds (links, assignment, return status) and needs its own trace.
 - **Transactional.** One transaction; `UPDLOCK, ROWLOCK` on the order and its
   latest history row; optional `expectedCurrentStatusId` stale check; the order
   update is conditional on the status that was read; a read-back must match
@@ -79,8 +91,7 @@ Observations that shaped the design:
 - The desktop `RxJob` cooperative lock (`Locks` table) is not taken, so a
   person editing the same job in the desktop app at the same instant is only
   protected by the row lock and the stale check.
-- Hold-condition logic (`HoldConditions`, `HoldConditionLinks`) is not
-  replicated; see the allow-list above.
+- Hold-condition rules are not evaluated; see the hold-checked statuses above.
 - Tray *changes* (moving a job between trays: `TrayTransactions`, `SMTrays`) are out of scope; only status updates found by tray number are supported.
 
 ## Enabling

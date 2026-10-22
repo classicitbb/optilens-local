@@ -58,7 +58,7 @@
 
   function describe(out, statusName, label, value) {
     var plan = out.dryRun ? out.plan : out.result;
-    var where = label + ": " + value;
+    var where = label + ": " + value + (plan && plan.holdsNotEvaluated ? " (hold rules not evaluated)" : "");
     if (out.dryRun) return "Preview: " + statusName + " would apply to " + where + (plan && plan.alreadyApplied ? " (already at this status)" : "");
     if (plan && plan.alreadyApplied) return statusName + " already set on " + where;
     return statusName + " applied to " + where;

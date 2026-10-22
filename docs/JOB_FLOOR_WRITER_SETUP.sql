@@ -63,6 +63,8 @@ GRANT SELECT ON OBJECT::dbo.StatusItems    TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.GenStatus      TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.UserAccounts   TO [optilens_jobfloor];
 GRANT SELECT ON OBJECT::dbo.TrayTransactions TO [optilens_jobfloor];   -- tray number -> current order
+GRANT SELECT ON OBJECT::dbo.HoldConditionLinks TO [optilens_jobfloor]; -- open-hold guard for hold-checked statuses
+GRANT SELECT ON OBJECT::dbo.Assignments      TO [optilens_jobfloor];   -- open-hold guard for hold-checked statuses
 
 -- The three writes, column-limited where the statement only touches a few columns.
 GRANT INSERT ON OBJECT::dbo.OrderStatuses TO [optilens_jobfloor];
