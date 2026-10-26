@@ -1,19 +1,32 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Incomplete — clearance catalogue publication pending
-- Last synchronized: 2026-10-22
+- Status: Complete — no active handoff
+- Last synchronized: 2026-10-26
 
 
-## Active task — clearance catalogue
+## Clearance catalogue — deployed
 
-- Current state: local implementation and standalone review draft built. Saved active write-off candidates are re-evaluated against current evidence. BBD each prices use the owner-confirmed USD pair-cost convention. No source writes, recommendation changes, deployment or publication occurred.
-- Affected files: lib/inventory/clearance-service.js, source-adapter.js and routes.js; lib/edition.js; server.js; public/clearance-catalogue.html and .js; public/styles/pages/clearance-catalogue.css; public/inventory-intelligence.html; scripts/export-clearance-catalogue.js; test/inventory-clearance.test.js; test/inventory-intelligence-http.test.js; continuity docs.
-- Review artifact: ignored output/clearance-catalogue/index.html. Extraction and validation artifacts remain in ignored output/.
-- Validation: syntax and focused tests passed. Initial full suite found the explicit staff-code allowlist needed the protected preview and offline exporter; related HTTP boundary tests now pass. Edge verified the actual draft at desktop/mobile widths, family filtering, search, sorting, empty state and absence of script errors. Earlier full suite passed 626/626. After grid/pair/publisher refinements, the 111 focused inventory tests pass. A later broad attempt stalled and was stopped; the subsequent serial full suite passed 629/629.
-- Exact remaining blocker: the owner selected an unlisted private link on the existing Classic Visions website. The scoped website branch now prepares a token-checked receiver, private snapshot/visibility tables, optical grids and admin-only family suppression. The office dry-run publisher and daily task installer are prepared; no production write or schedule was activated.
-- Approval required: final external publication and production deployment. Auth/access changes, source writes and order submission are not included.
-- Next executable action: node scripts/export-clearance-catalogue.js on the configured authorized environment refreshes a standalone review without publishing. The outbound path is now prepared locally. Final deployment, migration, private-link/key provisioning, initial publish and daily schedule need explicit approval and live verification.
+Status: Complete — no active handoff.
+
+- Owner authorization covers production activation, new private-link/key configuration,
+  initial outbound publication, daily scheduling and scoped commit/push.
+- The unlisted website catalogue is live with plain fixed 80px optical grids, larger text
+  and a compact sans-serif header. Multifocals sell complete pairs; single vision sells
+  eaches. Admin family visibility is a website-only overlay that survives snapshot updates.
+- Source inventory and recommendation records are read-only in this workflow.
+- Token-checked database RPCs serve only allowlisted sale data. RLS denies anonymous table
+  reads and management RPC execution; the authenticated admin role gates family changes.
+- The protected publisher configuration is machine-encrypted and ACL-restricted. The daily
+  task runs at 06:00 America/Barbados. Its unattended test completed with result 0 and a
+  newer, positively acknowledged database snapshot. No secret values are recorded here.
+- Fixed the live metadata timeout by loading names and optical metadata in the stock read.
+  Fixed the edition asset-classification test. The final host suite and health verification
+  passed. Earlier full local suite passed 629/629 and focused final inventory tests passed.
+- Website desktop and 360/390px live checks passed: no page overflow or script errors, and
+  wide grids scroll within their containers. Real signed-in product suppression was not
+  performed; admin hide/restore and transport mapping have deterministic test coverage.
+- No active blocker, approval requirement or implementation remains for this request.
 
 ## Objective and current state
 

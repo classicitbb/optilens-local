@@ -27,3 +27,5 @@ This public file records boundaries, not private topology.
 - Owner-confirmed source interpretation for clearance: numeric supplier USD cost per pair. BBD each selling price uses half that number multiplied by 2.66. The source displayed BBD-each label must not cause another currency conversion.
 
 - Prepared clearance publication uses a dedicated website receiver with existing catalog:write API-key authority. Private link tokens stay host-local and are sent only as a hash during publication. Source reads remain read-only. The website applies authenticated admin family exclusions before returning sale JSON; its RLS tables are not anonymously readable. No live connector write or scheduled task was enabled in the build.
+
+- Approved clearance activation is live. Public RPC wrappers are invokers; private implementations check the capability token, scoped key, or authenticated admin role. Two scoped website migrations are recorded. The publisher's protected configuration is restricted to administrators/SYSTEM; its daily task uses the unattended service identity and was verified with positive receiver acknowledgement. The app/source inventory read remains SELECT-only.

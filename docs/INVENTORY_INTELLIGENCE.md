@@ -149,3 +149,14 @@ a secure receiver URL and a private link token in approved host-local configurat
 Configuration names are OPTILENS_CLEARANCE_PUBLISH_URL, OPTILENS_CLEARANCE_API_KEY and
 OPTILENS_CLEARANCE_LINK_TOKEN. Values never belong in repository files or logs.
 The daily task installer defaults to preview and is not installed by this build.
+
+## Production activation
+Status: Complete — no active handoff.
+The owner approved activation on 26 October 2026. The dedicated website receiver now uses
+public SECURITY INVOKER RPC wrappers around token/key/admin-checked implementations in
+an unexposed private schema; no Edge Function was deployed. Snapshot/visibility/audit
+tables remain private under RLS. The daily publishing task is installed and runs at
+06:00 America/Barbados; an unattended invocation was receiver-accepted and returned 0.
+Configuration includes OPTILENS_CLEARANCE_PUBLIC_KEY as well as the three publisher names
+above. Secrets are stored in ACL-restricted, machine-protected host configuration and
+never placed in task arguments. Private publication logs include acknowledgements/history.
