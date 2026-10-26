@@ -71,6 +71,9 @@
     { "match": "docs/**", "owner": "never" },
 
     { "match": "public/rx-capture*", "owner": "rx-capture" },
+    { "match": "public/clearance-*.js", "owner": "inventory-intelligence" },
+    { "match": "public/clearance-catalogue.html", "owner": "inventory-intelligence" },
+    { "match": "public/styles/pages/clearance-catalogue.css", "owner": "inventory-intelligence" },
     { "match": "public/rx-combobox.js", "owner": "rx-capture" },
     { "match": "public/styles/pages/rx-capture.css", "owner": "rx-capture" },
     { "match": "public/credentials.html", "owner": "vault" },
