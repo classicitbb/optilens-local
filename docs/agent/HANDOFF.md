@@ -1,8 +1,19 @@
 # Work Handoff
 
 - Repository: `classicitbb/optilens-local`
-- Status: Complete — no active handoff
+- Status: Incomplete — clearance catalogue publication pending
 - Last synchronized: 2026-10-22
+
+
+## Active task — clearance catalogue
+
+- Current state: local implementation and standalone review draft built. Saved active write-off candidates are re-evaluated against current evidence. BBD each prices use the owner-confirmed USD pair-cost convention. No source writes, recommendation changes, deployment or publication occurred.
+- Affected files: lib/inventory/clearance-service.js, source-adapter.js and routes.js; lib/edition.js; server.js; public/clearance-catalogue.html and .js; public/styles/pages/clearance-catalogue.css; public/inventory-intelligence.html; scripts/export-clearance-catalogue.js; test/inventory-clearance.test.js; test/inventory-intelligence-http.test.js; continuity docs.
+- Review artifact: ignored output/clearance-catalogue/index.html. Extraction and validation artifacts remain in ignored output/.
+- Validation: syntax and focused tests passed. Initial full suite found the explicit staff-code allowlist needed the protected preview and offline exporter; related HTTP boundary tests now pass. Edge verified the actual draft at desktop/mobile widths, family filtering, search, sorting, empty state and absence of script errors. Earlier full suite passed 626/626. After grid/pair/publisher refinements, the 111 focused inventory tests pass. A later broad attempt stalled and was stopped; the subsequent serial full suite passed 629/629.
+- Exact remaining blocker: the owner selected an unlisted private link on the existing Classic Visions website. The scoped website branch now prepares a token-checked receiver, private snapshot/visibility tables, optical grids and admin-only family suppression. The office dry-run publisher and daily task installer are prepared; no production write or schedule was activated.
+- Approval required: final external publication and production deployment. Auth/access changes, source writes and order submission are not included.
+- Next executable action: node scripts/export-clearance-catalogue.js on the configured authorized environment refreshes a standalone review without publishing. The outbound path is now prepared locally. Final deployment, migration, private-link/key provisioning, initial publish and daily schedule need explicit approval and live verification.
 
 ## Objective and current state
 
@@ -365,6 +376,19 @@ When work is incomplete, record:
 - Next action: inspect the two source records read-only and propose a field-specific remediation rule; do not submit a retry until approved.
 
 When fully complete, remove stale steps and set `Status: Complete — no active handoff`.
+
+- Objective: map the Innovations Order Inquiry Workflow Monitor and compare its WIP metrics with OptiLens Production Status.
+- Current state: authenticated same-session live comparison is complete. Innovations Workflow Monitor shows Total WIP 236, Waiting 4, In Progress 220, Outsourced 183; its Order Inquiry category shows Orders in Progress 227 (Rx 220 + Stock 7) and Waiting Orders 4. OptiLens Production Status refreshed at 3:38 PM showed Total WIP 233, Waiting 0, In Progress 123, Outsourced 110. The tile categories are internally additive (123 + 110 + 0 = 233), but differ materially from Innovations. Workflow Monitor category counts may overlap and must not be assumed additive.
+- Affected files inspected: `lib/metrics/production-status.js`, `public/production-status.js`, `server.js`, and `test/production-status.test.js`. No code changed.
+- Source mapping: Production Status reads live Innovations `dbo.Orders`, `dbo.StatusItems`, `dbo.OrderStatuses`, `dbo.Farmouts`, and `dbo.Assignments`; throughput, WIP totals, staging, aging and assignments are calculated in `lib/metrics/production-status.js`. The browser calls `GET /api/production-status`; each figure drills through `GET /api/production-status/orders`.
+- Confirmed discrepancies: the same four visible Waiting Orders in Innovations (including IDs 139072, 139180, 140213 and 140210) are absent from OptiLens Waiting (0); all four appear in the OptiLens In Progress drill, confirming status classification mismatch. OptiLens reports 110 outsourced versus Innovations 183, and total WIP differs by 3 (233 versus 236). One In Progress drill initially showed 123 against a 122 tile, then after refresh the tile showed 123, indicating the source is changing live and reinforcing the need for aligned snapshot timing. The likely issue is classification/source predicates, not a proven arithmetic-only bug.
+- Tests run: none. No source-system writes, orders, or external sends were performed.
+- Blocker / approval required: exact Innovations Workflow Monitor predicates for Waiting, In Progress and Outsourced are not yet known; changing the production metrics formula now would be speculative. No source-system writes were performed.
+- Next action: inspect the installed Innovations web assets or a read-only source query to identify the exact status/order/farmout predicates used by the Workflow Monitor, then reconcile the live drill lists and update the formula with regression coverage.
+
+- Follow-up annotation walkthrough (2026-10-26): explored Order Inquiry toolbar and detail modes in the signed-in browser. Search toggles a per-column filter row with text, numeric and dropdown filters; the column chooser exposes Job Queue, Staging Area and Waiting Reason groups; hierarchy adds a drag-a-column-to-grouping band; refresh reloads the list; a chevron controls the detail pane. The table supports 100/250/500 rows per page and paging. The right pane tabs are Activity, Job, OMA, Notes, Accounts, Invoice and Shipment. Activity has status/outsource/staging summaries and status history; Job carries lens, blank, frame, dimensions, Rx, extras and instructions; OMA and inspection tables; Notes and assignment history; account/billing/contact context; invoice summary/lines/totals; shipment destination/tracking/charges. Sections in Job and Activity can be expanded/collapsed. These are read-only observations; no order actions or edits were performed.
+- Follow-up live comparison: at 3:41 PM OptiLens showed Waiting 0, In Progress 124, Outsourced 110, Total WIP 234. Innovations Order Inquiry had 226 rows listed in Total WIP while its category counter snapshot previously showed 236/237; this confirms counts and row results can drift or use different predicates, so do not interpret the 10+ delta as a stable same-snapshot discrepancy. WFM still needs a synchronized capture against Production Status. No code changed and no tests were run.
+- Privacy note: source grid contains patient and account data. Keep future screenshots, logs and handoff notes to aggregate counts and field names; do not copy row content into repository documentation.
 
 ## Baseline verification
 

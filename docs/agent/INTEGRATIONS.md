@@ -19,3 +19,11 @@ This public file records boundaries, not private topology.
 - RX-specific non-secret configuration names are `OPENAI_RX_MODEL`, `OPENAI_RX_BASE_URL`, and `RX_CAPTURE_RETAIN_IMAGES`.
 - Requests set provider storage off. Local temporary images are removed after successful extraction unless retention is deliberately enabled.
 - A live extraction is billable and must not be used as a harmless connector check. Verify configuration without logging secret values; perform a real-image call only with explicit authorization and suitable patient-data approval.
+
+## Clearance sale-data projection
+
+- The internal preview uses the existing authenticated inventory API; the standalone export contains sale-facing fields only and is not a new public connector.
+- Daily refresh currently means a 24-hour read-through cache. External hosting and outbound scheduled publication are not configured or authorized.
+- Owner-confirmed source interpretation for clearance: numeric supplier USD cost per pair. BBD each selling price uses half that number multiplied by 2.66. The source displayed BBD-each label must not cause another currency conversion.
+
+- Prepared clearance publication uses a dedicated website receiver with existing catalog:write API-key authority. Private link tokens stay host-local and are sent only as a hash during publication. Source reads remain read-only. The website applies authenticated admin family exclusions before returning sale JSON; its RLS tables are not anonymously readable. No live connector write or scheduled task was enabled in the build.

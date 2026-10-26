@@ -97,3 +97,55 @@ a couple of seconds later by the web app, or by `npm run inventory:scan -- --dra
 - The draft PO is a review preview. It is not stored and nothing is sent to a supplier.
 - Unit tests run against the in-memory model. The SQL paths were reviewed but have not been run
   against a live SQL Server from the development machine; verify on the host after the migration.
+
+## Clearance catalogue review draft
+
+Administrator preview: /modules/inventory-clearance (HTML alias /clearance-catalogue.html).
+The authenticated read endpoint is GET /api/inventory-intelligence/clearance-catalogue.
+This is a separate sale-data projection; the private cockpit has no anonymous route.
+
+lib/inventory/clearance-service.js rechecks active write-off recommendations using
+current inventory, policy, approved settings and shelf-count metadata with the existing
+confidence and replenishment calculators. It writes no recommendations or tasks.
+Zero/negative stock, changed classifications, invalid costs and missing identities
+are excluded. A truncated source read fails the refresh. Lens quantities include
+right + left + paired stock times two, with handed SKUs and stock breakdowns visible.
+
+Owner-confirmed cost convention for this workflow: the numeric LensItem.Cost is
+supplier USD cost PER PAIR despite its source BBD-each presentation. Clearance price
+in BBD per lens is Cost / 2 * 2.66, rounded to two decimals. No source cost or other
+valuation behaviour is changed. Missing/zero costs do not become free offers.
+
+The successful review is cached for 24 hours, refreshing on the first authenticated
+request after expiry. An open page checks expiry each minute. Refresh failure does
+not serve an expired catalogue. This is daily refresh on access, not an installed
+scheduled task or an external publishing connection.
+
+Run node scripts/export-clearance-catalogue.js to create the standalone review HTML
+under ignored output/clearance-catalogue/index.html. Optional --snapshot and --output
+arguments support reproducible exports. Exported fields are allowlisted and script
+delimiters escaped. Source costs, internal ids and review notes are not exported.
+An export is a time-limited snapshot, not a connected external webpage.
+
+External hosting and the daily outbound publishing transport remain pending the
+hosting choice and explicit deployment/publication approval. Never expose the
+private inventory API or source database to publish the catalogue.
+
+### Confirmed grid and publication refinements
+The owner chose the existing Classic Visions website, an unlisted private link with
+no menu/sitemap entry, and material/manufacturer/design/colour optical matrices.
+Progressive/bifocal (and other supported multifocal) quantities are whole pairs:
+OnHand_P + min(OnHand_R,OnHand_L). Single vision shows eaches:
+OnHand_R + OnHand_L + 2*OnHand_P. Unmatched multifocal lenses are hidden.
+BBD prices are rounded per sale unit: supplier USD pair cost *2.66 for pairs,
+or pair cost /2*2.66 for eaches. Diameter stays separate within a family.
+All grid columns are uniformly 80px and colours follow the host site's semantic tokens.
+The website branch prepares server-side, admin-only family suppression that survives
+daily snapshot replacement; this does not alter the source lens catalogue.
+
+The office publisher command is node scripts/publish-clearance-catalogue.js (dry run).
+--commit requires explicitly authorized outbound publication, a scoped catalog:write key,
+a secure receiver URL and a private link token in approved host-local configuration.
+Configuration names are OPTILENS_CLEARANCE_PUBLISH_URL, OPTILENS_CLEARANCE_API_KEY and
+OPTILENS_CLEARANCE_LINK_TOKEN. Values never belong in repository files or logs.
+The daily task installer defaults to preview and is not installed by this build.
