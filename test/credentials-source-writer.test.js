@@ -40,6 +40,15 @@ test("Credentials Vault provides a non-secret Innovations incoming-folder overri
   assert.match(page, /label: "Incoming folder", val: "", secret: false/);
 });
 
+test("Credentials Vault provides an Innovations REST entry the Console reads", () => {
+  const page = fs.readFileSync(path.join(__dirname, "..", "public", "credentials.html"), "utf8");
+  assert.match(page, /id="addInnovationsRestEntryBtn"/);
+  assert.match(page, /name: "Innovations REST \(Console\)", type: "Other"/);
+  assert.match(page, /label: "Password", val: "", secret: true/);
+  const { getConfig } = require("../lib/innovations-console");
+  assert.equal(typeof getConfig, "function");
+});
+
 test("Credentials Vault provides a dedicated OpenAI API entry", () => {
   const page = fs.readFileSync(path.join(__dirname, "..", "public", "credentials.html"), "utf8");
   const server = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
