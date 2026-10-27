@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1E35">
+  <title>Innovations Console - OptiLens Local</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/pages/innovations-console.css">
+  <link rel="stylesheet" href="/styles/system.css">
+</head>
+<body class="module-body innovations-console-page">
+
+  <div id="app-shell-header"></div>
+<script>
+  window.OptiLensPage = {
+    crumb: "Innovations Console",
+    assistant: false,
+    headerTools: false,
+    search: false
+  };
+</script>
+
+  <main class="module-main">
+    <div class="ic" id="ic">
+      <div class="ic-topbar">
+        <button class="ic-menu-btn" id="icMenuBtn" type="button" aria-label="Menu" aria-controls="icSidenav" aria-expanded="false"><span class="material-symbols-outlined">menu</span></button>
+        <span class="ic-brand">INNOVATIONS</span>
+        <span class="ic-user"><span class="material-symbols-outlined">account_circle</span><span id="icHost">&nbsp;</span></span>
+      </div>
+
+      <div class="ic-body">
+        <nav class="ic-sidenav" id="icSidenav" aria-label="Innovations Console">
+          <div class="ic-userview"><img id="icLogo" class="ic-logo" alt="" hidden></div>
+          <hr class="ic-divider">
+          <a href="#tracking" class="ic-link" data-page="tracking"><span class="material-symbols-outlined">local_shipping</span>Tracking</a>
+          <a href="#statusUpdate" class="ic-link" data-page="statusUpdate"><span class="material-symbols-outlined">help</span>Status Update</a>
+          <a href="#jobDetails" class="ic-link" data-page="jobDetails"><span class="material-symbols-outlined">local_pharmacy</span>Rx Job Details</a>
+          <a href="#stockActions" class="ic-link" data-page="stockActions"><span class="material-symbols-outlined">exposure</span>Stock Menu</a>
+          <hr class="ic-divider">
+        </nav>
+
+        <div class="ic-main">
+          <p class="ic-banner" id="icBanner" role="status" hidden></p>
+
+          <!-- TRACKING -->
+          <section id="tracking" class="ic-page" aria-label="Tracking">
+            <div class="ic-card">
+              <div class="ic-card-content">
+                <span class="ic-card-title">Tracking</span>
+                <form class="ic-search" id="trackingForm" autocomplete="off">
+                  <div class="ic-field">
+                    <select id="trackingSearchType">
+                      <option value="AccountID">Account ID</option>
+                      <option value="TrayID" selected>Tray ID</option>
+                      <option value="OrderID">Order ID</option>
+                      <option value="RxID">Rx Number</option>
+                      <option value="PatientID">Patient</option>
+                    </select>
+                    <label for="trackingSearchType">Search By</label>
+                  </div>
+                  <div class="ic-field">
+                    <input id="trackingSearch" type="text" autocapitalize="off" spellcheck="false" placeholder=" ">
+                    <label for="trackingSearch" id="trackingSearchLabel">Tray ID</label>
+                  </div>
+                  <button class="ic-btn" id="trackingSearchButton" type="submit">Search</button>
+                  <div id="trackingHeader" class="ic-search-aside"></div>
+                </form>
+              </div>
+            </div>
+            <div class="ic-card"><div class="ic-card-content" id="trackingResults"></div></div>
+          </section>
+
+          <!-- STATUS UPDATE -->
+          <section id="statusUpdate" class="ic-page" aria-label="Status Update" hidden>
+            <div class="ic-card">
+              <div class="ic-card-content">
+                <span class="ic-card-title">Status Update</span>
+                <form class="ic-search" id="statusForm" autocomplete="off">
+                  <div class="ic-field">
+                    <select id="statusSearchType"><option value="">Loading…</option></select>
+                    <label for="statusSearchType">Status</label>
+                  </div>
+                  <div class="ic-field">
+                    <input id="statusSearch" type="text" autocapitalize="off" spellcheck="false" placeholder=" ">
+                    <label for="statusSearch">Tray ID</label>
+                  </div>
+                  <button class="ic-btn" id="statusSearchButton" type="submit">Update Status</button>
+                </form>
+              </div>
+            </div>
+            <div class="ic-card">
+              <div class="ic-card-content">
+                <div class="ic-table-wrap">
+                  <table class="ic-table ic-striped ic-center">
+                    <thead><tr><th>Date</th><th>Tray ID</th><th>Update Status</th><th>Completed</th><th>Notes</th></tr></thead>
+                    <tbody id="statusResultsTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- RX JOB DETAILS -->
+          <section id="jobDetails" class="ic-page" aria-label="Rx Job Details" hidden>
+            <div class="ic-card">
+              <div class="ic-card-content">
+                <span class="ic-card-title">Job Details</span>
+                <form class="ic-search" id="jobDetailsForm" autocomplete="off">
+                  <div class="ic-field">
+                    <input id="jobDetailsSearch" type="text" autocapitalize="off" spellcheck="false" placeholder=" ">
+                    <label for="jobDetailsSearch">Tray ID</label>
+                  </div>
+                  <button class="ic-btn" id="jobDetailsSearchButton" type="submit">Job Details</button>
+                </form>
+              </div>
+            </div>
+            <div id="jobDetailsResults"></div>
+          </section>
+
+          <!-- STOCK -->
+          <section id="stockActions" class="ic-page" aria-label="Stock" hidden>
+            <div class="ic-card">
+              <div class="ic-card-content">
+                <span class="ic-card-title">Stock Details</span>
+                <form class="ic-search" id="stockForm" autocomplete="off">
+                  <div class="ic-field">
+                    <input id="stockStatusSearch" type="text" autocapitalize="off" spellcheck="false" placeholder=" ">
+                    <label for="stockStatusSearch">OPC</label>
+                  </div>
+                  <button class="ic-btn" id="stockStatusSearchButton" type="submit">Stock Status</button>
+                </form>
+              </div>
+            </div>
+            <div class="ic-card"><div class="ic-card-content" id="stockStatusResults"></div></div>
+          </section>
+
+          <footer class="ic-footer"><span id="icFooter"></span></footer>
+        </div>
+      </div>
+
+      <div class="ic-loader" id="icLoader" hidden><div class="ic-spinner" role="progressbar" aria-label="Loading"></div></div>
+
+      <dialog class="ic-modal" id="icError">
+        <div class="ic-modal-content">
+          <h4><span class="material-symbols-outlined">warning</span> Error</h4>
+          <p class="ic-flow">An error has occurred. Check the error code and description to see if it can be resolved simply, otherwise contact Innovations customer support if the issue continues.</p>
+          <p><b>Code:</b> <span id="icErrorCode" class="ic-blue"></span></p>
+          <p><b>Description:</b> <span id="icErrorDesc" class="ic-red"></span></p>
+        </div>
+        <div class="ic-modal-footer"><button class="ic-btn" id="icErrorOk" type="button">OK</button></div>
+      </dialog>
+    </div>
+  </main>
+
+  <script src="/shared.js"></script>
+  <script src="/pwa.js"></script>
+  <script src="/innovations-console.js"></script>
+</body>
+</html>
