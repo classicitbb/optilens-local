@@ -229,7 +229,7 @@ test("a dry run lists the whole plan, asks nothing and changes nothing", { skip:
   const run = spawnSync(shells()[0], ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(installDir, "Install-OptiLens.ps1"), "-DryRun", "-ConfigFile", config], { encoding: "utf8" });
   const out = run.stdout + run.stderr;
   assert.equal(run.status, 0, out);
-  for (const step of ["Install Node.js", "Install packages", "Check and apply the licence", "Install SQL Server", "Configure SQL Server", "Create database and login", "Write .env", "Create folders", "Apply migrations", "Create administrator and site settings", "Open the firewall", "Start the application", "Keep it running", "Verify"]) {
+  for (const step of ["Install Node.js", "Install Claude Code CLI", "Install packages", "Check and apply the licence", "Install SQL Server", "Configure SQL Server", "Create database and login", "Write .env", "Create folders", "Apply migrations", "Create administrator and site settings", "Open the firewall", "Start the application", "Keep it running", "Verify"]) {
     assert.match(out, new RegExp(`PLAN\\s+${step}`), step);
   }
   assert.match(out, /Dry run only/);

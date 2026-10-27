@@ -197,6 +197,27 @@ function Install-WingetPackage {
     Update-SessionPath
 }
 
+function Get-ClaudeCliPath {
+    # The Claude Code CLI as `claude`, on PATH or in the places winget and the
+    # native installer put it before a new shell picks up the PATH change.
+    $cmd = Get-Command claude -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    foreach ($candidate in @(
+            (Join-Path $env:USERPROFILE '.local\bin\claude.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\claude.exe'))) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
+    }
+    return $null
+}
+
+function Get-GitPath {
+    $cmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $default = Join-Path $env:ProgramFiles 'Git\cmd\git.exe'
+    if (Test-Path -LiteralPath $default) { return $default }
+    return $null
+}
+
 function Get-SqlInstanceNames {
     $key = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL'
     if (-not (Test-Path $key)) { return @() }

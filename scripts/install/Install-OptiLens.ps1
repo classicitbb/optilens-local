@@ -5,7 +5,8 @@
 .DESCRIPTION
   Run from an elevated PowerShell in the folder the vendor delivered the code to.
   The installer
-    1. installs Node.js, and SQL Server Express unless an existing instance is chosen,
+    1. installs Node.js, the Claude Code CLI (with Git for Windows), and SQL Server Express
+       unless an existing instance is chosen,
     2. checks the licence file, applies it and installs the app's packages,
     3. creates the database and application login, applies migrations,
     4. creates the lab's administrator and saves its site settings,
@@ -286,6 +287,22 @@ Invoke-Step 'Install Node.js' { (Get-Command node -ErrorAction SilentlyContinue)
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js was installed but is not on PATH. Open a new elevated PowerShell and run the installer again.' }
     "Node $(& node --version)"
 } -Plan 'winget install OpenJS.NodeJS.LTS (skipped when Node 20 or later is present)'
+
+Invoke-Step 'Install Claude Code CLI' { (Get-ClaudeCliPath) -and (Get-GitPath) } {
+    # Claude Code on Windows uses Git for Windows for its shell tools.
+    if (-not (Get-GitPath)) {
+        Install-WingetPackage -Id 'Git.Git'
+        if (-not (Get-GitPath)) { throw 'Git for Windows was installed but is not on PATH. Open a new elevated PowerShell and run the installer again.' }
+    }
+    if (-not (Get-ClaudeCliPath)) {
+        Install-WingetPackage -Id 'Anthropic.ClaudeCode'
+        if (-not (Get-ClaudeCliPath)) { throw 'Claude Code was installed but `claude` was not found. Open a new elevated PowerShell and run the installer again.' }
+    }
+    $claude = Get-ClaudeCliPath
+    $version = (& $claude --version 2>&1 | Select-Object -First 1)
+    if ($LASTEXITCODE -ne 0 -or -not $version) { throw "Claude Code is installed at $claude but 'claude --version' failed." }
+    "$version (run 'claude' once and sign in to finish setup)"
+} -Plan 'winget install Git.Git and Anthropic.ClaudeCode (skipped when claude and git are present), then check claude --version'
 
 Invoke-Step 'Install packages' { (Test-Path (Join-Path $Root 'node_modules\mssql')) -and (Test-Path (Join-Path $Root 'node_modules\.package-lock.json')) } {
     Push-Location $Root
