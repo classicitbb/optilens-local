@@ -111,6 +111,7 @@
     { "match": "public/assets/**", "owner": "core" },
     { "match": "public/icons/**", "owner": "core" },
     { "match": "public/admin-users.*", "owner": "core" },
+    { "match": "public/styles/pages/admin-users.css", "owner": "core" },
     { "match": "public/login.*", "owner": "core" },
     { "match": "public/settings.*", "owner": "core" },
     { "match": "public/release-notes.html", "owner": "core" },
