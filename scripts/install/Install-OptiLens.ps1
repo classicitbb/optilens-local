@@ -10,7 +10,8 @@
     2. checks the licence file, applies it and installs the app's packages,
     3. creates the database and application login, applies migrations,
     4. creates the lab's administrator and saves its site settings,
-    5. starts the app, keeps it running, and checks that it works.
+    5. makes a local certificate and has the app serve HTTPS (443, with 80 redirecting),
+    6. starts the app, keeps it running, and checks that it works.
 
   Non-secret answers can come from -ConfigFile (see install.config.example.json);
   anything missing is asked for. Passwords are never read from a file, parameter
@@ -25,6 +26,10 @@
   The signed licence (edition.json) the vendor sent. Overrides licenceFile in the config.
 .PARAMETER DryRun
   Detects and asks, prints the plan, and changes nothing.
+.PARAMETER NoHttps
+  Leave the app on plain HTTP (the port in the config, open to the local network).
+  By default the app serves HTTPS on 443 itself, redirects port 80 to it, and the
+  installer makes a local certificate authority for the server's names.
 .PARAMETER SkipWatchdog
   Do not register the scheduled task that starts and supervises the app.
 .PARAMETER AllowFullEdition
@@ -35,6 +40,7 @@ param(
     [string] $ConfigFile = '',
     [string] $LicenceFile = '',
     [switch] $DryRun,
+    [switch] $NoHttps,
     [switch] $SkipWatchdog,
     [switch] $AllowFullEdition
 )
@@ -47,8 +53,10 @@ $DataDir = Join-Path $Root 'data'
 $StatePath = Join-Path $DataDir 'install-state.json'
 $EnvPath = Join-Path $Root '.env'
 Import-Module (Join-Path $PSScriptRoot 'OptiLens.Install.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'OptiLens.Https.psm1') -Force
 
 $script:Results = New-Object System.Collections.Generic.List[object]
+$script:Licensee = ''
 $script:State = Get-InstallState -Path $StatePath
 
 # ------------------------------------------------------------------- Output
@@ -204,7 +212,30 @@ try {
 catch { Write-Step 'FAIL' 'Collect answers' $_.Exception.Message; exit 1 }
 
 $problems = Test-InstallAnswers -Answers ($script:Answers | ConvertTo-Json -Depth 6 | ConvertFrom-Json)
+$httpsProblems = Test-HttpsAnswers -Answers ($script:Answers | ConvertTo-Json -Depth 6 | ConvertFrom-Json)
+$problems = @($problems) + $httpsProblems
 if ($problems.Count) { $problems | ForEach-Object { Write-Step 'FAIL' 'Check answers' $_ }; exit 1 }
+
+# ---------------------------------------------------------------------- HTTPS plan
+# The app serves HTTPS itself. Names are read now so the plan can show them.
+
+$httpsEnabled = -not $NoHttps
+$httpsAnswer = Get-Path $script:Answers 'https.enabled'
+if ($null -ne $httpsAnswer -and "$httpsAnswer" -match '^(false|0|no|off)$') { $httpsEnabled = $false }
+$httpsPort = 443; $httpPort = 80; $tlsNames = $null; $publicUrl = "http://$($env:COMPUTERNAME):$port/"; $certUrl = ''
+if ($httpsEnabled) {
+    $v = Get-Path $script:Answers 'https.httpsPort'; if ($v) { $httpsPort = [int]$v }
+    $v = Get-Path $script:Answers 'https.httpPort'; if ($v) { $httpPort = [int]$v }
+    if ($httpsPort -eq $port -or $httpPort -eq $port) { Write-Step 'FAIL' 'Check answers' "The web app's own port ($port) is loopback only and cannot also be the HTTPS or HTTP port."; exit 1 }
+    try {
+        $tlsNames = Get-TlsNameSet -ComputerName $env:COMPUTERNAME -Fqdn (Get-MachineFqdn) -IpAddresses (Get-LanIPv4Addresses) `
+            -ExtraNames @(Get-Path $script:Answers 'https.extraNames' | Where-Object { $_ }) -PublicHost ([string](Get-Path $script:Answers 'https.publicHost'))
+    }
+    catch { Write-Step 'FAIL' 'HTTPS names' $_.Exception.Message; exit 1 }
+    $suffix = if ($httpsPort -eq 443) { '' } else { ":$httpsPort" }
+    $publicUrl = "https://$($tlsNames.PublicHost)$suffix/"
+    $certUrl = "http://$($tlsNames.PublicHost)$(if ($httpPort -eq 80) { '' } else { ":$httpPort" })/cert"
+}
 
 # ------------------------------------------------------------------- SQL choice
 # Decided up front, read-only: look at what is installed, then ask.
@@ -274,7 +305,13 @@ if (-not $DryRun) { Save-InstallState -Path $StatePath -State $script:State }
 $adminName = Get-Path $script:Answers 'admin.username'
 Write-Host "`nPlan" -ForegroundColor Cyan
 Write-Host ("  SQL Server : {0} instance '{1}' at {2}" -f $sqlPlan.Mode, $sqlPlan.Name, $sqlPlan.Server)
-Write-Host "  Web app    : http://$($env:COMPUTERNAME):$port/"
+Write-Host "  Web app    : $publicUrl"
+if ($httpsEnabled) {
+    Write-Host "  Also at    : $(($tlsNames.IpAddresses | Where-Object { $_ -ne '127.0.0.1' } | ForEach-Object { "https://$_$(if ($httpsPort -ne 443) { ":$httpsPort" })/" }) -join ', ')"
+    Write-Host "  HTTPS      : app serves $httpsPort, port $httpPort redirects to it; the app's own port $port is loopback only"
+} else {
+    Write-Host "  HTTPS      : off (-NoHttps): plain HTTP on port $port"
+}
 Write-Host "  Licence    : $licenceSource"
 Write-Host "  Folders    : incoming $incoming; staging $staging; archive $archive"
 Write-Host "  Admin      : $adminName`n"
@@ -319,6 +356,7 @@ Invoke-Step 'Check and apply the licence' $null {
     if (-not $reply.ok) { throw "Licence rejected: $($reply.error)" }
     $target = Join-Path $DataDir 'edition.json'
     if ((Resolve-Path -LiteralPath $licenceSource).Path -ne (Resolve-Path -LiteralPath $target -ErrorAction SilentlyContinue).Path) { Copy-Item -LiteralPath $licenceSource -Destination $target -Force }
+    $script:Licensee = [string]$reply.licensee
     $until = if ($reply.expiresAt) { "until $($reply.expiresAt)" } else { 'no end date' }
     "$($reply.licensee): $($reply.modules -join ', '), $until$(if ($reply.trial) { ' (trial)' })"
 } -Plan 'verify the signature and copy the file to data\edition.json'
@@ -357,6 +395,10 @@ Invoke-Step 'Install sqlcmd' { [bool](Get-SqlcmdPath) } {
 $envText = if (Test-Path -LiteralPath $EnvPath) { Get-Content -LiteralPath $EnvPath -Raw } else { '' }
 $appPassword = Get-EnvValue -Text $envText -Key 'OPTILENS_DB_PASSWORD'
 if (-not $appPassword -or $appPassword -eq 'replace_with_secret') { $appPassword = New-StrongPassword }
+$tlsPassphrase = Get-EnvValue -Text $envText -Key 'OPTILENS_TLS_PFX_PASSPHRASE'
+if (-not $tlsPassphrase) { $tlsPassphrase = New-StrongPassword }
+$pfxPath = Join-Path $DataDir 'certificates\optilens-server.pfx'
+$rootCerPath = Join-Path $DataDir 'certificates\OptiLens-Local-Root-CA.cer'
 
 Invoke-Step 'Create database and login' $null {
     $server = $sqlPlan.Server
@@ -365,9 +407,16 @@ Invoke-Step 'Create database and login' $null {
     'optilens_local, login optilens_app'
 } -Plan 'run database\001-create-database.sql, then create the optilens_app login'
 
+if ($httpsEnabled) {
+    Invoke-Step 'Create HTTPS certificate' { -not (Get-TlsMaterialProblem -PfxPath $pfxPath -Passphrase $tlsPassphrase -Names $tlsNames) } {
+        $made = New-OptiLensTlsCertificate -Names $tlsNames -PfxPath $pfxPath -Passphrase $tlsPassphrase -RootCerPath $rootCerPath -TrustRootHere
+        "covers $($tlsNames.DnsNames -join ', ') and $(($tlsNames.IpAddresses | Where-Object { $_ -ne '127.0.0.1' }) -join ', '); ends $($made.Expires.ToString('yyyy-MM-dd'))"
+    } -Plan "make a local root CA and a server certificate for $($tlsNames.DnsNames -join ', ') and $(($tlsNames.IpAddresses | Where-Object { $_ -ne '127.0.0.1' }) -join ', ')"
+}
+
 Invoke-Step 'Write .env' $null {
     $values = [ordered]@{
-        OPTILENS_HOST              = '0.0.0.0'
+        OPTILENS_HOST              = $(if ($httpsEnabled) { '127.0.0.1' } else { '0.0.0.0' })
         OPTILENS_PORT              = "$port"
         OPTILENS_DB_SERVER         = $sqlPlan.Server
         OPTILENS_DB_NAME           = 'optilens_local'
@@ -376,6 +425,14 @@ Invoke-Step 'Write .env' $null {
         OPTILENS_DB_ENCRYPT        = 'true'
         OPTILENS_DB_TRUST_CERT     = 'true'
         OPTILENS_WRITEBACK_ENABLED = 'false'
+    }
+    if ($httpsEnabled) {
+        $values['OPTILENS_TLS_PFX'] = $pfxPath
+        $values['OPTILENS_TLS_PFX_PASSPHRASE'] = $tlsPassphrase
+        $values['OPTILENS_HTTPS_PORT'] = "$httpsPort"
+        $values['OPTILENS_HTTP_REDIRECT_PORT'] = "$httpPort"
+        $values['OPTILENS_PUBLIC_HOST'] = $tlsNames.PublicHost
+        if ($script:Licensee) { $values['OPTILENS_NETWORK_NAME'] = $script:Licensee }
     }
     # Without a Git checkout there is nothing to pull; the vendor delivers updates.
     if (-not (Test-Path (Join-Path $Root '.git'))) { $values['OPTILENS_AUTO_APPLY_UPDATES'] = 'false' }
@@ -417,21 +474,57 @@ Invoke-Step 'Create administrator and site settings' $null {
     $parts -join '; '
 } -Plan 'create the administrator, turn off the built-in account, save site settings'
 
-Invoke-Step 'Open the firewall' { [bool](Get-NetFirewallRule -DisplayName 'OptiLens Local' -ErrorAction SilentlyContinue) } {
-    New-NetFirewallRule -DisplayName 'OptiLens Local' -Direction Inbound -Protocol TCP -LocalPort $port -RemoteAddress LocalSubnet -Action Allow | Out-Null
-    "TCP $port, local subnet only"
-} -Plan "allow inbound TCP $port from the local subnet"
+if ($httpsEnabled) {
+    $wantedPorts = @("$httpPort", "$httpsPort")
+    Invoke-Step 'Open the firewall' {
+        $rule = Get-NetFirewallRule -DisplayName 'OptiLens Local HTTPS' -ErrorAction SilentlyContinue
+        $have = if ($rule) { @(($rule | Get-NetFirewallPortFilter).LocalPort) } else { @() }
+        $rule -and -not (Get-NetFirewallRule -DisplayName 'OptiLens Local' -ErrorAction SilentlyContinue) -and (@($wantedPorts | Where-Object { $have -notcontains $_ }).Count -eq 0)
+    } {
+        Get-NetFirewallRule -DisplayName 'OptiLens Local', 'OptiLens Local HTTPS' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+        New-NetFirewallRule -DisplayName 'OptiLens Local HTTPS' -Direction Inbound -Protocol TCP -LocalPort $wantedPorts -RemoteAddress LocalSubnet -Action Allow | Out-Null
+        "TCP $($wantedPorts -join ', '), local subnet only; port $port is not opened"
+    } -Plan "allow inbound TCP $httpPort and $httpsPort from the local subnet (the app's own port $port stays closed)"
+} else {
+    Invoke-Step 'Open the firewall' { [bool](Get-NetFirewallRule -DisplayName 'OptiLens Local' -ErrorAction SilentlyContinue) } {
+        New-NetFirewallRule -DisplayName 'OptiLens Local' -Direction Inbound -Protocol TCP -LocalPort $port -RemoteAddress LocalSubnet -Action Allow | Out-Null
+        "TCP $port, local subnet only"
+    } -Plan "allow inbound TCP $port from the local subnet"
+}
+
+if ($httpsEnabled) {
+    Invoke-Step 'Check web ports' $null {
+        $taken = @()
+        foreach ($p in @($httpPort, $httpsPort)) {
+            $owner = Get-PortOwner -Port $p
+            if ($owner -and $owner -ne 'node') { $taken += "port $p is used by $owner" }
+        }
+        if ($taken) { throw "$($taken -join '; '). If that is IIS or another web server, stop it (for example 'net stop w3svc'), or set https.httpPort and https.httpsPort in the config to free ports." }
+        "ports $httpPort and $httpsPort are free"
+    } -Plan "check that ports $httpPort and $httpsPort are free"
+}
 
 function Test-AppHealthy {
     try { return ((Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/health/live" -TimeoutSec 3).service -eq 'optilens-local') } catch { return $false }
 }
 
-Invoke-Step 'Start the application' { Test-AppHealthy } {
+function Test-HttpsHealthy {
+    if (-not $httpsEnabled) { return $true }
+    try {
+        $uri = "https://$($tlsNames.PublicHost)$(if ($httpsPort -ne 443) { ":$httpsPort" })/api/health/live"
+        return ((Get-HttpStatus -Uri $uri -TimeoutSec 3).Status -eq 200)
+    } catch { return $false }
+}
+
+Invoke-Step 'Start the application' { (Test-AppHealthy) -and (Test-HttpsHealthy) } {
+    # An app that is already running has not read the new .env, so restart it.
+    if (Test-AppHealthy) { & (Join-Path $Root 'scripts\stop-app.ps1') -ProjectRoot $Root -Port $port | Out-Host }
     & (Join-Path $Root 'scripts\start-app.ps1') -ProjectRoot $Root -Port $port | Out-Host
-    for ($i = 0; $i -lt 40 -and -not (Test-AppHealthy); $i++) { Start-Sleep -Seconds 1 }
-    if (-not (Test-AppHealthy)) { throw "The app did not answer on port $port. See data\server.err.log (or server.err.log in the install folder)." }
-    "answering on port $port"
-} -Plan "start the app and wait for /api/health/live on port $port"
+    for ($i = 0; $i -lt 40 -and -not ((Test-AppHealthy) -and (Test-HttpsHealthy)); $i++) { Start-Sleep -Seconds 1 }
+    if (-not (Test-AppHealthy)) { throw "The app did not answer on port $port. See server.err.log in the install folder." }
+    if (-not (Test-HttpsHealthy)) { throw "The app is running but HTTPS did not answer on port $httpsPort. See server.out.log and server.err.log in the install folder." }
+    if ($httpsEnabled) { "answering on $publicUrl" } else { "answering on port $port" }
+} -Plan "start the app and wait for /api/health/live$(if ($httpsEnabled) { " over HTTPS on port $httpsPort" } else { " on port $port" })"
 
 if (-not $SkipWatchdog) {
     Invoke-Step 'Keep it running' { [bool](Get-ScheduledTask -TaskName 'OptiLens Local Watchdog' -ErrorAction SilentlyContinue) } {
@@ -442,6 +535,27 @@ if (-not $SkipWatchdog) {
     } -Plan 'register the OptiLens Local Watchdog task as the signed-in Windows user'
 } else {
     Write-Step 'SKIP' 'Keep it running' '-SkipWatchdog: the app will not restart after a reboot'
+}
+
+if ($httpsEnabled) {
+    Invoke-Step 'Verify HTTPS' $null {
+        $checks = @()
+        $redirect = Get-HttpStatus -Uri "http://127.0.0.1:$httpPort/"
+        if ($redirect.Status -notin 301, 308 -or "$($redirect.Location)" -notlike 'https://*') { throw "Port $httpPort did not redirect to HTTPS (status $($redirect.Status))." }
+        $checks += "port $httpPort redirects to HTTPS"
+        $crt = Get-HttpStatus -Uri "http://127.0.0.1:$httpPort/cert/optilens-root-ca.crt"
+        if ($crt.Status -ne 200) { throw "The certificate download on port $httpPort answered $($crt.Status). Devices could not install the certificate." }
+        $checks += 'certificate download works over HTTP'
+        foreach ($ip in @($tlsNames.IpAddresses | Where-Object { $_ -ne '127.0.0.1' } | Select-Object -First 1)) {
+            $client = New-Object System.Net.Sockets.TcpClient
+            try {
+                $open = $client.ConnectAsync($ip, $port).Wait(1500) -and $client.Connected
+                if ($open) { throw "Port $port answers on $ip, so the app is reachable without HTTPS. Check OPTILENS_HOST in .env." }
+            } catch [System.AggregateException] { } finally { $client.Dispose() }
+            $checks += "port $port is not reachable on $ip"
+        }
+        $checks -join '; '
+    } -Plan 'check the HTTP redirect, the certificate download and that the app port is closed to the network'
 }
 
 Invoke-Step 'Verify' $null {
@@ -455,7 +569,13 @@ Invoke-Step 'Verify' $null {
 
 if ($DryRun) { Write-Host "`nDry run only. Nothing was changed." -ForegroundColor Cyan; exit 0 }
 Write-Host "`nOptiLens is installed." -ForegroundColor Green
-Write-Host "  Open        : http://$($env:COMPUTERNAME):$port/   (sign in as $adminName)"
+Write-Host "  Open        : $publicUrl   (sign in as $adminName)"
+if ($httpsEnabled) {
+    Write-Host "  Other PCs   : first open $certUrl on each device and install the certificate (the page explains how),"
+    Write-Host "                then browse to $publicUrl. The file is also at $rootCerPath."
+    Write-Host "  Certificate : valid for $($tlsNames.DnsNames -join ', ') and $(($tlsNames.IpAddresses | Where-Object { $_ -ne '127.0.0.1' }) -join ', ')."
+    Write-Host "                If the server's name or IP address changes, run the installer again to reissue it."
+}
 Write-Host "  First check : RX Capture > gear > Check folders"
 Write-Host "  Log         : $(Join-Path $DataDir 'install.log')"
 Write-Host "  The database password is in .env. Back up the database and .env."

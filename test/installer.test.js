@@ -76,7 +76,7 @@ function shells() {
 }
 
 function runPs(exe, body) {
-  const script = `$ErrorActionPreference='Stop'; Import-Module '${path.join(installDir, "OptiLens.Install.psm1")}' -Force\n${body}`;
+  const script = `$ErrorActionPreference='Stop'; Import-Module '${path.join(installDir, "OptiLens.Install.psm1")}' -Force; Import-Module '${path.join(installDir, "OptiLens.Https.psm1")}' -Force\n${body}`;
   const encoded = Buffer.from(script, "utf16le").toString("base64");
   const run = spawnSync(exe, ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded], { encoding: "utf8" });
   assert.equal(run.status, 0, `${exe} failed: ${run.stderr || run.stdout}`);
@@ -99,7 +99,7 @@ function answersWith(change) {
 
 for (const exe of shells()) {
   test(`${exe}: both installer scripts parse`, () => {
-    for (const file of ["Install-OptiLens.ps1", "OptiLens.Install.psm1"]) {
+    for (const file of ["Install-OptiLens.ps1", "OptiLens.Install.psm1", "OptiLens.Https.psm1"]) {
       const out = runPs(exe, `$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile('${path.join(installDir, file)}',[ref]$null,[ref]$e); @{ errors = @($e | ForEach-Object { $_.Message }) } | ConvertTo-Json -Compress`);
       assert.deepEqual(out.errors, [], file);
     }
@@ -128,6 +128,39 @@ for (const exe of shells()) {
     assert.equal(out.port, "8080");
     assert.equal(out.missing, null);
     assert.equal(out.fromEmpty, "OPTILENS_PORT=8080\r\nOPTILENS_DB_USER=optilens_app\r\n");
+  });
+
+  test(`${exe}: the certificate names cover the machine, its addresses and nothing unusable`, () => {
+    const out = runPs(exe, [
+      "$n = Get-TlsNameSet -ComputerName 'LAB-SRV' -Fqdn 'lab-srv.corp.local' -IpAddresses @('192.168.1.20','169.254.3.3','127.0.0.1','::1','192.168.1.20','nonsense') -ExtraNames @('rx.lab.local')",
+      "$pub = Get-TlsNameSet -ComputerName 'LAB-SRV' -PublicHost 'RX.Lab.Local'",
+      "$bad = try { Get-TlsNameSet -ComputerName 'LAB-SRV' -ExtraNames @('bad name!'); 'accepted' } catch { 'rejected' }",
+      "@{ names = $n.DnsNames; ips = $n.IpAddresses; publicHost = $n.PublicHost; san = (ConvertTo-SanExtension $n); custom = $pub.PublicHost; customNames = $pub.DnsNames; bad = $bad } | ConvertTo-Json -Compress"
+    ].join("\n"));
+    assert.deepEqual(out.names, ["lab-srv", "lab-srv.corp.local", "rx.lab.local", "localhost"]);
+    assert.deepEqual(out.ips, ["192.168.1.20", "127.0.0.1"]);
+    assert.equal(out.publicHost, "lab-srv");
+    assert.equal(out.san, "2.5.29.17={text}DNS=lab-srv&DNS=lab-srv.corp.local&DNS=rx.lab.local&DNS=localhost&IPAddress=192.168.1.20&IPAddress=127.0.0.1");
+    assert.equal(out.custom, "rx.lab.local");
+    assert.deepEqual(out.customNames, ["rx.lab.local", "lab-srv", "localhost"]);
+    assert.equal(out.bad, "rejected");
+  });
+
+  test(`${exe}: the https answers are validated`, () => {
+    const cases = {
+      none: "{}",
+      good: JSON.stringify({ https: { enabled: true, httpsPort: 8443, httpPort: "8081", publicHost: "rx.lab.local", extraNames: ["alias.lab.local"] } }),
+      badPort: JSON.stringify({ https: { httpsPort: 70000 } }),
+      textPort: JSON.stringify({ https: { httpPort: "eighty" } }),
+      badName: JSON.stringify({ https: { extraNames: ["not a name"] } })
+    };
+    const body = Object.entries(cases).map(([name, json]) => `$r['${name}'] = Test-HttpsAnswers -Answers ('${Buffer.from(json).toString("base64")}' | ForEach-Object { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($_)) } | ConvertFrom-Json)`).join("\n");
+    const out = runPs(exe, `$r = @{}\n${body}\n$r | ConvertTo-Json -Compress -Depth 4`);
+    assert.deepEqual([].concat(out.none), []);
+    assert.deepEqual([].concat(out.good), []);
+    assert.match([].concat(out.badPort).join(" "), /httpsPort must be between 1 and 65535/);
+    assert.match([].concat(out.textPort).join(" "), /httpPort must be between 1 and 65535/);
+    assert.match([].concat(out.badName).join(" "), /not a valid host name/);
   });
 
   test(`${exe}: answers are validated`, () => {
@@ -229,11 +262,30 @@ test("a dry run lists the whole plan, asks nothing and changes nothing", { skip:
   const run = spawnSync(shells()[0], ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(installDir, "Install-OptiLens.ps1"), "-DryRun", "-ConfigFile", config], { encoding: "utf8" });
   const out = run.stdout + run.stderr;
   assert.equal(run.status, 0, out);
-  for (const step of ["Install Node.js", "Install Claude Code CLI", "Install packages", "Check and apply the licence", "Install SQL Server", "Configure SQL Server", "Create database and login", "Write .env", "Create folders", "Apply migrations", "Create administrator and site settings", "Open the firewall", "Start the application", "Keep it running", "Verify"]) {
+  for (const step of ["Install Node.js", "Install Claude Code CLI", "Install packages", "Check and apply the licence", "Install SQL Server", "Configure SQL Server", "Create database and login", "Create HTTPS certificate", "Write .env", "Create folders", "Apply migrations", "Create administrator and site settings", "Open the firewall", "Check web ports", "Start the application", "Keep it running", "Verify HTTPS", "Verify"]) {
     assert.match(out, new RegExp(`PLAN\\s+${step}`), step);
   }
   assert.match(out, /Dry run only/);
+  assert.match(out, /HTTPS\s+: app serves 443, port 80 redirects to it/);
+  assert.match(out, /allow inbound TCP 80 and 443/);
   assert.equal(fs.existsSync(stateFile), before, "a dry run writes no state");
+});
+
+test("-NoHttps keeps the plain HTTP plan and plans no certificate", { skip: process.platform !== "win32" || shells().length === 0 }, () => {
+  const dir = fs.mkdtempSync(path.join(scratch, "dry-nohttps-"));
+  const config = path.join(dir, "install.json");
+  fs.writeFileSync(config, JSON.stringify({
+    licenceFile: licence(), port: 8081,
+    folders: { incoming: "D:\\Innovations\\Incoming" },
+    admin: { username: "lab.admin" },
+    site: { labNum: "1177", remoteOperator: "1177-004" }
+  }));
+  const run = spawnSync(shells()[0], ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(installDir, "Install-OptiLens.ps1"), "-DryRun", "-NoHttps", "-ConfigFile", config], { encoding: "utf8" });
+  const out = run.stdout + run.stderr;
+  assert.equal(run.status, 0, out);
+  assert.doesNotMatch(out, /Create HTTPS certificate|Verify HTTPS|Check web ports/);
+  assert.match(out, /allow inbound TCP 8081 from the local subnet/);
+  assert.match(out, /HTTPS\s+: off/);
 });
 
 test("the installer's files are classified for licensed builds", () => {
