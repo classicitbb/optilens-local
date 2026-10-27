@@ -37,6 +37,24 @@ What it asks:
 
 **Claude Code CLI.** The installer puts `claude` on the machine (`winget` package `Anthropic.ClaudeCode`, plus Git for Windows, which it uses for shell tools) and checks `claude --version`. It cannot sign in for you: after the install, open a new terminal as the person who will use it, run `claude` once and sign in. It is installed for the Windows account that ran the installer.
 
+**HTTPS and the network.** By default the app serves HTTPS itself, so there is no IIS or reverse proxy to set up. The installer:
+
+1. reads the server's name and IPv4 addresses and makes a *local certificate authority* (kept in the server's certificate store, key not exportable) and a server certificate for those names, valid about 26 months (`data\certificates\optilens-server.pfx`, protected by a passphrase kept only in `.env`);
+2. trusts that authority on the server itself, sets `OPTILENS_TLS_PFX` and the ports in `.env`, and makes the app's own port (8080) listen on this machine only;
+3. opens TCP 80 and 443 to the local subnet and checks that nothing else (IIS, for example) is using them;
+4. after starting the app, checks HTTPS with the new certificate, that port 80 redirects to it, that the certificate download works, and that port 8080 is not reachable from the network.
+
+People then open `https://<server name>/`. Each phone, tablet and PC must trust the lab's certificate authority once, or the browser warns and the microphone, clipboard and app-install features stay blocked. Send them to `http://<server name>/cert`: that page stays on plain HTTP on purpose, detects the device, gives the steps, and serves `OptiLens-Local-Root-CA.cer` (the file is also in `data\certificates\`). Phones cannot always look up a Windows computer name; give them the server's IP address (`https://192.168.x.x/`, also covered by the certificate) or ask the lab to add a DNS name, then set `https.publicHost` and run the installer again.
+
+| Config (`https` section) | Meaning |
+| --- | --- |
+| `enabled` | `false` (or the `-NoHttps` switch) keeps plain HTTP on `port`, open to the local subnet. Not recommended: browsers block the microphone and clipboard on other PCs |
+| `publicHost` | The name people use. Default: the computer name |
+| `extraNames` | More DNS names to put in the certificate |
+| `httpsPort`, `httpPort` | Default 443 and 80. Change them only if something else owns those ports |
+
+If the server's name or IP address changes, or the certificate has under two months left, run the installer again: it issues a new server certificate from the same authority, so devices that already trust the authority keep working. If the lab already has a certificate, set `OPTILENS_TLS_PFX` and `OPTILENS_TLS_PFX_PASSPHRASE` (or `OPTILENS_TLS_CERT` and `OPTILENS_TLS_KEY`) in `.env` yourself and run with `-NoHttps` so the installer does not replace it.
+
 **Passwords.** The installer never reads a password from a file, a parameter or an environment variable. Its own passwords it generates. Yours you type at the prompt. Nothing secret is written to `data\install.log`.
 
 **Repeating it.** Each step checks whether it is already done, so after a failure fix the cause and run it again. Answers already given are remembered in `data\install-state.json` (no secrets). A second run never resets the administrator's password or the database login.
@@ -164,7 +182,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-app-watchdog
 
 It prompts for the password of the Windows account the application will run as and registers a task that starts the application at boot and restarts it if `/api/health/live` stops answering. Use `-RunAsUser "DOMAIN\User"` to choose the account. The account needs write access to the repository folder and the incoming folder.
 
-Open TCP 8080 in Windows Firewall for the lab's network only. If the lab wants HTTPS, put a reverse proxy in front of port 8080 (IIS with a certificate, for example) and leave the application on HTTP.
+Open TCP 8080 in Windows Firewall for the lab's network only. For HTTPS without the installer, create a certificate for the server's names, export it as a `.pfx`, and add `OPTILENS_TLS_PFX=<path>` and `OPTILENS_TLS_PFX_PASSPHRASE=<passphrase>` to `.env`: the app then also serves HTTPS on 443 and redirects port 80 to it (`OPTILENS_HTTPS_PORT`, `OPTILENS_HTTP_REDIRECT_PORT`). Set `OPTILENS_HOST=127.0.0.1` so port 8080 is not reachable from the network, and open 80 and 443 instead. A reverse proxy such as IIS also works if the lab prefers it.
 
 Stop and start it with `scripts\stop-app.ps1` and `scripts\start-app.ps1`.
 
@@ -192,5 +210,5 @@ Stop and start it with `scripts\stop-app.ps1` and `scripts\start-app.ps1`.
 
 ## Known gaps in this guide
 
-- Neither the manual steps nor `Install-OptiLens.ps1` has run on a blank server yet. What is tested: the licence check, the password, `.env`, validation and SQL-capacity logic, both scripts parsing in PowerShell 5.1 and 7, and a dry run. What is not: the `winget` installs of Node.js and SQL Express (including `/INSTANCENAME` for a second instance), the registry changes that enable TCP/IP and mixed sign-in, and the scheduled task. Expect to correct details on the first real install, and send them back as a pull request to core.
+- Neither the manual steps nor `Install-OptiLens.ps1` has run on a blank server yet. What is tested: the licence check, the password, `.env`, validation and SQL-capacity logic, the certificate name list, all scripts parsing in PowerShell 5.1 and 7, a dry run, the HTTPS listener and port 80 redirect (with a throwaway certificate), and the certificate creation (in a current-user store). What is not: the `winget` installs of Node.js, Git, Claude Code and SQL Express (including `/INSTANCENAME` for a second instance), the registry changes that enable TCP/IP and mixed sign-in, the scheduled task, the machine-store certificate and firewall changes, and a phone or another PC trusting the certificate. Expect to correct details on the first real install, and send them back as a pull request to core.
 - Windows service installation is not covered. The scheduled-task watchdog is the supported way to keep the application up.

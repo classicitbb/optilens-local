@@ -180,6 +180,7 @@
     { "match": "test/host-*.test.js", "owner": "core" },
     { "match": "test/windows-protected-store.test.js", "owner": "core" },
     { "match": "test/certificate-setup.test.js", "owner": "core" },
+    { "match": "test/tls-front.test.js", "owner": "core" },
     { "match": "test/**", "owner": "never" }
   ]
 }

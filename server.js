@@ -204,6 +204,7 @@ const { getEdition } = require("./lib/edition");
 const { inactivePageHtml, refreshManifest, renewalStatus, startEditionRenewal } = require("./lib/edition-renewal");
 const { siteSettings } = require("./lib/site-settings");
 const { handleCertificateSetupRoute } = require("./lib/certificate-setup");
+const { startTlsFront } = require("./lib/tls-front");
 const { handleEmailRoute } = require("./lib/email/routes");
 const { startEmailSync } = require("./lib/email/service");
 const { normaliseOrderSettings, orderSettingsKey, parseOrderSettings } = require("./lib/rx-order-settings");
@@ -3896,6 +3897,9 @@ server.listen(port, host, () => {
   if (edition.restricted) {
     startEditionRenewal({ onUpdate: (result) => console.log(`Edition manifest updated: ${result.message} Restart the service to start or stop background workers.`) });
   }
+  // Built-in HTTPS (installed labs): listeners start only when a certificate is configured.
+  startTlsFront({ appServer: server, handleCertificateRoute: handleCertificateSetupRoute })
+    .catch((error) => console.error("HTTPS did not start:", error.message));
   recoverRxCaptureProcessing()
     .then((orders) => { if (orders.length) console.log(`Recovered ${orders.length} interrupted RX Capture extraction${orders.length === 1 ? "" : "s"}.`); })
     .catch((error) => console.error("RX Capture processing recovery did not start:", error.message));
