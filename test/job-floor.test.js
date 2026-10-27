@@ -135,7 +135,11 @@ test("job-floor page is wired into routes, permissions, edition and launcher", (
   assert.match(read("public/job-floor.js"), /\/api\/job-floor/);
   const server = read("server.js");
   assert.match(server, /"\/modules\/job-floor":\s+"job-floor\.html"/);
-  assert.match(server, /"\/modules\/job-floor": \["automation\.read", "automation\.manage"\]/);
+  const { MODULE_ACCESS, MODULE_PAGES } = require("../lib/auth");
+  const moduleAccess = MODULE_ACCESS.find((item) => item.code === "job-floor");
+  assert.deepEqual(moduleAccess.readPermissions.concat(moduleAccess.fullPermissions), ["job-floor.read", "job-floor.manage"]);
+  assert.ok(MODULE_PAGES["job-floor"].includes("/modules/job-floor"));
+  assert.match(server, /\.\.\.modulePagePermissions\(\)/);
   assert.match(server, /handleJobFloorRoute\(/);
   const edition = read("lib/edition.js");
   assert.match(edition, /"\/modules\/job-floor"/);

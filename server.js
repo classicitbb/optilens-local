@@ -233,6 +233,7 @@ const {
   getUserAccess,
   listUsers,
   MODULE_ACCESS,
+  MODULE_PAGES,
   updateRole,
   updateUser
 } = require("./lib/auth");
@@ -1601,7 +1602,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/business-metrics" && req.method === "GET") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      await requirePermission(req, "business-metrics.read");
       return getBusinessMetrics();
     });
   }
@@ -1609,7 +1610,7 @@ const server = http.createServer(async (req, res) => {
   // Cost Check: scan orders and lenses and see their costing. Reads Innovations only.
   if (url.pathname === "/api/costing/scan" && req.method === "POST") {
     return handleApi(res, async () => {
-      const user = await requirePermission(req, "pricing.read");
+      const user = await requirePermission(req, "cost-check.read");
       const body = await readJsonBody(req);
       const result = await scanCosting(body.codes);
       // What this user may do about a problem, so the page only offers buttons that can work.
@@ -1625,7 +1626,7 @@ const server = http.createServer(async (req, res) => {
   // description were costed at. Read-only, so anyone who can see costing can search.
   if (url.pathname === "/api/costing/search" && req.method === "POST") {
     return handleApi(res, async () => {
-      await requirePermission(req, "pricing.read");
+      await requirePermission(req, "cost-check.read");
       const body = await readJsonBody(req);
       return searchCostItems({ query: body.query, description: body.description });
     });
@@ -1645,7 +1646,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       "production-status",
-      () => requirePermission(req, "platform.admin"),
+      () => requirePermission(req, "production-status.read"),
       () => getProductionStatus()
     );
   }
@@ -1655,7 +1656,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `production-status-orders:${url.searchParams.toString()}`,
-      () => requirePermission(req, "platform.admin"),
+      () => requirePermission(req, "production-status.read"),
       () => getProductionOrders(Object.fromEntries(url.searchParams.entries()))
     );
   }
@@ -1667,7 +1668,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `summary:${url.searchParams.get("period") || "ytd"}`,
-      () => requirePermission(req, "delivery.read"),
+      () => requirePermission(req, "business-metrics.read"),
       () => getOverviewSummary({ period: url.searchParams.get("period") })
     );
   }
@@ -1678,7 +1679,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `detail:${section}`,
-      () => requirePermission(req, "delivery.read"),
+      () => requirePermission(req, "business-metrics.read"),
       () => getDetailSection(section)
     );
   }
@@ -1689,7 +1690,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `drill:${kind}:${url.searchParams.toString()}`,
-      () => requirePermission(req, "delivery.read"),
+      () => requirePermission(req, "business-metrics.read"),
       () => getDrill(kind, params)
     );
   }
@@ -1718,7 +1719,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `recommendations:${url.searchParams.get("includeDecided") || "0"}`,
-      () => requirePermission(req, "delivery.read"),
+      () => requirePermission(req, "business-metrics.read"),
       () => getRecommendations({ includeDecided: url.searchParams.get("includeDecided") === "1" })
     );
   }
@@ -1727,7 +1728,7 @@ const server = http.createServer(async (req, res) => {
   // never in Innovations, which is configured read-only.
   if (url.pathname === "/api/business-metrics/recommendations/decision" && req.method === "POST") {
     return handleApi(res, async () => {
-      const actor = await requirePermission(req, "delivery.write");
+      const actor = await requirePermission(req, "business-metrics.manage");
       const body = await readJsonBody(req);
       return recordRecommendationDecision({
         recommendation: body.recommendation,
@@ -1744,14 +1745,14 @@ const server = http.createServer(async (req, res) => {
   // instead of offering a chat box that cannot answer.
   if (url.pathname === "/api/business-metrics/assistant/status" && req.method === "GET") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      await requirePermission(req, "business-metrics.read");
       return getAssistantStatus();
     });
   }
 
   if (url.pathname === "/api/business-metrics/assistant/config" && req.method === "GET") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      await requirePermission(req, "business-metrics.read");
       const cfg = await loadProviderConfig();
       return {
         provider: cfg.provider,
@@ -1764,7 +1765,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/business-metrics/assistant/config" && req.method === "POST") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      await requirePermission(req, "business-metrics.read");
       const actor = req.actor || {};
       const body = await readJsonBody(req);
       const updated = await saveProviderConfig(body, actor.username || actor.userId || "user");
@@ -1779,7 +1780,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/api/business-metrics/transcribe" && req.method === "POST") {
     return handleApi(res, async () => {
-      await requirePermission(req, "delivery.read");
+      await requirePermission(req, "business-metrics.read");
       const body = await readJsonBody(req);
       if (!body.audioBase64) {
         throw Object.assign(new Error("audioBase64 payload required for audio transcription."), { statusCode: 400 });
@@ -1793,7 +1794,7 @@ const server = http.createServer(async (req, res) => {
   // visible context first and may run a bounded, audited live read for admins.
   if (url.pathname === "/api/business-metrics/ask" && req.method === "POST") {
     return handleApi(res, async () => {
-      const actor = await requirePermission(req, "delivery.read");
+      const actor = await requirePermission(req, "business-metrics.read");
       const body = await readJsonBody(req);
       return askAssistant({ question: body.question, section: body.section, actor });
     });
@@ -1842,7 +1843,7 @@ const server = http.createServer(async (req, res) => {
     return handleCachedApi(
       req, res,
       `context:${section}`,
-      () => requirePermission(req, "delivery.read"),
+      () => requirePermission(req, "business-metrics.read"),
       () => getSectionContext(section)
     );
   }
@@ -3004,6 +3005,17 @@ function redirectToSignIn(res, url) {
   res.end();
 }
 
+// Module pages are guarded by the module's own permissions, so a role can be given
+// or denied each module from the Users page. Source of truth: MODULE_ACCESS/MODULE_PAGES.
+function modulePagePermissions() {
+  const map = {};
+  for (const module of MODULE_ACCESS) {
+    const permissions = module.readPermissions.concat(module.fullPermissions);
+    for (const page of MODULE_PAGES[module.code] || []) map[page] = permissions;
+  }
+  return map;
+}
+
 function canAccessPage(requestPath, user) {
   if (!user) return false;
   const route = normalizeRoutePath(requestPath);
@@ -3017,31 +3029,7 @@ function canAccessPage(requestPath, user) {
     "/credentials.html": ["credentials.manage"],
     "/admin/users": ["users.manage"],
     "/admin-users.html": ["users.manage"],
-    "/modules/delivery-export": ["delivery.read"],
-    "/delivery-export.html": ["delivery.read"],
-    "/modules/pricing-automation": ["pricing.read"],
-    "/pricing-automation.html": ["pricing.read"],
-    "/tools/pricing-automation/index.html": ["pricing.read"],
-    "/modules/integrations": ["integrations.read"],
-    "/integrations.html": ["integrations.read"],
-    "/modules/automation": ["automation.read", "automation.manage"],
-    "/automation.html": ["automation.read", "automation.manage"],
-    "/modules/os-lab-status": ["automation.read", "automation.manage"],
-    "/modules/job-floor": ["automation.read", "automation.manage"],
-    "/job-floor.html": ["automation.read", "automation.manage"],
-    "/modules/automation/supplier-email": ["automation.read", "automation.manage"],
-    "/rx-capture": ["rx-capture.read", "rx-capture.write"],
-    "/rx-capture.html": ["rx-capture.read", "rx-capture.write"],
-    "/modules/business-metrics": ["platform.admin"],
-    "/business-metrics.html": ["platform.admin"],
-    "/modules/inventory-intelligence": ["platform.admin"],
-    "/inventory-intelligence.html": ["platform.admin"],
-    "/modules/inventory-clearance": ["platform.admin"],
-    "/clearance-catalogue.html": ["platform.admin"],
-    "/modules/production-status": ["platform.admin"],
-    "/production-status.html": ["platform.admin"],
-    "/modules/cost-check": ["pricing.read"],
-    "/cost-check.html": ["pricing.read"]
+    ...modulePagePermissions()
   };
 
   const required = pagePermissions[route];

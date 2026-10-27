@@ -505,7 +505,8 @@ test("page and server integration preserve full-screen, authenticated camera cap
   assert.match(client, /\["patient\.name", "patient\.reference"\]\.includes\(input\.dataset\.path\).*uppercaseInputValue/);
   assert.match(client, /const extractedEd = window\.RxValidation\.num\(state\.current\?\.extractedOrder\?\.frame\?\.ed\)/);
   assert.match(server, /handleRxCaptureRoute/);
-  assert.match(server, /"\/rx-capture": \["rx-capture\.read", "rx-capture\.write"\]/);
+  assert.match(server, /\.\.\.modulePagePermissions\(\)/);
+  assert.ok(require("../lib/auth").MODULE_PAGES["rx-capture"].includes("/rx-capture"));
   assert.match(auth, /code: "rx-capture"/);
   assert.doesNotMatch(service, /WHERE created_by_user_id = @user_id/);
   assert.doesNotMatch(service, /capture_order_id = @capture_order_id AND created_by_user_id = @user_id/);

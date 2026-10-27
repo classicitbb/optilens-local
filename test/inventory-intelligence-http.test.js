@@ -15,10 +15,12 @@ const ROOT = path.join(__dirname, "..");
 
 const USERS = {
   admin: { userId: "u-admin", username: "ann", permissions: ["platform.admin", "delivery.read", "delivery.write"] },
-  reader: { userId: "u-read", username: "rita", permissions: ["delivery.read"] },
+  reader: { userId: "u-read", username: "rita", permissions: ["inventory.read"] },
+  deliveryOnly: { userId: "u-do", username: "dora", permissions: ["delivery.read"] },
+  clearanceReader: { userId: "u-cl", username: "clara", permissions: ["clearance.read"] },
   inventoryReader: { userId: "u-inv", username: "ivan", permissions: ["inventory.read"] },
   inventoryWriter: { userId: "u-invw", username: "wendy", permissions: ["inventory.read", "inventory.write"] },
-  deliveryWriter: { userId: "u-dw", username: "dave", permissions: ["delivery.read", "delivery.write"] },
+  deliveryWriter: { userId: "u-dw", username: "dave", permissions: ["inventory.read", "delivery.read", "delivery.write"] },
   customer: { userId: "u-cust", username: "carol", permissions: ["rx-capture.read"] },
   nobody: { userId: "u-none", username: "nina", permissions: [] }
 };
@@ -102,6 +104,12 @@ test("read access does not allow changes; only inventory.write or platform.admin
   assert.equal(ok.body.recommendation.status, "APPROVED");
   assert.equal(ok.body.recommendation.decisionActor, "wendy", "the signed-in user is the approver");
   assert.equal(store.mem.settings[0].approvedBy, "wendy");
+});
+
+test("module permissions are separate: delivery.read is not inventory access, clearance has its own", async () => {
+  await seeded();
+  assert.equal((await call("GET", `${API}/queue`, { user: "deliveryOnly" })).status, 403);
+  assert.equal((await call("GET", `${API}/queue`, { user: "clearanceReader" })).status, 403);
 });
 
 test("the summary tells the page whether this user can approve", async () => {
@@ -381,17 +389,21 @@ test("a database outage is reported as 'unavailable', not as an empty queue", as
 
 /* ─────────── visibility: no customer-facing surface ─────────── */
 
-test("the dedicated cockpit route is administrator-only", () => {
+test("the dedicated cockpit route is gated by its own module permission, not delivery or pricing", () => {
   const server = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
-  assert.match(server, /"\/inventory-intelligence\.html": \["platform\.admin"\]/);
-  assert.match(server, /"\/modules\/inventory-intelligence": \["platform\.admin"\]/);
+  const { MODULE_ACCESS, MODULE_PAGES } = require("../lib/auth");
+  const module = MODULE_ACCESS.find((item) => item.code === "inventory-intelligence");
+  assert.deepEqual(module.readPermissions.concat(module.fullPermissions), ["inventory.read", "inventory.write"]);
+  assert.ok(MODULE_PAGES["inventory-intelligence"].includes("/inventory-intelligence.html"));
+  assert.ok(MODULE_PAGES["inventory-intelligence"].includes("/modules/inventory-intelligence"));
+  assert.match(server, /\.\.\.modulePagePermissions\(\)/);
   assert.match(server, /"\/modules\/inventory-intelligence": "inventory-intelligence\.html"/);
   assert.match(server, /handleInventoryRoute\(\{ req, res, url, readJsonBody, currentUser, sendJson \}\)/);
 });
 
 test("only staff-side code references the cockpit: no portal, website connector or public API does", () => {
   const allowed = new Set([
-    "server.js", "lib/migrations.js", "lib/edition.js", "public/business-metrics.html", "public/inventory-intelligence.html",
+    "server.js", "lib/auth.js", "lib/migrations.js", "lib/edition.js", "public/business-metrics.html", "public/inventory-intelligence.html",
     "public/app.js", "public/shared.js", "public/business-metrics-inventory-intelligence.js",
     "public/clearance-catalogue.js", "scripts/export-clearance-catalogue.js", "scripts/publish-clearance-catalogue.js",
     "public/styles/pages/inventory-intelligence.css", "scripts/run-inventory-intelligence-scan.js",

@@ -9,7 +9,12 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 test("OS Lab status inbox is served from its own module route with automation permissions", () => {
   const server = read("server.js");
   assert.match(server, /"\/modules\/os-lab-status":\s+"supplier-email\.html"/);
-  assert.match(server, /"\/modules\/os-lab-status": \["automation\.read", "automation\.manage"\]/);
+  const { MODULE_ACCESS, MODULE_PAGES } = require("../lib/auth");
+  const moduleAccess = MODULE_ACCESS.find((item) => item.code === "os-lab-status");
+  assert.deepEqual(moduleAccess.readPermissions.concat(moduleAccess.fullPermissions), ["os-lab.read", "os-lab.manage"]);
+  assert.ok(MODULE_PAGES["os-lab-status"].includes("/modules/os-lab-status"));
+  assert.ok(MODULE_PAGES["os-lab-status"].includes("/modules/automation/supplier-email"));
+  assert.match(server, /\.\.\.modulePagePermissions\(\)/);
   assert.match(server, /"\/modules\/automation\/supplier-email":\s+"supplier-email\.html"/,
     "the old Automation URL must keep working for existing bookmarks");
 });

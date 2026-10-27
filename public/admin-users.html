@@ -4,99 +4,101 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0B1E35">
-  <title>Users | OptiLens Local</title>
+  <title>Users and Access | OptiLens Local</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/optilens.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/styles/system.css">
+  <link rel="stylesheet" href="/styles/pages/admin-users.css">
 </head>
 <body class="module-body">
   <div id="app-shell-header"></div>
 <script>
   window.OptiLensPage = {
-    crumb: "Users"
+    crumb: "Users and Access"
   };
 </script>
 
-
   <main class="module-main">
-    <section class="module-workspace">
+    <section class="module-workspace ua">
       <div class="module-title">
         <div>
           <p class="eyebrow">Platform admin</p>
-          <h1>Users</h1>
+          <h1>Users and Access</h1>
         </div>
+        <div class="ua-summary" id="uaSummary" aria-live="polite"></div>
       </div>
 
-      <div class="workflow-panel active">
-        <div class="admin-grid">
-          <form class="admin-panel" id="userForm">
-            <div class="admin-panel-head">
-              <h2>Create User</h2>
-            </div>
-            <div class="admin-panel-body">
-              <label>Username
-                <input id="newUsername" autocomplete="off" required>
-              </label>
-              <label>Display name
-                <input id="newDisplayName" autocomplete="name" required>
-              </label>
-              <label>Email
-                <input id="newEmail" type="email" autocomplete="email">
-              </label>
-              <label>Temporary password
-                <input id="newPassword" type="password" autocomplete="new-password" required>
-              </label>
-              <div>
-                <p class="eyebrow">Roles</p>
-                <div class="checkbox-grid" id="roleChoices"></div>
-              </div>
-              <div class="admin-message" id="userFormMessage"></div>
-              <button class="button primary" type="submit">Create user</button>
-            </div>
-          </form>
+      <div class="ua-status" id="uaStatus" role="status" aria-live="polite"></div>
 
-          <form class="admin-panel" id="roleForm">
-            <div class="admin-panel-head">
-              <h2>Role Templates</h2>
-            </div>
-            <div class="admin-panel-body">
-              <label>Role name
-                <input id="newRoleName" autocomplete="off" required>
-              </label>
-              <label>Role code
-                <input id="newRoleCode" autocomplete="off" placeholder="shipping">
-              </label>
-              <div>
-                <p class="eyebrow">Default module access</p>
-                <div class="module-access-grid" id="newRoleModuleAccess"></div>
-              </div>
-              <div class="admin-message" id="roleFormMessage"></div>
-              <button class="button primary" type="submit">Create role</button>
-            </div>
-          </form>
-
-          <section class="admin-panel">
-            <div class="admin-panel-head">
-              <h2>Active Accounts</h2>
-            </div>
-            <div class="admin-panel-body">
-              <div class="admin-message" id="userListMessage">Loading users...</div>
-              <div class="user-list" id="userList"></div>
-            </div>
-          </section>
-
-          <section class="admin-panel admin-panel-wide">
-            <div class="admin-panel-head">
-              <h2>Role Access</h2>
-            </div>
-            <div class="admin-panel-body">
-              <div class="admin-message" id="roleListMessage"></div>
-              <div class="role-list" id="roleList"></div>
-            </div>
-          </section>
-        </div>
+      <div class="ua-tabs" role="tablist" aria-label="Users and access sections">
+        <button class="ua-tab" role="tab" id="tab-users" data-tab="users" aria-selected="true" aria-controls="panel-users">
+          <span class="material-symbols-outlined" aria-hidden="true">group</span> Users
+        </button>
+        <button class="ua-tab" role="tab" id="tab-roles" data-tab="roles" aria-selected="false" aria-controls="panel-roles">
+          <span class="material-symbols-outlined" aria-hidden="true">badge</span> Roles
+        </button>
+        <button class="ua-tab" role="tab" id="tab-matrix" data-tab="matrix" aria-selected="false" aria-controls="panel-matrix">
+          <span class="material-symbols-outlined" aria-hidden="true">grid_on</span> Access matrix
+        </button>
       </div>
+
+      <!-- Users -->
+      <section class="ua-panel" id="panel-users" role="tabpanel" aria-labelledby="tab-users">
+        <div class="ua-split">
+          <div class="ua-list-pane">
+            <div class="ua-toolbar">
+              <label class="ua-search">
+                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                <input id="userSearch" type="search" placeholder="Search name, username or email" autocomplete="off" aria-label="Search users">
+              </label>
+              <select id="userRoleFilter" aria-label="Filter by role"></select>
+              <select id="userStateFilter" aria-label="Filter by status">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <button class="button primary" type="button" id="newUserButton">
+                <span class="material-symbols-outlined" aria-hidden="true">person_add</span> New user
+              </button>
+            </div>
+            <div class="ua-table-wrap">
+              <table class="ua-table" id="userTable">
+                <thead>
+                  <tr><th scope="col">User</th><th scope="col">Roles</th><th scope="col">Last sign-in</th><th scope="col">Status</th></tr>
+                </thead>
+                <tbody id="userRows"></tbody>
+              </table>
+              <p class="ua-empty" id="userEmpty" hidden></p>
+            </div>
+          </div>
+          <aside class="ua-detail" id="userDetail" aria-label="User details"></aside>
+        </div>
+      </section>
+
+      <!-- Roles -->
+      <section class="ua-panel" id="panel-roles" role="tabpanel" aria-labelledby="tab-roles" hidden>
+        <div class="ua-split ua-split-roles">
+          <div class="ua-list-pane">
+            <div class="ua-toolbar">
+              <p class="ua-hint">A role decides which modules a person can open. Assign roles to users on the Users tab.</p>
+              <button class="button primary" type="button" id="newRoleButton">
+                <span class="material-symbols-outlined" aria-hidden="true">add</span> New role
+              </button>
+            </div>
+            <ul class="ua-role-list" id="roleRows"></ul>
+          </div>
+          <aside class="ua-detail" id="roleDetail" aria-label="Role details"></aside>
+        </div>
+      </section>
+
+      <!-- Matrix -->
+      <section class="ua-panel" id="panel-matrix" role="tabpanel" aria-labelledby="tab-matrix" hidden>
+        <p class="ua-hint">Every module and what each role can do in it. Select a role name to edit it.</p>
+        <div class="ua-table-wrap">
+          <table class="ua-table ua-matrix" id="matrixTable"></table>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -104,4 +106,3 @@
   <script src="/admin-users.js"></script>
 </body>
 </html>
-

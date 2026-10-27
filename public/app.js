@@ -94,7 +94,7 @@ const platformApplications = [
     href: "/modules/os-lab-status",
     summary: "Supplier status emails matched to live orders, with exceptions and write-back approval.",
     status: "first-build",
-    permissions: ["automation.read", "automation.manage"]
+    permissions: ["os-lab.read", "os-lab.manage"]
   },
   {
     id: "job-floor",
@@ -102,7 +102,7 @@ const platformApplications = [
     href: "/modules/job-floor",
     summary: "Scan or type a tray ID to update its order's status in Innovations, like the Mobile app, with audited writes.",
     status: "first-build",
-    permissions: ["automation.read", "automation.manage"]
+    permissions: ["job-floor.read", "job-floor.manage"]
   },
   {
     id: "business-metrics",
@@ -110,7 +110,7 @@ const platformApplications = [
     href: "/modules/business-metrics",
     summary: "Leadership and operations metrics for enabled workflows.",
     status: "planned",
-    permissions: ["platform.admin"]
+    permissions: ["business-metrics.read", "business-metrics.manage"]
   },
   {
     id: "inventory-intelligence",
@@ -118,7 +118,23 @@ const platformApplications = [
     href: "/modules/inventory-intelligence",
     summary: "Replenishment evidence, work queues, approvals, and draft PO previews.",
     status: "first-build",
-    permissions: ["platform.admin"]
+    permissions: ["inventory.read", "inventory.write"]
+  },
+  {
+    id: "inventory-clearance",
+    name: "Clearance Catalogue",
+    href: "/modules/inventory-clearance",
+    summary: "Read-only clearance stock projection and daily publication status.",
+    status: "first-build",
+    permissions: ["clearance.read"]
+  },
+  {
+    id: "production-status",
+    name: "Production Status",
+    href: "/modules/production-status",
+    summary: "Throughput, work in progress and work-order aging from live Innovations.",
+    status: "first-build",
+    permissions: ["production-status.read"]
   },
   {
     id: "cost-check",
@@ -126,7 +142,7 @@ const platformApplications = [
     href: "/modules/cost-check",
     summary: "Scan an order or lens to see its costs and margins, and fix missing or wrong costing.",
     status: "first-build",
-    permissions: ["pricing.read"]
+    permissions: ["cost-check.read", "cost-check.manage"]
   },
   {
     id: "release-notes",

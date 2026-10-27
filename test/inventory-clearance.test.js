@@ -51,8 +51,12 @@ test("catalogue route keeps existing authentication and no-store boundary", asyn
 test("preview page and its HTML alias remain administrator-only and edition-scoped", () => {
   const fs=require("node:fs");
   const server=fs.readFileSync(require.resolve("../server"),"utf8");
-  assert.match(server, /"\/modules\/inventory-clearance": \["platform\.admin"\]/);
-  assert.match(server, /"\/clearance-catalogue\.html": \["platform\.admin"\]/);
+  const {MODULE_ACCESS, MODULE_PAGES}=require("../lib/auth");
+  const module=MODULE_ACCESS.find((item)=>item.code==="inventory-clearance");
+  assert.deepEqual(module.readPermissions.concat(module.fullPermissions), ["clearance.read"]);
+  assert.ok(MODULE_PAGES["inventory-clearance"].includes("/modules/inventory-clearance"));
+  assert.ok(MODULE_PAGES["inventory-clearance"].includes("/clearance-catalogue.html"));
+  assert.match(server, /\.\.\.modulePagePermissions\(\)/);
   const edition=fs.readFileSync(require.resolve("../lib/edition"),"utf8");
   assert.match(edition, /pages: \[.*"\/modules\/inventory-clearance".*"\/clearance-catalogue\.html"/);
 });
