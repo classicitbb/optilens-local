@@ -13,6 +13,7 @@ const SHELL_APP_CATALOG = [
   { id: "automation",        label: "Automation",        meta: "Module",   icon: "bolt",          href: "/modules/automation",         color: "#7c3aed", permissions: ["automation.read", "automation.manage"] },
   { id: "os-lab-status",     label: "OS Lab Status Inbox", meta: "Module", icon: "mark_email_read", href: "/modules/os-lab-status",   color: "#c89130", permissions: ["os-lab.read", "os-lab.manage"] },
   { id: "job-floor",         label: "Status Update",       meta: "Module",   icon: "assignment_turned_in", href: "/modules/job-floor",      color: "#0f7c86", permissions: ["job-floor.read", "job-floor.manage"] },
+  { id: "innovations-console", label: "Innovations Console", meta: "Module", icon: "local_shipping", href: "/modules/innovations-console", color: "#4a148c", permissions: ["innovations-console.read", "innovations-console.manage"] },
   { id: "rx-capture",        label: "RX Capture",        meta: "Module",   icon: "document_scanner", href: "/rx-capture",                    color: "#0f7c86", permissions: ["rx-capture.read", "rx-capture.write"] },
   { id: "business-metrics",  label: "Business Metrics",  meta: "Module",   icon: "monitoring",    href: "/modules/business-metrics",   color: "#b45309", permissions: ["business-metrics.read", "business-metrics.manage"] },
   { id: "inventory-intelligence", label: "Inventory Intelligence", meta: "Module", icon: "inventory", href: "/modules/inventory-intelligence", color: "#1A8A9C", permissions: ["inventory.read", "inventory.write"] },
@@ -216,6 +217,12 @@ function getShellPageConfig() {
     },
     "/job-floor.html": {
       crumb: "Status Update"
+    },
+    "/modules/innovations-console": {
+      crumb: "Innovations Console"
+    },
+    "/innovations-console.html": {
+      crumb: "Innovations Console"
     },
     "/modules/cost-check": {
       crumb: "Cost Check"
@@ -1494,7 +1501,7 @@ function launcherTileColor(app) {
 // Which licensed module owns each launcher item; items not listed belong to the core.
 const SHELL_ITEM_MODULE = {
   "delivery-export": "delivery-export", "pricing-automation": "pricing-automation", "cost-check": "pricing-automation",
-  integrations: "integrations", automation: "automation", "os-lab-status": "automation", "job-floor": "automation", "rx-capture": "rx-capture",
+  integrations: "integrations", automation: "automation", "os-lab-status": "automation", "job-floor": "automation", "innovations-console": "automation", "rx-capture": "rx-capture",
   "business-metrics": "business-metrics", "production-status": "business-metrics", "inventory-intelligence": "inventory-intelligence",
   credentials: "vault"
 };

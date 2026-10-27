@@ -18,7 +18,7 @@ From an **elevated** PowerShell, in the folder the vendor delivered:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install\Install-OptiLens.ps1
 ```
 
-It installs Node.js and SQL Server Express with `winget`, asks for the answers it needs, and finishes with the app running and checked. Add `-DryRun` first to see the plan without changing anything. To skip the questions that have fixed answers, copy `scripts\install\install.config.example.json`, fill it in and pass `-ConfigFile`.
+It installs Node.js, Git for Windows, the Claude Code CLI and SQL Server Express with `winget`, asks for the answers it needs, and finishes with the app running and checked. Add `-DryRun` first to see the plan without changing anything. To skip the questions that have fixed answers, copy `scripts\install\install.config.example.json`, fill it in and pass `-ConfigFile`.
 
 What it asks:
 
@@ -34,6 +34,8 @@ What it asks:
 | Windows password for the service account | Asked once by the Windows credentials dialog, for the scheduled task that keeps the app running |
 
 **SQL Server.** The installer looks for instances already on the machine. An instance is offered only if it is running, you can sign in to it as a sysadmin with your Windows account, it is SQL Server 2016 or later, its disk has at least 5 GB free, and (for Express) its databases total under 6 GB, because Express shares 1.4 GB of memory across all databases. If it qualifies, you are asked whether to use it. If it needs a restart (mixed sign-in or a fixed TCP port), you are asked to allow that. Otherwise, or if you answer no, it installs a new Express instance: `SQLEXPRESS`, or `OPTILENS` if that name is taken. It never installs over an existing instance. Either way it ends with `optilens_local` fully migrated and a dedicated `optilens_app` login whose password is generated and kept only in `.env`.
+
+**Claude Code CLI.** The installer puts `claude` on the machine (`winget` package `Anthropic.ClaudeCode`, plus Git for Windows, which it uses for shell tools) and checks `claude --version`. It cannot sign in for you: after the install, open a new terminal as the person who will use it, run `claude` once and sign in. It is installed for the Windows account that ran the installer.
 
 **Passwords.** The installer never reads a password from a file, a parameter or an environment variable. Its own passwords it generates. Yours you type at the prompt. Nothing secret is written to `data\install.log`.
 

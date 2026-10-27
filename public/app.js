@@ -105,6 +105,14 @@ const platformApplications = [
     permissions: ["job-floor.read", "job-floor.manage"]
   },
   {
+    id: "innovations-console",
+    name: "Innovations Console",
+    href: "/modules/innovations-console",
+    summary: "Tracking, status update, Rx job details and stock for the Innovations lab system, in the familiar Innovations layout.",
+    status: "first-build",
+    permissions: ["innovations-console.read", "innovations-console.manage"]
+  },
+  {
     id: "business-metrics",
     name: "Business Metrics",
     href: "/modules/business-metrics",
@@ -500,6 +508,7 @@ function moduleIcon(moduleId) {
     "automation": "bolt",
     "os-lab-status": "mark_email_read",
     "job-floor": "assignment_turned_in",
+    "innovations-console": "local_shipping",
     "rx-capture": "document_scanner"
   };
   return icons[moduleId] || "apps";

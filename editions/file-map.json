@@ -94,6 +94,8 @@
     { "match": "public/automation*", "owner": "automation" },
     { "match": "public/supplier-email*", "owner": "automation" },
     { "match": "public/job-floor*", "owner": "automation" },
+    { "match": "public/innovations-console*", "owner": "automation" },
+    { "match": "public/styles/pages/innovations-console.css", "owner": "automation" },
     { "match": "public/styles/pages/job-floor.css", "owner": "automation" },
     { "match": "public/styles/pages/automation.css", "owner": "automation" },
     { "match": "public/business-metrics-inventory-intelligence.js", "owner": "inventory-intelligence" },
