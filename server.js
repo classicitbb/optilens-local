@@ -163,6 +163,9 @@ const {
   getCommercialInvoicePreview,
   prepareCoDraft,
   saveCommercialInvoiceLineOverrides,
+  saveCommercialInvoiceCustomLines,
+  addCommercialInvoiceCustomLine,
+  deleteCommercialInvoiceCustomLine,
   saveCommercialInvoiceHeaderOverrides,
   saveCoDraft,
   updateAutomationJobStatus: updateBeSwiftAutomationJobStatus,
@@ -1987,8 +1990,24 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       const actor = await requirePermission(req, "delivery.write");
       const body = await readJsonBody(req);
-      const result = await saveCommercialInvoiceLineOverrides(commercialInvoiceLinesMatch[1], body.lines || [], actor.userId);
+      const all = body.lines || [];
+      const result = await saveCommercialInvoiceLineOverrides(commercialInvoiceLinesMatch[1], all.filter((line) => !line.custom), actor.userId);
+      await saveCommercialInvoiceCustomLines(commercialInvoiceLinesMatch[1], all.filter((line) => line.custom), actor.userId);
       return result;
+    });
+  }
+
+  const commercialInvoiceCustomMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/custom-lines(?:\/([^/]+))?$/);
+  if (commercialInvoiceCustomMatch && req.method === "POST" && !commercialInvoiceCustomMatch[2]) {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      return addCommercialInvoiceCustomLine(commercialInvoiceCustomMatch[1], actor.userId);
+    });
+  }
+  if (commercialInvoiceCustomMatch && req.method === "DELETE" && commercialInvoiceCustomMatch[2]) {
+    return handleApi(res, async () => {
+      await requirePermission(req, "delivery.write");
+      return deleteCommercialInvoiceCustomLine(commercialInvoiceCustomMatch[1], decodeURIComponent(commercialInvoiceCustomMatch[2]));
     });
   }
 
