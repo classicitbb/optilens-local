@@ -107,9 +107,9 @@
           <input type="text" id="ciTariffInput" class="ci-entry-input" data-ci-tariff-input autocomplete="off" spellcheck="false"
             role="combobox" aria-expanded="false" aria-controls="ciTariffList" aria-autocomplete="list"
             placeholder="Type / to select a tariff, search, or add your own...">
+          <button type="button" class="ci-tariff-add" data-ci-tariff-custom-toggle aria-expanded="false" aria-controls="ciTariffCustom">+ Custom</button>
           <ul id="ciTariffList" class="ci-tariff-list" role="listbox" aria-label="Tariff codes" hidden></ul>
         </div>
-        <div class="ci-tariff-actions"><button type="button" class="button secondary" data-ci-tariff-custom-toggle aria-expanded="false" aria-controls="ciTariffCustom">Add Custom Tariff</button></div>
         <div class="ci-tariff-custom" id="ciTariffCustom" data-ci-tariff-custom hidden></div>
         <ul class="ci-tariff-selected" data-ci-tariff-selected aria-label="Selected tariff codes"></ul>
         <small class="ci-tariff-status" data-ci-tariff-status role="status" aria-live="polite">${preview?.tariffSelectionsSaved === false && state.selection.length ? "Suggested from the invoice lines and printed as the declaration. Add or remove codes to confirm." : ""}</small>
@@ -121,7 +121,7 @@
     return state.selection.map((tariff, index) => `
       <li class="ci-tariff-row">
         <span class="ci-tariff-row-text"><strong>${esc(tariff.tariffCode)}</strong> — ${esc(tariff.description)}</span>
-        <button type="button" class="button secondary ci-tariff-remove" data-ci-tariff-remove="${index}" aria-label="Remove ${esc(tariff.tariffCode)}">Remove</button>
+        <button type="button" class="ci-tariff-remove" data-ci-tariff-remove="${index}" aria-label="Remove ${esc(tariff.tariffCode)}">&times;</button>
       </li>`).join("");
   }
 

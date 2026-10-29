@@ -3098,3 +3098,12 @@ tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mi
 }
 .ci-entry-field-tariffs > label { display: grid; gap: 2px; }
 .ci-entry-field-tariffs > label > small { color: var(--muted); font-size: 11px; }
+/* Slimmer tariff rows and an in-field custom button. */
+.ci-tariff-box .ci-entry-input { padding-right: 84px; }
+.ci-tariff-add { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); height: 22px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-elevated); color: var(--accent, #0082a8); font-size: 11px; font-weight: 800; cursor: pointer; }
+.ci-tariff-selected { gap: 3px; }
+.ci-tariff-row { padding: 2px 6px 2px 8px; border-radius: 4px; flex-direction: row; align-items: center; }
+.ci-tariff-row-text { font-size: 12px; line-height: 1.3; }
+.ci-tariff-remove { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.ci-tariff-remove:hover { background: color-mix(in srgb, var(--danger, #b42318) 14%, transparent); color: var(--danger, #b42318); }
+@media (max-width: 620px) { .ci-tariff-row { align-items: center; flex-direction: row; } }
