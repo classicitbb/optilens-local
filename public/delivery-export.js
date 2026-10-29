@@ -515,7 +515,7 @@ function renderCommercialInvoicePreview() {
       <td>${item.custom
         ? `<input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" title="Enter the amount to calculate the unit price from quantity">`
         : `<input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1">`}</td>
-      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1">${item.custom ? `<button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button>` : ""}</td>
+      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1">${item.custom ? `<label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button>` : ""}</td>
     </tr>
   `).join("");
 
@@ -778,6 +778,10 @@ function wireCommercialInvoiceLineEditing() {
 
   target.addEventListener("focusout", (event) => {
     if (event.target.closest("[data-ci-field]")) commitCommercialInvoiceLines();
+  });
+
+  target.addEventListener("change", (event) => {
+    if (event.target.matches("[data-ci-cert]")) commitCommercialInvoiceLines();
   });
 
   target.addEventListener("click", (event) => {
@@ -1480,6 +1484,7 @@ function readCommercialInvoiceLines() {
     });
     if (row.dataset.ciCustom) {
       line.custom = true;
+      line.includeInCertificate = Boolean(row.querySelector("[data-ci-cert]")?.checked);
       // Only an operator-keyed amount is stored; otherwise it is qty x price.
       if (!row.dataset.ciAmountDriven) line.amount = "";
       else if (parseMoneyInput(line.quantity) !== 0) line.unitPrice = "";

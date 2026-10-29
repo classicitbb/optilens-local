@@ -3059,3 +3059,4 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 .ci-line-remove { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
 .ci-line-remove:hover { background: var(--line); color: var(--ink, inherit); }
 tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mix(in srgb, var(--blue) 6%, transparent); }
+.ci-line-cert { display: inline-flex; align-items: center; gap: 3px; margin-right: 22px; font-size: 10px; color: var(--muted); white-space: nowrap; cursor: pointer; }
