@@ -190,6 +190,7 @@ const {
 } = require("./lib/customer-parameters");
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
 const tariffCodes = require("./lib/tariff-codes");
+const { renderProtectedPdf } = require("./lib/pdf-render");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
@@ -2068,6 +2069,32 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  const commercialInvoiceDownloadMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/download\.pdf$/);
+  if (commercialInvoiceDownloadMatch && req.method === "GET") {
+    try {
+      await requirePermission(req, "delivery.read");
+      const preview = await getCommercialInvoicePreview(commercialInvoiceDownloadMatch[1]);
+      const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
+      const pdf = await renderProtectedPdf(html, {
+        title: `Commercial Invoice ${preview.invoiceNo}`,
+        subject: `Commercial invoice for ${preview.consignee?.name || "customer"}`,
+        keywords: ["commercial invoice", preview.invoiceNo, preview.customerAccount].filter(Boolean).join(", ")
+      });
+      const requested = String(url.searchParams.get("filename") || "").replace(/[^A-Za-z0-9 ._()#&,-]/g, "_").trim().slice(0, 150);
+      const filename = `${requested || `Commercial Invoice ${preview.invoiceNo}`}.pdf`;
+      writeSecurityHeaders(res);
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Length": pdf.length,
+        "Content-Disposition": `attachment; filename="${filename.replace(/"/g, "")}"`,
+        "Cache-Control": "no-store"
+      });
+      return res.end(pdf);
+    } catch (error) {
+      return sendJson(res, { error: error.message || "Server error" }, error.statusCode || 500);
+    }
+  }
+
   if (url.pathname === "/api/delivery/authorisation" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
@@ -3324,6 +3351,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
   <title>Commercial Invoice ${escapeHtmlServer(preview.invoiceNo)}</title>
   <style>
     @page { size: Letter; margin: 0.35in; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; font-family: Arial, sans-serif; color: #08213d; font-size: 10px; }
     .invoice { width: 100%; }
     h1 { margin: 0 0 6px; font-size: 24px; color: #001b35; border-bottom: 2px solid #d89023; }
@@ -3351,9 +3379,9 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .sig-line { border-top: 1px solid #071d35; }
     .sig-signer { padding-top: 10px; }
     .totals { border: 1px solid #071d35; }
-    .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
+    .total-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
     .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
-    .total-row span:last-child { text-align: right; }
+    .total-row span:last-child { text-align: right; white-space: nowrap; }
     footer { margin-top: 18px; padding-top: 6px; border-top: 1px solid #c8d4e0; color: #6d86a1; font-size: 7px; display: flex; justify-content: space-between; }
   </style>
 </head>

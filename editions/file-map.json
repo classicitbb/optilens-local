@@ -80,6 +80,7 @@
     { "match": "public/styles/pages/credentials.css", "owner": "vault" },
     { "match": "public/delivery-export*", "owner": "delivery-export" },
     { "match": "public/document-preview.js", "owner": "delivery-export" },
+    { "match": "public/tariff-codes.js", "owner": "delivery-export" },
     { "match": "public/beswift-extension-check.js", "owner": "delivery-export" },
     { "match": "public/statement-template.html", "owner": "delivery-export" },
     { "match": "public/styles/pages/statement-template.css", "owner": "delivery-export" },

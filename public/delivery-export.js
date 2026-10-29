@@ -1140,7 +1140,7 @@ async function printCommercialInvoice() {
   const account = preview.consignee?.account || session.customer_account || "";
   const date = new Date(preview.invoiceDate || Date.now());
   const filename = `Classic Commercial Invoice - ${customer} ${account} ${preview.shipmentId || session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
-  window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename });
+  window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename, pdfUrl: `/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/download.pdf` });
 }
 
 function setAuthorisationMessage(message, isError = false) {

@@ -131,3 +131,40 @@ test("settings tab and invoice selector are wired into the delivery page", () =>
   assert.match(ui, /role="combobox"/);
   assert.match(ui, /Save to Tariff Library/);
 });
+
+test("invoice HTML keeps currency beside the amount and forces backgrounds to print", () => {
+  const server = read("server.js");
+  assert.match(server, /\* \{ -webkit-print-color-adjust: exact; print-color-adjust: exact; \}/);
+  assert.match(server, /\.total-row \{ display: grid; grid-template-columns: 1fr auto;/);
+  assert.match(server, /\.total-row span:last-child \{ text-align: right; white-space: nowrap; \}/);
+  assert.match(read("public/delivery-export.js"), /pdfUrl: `\/api\/delivery\/shipments\/.*commercial-invoice\/download\.pdf`/);
+  assert.match(read("public/document-preview.js"), /pdfUrl \? await fetchPdf/);
+});
+
+const { findBrowser, renderProtectedPdf } = require("../lib/pdf-render");
+let hasBrowser = true;
+try { findBrowser(); } catch { hasBrowser = false; }
+
+test("server-rendered PDF is a real, print-only, password-protected vector document", { skip: !hasBrowser, timeout: 60000 }, async () => {
+  const { PDFParse } = require("pdf-parse");
+  process.env.OPTILENS_INVOICE_PDF_PASSWORD = "unit-test-password";
+  try {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>T</title><style>@page{size:Letter;margin:.35in}</style></head><body><h1>Commercial Invoice 11999</h1><p>BBD $8,104.12 – Rx Spectacle Lenses</p></body></html>`;
+    const pdf = await renderProtectedPdf(html, { title: "Commercial Invoice 11999", subject: "Test" });
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+    assert.match(pdf.toString("latin1"), /\/Encrypt \d+ 0 R/);
+    assert.doesNotMatch(pdf.toString("latin1"), /Commercial Invoice 11999/); // strings are encrypted
+    const open = new PDFParse({ data: new Uint8Array(pdf), password: "unit-test-password" });
+    const text = await open.getText();
+    assert.equal(text.total, 1);
+    assert.match(text.text, /BBD \$8,104\.12 – Rx Spectacle Lenses/);
+    const info = (await open.getInfo()).info;
+    assert.equal(info.Title, "Commercial Invoice 11999");
+    assert.equal(info.Author, "Classic Visions");
+    assert.equal(info.Producer, "OptiLens Local");
+    await assert.rejects(() => new PDFParse({ data: new Uint8Array(pdf) }).getText(), /Password/);
+    await assert.rejects(() => new PDFParse({ data: new Uint8Array(pdf), password: "wrong" }).getText(), /Password/);
+  } finally {
+    delete process.env.OPTILENS_INVOICE_PDF_PASSWORD;
+  }
+});

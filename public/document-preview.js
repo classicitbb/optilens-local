@@ -4,7 +4,7 @@
     return String(value || "document").replace(/[<>:"/\\|?*\u0000-\u001F]/g, " ").replace(/\s+/g, " ").trim() || "document";
   }
 
-  function open({ title, html, filename }) {
+  function open({ title, html, filename, pdfUrl }) {
     let dialog = document.querySelector("#optilensDocumentPreview");
     if (!dialog) {
       dialog = document.createElement("dialog");
@@ -27,9 +27,13 @@
       button.textContent = "Creating PDF…";
       let blob;
       try {
-        blob = await renderFrameAsPdf(frame);
+        // Prefer the server-rendered PDF (real text, embedded fonts, locked for
+        // editing); the in-browser raster path stays as the fallback for
+        // documents that have no server route.
+        blob = pdfUrl ? await fetchPdf(pdfUrl, safeFilename) : await renderFrameAsPdf(frame);
       } catch (error) {
         console.error("Document PDF generation failed", error);
+        window.alert(`The PDF could not be saved: ${error.message || "unknown error"}`);
         button.disabled = false;
         button.textContent = previousLabel;
         return;
@@ -63,6 +67,16 @@
     } finally {
       if (previewDocument) previewDocument.title = previousTitle;
     }
+  }
+
+  async function fetchPdf(url, filename) {
+    const separator = url.includes("?") ? "&" : "?";
+    const response = await fetch(`${url}${separator}filename=${encodeURIComponent(filename)}`, { cache: "no-store" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Server returned ${response.status}`);
+    }
+    return response.blob();
   }
 
   async function renderFrameAsPdf(frame) {
