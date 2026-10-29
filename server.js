@@ -3320,15 +3320,17 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
   // Commercial invoices are denominated in Barbados dollars.  Keep the code
   // beside the dollar sign so a printed or saved invoice is unambiguous.
   const money = (value) => `BBD $${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const tariffRows = preview.declarationOverride
+  // One field: the selected tariffs print as the declaration, one plain line
+  // each. Declaration text typed before the merge still prints until a
+  // selection is saved.
+  const selectionsPrint = preview.tariffSelections?.length && (preview.tariffSelectionsSaved || !preview.declarationCustomised);
+  const tariffRows = selectionsPrint
+    ? preview.tariffSelections.map((tariff) => `${escapeHtmlServer(tariff.tariffCode)} – ${escapeHtmlServer(tariff.description)}`).join("<br>")
+    : preview.declarationOverride
     ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
     : preview.tariffHeadings?.length
       ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
       : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
-  // Plain text, one line per selected tariff; wraps like any paragraph.
-  const tariffSection = preview.tariffSelections?.length
-    ? `<section class="tariffs"><h2>Customs Tariff Classifications</h2>${preview.tariffSelections.map((tariff) => `<p>${escapeHtmlServer(tariff.tariffCode)} – ${escapeHtmlServer(tariff.description)}</p>`).join("")}</section>`
-    : "";
   const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
@@ -3361,10 +3363,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .cell:nth-child(even) { border-right: 0; }
     .label { display: block; text-transform: uppercase; color: #3b628a; font-size: 7px; letter-spacing: .6px; font-weight: 700; margin-bottom: 5px; }
     .strong { font-weight: 700; color: #001b35; }
-    .tariffs { margin-top: 10px; padding: 6px 8px; border: 1px solid #b7c4d3; break-inside: avoid; }
-    .tariffs h2 { margin: 0 0 4px; font-size: 8px; letter-spacing: .6px; text-transform: uppercase; color: #3b628a; }
-    .tariffs p { margin: 0 0 2px; overflow-wrap: anywhere; }
-    .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; }
+    .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; overflow-wrap: anywhere; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
     td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
@@ -3397,9 +3396,8 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
       <div class="cell"><span class="label">Port of Loading / Destination</span><span class="strong">${escapeHtmlServer(preview.transport.portOfLoading)} → ${escapeHtmlServer(preview.transport.countryOfDestination)}</span></div>
       <div class="cell"><span class="label">Bank / Origin / Terms</span>${escapeHtmlServer(preview.presentingBank)}<br><span class="strong">${escapeHtmlServer(preview.countryOfOriginOfGoods)}</span><br>${escapeHtmlServer(preview.deliveryTerms)}</div>
       <div class="cell"><span class="label">Transportation / Marks</span><span class="strong">${escapeHtmlServer(preview.transport.carrier)}</span> ${escapeHtmlServer(preview.transport.trackingNumber)}<br>${escapeHtmlServer(preview.transport.marksAndNumbers)}</div>
-      <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
+      <div class="cell declaration"><span class="label">Declaration · Customs Tariff Classifications</span>${tariffRows}</div>
     </div>
-    ${tariffSection}
     <table>
       <thead><tr><th>Line #</th><th>Ref #</th><th>Invoice #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th><th>Weight kg</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>

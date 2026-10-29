@@ -3096,3 +3096,5 @@ tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mi
   .ci-tariff-custom { grid-template-columns: 1fr; }
   .ci-tariff-row { align-items: flex-start; flex-direction: column; }
 }
+.ci-entry-field-tariffs > label { display: grid; gap: 2px; }
+.ci-entry-field-tariffs > label > small { color: var(--muted); font-size: 11px; }

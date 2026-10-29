@@ -102,7 +102,7 @@
     state.customOpen = false;
     return `
       <div class="ci-entry-field ci-entry-field-tariffs" data-ci-tariffs>
-        <label for="ciTariffInput"><span>Tariff Codes / Customs Classification</span></label>
+        <label for="ciTariffInput"><span>Tariff Codes / Customs Classification</span><small>This is the declaration printed on the invoice.</small></label>
         <div class="ci-tariff-box">
           <input type="text" id="ciTariffInput" class="ci-entry-input" data-ci-tariff-input autocomplete="off" spellcheck="false"
             role="combobox" aria-expanded="false" aria-controls="ciTariffList" aria-autocomplete="list"
@@ -112,7 +112,7 @@
         <div class="ci-tariff-actions"><button type="button" class="button secondary" data-ci-tariff-custom-toggle aria-expanded="false" aria-controls="ciTariffCustom">Add Custom Tariff</button></div>
         <div class="ci-tariff-custom" id="ciTariffCustom" data-ci-tariff-custom hidden></div>
         <ul class="ci-tariff-selected" data-ci-tariff-selected aria-label="Selected tariff codes"></ul>
-        <small class="ci-tariff-status" data-ci-tariff-status role="status" aria-live="polite"></small>
+        <small class="ci-tariff-status" data-ci-tariff-status role="status" aria-live="polite">${preview?.tariffSelectionsSaved === false && state.selection.length ? "Suggested from the invoice lines and printed as the declaration. Add or remove codes to confirm." : ""}</small>
       </div>`;
   }
 

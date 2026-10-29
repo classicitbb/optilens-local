@@ -586,7 +586,6 @@ function renderCommercialInvoicePreview() {
               ${ciReadOnly("Cube", preview.packaging?.cube)}
               ${ciReadOnly("Country of origin", preview.countryOfOriginOfGoods)}
               ${ciReadOnly("Final destination", preview.transport?.countryOfDestination)}
-              ${ciEntryInput("Declaration", "declaration", preview.declarationOverride || preview.declarationText, { multiline: true, wide: true, placeholder: "Declaration text" })}
               ${window.TariffUi ? window.TariffUi.selectorHtml(preview) : ""}
             </div>
           </section>

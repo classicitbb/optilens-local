@@ -91,31 +91,52 @@ test("library changes need platform.admin while invoice users only read and sele
   assert.match(lib, /cannot be deleted. Deactivate it instead/);
 });
 
-test("print output lists every tariff as plain wrapped text", () => {
+test("the selected tariffs print as the declaration, one plain line each", () => {
   const server = read("server.js");
   const start = server.indexOf("function renderCommercialInvoiceHtml");
   const end = server.indexOf("function escapeHtmlServer");
-  const escapeStart = end;
-  const escapeEnd = server.indexOf("\n}\n", escapeStart) + 3;
-  const render = new Function(`${server.slice(escapeStart, escapeEnd)}\n${server.slice(start, end)}\nreturn renderCommercialInvoiceHtml;`)();
+  const escapeEnd = server.indexOf("\n}\n", end) + 3;
+  const render = new Function(`${server.slice(end, escapeEnd)}\n${server.slice(start, end)}\nreturn renderCommercialInvoiceHtml;`)();
   const basePreview = {
     invoiceNo: "1", invoiceDate: "2026-10-29", customerOrderNo: "", poNumbers: "", seller: { name: "CV", addressLines: [], phone: "" },
-    consignee: {}, transport: {}, totals: {}, items: [], declarationOverride: "RX LENSES"
+    consignee: {}, transport: {}, totals: {}, items: [], declarationOverride: "OLD DECLARATION TEXT"
   };
-  const html = render({
-    ...basePreview,
-    tariffSelections: [
-      { tariffCode: "9001.50.00.000", description: "Rx Spectacle Lenses – Uncut, Plastic and Other Materials" },
-      { tariffCode: "6307.10.00.000", description: "Lens <Cleaning> Cloths" }
-    ]
-  });
-  assert.match(html, /<h2>Customs Tariff Classifications<\/h2>/);
-  assert.match(html, /<p>9001\.50\.00\.000 – Rx Spectacle Lenses – Uncut, Plastic and Other Materials<\/p>/);
-  assert.match(html, /<p>6307\.10\.00\.000 – Lens &lt;Cleaning&gt; Cloths<\/p>/);
-  assert.match(html, /\.tariffs p \{[^}]*overflow-wrap: anywhere/);
+  const tariffSelections = [
+    { tariffCode: "9001.50.00.000", description: "Rx Spectacle Lenses – Uncut, Plastic and Other Materials" },
+    { tariffCode: "6307.10.00.000", description: "Lens <Cleaning> Cloths" }
+  ];
+  const html = render({ ...basePreview, tariffSelections, tariffSelectionsSaved: true, declarationCustomised: true });
+  assert.match(html, /9001\.50\.00\.000 – Rx Spectacle Lenses – Uncut, Plastic and Other Materials<br>6307\.10\.00\.000 – Lens &lt;Cleaning&gt; Cloths/);
+  assert.doesNotMatch(html, /OLD DECLARATION TEXT|<h2>Customs Tariff/);
+  assert.match(html, /\.declaration \{[^}]*overflow-wrap: anywhere/);
   assert.doesNotMatch(html, /Remove|<button|<select/);
-  assert.doesNotMatch(render({ ...basePreview, tariffSelections: [] }), /Customs Tariff Classifications<\/h2>/);
-  assert.match(html, /RX LENSES/);
+  // Declaration text typed before the merge still prints until a selection is saved.
+  assert.match(render({ ...basePreview, tariffSelections, tariffSelectionsSaved: false, declarationCustomised: true }), /OLD DECLARATION TEXT/);
+  assert.match(render({ ...basePreview, tariffSelections, tariffSelectionsSaved: false, declarationCustomised: false }), /6307\.10\.00\.000 – Lens/);
+  assert.match(render({ ...basePreview, tariffSelections: [] }), /OLD DECLARATION TEXT/);
+});
+
+test("line HS codes seed the tariff selection from the library, else a one-off entry", () => {
+  const { deriveInvoiceTariffs } = require("../lib/tariff-codes");
+  const library = seededLibrary().map((t) => ({ ...t, id: `id-${t.tariffCode}` }));
+  const derived = deriveInvoiceTariffs([
+    { hsCode: "9001.50.00.000" },
+    { hsCode: "90015000" },
+    { hsCode: "3405.90, 1234.56.78", hsDescription: "Thing" },
+    { hsCode: "" }
+  ], library);
+  assert.deepEqual(derived.map((t) => t.tariffCode), ["9001.50.00.000", "3405.90", "1234.56.78"]);
+  assert.equal(derived[0].tariffId, "id-9001.50.00.000");
+  assert.equal(derived[2].tariffId, null);
+  assert.equal(derived[2].description, "Thing");
+});
+
+test("declaration field is merged into the tariff selector", () => {
+  assert.doesNotMatch(read("public/delivery-export.js"), /ciEntryInput\("Declaration"/);
+  const sql = read("database/058-commercial-invoice-tariff-state.sql");
+  assert.match(sql, /commercial_invoice_tariff_state/);
+  assert.match(read("lib/migrations.js"), /058-commercial-invoice-tariff-state\.sql/);
+  assert.match(read("lib/tariff-codes.js"), /MERGE delivery\.commercial_invoice_tariff_state/);
 });
 
 test("settings tab and invoice selector are wired into the delivery page", () => {
