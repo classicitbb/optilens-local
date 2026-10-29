@@ -515,7 +515,8 @@ function renderCommercialInvoicePreview() {
       <td>${item.custom
         ? `<input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" title="Enter the amount to calculate the unit price from quantity">`
         : `<input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1">`}</td>
-      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1">${item.custom ? `<label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button>` : ""}</td>
+      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1"></td>
+      <td class="ci-line-actions">${item.custom ? `<div class="ci-line-actions-inner"><label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button></div>` : ""}</td>
     </tr>
   `).join("");
 
@@ -526,10 +527,12 @@ function renderCommercialInvoicePreview() {
           <section class="ci-entry-section ci-entry-details-section">
             <div class="ci-entry-section-head"><div><h3>Invoice, parties & customs</h3><p>Source facts stay read-only; compact shipment controls above apply to this draft.</p></div><span class="ci-entry-status">Shipment ${escapeHtml(preview.shipmentId || "")}</span></div>
             <div class="ci-entry-grid ci-entry-grid-compact">
+              <div class="ci-entry-divider" role="presentation"><span>References</span></div>
               ${ciReadOnly("Invoice date", preview.invoiceDate)}
               ${ciReadOnly("Invoice number", preview.invoiceNo)}
               ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Primary contact name" })}
               ${ciEntryInput("PO numbers", "poNumbers", preview.poNumbers, { placeholder: "Enter PO numbers" })}
+              <div class="ci-entry-divider" role="presentation"><span>Parties &amp; bank</span></div>
               ${ciReadOnly("Presenting bank", preview.presentingBank)}
               ${ciReadOnly("Buyer", "Buyer (if not consignee)")}
               ${ciReadOnly("Seller", preview.seller?.name, { detail: [...(preview.seller?.addressLines || []), preview.seller?.phone].filter(Boolean).join(" · ") })}
@@ -550,11 +553,11 @@ function renderCommercialInvoicePreview() {
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
-            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div><button type="button" class="secondary-button" data-ci-add-line>Add custom line</button></div>
+            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div><button type="button" class="button secondary" data-ci-add-line>Add custom line</button></div>
             <div class="table-wrap ci-entry-table-wrap">
               <table class="ci-items ci-entry-items">
-                <thead><tr><th>Line #</th><th>Ref #</th><th>Inv #</th><th>Specification of commodities</th><th>HS code</th><th>Origin</th><th>Qty</th><th>Unit price (BBD $)</th><th>Amount (BBD $)</th><th>Weight kg</th></tr></thead>
-                <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>
+                <thead><tr><th>Line #</th><th>Ref #</th><th>Inv #</th><th>Specification of commodities</th><th>HS code</th><th>Origin</th><th>Qty</th><th>Unit price (BBD $)</th><th>Amount (BBD $)</th><th>Weight kg</th><th class="ci-line-actions" aria-label="Custom line controls"></th></tr></thead>
+                <tbody>${rows || `<tr><td colspan="11">No invoice lines.</td></tr>`}</tbody>
               </table>
             </div>
             <div class="ci-entry-totals" data-ci-totals>
@@ -575,8 +578,8 @@ function renderCommercialInvoicePreview() {
 function ciEntryInput(label, key, rawValue, opts = {}) {
   const value = rawValue ?? "";
   const control = opts.multiline
-    ? `<textarea class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}" placeholder="${escapeHtml(opts.placeholder || "")}">${escapeHtml(value)}</textarea>`
-    : `<input type="text" class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(opts.placeholder || "")}">`;
+    ? `<textarea class="ci-entry-input" id="ciHdr-${escapeHtml(key)}" name="${escapeHtml(key)}" data-ci-header-field="${escapeHtml(key)}" placeholder="${escapeHtml(opts.placeholder || "")}">${escapeHtml(value)}</textarea>`
+    : `<input type="text" class="ci-entry-input" id="ciHdr-${escapeHtml(key)}" name="${escapeHtml(key)}" data-ci-header-field="${escapeHtml(key)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(opts.placeholder || "")}">`;
   return `<label class="ci-entry-field ${opts.wide ? "ci-entry-field-wide" : ""}"><span>${escapeHtml(label)}</span>${control}${opts.hint ? `<small>${escapeHtml(opts.hint)}</small>` : ""}</label>`;
 }
 
@@ -585,7 +588,7 @@ function ciEntrySelect(label, key, rawValue, options = []) {
   const values = [...options];
   if (value && !values.some((option) => option.value === value)) values.unshift({ value, label: value });
   const choices = values.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label || option.value)}</option>`).join("");
-  return `<label class="ci-entry-field"><span>${escapeHtml(label)}</span><select class="ci-entry-input" data-ci-header-field="${escapeHtml(key)}">${choices}</select></label>`;
+  return `<label class="ci-entry-field"><span>${escapeHtml(label)}</span><select class="ci-entry-input" id="ciHdr-${escapeHtml(key)}" name="${escapeHtml(key)}" data-ci-header-field="${escapeHtml(key)}">${choices}</select></label>`;
 }
 
 function ciReadOnly(label, value, opts = {}) {
