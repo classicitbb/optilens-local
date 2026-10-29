@@ -315,26 +315,63 @@ function fillCoForm(values) {
   setGrossWeightFormValue(values.actualGrossKg ?? "");
 }
 
+// Gross weight is typed in pounds (or kilos) and stored as kg to one decimal.
+// The field is never rewritten while it has focus, and what the operator typed
+// is kept so re-filling the form from the saved kg cannot drift the number
+// (84 lb must not come back as 84.0001).
+const LBS_PER_KG = 1 / 0.45359237;
+
+function round1(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 10) / 10;
+}
+
+function formatWeight1(value) {
+  return String(round1(value));
+}
+
 function setGrossWeightFormValue(actualGrossKg) {
   const input = document.querySelector("#coGrossWeight");
   const unit = document.querySelector("#coGrossWeightUnit");
   if (!input || !unit) return;
+  if (document.activeElement === input) return;
   const kg = Number(actualGrossKg);
   if (!Number.isFinite(kg) || kg <= 0) {
     moduleState.coGrossWeightKg = "";
     input.value = "";
     return;
   }
-  moduleState.coGrossWeightKg = String(round3(kg));
-  input.value = unit.value === "kg" ? String(kg) : String(round3(kg / 0.45359237));
+  moduleState.coGrossWeightKg = formatWeight1(kg);
+  const typed = moduleState.coGrossWeightTyped;
+  if (typed && typed.unit === unit.value && formatWeight1(typed.unit === "kg" ? typed.value : typed.value * 0.45359237) === moduleState.coGrossWeightKg) {
+    input.value = formatWeight1(typed.value);
+    return;
+  }
+  input.value = unit.value === "kg" ? formatWeight1(kg) : formatWeight1(kg * LBS_PER_KG);
 }
 
 function readGrossWeightKg() {
-  const value = Number(valueOf("#coGrossWeight"));
-  if (!Number.isFinite(value) || value < 0) return "";
-  const kg = String(round3(document.querySelector("#coGrossWeightUnit")?.value === "kg" ? value : value * 0.45359237));
+  const input = document.querySelector("#coGrossWeight");
+  const unit = document.querySelector("#coGrossWeightUnit")?.value === "kg" ? "kg" : "lbs";
+  const value = Number(String(input?.value ?? "").replace(/,/g, "").trim());
+  if (!String(input?.value ?? "").trim() || !Number.isFinite(value) || value < 0) {
+    moduleState.coGrossWeightKg = "";
+    moduleState.coGrossWeightTyped = null;
+    return "";
+  }
+  moduleState.coGrossWeightTyped = { value, unit };
+  const kg = formatWeight1(unit === "kg" ? value : value * 0.45359237);
   moduleState.coGrossWeightKg = kg;
   return kg;
+}
+
+// On leaving the field, tidy what was typed: one decimal at most, no ".0".
+function normalizeGrossWeightInput() {
+  const input = document.querySelector("#coGrossWeight");
+  if (!input || !input.value.trim()) return;
+  const value = Number(input.value.replace(/,/g, "").trim());
+  if (!Number.isFinite(value) || value < 0) return;
+  input.value = formatWeight1(value);
+  readGrossWeightKg();
 }
 
 function round3(value) {
@@ -492,7 +529,7 @@ function renderCommercialInvoicePreview() {
   renderCiComplianceSlot(preview?.compliance);
   // Avoid replacing the form while an operator is actively typing.
   if (target.contains(document.activeElement)
-    && document.activeElement?.matches("[data-ci-header-field], [data-ci-field]")) return;
+    && document.activeElement?.matches("[data-ci-header-field], [data-ci-field], [data-ci-tariff-input], [data-ci-tariff-custom] input")) return;
   if (!preview) {
     if (summary) summary.textContent = "Select an export shipment to open its commercial-invoice workspace.";
     target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>`;
@@ -549,7 +586,7 @@ function renderCommercialInvoicePreview() {
               ${ciReadOnly("Cube", preview.packaging?.cube)}
               ${ciReadOnly("Country of origin", preview.countryOfOriginOfGoods)}
               ${ciReadOnly("Final destination", preview.transport?.countryOfDestination)}
-              ${ciEntryInput("Declaration", "declaration", preview.declarationOverride || preview.declarationText, { multiline: true, wide: true, placeholder: "Declaration text" })}
+              ${window.TariffUi ? window.TariffUi.selectorHtml(preview) : ""}
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
@@ -573,6 +610,7 @@ function renderCommercialInvoicePreview() {
       </div>
     </article>
   `;
+  window.TariffUi?.refreshSelector();
 }
 
 function ciEntryInput(label, key, rawValue, opts = {}) {
@@ -642,8 +680,12 @@ function wireCoDraftAutosave() {
     if (event.target.matches(costField)) updateCommercialInvoiceCostTotals();
     requestCoDraftAutosave(500);
   });
+  document.querySelector("#coGrossWeight")?.addEventListener("blur", normalizeGrossWeightInput);
   document.querySelector("#coGrossWeightUnit")?.addEventListener("change", () => {
+    // Switching units converts the figure shown; the kg value stays the same.
+    moduleState.coGrossWeightTyped = null;
     setGrossWeightFormValue(moduleState.coGrossWeightKg);
+    readGrossWeightKg();
     requestCoDraftAutosave(0);
   });
   form.addEventListener("change", commit);
@@ -1097,7 +1139,7 @@ async function printCommercialInvoice() {
   const account = preview.consignee?.account || session.customer_account || "";
   const date = new Date(preview.invoiceDate || Date.now());
   const filename = `Classic Commercial Invoice - ${customer} ${account} ${preview.shipmentId || session.source_shipment_id || ""} ${date.getDate()} ${date.toLocaleString("en-US", { month: "long" })} ${date.getFullYear()}`;
-  window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename });
+  window.OptiLensDocumentPreview?.open({ title: "Commercial invoice", html: await response.text(), filename, pdfUrl: `/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/download.pdf` });
 }
 
 function setAuthorisationMessage(message, isError = false) {

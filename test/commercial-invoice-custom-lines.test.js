@@ -21,3 +21,11 @@ test("figures stay blank until enough data is present", () => {
   assert.deepEqual(resolveCustomLineFigures({ quantity: "2", unitPrice: "", amount: "" }),
     { quantity: 2, unitPrice: null, amount: null });
 });
+
+test("a FREIGHT patient order with a WEIGHT FREIGHT SKU is a freight order, not a line item", () => {
+  const { isFreightOrder } = require("../lib/beswift-co");
+  assert.equal(isFreightOrder([{ PatientID: "FREIGHT", SKU: "WEIGHT FREIGHT" }]), true);
+  assert.equal(isFreightOrder([{ PatientID: " freight ", SKU: "Weight Freight" }, { PatientID: "FREIGHT", SKU: "X" }]), true);
+  assert.equal(isFreightOrder([{ PatientID: "STOCK ORDER", SKU: "WEIGHT FREIGHT" }]), false);
+  assert.equal(isFreightOrder([{ PatientID: "FREIGHT", SKU: "LENS-1" }]), false);
+});

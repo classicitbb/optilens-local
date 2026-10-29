@@ -189,6 +189,8 @@ const {
   upsertCustomerParameters
 } = require("./lib/customer-parameters");
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
+const tariffCodes = require("./lib/tariff-codes");
+const { renderProtectedPdf } = require("./lib/pdf-render");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
@@ -2011,6 +2013,44 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/delivery/tariff-codes" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "delivery.read");
+      // Only administrators see (and manage) inactive entries; invoice users get the active list.
+      const canManage = user.permissions.includes("platform.admin");
+      const includeInactive = url.searchParams.get("all") === "1" && canManage;
+      return { tariffs: await tariffCodes.listTariffCodes({ includeInactive }), canManage };
+    });
+  }
+  if (url.pathname === "/api/delivery/tariff-codes" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "platform.admin");
+      return { tariff: await tariffCodes.createTariffCode(await readJsonBody(req), actor.userId) };
+    }, 201);
+  }
+  const tariffCodeMatch = url.pathname.match(/^\/api\/delivery\/tariff-codes\/([^/]+)$/);
+  if (tariffCodeMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "platform.admin");
+      return { tariff: await tariffCodes.updateTariffCode(decodeURIComponent(tariffCodeMatch[1]), await readJsonBody(req), actor.userId) };
+    });
+  }
+  if (tariffCodeMatch && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      return tariffCodes.deleteTariffCode(decodeURIComponent(tariffCodeMatch[1]));
+    });
+  }
+
+  const commercialInvoiceTariffsMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/tariffs$/);
+  if (commercialInvoiceTariffsMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      return { tariffSelections: await tariffCodes.saveInvoiceTariffs(commercialInvoiceTariffsMatch[1], body.tariffs, actor.userId) };
+    });
+  }
+
   const commercialInvoiceHeaderMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/header$/);
   if (commercialInvoiceHeaderMatch && req.method === "PUT") {
     return handleApi(res, async () => {
@@ -2027,6 +2067,32 @@ const server = http.createServer(async (req, res) => {
       const preview = await getCommercialInvoicePreview(commercialInvoicePrintMatch[1]);
       return renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
     });
+  }
+
+  const commercialInvoiceDownloadMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/download\.pdf$/);
+  if (commercialInvoiceDownloadMatch && req.method === "GET") {
+    try {
+      await requirePermission(req, "delivery.read");
+      const preview = await getCommercialInvoicePreview(commercialInvoiceDownloadMatch[1]);
+      const html = renderCommercialInvoiceHtml(preview, { signatureDataUrl: await getActiveAuthorisationDataUrl() });
+      const pdf = await renderProtectedPdf(html, {
+        title: `Commercial Invoice ${preview.invoiceNo}`,
+        subject: `Commercial invoice for ${preview.consignee?.name || "customer"}`,
+        keywords: ["commercial invoice", preview.invoiceNo, preview.customerAccount].filter(Boolean).join(", ")
+      });
+      const requested = String(url.searchParams.get("filename") || "").replace(/[^A-Za-z0-9 ._()#&,-]/g, "_").trim().slice(0, 150);
+      const filename = `${requested || `Commercial Invoice ${preview.invoiceNo}`}.pdf`;
+      writeSecurityHeaders(res);
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Length": pdf.length,
+        "Content-Disposition": `attachment; filename="${filename.replace(/"/g, "")}"`,
+        "Cache-Control": "no-store"
+      });
+      return res.end(pdf);
+    } catch (error) {
+      return sendJson(res, { error: error.message || "Server error" }, error.statusCode || 500);
+    }
   }
 
   if (url.pathname === "/api/delivery/authorisation" && req.method === "GET") {
@@ -3254,7 +3320,13 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
   // Commercial invoices are denominated in Barbados dollars.  Keep the code
   // beside the dollar sign so a printed or saved invoice is unambiguous.
   const money = (value) => `BBD $${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const tariffRows = preview.declarationOverride
+  // One field: the selected tariffs print as the declaration, one plain line
+  // each. Declaration text typed before the merge still prints until a
+  // selection is saved.
+  const selectionsPrint = preview.tariffSelections?.length && (preview.tariffSelectionsSaved || !preview.declarationCustomised);
+  const tariffRows = selectionsPrint
+    ? preview.tariffSelections.map((tariff) => `${escapeHtmlServer(tariff.tariffCode)} – ${escapeHtmlServer(tariff.description)}`).join("<br>")
+    : preview.declarationOverride
     ? escapeHtmlServer(preview.declarationOverride).replaceAll("\n", "<br>")
     : preview.tariffHeadings?.length
       ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
@@ -3281,6 +3353,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
   <title>Commercial Invoice ${escapeHtmlServer(preview.invoiceNo)}</title>
   <style>
     @page { size: Letter; margin: 0.35in; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { margin: 0; font-family: Arial, sans-serif; color: #08213d; font-size: 10px; }
     .invoice { width: 100%; }
     h1 { margin: 0 0 6px; font-size: 24px; color: #001b35; border-bottom: 2px solid #d89023; }
@@ -3290,7 +3363,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .cell:nth-child(even) { border-right: 0; }
     .label { display: block; text-transform: uppercase; color: #3b628a; font-size: 7px; letter-spacing: .6px; font-weight: 700; margin-bottom: 5px; }
     .strong { font-weight: 700; color: #001b35; }
-    .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; }
+    .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; overflow-wrap: anywhere; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
     td { vertical-align: top; padding: 6px; border-bottom: 1px solid #d7e0ea; }
@@ -3305,9 +3378,9 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .sig-line { border-top: 1px solid #071d35; }
     .sig-signer { padding-top: 10px; }
     .totals { border: 1px solid #071d35; }
-    .total-row { display: grid; grid-template-columns: 1fr 90px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
+    .total-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 7px 10px; border-bottom: 1px solid #c8d4e0; font-weight: 800; }
     .total-row:last-child { border-bottom: 0; background: #071d35; color: white; font-size: 14px; }
-    .total-row span:last-child { text-align: right; }
+    .total-row span:last-child { text-align: right; white-space: nowrap; }
     footer { margin-top: 18px; padding-top: 6px; border-top: 1px solid #c8d4e0; color: #6d86a1; font-size: 7px; display: flex; justify-content: space-between; }
   </style>
 </head>
@@ -3323,7 +3396,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
       <div class="cell"><span class="label">Port of Loading / Destination</span><span class="strong">${escapeHtmlServer(preview.transport.portOfLoading)} → ${escapeHtmlServer(preview.transport.countryOfDestination)}</span></div>
       <div class="cell"><span class="label">Bank / Origin / Terms</span>${escapeHtmlServer(preview.presentingBank)}<br><span class="strong">${escapeHtmlServer(preview.countryOfOriginOfGoods)}</span><br>${escapeHtmlServer(preview.deliveryTerms)}</div>
       <div class="cell"><span class="label">Transportation / Marks</span><span class="strong">${escapeHtmlServer(preview.transport.carrier)}</span> ${escapeHtmlServer(preview.transport.trackingNumber)}<br>${escapeHtmlServer(preview.transport.marksAndNumbers)}</div>
-      <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
+      <div class="cell declaration"><span class="label">Declaration · Customs Tariff Classifications</span>${tariffRows}</div>
     </div>
     <table>
       <thead><tr><th>Line #</th><th>Ref #</th><th>Invoice #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th><th>Weight kg</th></tr></thead>

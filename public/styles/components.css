@@ -3060,3 +3060,41 @@ textarea.ci-entry-input { min-height: 78px; resize: vertical; }
 .ci-line-remove:hover { background: var(--line); color: var(--ink, inherit); }
 tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mix(in srgb, var(--blue) 6%, transparent); }
 .ci-line-cert { display: inline-flex; align-items: center; gap: 3px; margin-right: 22px; font-size: 10px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+
+/* Commercial invoice tariff selector and Tariff Codes settings. */
+.ci-entry-field-tariffs { grid-column: 1 / -1; position: relative; gap: 8px; }
+.ci-entry-field-tariffs > label > span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.ci-tariff-box { position: relative; }
+.ci-tariff-list { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; margin: 0; padding: 4px; overflow: auto; list-style: none; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-elevated); box-shadow: 0 10px 28px rgba(8, 33, 61, .18); }
+.ci-tariff-option, .ci-tariff-none { padding: 8px 10px; border-radius: 6px; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.ci-tariff-option { cursor: pointer; }
+.ci-tariff-option.active, .ci-tariff-option:hover { background: color-mix(in srgb, var(--accent, #0082a8) 14%, transparent); }
+.ci-tariff-option em { color: var(--muted); font-size: 11px; font-style: normal; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; }
+.ci-tariff-none { color: var(--muted); }
+.ci-tariff-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ci-tariff-custom { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr); gap: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; }
+.ci-tariff-custom[hidden] { display: none; }
+.ci-tariff-custom .ci-tariff-actions, .ci-tariff-check { grid-column: 1 / -1; }
+.ci-tariff-check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.ci-tariff-selected { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ci-tariff-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--accent, #0082a8); border-radius: 6px; background: var(--bg-elevated); }
+.ci-tariff-row-text { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.ci-tariff-empty { color: var(--muted); font-size: 12px; }
+.ci-tariff-status.error, #tariffCodesMessage.error { color: var(--danger, #b42318); }
+.tariff-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 8px; }
+.tariff-filters label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; }
+.tariff-table td, .tariff-table th { vertical-align: top; }
+.tariff-table td input[type="text"], .tariff-table td input:not([type]), .tariff-table td select { width: 100%; min-width: 120px; }
+.tariff-table .tariff-order { width: 70px; min-width: 0; }
+.tariff-table tr.is-inactive td { opacity: .55; }
+.tariff-actions { white-space: nowrap; }
+.tariff-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; border: 1px solid var(--line); }
+.tariff-badge.verified { color: #1b6e3c; }
+.tariff-badge.unverified { color: #9a5b00; }
+.tariff-inline-check { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 620px) {
+  .ci-tariff-custom { grid-template-columns: 1fr; }
+  .ci-tariff-row { align-items: flex-start; flex-direction: column; }
+}
+.ci-entry-field-tariffs > label { display: grid; gap: 2px; }
+.ci-entry-field-tariffs > label > small { color: var(--muted); font-size: 11px; }
