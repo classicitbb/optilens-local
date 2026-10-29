@@ -553,7 +553,7 @@ function renderCommercialInvoicePreview() {
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
-            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div><button type="button" class="secondary-button" data-ci-add-line>Add custom line</button></div>
+            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div><button type="button" class="button secondary" data-ci-add-line>Add custom line</button></div>
             <div class="table-wrap ci-entry-table-wrap">
               <table class="ci-items ci-entry-items">
                 <thead><tr><th>Line #</th><th>Ref #</th><th>Inv #</th><th>Specification of commodities</th><th>HS code</th><th>Origin</th><th>Qty</th><th>Unit price (BBD $)</th><th>Amount (BBD $)</th><th>Weight kg</th><th class="ci-line-actions" aria-label="Custom line controls"></th></tr></thead>
