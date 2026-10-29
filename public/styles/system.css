@@ -485,3 +485,16 @@ body.release-notes-body {
 #commercialInvoice .ci-entry-items th:nth-child(9), #commercialInvoice .ci-entry-items td:nth-child(9) { width: 10%; }
 #commercialInvoice .ci-entry-items th:nth-child(10), #commercialInvoice .ci-entry-items td:nth-child(10) { width: 6%; }
 #commercialInvoice .ci-entry-items th:nth-child(11), #commercialInvoice .ci-entry-items td:nth-child(11) { width: 6%; }
+
+/* Totals stack as a ledger under the amount column so they add up at a glance. */
+#commercialInvoice .ci-entry-totals {
+  display: grid; grid-template-columns: minmax(0, 1fr); justify-content: end; gap: 0;
+  width: min(100%, 340px); margin-left: auto; padding: 0; border: 0; border-top: 1px solid var(--erp-edge); background: transparent;
+}
+#commercialInvoice .ci-entry-totals div {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 12px;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--surface); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+#commercialInvoice .ci-entry-totals div:first-child { border-top: 0; font-weight: 700; }
+#commercialInvoice .ci-entry-totals b { font-weight: 700; text-align: right; }
+#commercialInvoice .ci-entry-totals .strong { border-bottom: 0; padding: 6px 12px; font-size: 13.5px; }
