@@ -326,84 +326,145 @@ body.release-notes-body {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-/* Commercial invoice workspace: compact, desktop/tablet-only density.
-   Fields flow into auto-fill grids sized by the container, labels sit tight
-   above 30px controls, and section chrome is trimmed to a single thin row. */
-#commercialInvoice .co-workspace { gap: 10px; }
-#commercialInvoice .commercial-preview-panel { container-type: inline-size; }
-#commercialInvoice .shipment-detail-head { padding: 8px 12px; }
-#commercialInvoice .shipment-detail-head h2 { font-size: 17px; margin: 0; }
-#commercialInvoice .shipment-detail-head p { margin: 1px 0 0; font-size: 11.5px; }
+/* Commercial invoice workspace: ERP-style, desktop/tablet only.
+   A neutral canvas holds square, bordered section cards. Every section has a
+   header band and a strict column grid; every control is one 28px box, with
+   read-only values drawn in the same box on a flat grey fill. */
+#commercialInvoice {
+  --erp-canvas: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --erp-band: color-mix(in srgb, var(--ink) 9%, var(--surface));
+  --erp-readonly: color-mix(in srgb, var(--ink) 6%, var(--surface));
+  --erp-edge: color-mix(in srgb, var(--ink) 24%, var(--surface));
+  --erp-radius: 2px;
+}
+#commercialInvoice .co-workspace { gap: 12px; align-items: start; }
+#commercialInvoice .commercial-preview-panel {
+  display: grid; gap: 12px; padding: 12px; border: 0; border-radius: 0; background: var(--erp-canvas);
+}
+#commercialInvoice .commercial-preview-panel > * { min-width: 0; }
+#commercialInvoice .co-jobs-panel,
+#commercialInvoice .ci-compliance-sidebar,
+#commercialInvoice .co-draft-controls,
+#commercialInvoice .ci-entry-section { border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); box-shadow: none; }
+#commercialInvoice .co-jobs-panel { overflow: hidden; }
+
+/* Page header card */
+#commercialInvoice .shipment-detail-head {
+  padding: 8px 12px; border: 1px solid var(--erp-edge); background: var(--surface);
+}
+#commercialInvoice .shipment-detail-head h2 { margin: 0; font-size: 16px; }
+#commercialInvoice .shipment-detail-head p { margin: 1px 0 0; font-size: 11.5px; color: var(--muted); }
 #commercialInvoice .co-actions { gap: 6px; }
+#commercialInvoice .button { border-radius: var(--erp-radius); }
 #commercialInvoice .co-actions .button { min-height: 30px; padding: 4px 12px; font-size: 12.5px; }
 
-#commercialInvoice .co-draft-controls {
-  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-  gap: 6px 8px;
-  padding: 8px 12px 10px;
+/* Section header bands */
+#commercialInvoice .co-draft-controls-head,
+#commercialInvoice .ci-entry-section-head,
+#commercialInvoice .co-jobs-panel .section-head {
+  align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--erp-band);
 }
-#commercialInvoice .co-draft-controls-head { gap: 8px; }
-#commercialInvoice .co-draft-controls-head h3 { margin: 0; font-size: 13px; }
-#commercialInvoice .co-draft-controls-head p { display: inline; margin-left: 8px; font-size: 11px; }
-#commercialInvoice .co-draft-controls-head > div { display: flex; align-items: baseline; flex-wrap: wrap; }
-#commercialInvoice .co-draft-controls-head .button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
-#commercialInvoice .co-draft-controls label {
-  display: grid; align-content: start; gap: 2px; min-height: 0;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+#commercialInvoice .co-draft-controls-head { grid-column: 1 / -1; margin: -10px -12px 2px; display: flex; justify-content: space-between; gap: 8px; }
+#commercialInvoice .co-draft-controls-head > div,
+#commercialInvoice .ci-entry-section-head > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; }
+#commercialInvoice .co-draft-controls-head h3,
+#commercialInvoice .ci-entry-section h3,
+#commercialInvoice .co-jobs-panel h2,
+#commercialInvoice .ci-compliance-sidebar h2 {
+  margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+}
+#commercialInvoice .co-draft-controls-head p,
+#commercialInvoice .ci-entry-section-head p,
+#commercialInvoice .co-jobs-panel .section-head p { margin: 0; font-size: 11px; line-height: 1.3; color: var(--muted); }
+#commercialInvoice .co-draft-controls-head .button,
+#commercialInvoice .ci-entry-section-head .button { min-height: 24px; padding: 1px 10px; font-size: 12px; }
+#commercialInvoice .ci-entry-status { padding: 1px 8px; border-radius: var(--erp-radius); font-size: 10.5px; }
+
+/* Sub-group labels: label then rule */
+#commercialInvoice .co-group,
+#commercialInvoice .ci-entry-divider {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 4px 0 0;
+  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+#commercialInvoice .co-group::after,
+#commercialInvoice .ci-entry-divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+#commercialInvoice .ci-entry-divider::before { content: none; }
+
+/* Field labels and controls: one shape everywhere */
+#commercialInvoice .co-draft-controls label,
+#commercialInvoice .ci-entry-field,
+#commercialInvoice .ci-entry-readonly {
+  display: grid; align-content: start; gap: 2px; min-width: 0; min-height: 0; padding: 0; border: 0; background: transparent;
+}
+#commercialInvoice .co-draft-controls label,
+#commercialInvoice .ci-entry-field > span,
+#commercialInvoice .ci-entry-readonly > span {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .01em; color: var(--muted);
 }
 #commercialInvoice .co-draft-controls input,
-#commercialInvoice .co-draft-controls select {
-  min-height: 28px; padding: 3px 7px; font-size: 12.5px;
+#commercialInvoice .co-draft-controls select,
+#commercialInvoice .ci-entry-input {
+  min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius);
+  font-size: 12.5px; font-weight: 500; color: var(--ink);
 }
-#commercialInvoice .co-draft-controls label:has(#coTrackingNumber),
-#commercialInvoice .co-draft-controls label:has(#coGrossWeight),
-#commercialInvoice .co-draft-controls label:has(#coShippingMarks),
-#commercialInvoice .co-draft-controls label:has(#coDeliveryTerms) { grid-column: span 2; }
-#commercialInvoice .co-controls-wide { grid-column: span 3; }
+#commercialInvoice .co-draft-controls input:focus,
+#commercialInvoice .co-draft-controls select:focus,
+#commercialInvoice .ci-entry-input:focus {
+  border-color: var(--blue); outline: 2px solid color-mix(in srgb, var(--blue) 22%, transparent); outline-offset: 0;
+}
+#commercialInvoice textarea.ci-entry-input { min-height: 46px; }
+#commercialInvoice .ci-entry-readonly strong {
+  display: flex; align-items: center; min-height: 28px; padding: 3px 7px; border: 1px solid var(--line);
+  border-radius: var(--erp-radius); background: var(--erp-readonly); font-size: 12.5px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere;
+}
+#commercialInvoice .ci-entry-readonly small, #commercialInvoice .ci-entry-field small { font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+#commercialInvoice .ci-entry-jump { width: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; text-align: left; }
+#commercialInvoice .ci-entry-jump:hover strong, #commercialInvoice .ci-entry-jump:focus-visible strong { border-color: var(--blue); }
+#commercialInvoice .ci-entry-jump:hover, #commercialInvoice .ci-entry-jump:focus-visible { background: transparent; outline: none; }
+
+/* Shipment & packaging form: 12 columns, named spans */
+#commercialInvoice .co-draft-controls {
+  grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; margin: 0; padding: 10px 12px 12px;
+}
+#commercialInvoice .co-draft-controls label { grid-column: span 3; }
+#commercialInvoice .co-draft-controls label:has(#coPortalEnvironment),
+#commercialInvoice .co-draft-controls label:has(#coShippingDate),
+#commercialInvoice .co-draft-controls label:has(#coPackageCount),
+#commercialInvoice .co-draft-controls label:has(#coCubeQuantity) { grid-column: span 2; }
+#commercialInvoice .co-draft-controls label:has(#coShippingMarks) { grid-column: span 4; }
+#commercialInvoice .co-draft-controls label:has(#coOriginNotes) { grid-column: 1 / -1; }
 #commercialInvoice .co-weight-input { gap: 4px; }
-#commercialInvoice .co-weight-input select { min-width: 74px; }
+#commercialInvoice .co-weight-input select { min-width: 76px; }
 
-#commercialInvoice .ci-entry-section-head { align-items: center; padding: 6px 12px; }
-#commercialInvoice .ci-entry-section h3 { margin: 0; font-size: 13px; }
-#commercialInvoice .ci-entry-section-head > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; }
-#commercialInvoice .ci-entry-section-head p { font-size: 11px; line-height: 1.3; }
-#commercialInvoice .ci-entry-section-head .button { min-height: 26px; padding: 2px 10px; font-size: 12px; }
-#commercialInvoice .ci-entry-status { padding: 2px 8px; font-size: 10.5px; }
-#commercialInvoice .ci-entry-grid-compact {
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: 6px; padding: 8px 12px 10px;
-}
-#commercialInvoice .ci-entry-field, #commercialInvoice .ci-entry-readonly { gap: 2px; }
-#commercialInvoice .ci-entry-field > span, #commercialInvoice .ci-entry-readonly > span { font-size: 10.5px; font-weight: 700; }
-#commercialInvoice .ci-entry-input { min-height: 28px; padding: 3px 7px; font-size: 12.5px; }
-#commercialInvoice textarea.ci-entry-input { min-height: 48px; }
-#commercialInvoice .ci-entry-readonly { align-content: center; padding: 4px 8px; }
-#commercialInvoice .ci-entry-readonly strong { font-size: 12.5px; line-height: 1.3; }
-#commercialInvoice .ci-entry-readonly small, #commercialInvoice .ci-entry-field small { font-size: 10.5px; line-height: 1.25; }
+/* Invoice, parties & customs: four equal columns */
+#commercialInvoice .ci-entry-grid-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; padding: 10px 12px 12px; }
 #commercialInvoice .ci-entry-field-wide { grid-column: 1 / -1; }
-#commercialInvoice .ci-entry-divider { margin: 0; font-size: 10px; }
 
-#commercialInvoice .ci-entry-items th { padding: 5px 6px; font-size: 9.5px; }
-#commercialInvoice .ci-entry-items td { padding: 1px 4px; }
-#commercialInvoice .ci-entry-items .ci-line-input { min-height: 24px; padding: 2px 4px; font-size: 12px; }
+/* Line items */
+#commercialInvoice .ci-entry-items th { padding: 6px 6px; font-size: 9.5px; }
+#commercialInvoice .ci-entry-items td { padding: 1px 4px; border-bottom: 1px solid var(--line); }
+#commercialInvoice .ci-entry-items .ci-line-input { min-height: 24px; padding: 2px 4px; border-radius: var(--erp-radius); font-size: 12px; }
+#commercialInvoice .ci-entry-items .ci-line-actions { width: 88px; white-space: nowrap; text-align: right; }
+#commercialInvoice .ci-entry-items .ci-line-actions .ci-line-remove { position: static; transform: none; display: inline-block; vertical-align: middle; border-radius: var(--erp-radius); }
+#commercialInvoice .ci-line-cert { margin-right: 0; flex: none; }
+#commercialInvoice tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: var(--erp-readonly); }
 #commercialInvoice .ci-entry-totals {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 6px; padding: 8px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 6px 10px; padding: 8px 12px; border-top: 1px solid var(--erp-edge); background: var(--erp-band);
 }
-#commercialInvoice .ci-entry-totals div { padding: 4px 8px; font-size: 12px; }
+#commercialInvoice .ci-entry-totals div { padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--erp-radius); background: var(--surface); font-size: 12px; white-space: nowrap; }
+#commercialInvoice .ci-entry-totals .strong { border-color: var(--ink); background: var(--ink); color: var(--surface); }
 
-#commercialInvoice .co-bottom-actions { padding: 6px 12px; gap: 6px; }
+/* Bottom actions and side column */
+#commercialInvoice .co-bottom-actions { padding: 6px 12px; gap: 6px; border: 1px solid var(--erp-edge); background: var(--surface); }
 #commercialInvoice .co-bottom-actions .button { min-height: 28px; padding: 3px 12px; }
-#commercialInvoice .co-side-column { gap: 10px; }
+#commercialInvoice .co-side-column { gap: 12px; }
+#commercialInvoice .co-job-list { padding: 8px 12px; }
 #commercialInvoice .ci-compliance-sidebar { padding: 10px 12px; }
-#commercialInvoice .ci-compliance-sidebar h2 { margin: 0 0 4px; font-size: 14px; }
+#commercialInvoice .ci-compliance-sidebar .eyebrow { margin: 0 0 4px; font-size: 10px; }
+#commercialInvoice .ci-compliance-sidebar h2 { margin-bottom: 4px; }
 #commercialInvoice .ci-compliance-checks { gap: 3px; }
 #commercialInvoice .ci-compliance-checks li { font-size: 11.5px; line-height: 1.25; }
-#commercialInvoice .ci-compliance-checks li > span { width: 15px; height: 15px; font-size: 10px; }
-#commercialInvoice .co-jobs-panel .section-head { padding: 8px 12px; }
-#commercialInvoice .co-jobs-panel h2 { font-size: 14px; margin: 0; }
-#commercialInvoice .ci-entry-items .ci-line-actions { width: 88px; white-space: nowrap; text-align: right; }
-#commercialInvoice .ci-entry-items .ci-line-actions .ci-line-remove { position: static; transform: none; display: inline-block; vertical-align: middle; }
-#commercialInvoice .ci-line-cert { margin-right: 0; flex: none; }
-#commercialInvoice .ci-entry-totals { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); }
-#commercialInvoice .ci-entry-totals div { white-space: nowrap; }
+#commercialInvoice .ci-compliance-checks li > span { width: 15px; height: 15px; border-radius: var(--erp-radius); font-size: 10px; }
+#commercialInvoice .ci-line-actions-inner { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+#commercialInvoice .ci-entry-items .ci-line-cert { display: inline-flex; flex-direction: row; align-items: center; gap: 4px; min-height: 0; padding: 0; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+#commercialInvoice .ci-entry-items .ci-line-cert input { width: auto; min-height: 0; margin: 0; padding: 0; }

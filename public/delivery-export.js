@@ -516,7 +516,7 @@ function renderCommercialInvoicePreview() {
         ? `<input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" title="Enter the amount to calculate the unit price from quantity">`
         : `<input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1">`}</td>
       <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1"></td>
-      <td class="ci-line-actions">${item.custom ? `<label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button>` : ""}</td>
+      <td class="ci-line-actions">${item.custom ? `<div class="ci-line-actions-inner"><label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button></div>` : ""}</td>
     </tr>
   `).join("");
 
@@ -527,10 +527,12 @@ function renderCommercialInvoicePreview() {
           <section class="ci-entry-section ci-entry-details-section">
             <div class="ci-entry-section-head"><div><h3>Invoice, parties & customs</h3><p>Source facts stay read-only; compact shipment controls above apply to this draft.</p></div><span class="ci-entry-status">Shipment ${escapeHtml(preview.shipmentId || "")}</span></div>
             <div class="ci-entry-grid ci-entry-grid-compact">
+              <div class="ci-entry-divider" role="presentation"><span>References</span></div>
               ${ciReadOnly("Invoice date", preview.invoiceDate)}
               ${ciReadOnly("Invoice number", preview.invoiceNo)}
               ${ciEntryInput("Customer order no.", "customerOrderNo", preview.customerOrderNo, { placeholder: "Primary contact name" })}
               ${ciEntryInput("PO numbers", "poNumbers", preview.poNumbers, { placeholder: "Enter PO numbers" })}
+              <div class="ci-entry-divider" role="presentation"><span>Parties &amp; bank</span></div>
               ${ciReadOnly("Presenting bank", preview.presentingBank)}
               ${ciReadOnly("Buyer", "Buyer (if not consignee)")}
               ${ciReadOnly("Seller", preview.seller?.name, { detail: [...(preview.seller?.addressLines || []), preview.seller?.phone].filter(Boolean).join(" · ") })}
