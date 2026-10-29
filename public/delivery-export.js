@@ -503,7 +503,7 @@ function renderCommercialInvoicePreview() {
   }
 
   const rows = (preview.items || []).map((item) => `
-    <tr data-ci-line="${escapeHtml(item.lineKey || "")}">
+    <tr data-ci-line="${escapeHtml(item.lineKey || "")}"${item.custom ? ` data-ci-custom="1"${item.amountDriven ? ` data-ci-amount-driven="1"` : ""}` : ""}>
       <td><input class="ci-line-input ci-line-small" data-ci-field="lineNumber" value="${escapeHtml(item.lineNumber || "")}" aria-label="Line number"></td>
       <td><input class="ci-line-input" data-ci-field="ref" value="${escapeHtml(item.ref || "")}" aria-label="Reference"></td>
       <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.invoiceNumber || "")}" aria-label="Invoice number" readonly tabindex="-1"></td>
@@ -512,8 +512,10 @@ function renderCommercialInvoicePreview() {
       <td><input class="ci-line-input" data-ci-field="origin" value="${escapeHtml(item.origin || "")}" aria-label="Origin"></td>
       <td><input class="ci-line-input ci-line-small" data-ci-field="quantity" value="${escapeHtml(item.quantity ?? "")}" aria-label="Quantity"></td>
       <td><input class="ci-line-input ci-line-money" data-ci-field="unitPrice" value="${escapeHtml(formatPlainMoney(item.unitPrice))}" aria-label="Unit price"></td>
-      <td><input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1"></td>
-      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1"></td>
+      <td>${item.custom
+        ? `<input class="ci-line-input ci-line-money" data-ci-field="amount" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" title="Enter the amount to calculate the unit price from quantity">`
+        : `<input class="ci-line-input ci-line-money" value="${escapeHtml(formatPlainMoney(item.amount))}" aria-label="Amount (calculated)" readonly tabindex="-1">`}</td>
+      <td><input class="ci-line-input ci-line-small" value="${escapeHtml(item.weightKg ?? "")}" aria-label="Weight kg" readonly tabindex="-1">${item.custom ? `<label class="ci-line-cert" title="Include this line in the BeSwift certificate items"><input type="checkbox" data-ci-cert${item.includeInCertificate ? " checked" : ""}> CO</label><button type="button" class="ci-line-remove" data-ci-remove-line="${escapeHtml(item.lineKey || "")}" aria-label="Remove custom line" title="Remove custom line">&times;</button>` : ""}</td>
     </tr>
   `).join("");
 
@@ -548,7 +550,7 @@ function renderCommercialInvoicePreview() {
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
-            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div></div>
+            <div class="ci-entry-section-head"><div><h3>Invoice line items</h3><p>Edit description, customs data, quantity or price. Amounts and totals recalculate immediately.</p></div><button type="button" class="secondary-button" data-ci-add-line>Add custom line</button></div>
             <div class="table-wrap ci-entry-table-wrap">
               <table class="ci-items ci-entry-items">
                 <thead><tr><th>Line #</th><th>Ref #</th><th>Inv #</th><th>Specification of commodities</th><th>HS code</th><th>Origin</th><th>Qty</th><th>Unit price (BBD $)</th><th>Amount (BBD $)</th><th>Weight kg</th></tr></thead>
@@ -764,7 +766,9 @@ function wireCommercialInvoiceLineEditing() {
     if (!input) return;
     const row = input.closest("[data-ci-line]");
     if (!row) return;
-    if (input.dataset.ciField === "quantity" || input.dataset.ciField === "unitPrice") {
+    if (row.dataset.ciCustom) {
+      recalcCustomLine(row, input.dataset.ciField);
+    } else if (input.dataset.ciField === "quantity" || input.dataset.ciField === "unitPrice") {
       recalcCommercialInvoiceLineAmount(row);
     }
     recalcCommercialInvoiceTotalsFromDom();
@@ -775,6 +779,70 @@ function wireCommercialInvoiceLineEditing() {
   target.addEventListener("focusout", (event) => {
     if (event.target.closest("[data-ci-field]")) commitCommercialInvoiceLines();
   });
+
+  target.addEventListener("change", (event) => {
+    if (event.target.matches("[data-ci-cert]")) commitCommercialInvoiceLines();
+  });
+
+  target.addEventListener("click", (event) => {
+    if (event.target.closest("[data-ci-add-line]")) addCustomInvoiceLine();
+    const remove = event.target.closest("[data-ci-remove-line]");
+    if (remove) removeCustomInvoiceLine(remove.dataset.ciRemoveLine);
+  });
+}
+
+async function addCustomInvoiceLine() {
+  const session = getSelectedSession();
+  if (!session) return;
+  try {
+    await saveCommercialInvoiceLines({ reloadPreview: false });
+    await postJson(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/custom-lines`, {});
+    await loadCommercialInvoicePreview();
+  } catch (error) {
+    setCoMessage(error.message, true);
+  }
+}
+
+async function removeCustomInvoiceLine(lineKey) {
+  const session = getSelectedSession();
+  if (!session || !lineKey) return;
+  try {
+    if (ciLinesSaveTimer) { clearTimeout(ciLinesSaveTimer); ciLinesSaveTimer = null; }
+    await ciLinesSaveChain.catch(() => {});
+    const response = await fetch(`/api/delivery/shipments/${encodeURIComponent(session.shipment_session_id)}/commercial-invoice/custom-lines/${encodeURIComponent(lineKey)}`, { method: "DELETE" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Request failed");
+    await loadCommercialInvoicePreview();
+  } catch (error) {
+    setCoMessage(error.message, true);
+  }
+}
+
+// Mirrors resolveCustomLineFigures in lib/beswift-co.js: the figure the operator
+// just keyed is kept, and the others calculate from whatever is present.
+function recalcCustomLine(row, editedField) {
+  const qtyInput = row.querySelector('[data-ci-field="quantity"]');
+  const priceInput = row.querySelector('[data-ci-field="unitPrice"]');
+  const amountInput = row.querySelector('[data-ci-field="amount"]');
+  if (!qtyInput || !priceInput || !amountInput) return;
+  const filled = (input) => input.value.trim() !== "";
+  if (editedField === "amount") {
+    if (filled(amountInput)) row.dataset.ciAmountDriven = "1"; else delete row.dataset.ciAmountDriven;
+  } else if (editedField === "quantity" || editedField === "unitPrice") {
+    delete row.dataset.ciAmountDriven;
+  }
+  const qty = parseMoneyInput(qtyInput.value);
+  const price = parseMoneyInput(priceInput.value);
+  const amount = parseMoneyInput(amountInput.value);
+  if (row.dataset.ciAmountDriven) {
+    if (editedField === "quantity" || editedField === "unitPrice") return;
+    if (filled(qtyInput) && qty !== 0) priceInput.value = formatPlainMoney(round2(amount / qty));
+    else if (filled(priceInput) && price !== 0) qtyInput.value = String(round2(amount / price));
+  } else if (filled(qtyInput) && filled(priceInput)) {
+    amountInput.value = formatPlainMoney(round2(qty * price));
+  } else if (editedField !== "amount") {
+    amountInput.value = "";
+  }
 }
 
 function parseMoneyInput(value) {
@@ -1414,6 +1482,13 @@ function readCommercialInvoiceLines() {
     row.querySelectorAll("[data-ci-field]").forEach((input) => {
       line[input.dataset.ciField] = input.value;
     });
+    if (row.dataset.ciCustom) {
+      line.custom = true;
+      line.includeInCertificate = Boolean(row.querySelector("[data-ci-cert]")?.checked);
+      // Only an operator-keyed amount is stored; otherwise it is qty x price.
+      if (!row.dataset.ciAmountDriven) line.amount = "";
+      else if (parseMoneyInput(line.quantity) !== 0) line.unitPrice = "";
+    }
     return line;
   }).filter((line) => line.lineKey);
 }
