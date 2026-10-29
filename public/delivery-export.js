@@ -529,7 +529,7 @@ function renderCommercialInvoicePreview() {
   renderCiComplianceSlot(preview?.compliance);
   // Avoid replacing the form while an operator is actively typing.
   if (target.contains(document.activeElement)
-    && document.activeElement?.matches("[data-ci-header-field], [data-ci-field]")) return;
+    && document.activeElement?.matches("[data-ci-header-field], [data-ci-field], [data-ci-tariff-input], [data-ci-tariff-custom] input")) return;
   if (!preview) {
     if (summary) summary.textContent = "Select an export shipment to open its commercial-invoice workspace.";
     target.innerHTML = `<p class="shipment-empty">Select an export shipment to load the commercial-invoice workspace.</p>`;
@@ -587,6 +587,7 @@ function renderCommercialInvoicePreview() {
               ${ciReadOnly("Country of origin", preview.countryOfOriginOfGoods)}
               ${ciReadOnly("Final destination", preview.transport?.countryOfDestination)}
               ${ciEntryInput("Declaration", "declaration", preview.declarationOverride || preview.declarationText, { multiline: true, wide: true, placeholder: "Declaration text" })}
+              ${window.TariffUi ? window.TariffUi.selectorHtml(preview) : ""}
             </div>
           </section>
           <section class="ci-entry-section ci-entry-lines-section">
@@ -610,6 +611,7 @@ function renderCommercialInvoicePreview() {
       </div>
     </article>
   `;
+  window.TariffUi?.refreshSelector();
 }
 
 function ciEntryInput(label, key, rawValue, opts = {}) {

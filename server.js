@@ -189,6 +189,7 @@ const {
   upsertCustomerParameters
 } = require("./lib/customer-parameters");
 const { saveCatalogEntry } = require("./lib/co-item-catalog");
+const tariffCodes = require("./lib/tariff-codes");
 const { getStandardsCatalog } = require("./lib/standards-catalog");
 const rxGenerator = require("./lib/rx-generator");
 const { syncRxCoatings } = require("./lib/rx-catalog-sync");
@@ -2011,6 +2012,44 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === "/api/delivery/tariff-codes" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await requirePermission(req, "delivery.read");
+      // Only administrators see (and manage) inactive entries; invoice users get the active list.
+      const canManage = user.permissions.includes("platform.admin");
+      const includeInactive = url.searchParams.get("all") === "1" && canManage;
+      return { tariffs: await tariffCodes.listTariffCodes({ includeInactive }), canManage };
+    });
+  }
+  if (url.pathname === "/api/delivery/tariff-codes" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "platform.admin");
+      return { tariff: await tariffCodes.createTariffCode(await readJsonBody(req), actor.userId) };
+    }, 201);
+  }
+  const tariffCodeMatch = url.pathname.match(/^\/api\/delivery\/tariff-codes\/([^/]+)$/);
+  if (tariffCodeMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "platform.admin");
+      return { tariff: await tariffCodes.updateTariffCode(decodeURIComponent(tariffCodeMatch[1]), await readJsonBody(req), actor.userId) };
+    });
+  }
+  if (tariffCodeMatch && req.method === "DELETE") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "platform.admin");
+      return tariffCodes.deleteTariffCode(decodeURIComponent(tariffCodeMatch[1]));
+    });
+  }
+
+  const commercialInvoiceTariffsMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/tariffs$/);
+  if (commercialInvoiceTariffsMatch && req.method === "PUT") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "delivery.write");
+      const body = await readJsonBody(req);
+      return { tariffSelections: await tariffCodes.saveInvoiceTariffs(commercialInvoiceTariffsMatch[1], body.tariffs, actor.userId) };
+    });
+  }
+
   const commercialInvoiceHeaderMatch = url.pathname.match(/^\/api\/delivery\/shipments\/([^/]+)\/commercial-invoice\/header$/);
   if (commercialInvoiceHeaderMatch && req.method === "PUT") {
     return handleApi(res, async () => {
@@ -3259,6 +3298,10 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     : preview.tariffHeadings?.length
       ? preview.tariffHeadings.map((heading) => `${escapeHtmlServer(heading.heading)}<br>${escapeHtmlServer(heading.hsCode)}`).join("<br>")
       : `${escapeHtmlServer(preview.declarationText)}<br>${escapeHtmlServer(preview.declarationHsCode)}`;
+  // Plain text, one line per selected tariff; wraps like any paragraph.
+  const tariffSection = preview.tariffSelections?.length
+    ? `<section class="tariffs"><h2>Customs Tariff Classifications</h2>${preview.tariffSelections.map((tariff) => `<p>${escapeHtmlServer(tariff.tariffCode)} – ${escapeHtmlServer(tariff.description)}</p>`).join("")}</section>`
+    : "";
   const rows = (preview.items || []).map((item) => `
     <tr>
       <td>${escapeHtmlServer(item.lineNumber)}</td>
@@ -3290,6 +3333,9 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
     .cell:nth-child(even) { border-right: 0; }
     .label { display: block; text-transform: uppercase; color: #3b628a; font-size: 7px; letter-spacing: .6px; font-weight: 700; margin-bottom: 5px; }
     .strong { font-weight: 700; color: #001b35; }
+    .tariffs { margin-top: 10px; padding: 6px 8px; border: 1px solid #b7c4d3; break-inside: avoid; }
+    .tariffs h2 { margin: 0 0 4px; font-size: 8px; letter-spacing: .6px; text-transform: uppercase; color: #3b628a; }
+    .tariffs p { margin: 0 0 2px; overflow-wrap: anywhere; }
     .declaration { text-align: center; background: #fff6e2; color: #001b35; font-weight: 800; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9px; }
     th { background: #071d35; color: white; text-transform: uppercase; font-size: 7px; padding: 8px 6px; }
@@ -3325,6 +3371,7 @@ function renderCommercialInvoiceHtml(preview, { signatureDataUrl = "" } = {}) {
       <div class="cell"><span class="label">Transportation / Marks</span><span class="strong">${escapeHtmlServer(preview.transport.carrier)}</span> ${escapeHtmlServer(preview.transport.trackingNumber)}<br>${escapeHtmlServer(preview.transport.marksAndNumbers)}</div>
       <div class="cell declaration"><span class="label">Declaration</span>${tariffRows}</div>
     </div>
+    ${tariffSection}
     <table>
       <thead><tr><th>Line #</th><th>Ref #</th><th>Invoice #</th><th>Specification of Commodities</th><th>HS Code</th><th>Origin</th><th>Quant.</th><th>Unit Price</th><th>Amount</th><th>Weight kg</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="10">No invoice lines.</td></tr>`}</tbody>

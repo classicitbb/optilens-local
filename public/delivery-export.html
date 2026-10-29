@@ -264,6 +264,7 @@
         <button type="button" data-settings-tab="shipmentDefaults">Shipment defaults</button>
         <button class="active" type="button" data-settings-tab="customerDefaults">Customer defaults</button>
         <button type="button" data-settings-tab="itemDefaults">Item defaults</button>
+        <button type="button" data-settings-tab="tariffCodes">Tariff Codes</button>
         <button type="button" data-settings-tab="authorisationPeriod">Authorisation</button>
       </div>
       <section class="settings-panel" id="shipmentDefaults">
@@ -335,6 +336,34 @@
           </table>
         </div>
       </section>
+      <section class="settings-panel" id="tariffCodes">
+        <div class="section-head tight shipment-detail-head">
+          <div>
+            <h2>Tariff Codes</h2>
+            <p>The library behind the commercial invoice's Tariff Codes selector. Edits never change invoices already issued.</p>
+          </div>
+        </div>
+        <div class="shipment-status-line" id="tariffCodesMessage" role="status"></div>
+        <p class="shipment-status-line" id="tariffReadOnlyNote" hidden>Only administrators can change the tariff library. You can still select active tariffs on an invoice.</p>
+        <form class="co-grid settings-grid tariff-add-form" id="tariffAddForm" hidden onsubmit="return false">
+          <label>Tariff code<input data-tariff-new="tariffCode" type="text" autocomplete="off" maxlength="40"></label>
+          <label class="co-wide">Description<input data-tariff-new="description" type="text" autocomplete="off" maxlength="500"></label>
+          <label class="co-wide">Search keywords (comma separated)<input data-tariff-new="searchAliases" type="text" autocomplete="off" maxlength="1000"></label>
+          <label class="tariff-inline-check"><input data-tariff-new="verified" type="checkbox"> Verified</label>
+          <label class="tariff-inline-check"><input data-tariff-new="isPinned" type="checkbox"> Pin to top</label>
+          <button class="button primary" id="tariffAddBtn" type="button">Add tariff</button>
+        </form>
+        <div class="tariff-filters">
+          <label>Search<input id="tariffSearch" type="search" autocomplete="off" placeholder="Code, description or keyword"></label>
+          <label>Show<select id="tariffStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="unverified">Unverified</option></select></label>
+        </div>
+        <div class="table-wrap item-settings-wrap">
+          <table class="item-settings-table tariff-table">
+            <thead><tr><th>Tariff code</th><th>Description</th><th>Search keywords</th><th>Verification</th><th>Active</th><th>Order</th><th>Actions</th></tr></thead>
+            <tbody id="tariffCodeRows"><tr><td colspan="7">Loading tariff codes...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
       <section class="settings-panel" id="authorisationPeriod">
         <div class="section-head tight shipment-detail-head"><div><h2>Authorisation</h2><p>One active transparent PNG signature is applied to Classic Visions authorisation lines on new commercial invoices.</p></div></div>
         <div class="shipment-status-line" id="authorisationMessage" role="status"></div>
@@ -352,6 +381,7 @@
   <script src="/beswift-extension-check.js" defer></script>
   <script src="/document-preview.js"></script>
   <script src="/delivery-export.js"></script>
+  <script src="/tariff-codes.js"></script>
   <script src="/pwa.js"></script>
 </body>
 </html>
