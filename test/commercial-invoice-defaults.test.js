@@ -16,7 +16,7 @@ test("commercial invoice keeps the requested operational defaults and source fal
   const source = read("lib/beswift-co.js");
   assert.match(source, /s\.Reference AS ShipmentReference/);
   assert.match(source, /o\.BillToReference/);
-  assert.match(source, /freightCost: 62/);
+  assert.match(source, /freightCost: composed\.freightOrderTotal \?\? 62/);
   assert.match(source, /customerOrderNoDefault = contactName/);
   assert.match(source, /declarationOverride = text\(headerOverrides\.declaration\) \|\| declarationDefault/);
 });
