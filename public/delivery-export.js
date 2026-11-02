@@ -688,13 +688,50 @@ function wireCoDraftAutosave() {
     readGrossWeightKg();
     requestCoDraftAutosave(0);
   });
+  document.querySelector("#coBoxCode")?.addEventListener("change", () => {
+    if (checkBoxCapacity()) applyBoxCarrier();
+  });
   form.addEventListener("change", commit);
   form.addEventListener("focusout", commit);
   form.addEventListener("pointerleave", commit);
 }
 
+// Each box option carries its carrier and weight limit (data-carrier, data-max-kg).
+// Options the current gross weight cannot fit are disabled, and a chosen box that
+// is too small blocks the autosave instead of saving a mismatched parcel.
+function checkBoxCapacity() {
+  const select = document.querySelector("#coBoxCode");
+  if (!select) return true;
+  const kg = Number(moduleState.coGrossWeightKg);
+  const weighed = Number.isFinite(kg) && kg > 0;
+  [...select.options].forEach((option) => {
+    option.disabled = weighed && Number(option.dataset.maxKg) < kg;
+  });
+  const chosen = select.selectedOptions[0];
+  const max = Number(chosen?.dataset.maxKg);
+  const tooSmall = weighed && Number.isFinite(max) && kg > max;
+  select.setCustomValidity(tooSmall ? "Too heavy for this parcel" : "");
+  if (tooSmall) {
+    setCoMessage(`${chosen.textContent.replace(/ \(max.*$/, "")} holds at most ${max} kg; ${formatWeight1(kg)} kg gross needs a larger parcel.`, true);
+    moduleState.coBoxWarned = true;
+  } else if (moduleState.coBoxWarned) {
+    moduleState.coBoxWarned = false;
+    setCoMessage("");
+  }
+  return !tooSmall;
+}
+
+function applyBoxCarrier() {
+  const carrier = document.querySelector("#coBoxCode")?.selectedOptions[0]?.dataset.carrier;
+  const field = document.querySelector("#ciHdr-carrier");
+  if (!carrier || !field || field.value === carrier) return;
+  field.value = carrier;
+  saveCommercialInvoiceHeader();
+}
+
 function requestCoDraftAutosave(delay) {
   if (!moduleState.coApplication) return;
+  if (!checkBoxCapacity()) return;
   if (moduleState.coAutosaveTimer) clearTimeout(moduleState.coAutosaveTimer);
   moduleState.coAutosaveTimer = setTimeout(() => {
     moduleState.coAutosaveTimer = null;
