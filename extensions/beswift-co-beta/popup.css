@@ -112,3 +112,19 @@ p {
   font-size: 12px;
   color: #33506a;
 }
+
+/* Match the OptiLens commercial invoice workspace: square, bordered, banded. */
+body { background: #e9edf1; font-size: 12.5px; }
+main { gap: 8px; padding: 0 0 12px; background: #fff; border: 1px solid #c4c9ce; border-radius: 0; }
+main > * { margin-left: 12px; margin-right: 12px; }
+h1 { margin: 0 0 4px; padding: 6px 12px; border-bottom: 1px solid #c4c9ce; background: #e2e7ec; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+label { gap: 2px; font-size: 10.5px; font-weight: 700; color: #4a6880; }
+input, select, textarea { min-height: 28px; padding: 3px 7px; border: 1px solid #c4c9ce; border-radius: 2px; font-size: 12.5px; font-weight: 500; color: #0b1e35; }
+input:focus, select:focus, textarea:focus { border-color: #1a8a9c; outline: 2px solid rgba(26, 138, 156, .22); outline-offset: 0; }
+button { min-height: 28px; border-radius: 2px; font-size: 12.5px; }
+#jobLog { border-top: 1px solid #dfe3e7; padding-top: 6px; }
+main { box-shadow: none; }
+.tag { border-radius: 2px; }
+#resolutionBox { border-radius: 0; }
+#resolutionBox textarea { border-radius: 2px; }
+body { background: transparent; }
