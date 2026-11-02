@@ -1582,3 +1582,10 @@ label {
 
 /* Editions without Automation have no assistant to open. */
 [data-no-assistant] .assistant-toggle-btn, [data-no-assistant] .global-assistant-fab, [data-no-assistant] .global-assistant-drawer { display: none !important; }
+
+/* Keep the shared shell mounted while the document scrolls. */
+#app-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}

@@ -406,3 +406,16 @@ When fully complete, remove stale steps and set `Status: Complete — no active 
 ## Baseline verification
 
 Repository instructions, manifests, and continuity requirements were inspected. No host, database, synchronization, deployment, restart, or application test ran during this documentation rollout.
+
+## Delivery fixed headers (2026-11-02)
+- Current state: local implementation on `codex/delivery-fixed-headers`; shared header mount is sticky; Delivery workspace is viewport bounded with independent shipment record scrolling and sticky detail column headers.
+- Affected files: `public/styles/shell.css`, `public/styles/components.css`.
+- Validation: `npm run check` and `git diff --check` passed. Full `npm test` started; result pending. Rendered browser verification remains outstanding.
+- Blocker / approval required: production deployment requires explicit approval under the current task instructions. No deployment performed.
+- Next action: finish `npm test`, verify scrolling in a local browser fixture, then request scoped deployment approval.
+
+### Delivery fixed headers deployment result (2026-11-02)
+- User explicitly authorized deployment. Guarded update deployed commit `8e9641f`; host tests and restart passed, and `node scripts/monitor-harness.js verify` reported all systems online.
+- Local full suite: 674 passed, 1 skipped, 0 failed. Rendered scrolling verification remains outstanding.
+- Host remains on `codex/delivery-fixed-headers`; merge/return to the default branch remains pending for automatic updates.
+- Next action: verify Delivery Export scrolling in an authenticated browser, then merge the scoped branch through normal review and return the host to the default branch.
