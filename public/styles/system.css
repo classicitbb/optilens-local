@@ -498,3 +498,177 @@ body.release-notes-body {
 #commercialInvoice .ci-entry-totals div:first-child { border-top: 0; font-weight: 700; }
 #commercialInvoice .ci-entry-totals b { font-weight: 700; text-align: right; }
 #commercialInvoice .ci-entry-totals .strong { border-bottom: 0; padding: 6px 12px; font-size: 13.5px; }
+
+/* Delivery & Export: the commercial invoice workspace's ERP look, applied to
+   every other surface on the page (shipment prep, delivery checklist, archive,
+   source health, the settings dialogs, the add-rows dialog, and the document
+   preview). Tokens mirror #commercialInvoice above; the paper invoice itself
+   is deliberately untouched. */
+.delivery-export-page {
+  --erp-canvas: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --erp-band: color-mix(in srgb, var(--ink) 9%, var(--surface));
+  --erp-readonly: color-mix(in srgb, var(--ink) 6%, var(--surface));
+  --erp-edge: color-mix(in srgb, var(--ink) 24%, var(--surface));
+  --erp-radius: 2px;
+}
+
+/* Buttons, tabs and inputs: square, one 28px control height */
+.delivery-export-page .button,
+.delivery-export-page .workflow-tab-refresh,
+.delivery-export-page .workflow-tab-settings { border-radius: var(--erp-radius) !important; }
+.delivery-export-page .workflow-tabs button,
+.delivery-export-page .settings-tabs button { border-radius: var(--erp-radius) var(--erp-radius) 0 0; }
+.delivery-export-page .workflow-tabs .workflow-tab-refresh,
+.delivery-export-page .workflow-tabs .workflow-tab-settings { border-color: var(--erp-edge) !important; }
+.delivery-export-page .workflow-block .button,
+.delivery-export-page .access-toolbar .button,
+.delivery-export-page .settings-panel .button,
+.delivery-export-page .document-preview-actions .button,
+.delivery-export-page .modal-form-actions .button { min-height: 28px; padding: 3px 12px; font-size: 12.5px; }
+
+.delivery-export-page .access-toolbar input,
+.delivery-export-page .access-toolbar select,
+.delivery-export-page .shipment-search-field input,
+.delivery-export-page .settings-panel input:not([type="checkbox"]):not([type="file"]),
+.delivery-export-page .settings-panel select,
+.delivery-export-page .settings-panel textarea,
+.delivery-export-page .shipment-modal .auth-body input {
+  min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius);
+  background: var(--surface); font-size: 12.5px; font-weight: 500; color: var(--ink);
+}
+.delivery-export-page .access-toolbar input:focus,
+.delivery-export-page .access-toolbar select:focus,
+.delivery-export-page .shipment-search-field input:focus,
+.delivery-export-page .settings-panel input:focus,
+.delivery-export-page .settings-panel select:focus,
+.delivery-export-page .settings-panel textarea:focus,
+.delivery-export-page .shipment-modal .auth-body input:focus {
+  border-color: var(--blue); outline: 2px solid color-mix(in srgb, var(--blue) 22%, transparent); outline-offset: 0;
+}
+.delivery-export-page .access-toolbar label,
+.delivery-export-page .settings-panel label,
+.delivery-export-page .tariff-filters label { gap: 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .01em; color: var(--muted); }
+
+/* Canvas and cards: a neutral canvas holds square bordered cards */
+.delivery-export-page .workflow-panel.active:not(#shipmentPrep):not(#commercialInvoice) {
+  display: grid; gap: 12px; align-content: start; padding: 12px; background: var(--erp-canvas);
+}
+.delivery-export-page .workflow-block { border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); box-shadow: none; }
+.delivery-export-page #commercialInvoice .commercial-preview-panel { border: 0; }
+
+/* Header bands */
+.delivery-export-page .section-head.tight,
+.delivery-export-page .shipment-list-head,
+.delivery-export-page .shipment-detail-head {
+  min-height: 0; padding: 6px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--erp-band);
+}
+.delivery-export-page .section-head.tight h2,
+.delivery-export-page .shipment-list-head h2,
+.delivery-export-page .shipment-detail-head h2 {
+  margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink);
+}
+.delivery-export-page .section-head.tight p,
+.delivery-export-page .shipment-list-head p,
+.delivery-export-page .shipment-detail-head p { margin: 1px 0 0; font-size: 11px; line-height: 1.3; font-weight: 500; color: var(--muted); }
+/* The invoice page header card keeps its own larger title (see #commercialInvoice above). */
+.delivery-export-page #commercialInvoice .commercial-preview-panel > .shipment-detail-head { background: var(--surface); }
+.delivery-export-page #commercialInvoice .commercial-preview-panel > .shipment-detail-head h2 { font-size: 16px; letter-spacing: 0; text-transform: none; }
+.delivery-export-page #commercialInvoice .commercial-preview-panel > .shipment-detail-head p { font-size: 11.5px; }
+
+/* Shipment prep */
+.delivery-export-page #shipmentPrep { background: var(--erp-canvas); }
+.delivery-export-page .shipment-prep-toolbar { padding: 6px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--surface); }
+.delivery-export-page .shipment-list-table-head { background: var(--erp-band); border-color: var(--erp-edge); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.delivery-export-page .shipment-list-panel,
+.delivery-export-page .shipment-detail-panel { background: var(--surface); border-color: var(--erp-edge); }
+.delivery-export-page .shipment-group summary { background: var(--erp-band); border-color: var(--erp-edge); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
+.delivery-export-page .shipment-divider { background: linear-gradient(90deg, transparent 0 4px, var(--erp-edge) 4px 5px, transparent 5px); }
+.delivery-export-page .shipment-divider::after { border-radius: var(--erp-radius); background: var(--erp-band); color: var(--muted); }
+.delivery-export-page .shipment-divider:hover::after,
+.delivery-export-page .shipment-divider:focus-visible::after { background: var(--blue); color: #fff; }
+.delivery-export-page .shipment-list-row.selected { background: color-mix(in srgb, var(--blue) 12%, var(--surface)); }
+
+/* Tables inside cards: flat, banded headers */
+.delivery-export-page .workflow-block .table-wrap,
+.delivery-export-page .settings-panel .table-wrap { border: 0; border-radius: 0; }
+.delivery-export-page #archive > .table-wrap { border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); }
+.delivery-export-page .table-wrap th { padding: 6px 8px; background: var(--erp-band); border-bottom: 1px solid var(--erp-edge); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+.delivery-export-page .table-wrap td { padding: 4px 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.delivery-export-page .settings-panel .item-settings-wrap { border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); }
+.delivery-export-page .item-settings-table td { padding: 2px 4px; }
+.delivery-export-page .item-settings-table input:not([type="checkbox"]) { min-height: 24px; }
+
+/* Delivery checklist */
+.delivery-export-page .placeholder-pane { min-height: 0; padding: 16px 12px; border: 0; border-radius: 0; background: var(--surface); font-size: 12.5px; }
+
+/* Archive */
+.delivery-export-page #archive .access-toolbar {
+  grid-template-columns: minmax(240px, 1.6fr) minmax(140px, .6fr) minmax(140px, .6fr) auto; align-items: end;
+  gap: 6px 10px; margin: 0; padding: 10px 12px; border: 1px solid var(--erp-edge); background: var(--surface);
+}
+
+/* Source health */
+.delivery-export-page .setup-card {
+  display: grid; align-content: start; gap: 4px; padding: 10px 12px; border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); box-shadow: none;
+}
+.delivery-export-page .setup-card:hover { border-color: var(--blue); transform: none; box-shadow: none; }
+.delivery-export-page .setup-card .badge { justify-self: start; border-radius: var(--erp-radius); padding: 1px 8px; font-size: 10px; }
+.delivery-export-page .setup-card h3 { margin: 0; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.delivery-export-page .setup-card p { margin: 0; font-size: 12px; line-height: 1.35; color: var(--muted); }
+
+/* Dialogs: add rows, delivery & export settings */
+.delivery-export-page .shipment-modal .auth-panel {
+  border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); box-shadow: 0 18px 50px rgba(5, 29, 53, .32);
+}
+.delivery-export-page .shipment-modal .launcher-head { padding: 6px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--erp-band); }
+.delivery-export-page .shipment-modal .launcher-head h2 { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.delivery-export-page .shipment-modal .launcher-close { border-radius: var(--erp-radius); }
+.delivery-export-page .shipment-modal .auth-body { gap: 8px; padding: 12px; }
+.delivery-export-page .shipment-modal .auth-copy { font-size: 12px; line-height: 1.4; }
+.delivery-export-page .shipment-modal .auth-body label { gap: 2px; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.delivery-export-page .modal-form-actions { padding: 8px 0 0; gap: 6px; border-top: 1px solid var(--line); }
+.delivery-export-page .settings-tabs { padding: 6px 12px 0; gap: 2px; background: var(--erp-band); border-bottom: 1px solid var(--erp-edge); }
+.delivery-export-page .settings-tabs button { min-height: 30px; padding: 5px 12px; font-size: 12px; }
+.delivery-export-page .settings-tabs button.active { border-color: var(--erp-edge); background: var(--surface); }
+.delivery-export-page .delivery-settings-panel .settings-panel { padding: 0 0 12px; background: var(--erp-canvas); }
+.delivery-export-page .delivery-settings-panel .settings-panel > * { margin-left: 12px; margin-right: 12px; }
+.delivery-export-page .delivery-settings-panel .settings-panel > .section-head { margin: 0 0 8px; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--erp-edge); }
+.delivery-export-page .delivery-settings-panel .shipment-status-line { padding: 0; border: 0; background: transparent; }
+.delivery-export-page .delivery-settings-panel .shipment-status-line:not(:empty) { margin-bottom: 8px; }
+
+/* Settings forms: shipment defaults and customer defaults share the invoice grid */
+.delivery-export-page #shipmentDefaults .co-grid.settings-grid,
+.delivery-export-page #customerDefaults .co-grid.settings-grid,
+.delivery-export-page .tariff-add-form {
+  display: grid; gap: 6px 10px; padding: 10px 12px 12px; border: 1px solid var(--erp-edge); background: var(--surface);
+}
+.delivery-export-page #shipmentDefaults .co-grid.settings-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.delivery-export-page #customerDefaults .co-grid.settings-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.delivery-export-page #customerDefaults .co-grid.settings-grid label { padding: 0; border: 0; gap: 2px; }
+.delivery-export-page #customerDefaults .co-grid.settings-grid input,
+.delivery-export-page #customerDefaults .co-grid.settings-grid textarea {
+  min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius); font-size: 12.5px; font-weight: 500;
+}
+.delivery-export-page #customerDefaults .co-grid.settings-grid textarea { min-height: 46px; }
+.delivery-export-page .tariff-add-form { grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr) minmax(0, 3fr) auto auto auto; align-items: end; }
+.delivery-export-page .tariff-add-form[hidden] { display: none; }
+.delivery-export-page .tariff-add-form .co-wide { grid-column: auto; }
+.delivery-export-page .tariff-filters { margin: 8px 12px; padding: 8px 12px; border: 1px solid var(--erp-edge); background: var(--surface); gap: 6px 10px; align-items: end; }
+.delivery-export-page .tariff-badge { border-radius: var(--erp-radius); }
+.delivery-export-page .authorisation-upload { margin: 0 12px 8px; padding: 18px; border: 1px dashed var(--erp-edge); border-radius: 0; background: var(--surface); }
+.delivery-export-page .authorisation-preview { margin: 0 12px; border: 1px solid var(--erp-edge); border-radius: 0; }
+
+/* Document preview (PDF print dialog): chrome only, the paper stays as is */
+.delivery-export-page .document-preview-dialog { border: 1px solid var(--erp-edge); border-radius: 0; background: var(--erp-canvas); box-shadow: 0 18px 50px rgba(5, 29, 53, .4); }
+.delivery-export-page .document-preview-shell > header { padding: 6px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--erp-band); }
+.delivery-export-page .document-preview-shell h2 { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+.delivery-export-page .document-preview-shell small { font-size: 11px; color: var(--muted); }
+.delivery-export-page .document-preview-stage { padding: 12px; background: var(--erp-canvas); }
+.delivery-export-page .document-preview-page { border: 1px solid var(--erp-edge); box-shadow: none; }
+
+@media (max-width: 900px) {
+  .delivery-export-page #shipmentDefaults .co-grid.settings-grid,
+  .delivery-export-page #customerDefaults .co-grid.settings-grid,
+  .delivery-export-page .tariff-add-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .delivery-export-page #archive .access-toolbar { grid-template-columns: 1fr 1fr; }
+}
