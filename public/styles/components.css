@@ -3230,3 +3230,7 @@ tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mi
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }
+
+/* Preserve natural group heights so the record scroller owns overflow. */
+.delivery-export-page .shipment-groups { display: block; }
+.delivery-export-page .shipment-group { overflow: visible; }
