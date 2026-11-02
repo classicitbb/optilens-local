@@ -420,10 +420,10 @@ internal sealed class OptiLensHostMonitor : Form
             if (!DateTime.TryParse(S(Value(run, "updatedAt")), null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out updated) || updated < requestedAt) return "";
             var state = S(Value(run, "status"));
             var percent = 0; int.TryParse(S(Value(run, "percent")), out percent);
-            if (updateProgressBar != null) updateProgressBar.Value = Math.Max(0, Math.Min(100, percent));
+            if (ProgressUiAlive()) updateProgressBar.Value = Math.Max(0, Math.Min(100, percent));
             if (state == "running")
             {
-                if (updateProgressSummary != null) { updateProgressSummary.Text = S(Value(run, "phase")) + " - " + percent + "%"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+                if (ProgressUiAlive()) { updateProgressSummary.Text = S(Value(run, "phase")) + " - " + percent + "%"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
                 return "";
             }
             if (state == "completed") { FinishUpdateProgress(true, S(Value(run, "message"))); return "completed"; }
@@ -435,12 +435,12 @@ internal sealed class OptiLensHostMonitor : Form
 
     private void FinishUpdateProgress(bool ok, string message)
     {
-        if (updateProgressSummary != null)
+        if (ProgressUiAlive())
         {
             updateProgressSummary.Text = (ok ? "Update completed. " : "Update did not complete. ") + message;
             updateProgressSummary.ForeColor = ok ? Color.ForestGreen : Color.Firebrick;
+            if (ok) updateProgressBar.Value = 100;
         }
-        if (updateProgressBar != null && ok) updateProgressBar.Value = 100;
         updateStatus.Text = ok ? "Updates: up to date" : "Update failed: " + message;
         updateStatus.ForeColor = ok ? Color.ForestGreen : Color.Firebrick;
         AppendUpdateProgress((ok ? "COMPLETED: " : "FAILED: ") + message);
@@ -463,9 +463,19 @@ internal sealed class OptiLensHostMonitor : Form
         updateProgressWindow.BringToFront();
     }
 
+    // The operator can close the progress window mid-run; its controls are then disposed and the
+    // run keeps going, so every write to them is guarded and the tray balloon carries the verdict.
+    private bool ProgressUiAlive()
+    {
+        return updateProgressWindow != null && !updateProgressWindow.IsDisposed
+            && updateProgressBox != null && !updateProgressBox.IsDisposed
+            && updateProgressSummary != null && !updateProgressSummary.IsDisposed
+            && updateProgressBar != null && !updateProgressBar.IsDisposed;
+    }
+
     private void AppendUpdateProgress(string text)
     {
-        if (updateProgressBox == null) return;
+        if (!ProgressUiAlive()) return;
         updateProgressBox.AppendText(DateTime.Now.ToString("HH:mm:ss") + " " + text + Environment.NewLine);
         updateProgressBox.SelectionStart = updateProgressBox.TextLength;
         updateProgressBox.ScrollToCaret();
@@ -478,7 +488,7 @@ internal sealed class OptiLensHostMonitor : Form
             var response = Map(json.DeserializeObject(await Api("/api/monitor/updates/logs")));
             var logs = Value(response, "logs") as object[];
             var updateLog = logs == null ? null : logs.Select(Map).FirstOrDefault(log => S(Value(log, "path")).EndsWith("data/local-update.log", StringComparison.OrdinalIgnoreCase));
-            if (updateLog != null && updateProgressBox != null)
+            if (updateLog != null && ProgressUiAlive())
             {
                 var text = S(Value(updateLog, "text"));
                 if (!string.Equals(updateProgressBox.Tag as string, text, StringComparison.Ordinal))
@@ -489,11 +499,11 @@ internal sealed class OptiLensHostMonitor : Form
                     updateProgressBox.ScrollToCaret();
                 }
             }
-            if (updateProgressSummary != null) { updateProgressSummary.Text = "Update runner is active. Refreshing diagnostic log every second…"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+            if (ProgressUiAlive()) { updateProgressSummary.Text = "Update runner is active. Refreshing diagnostic log every second…"; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
         }
         catch (Exception error)
         {
-            if (updateProgressSummary != null) { updateProgressSummary.Text = "Waiting for service to restart: " + error.Message; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
+            if (ProgressUiAlive()) { updateProgressSummary.Text = "Waiting for service to restart: " + error.Message; updateProgressSummary.ForeColor = Color.DarkGoldenrod; }
         }
     }
 
