@@ -3171,3 +3171,62 @@ tr[data-ci-custom] .ci-line-input[data-ci-field="amount"] { background: color-mi
   #tariffCodes .tariff-head { flex-direction: column; }
   .tariff-count { margin-left: 0; }
 }
+
+/* A bounded workspace gives each record pane its own scroll surface. */
+.delivery-export-page {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.delivery-export-page #app-shell-header { flex: 0 0 auto; }
+.delivery-export-page .module-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.delivery-export-page .module-workspace {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.delivery-export-page .workflow-tabs { flex: 0 0 auto; }
+.delivery-export-page .workflow-panel.active {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.delivery-export-page #shipmentPrep.active { overflow: hidden; }
+.delivery-export-page .shipment-master-detail { overflow: auto; }
+.delivery-export-page .shipment-list-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.delivery-export-page .shipment-list-head,
+.delivery-export-page .shipment-list-table-head,
+.delivery-export-page .shipment-detail-head { flex: 0 0 auto; }
+.delivery-export-page .shipment-groups {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.delivery-export-page .shipment-detail-panel { overflow: hidden; }
+.delivery-export-page .shipment-items-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+}
+@media print {
+  .delivery-export-page { height: auto; overflow: visible; display: block; }
+  #app-shell-header { position: static; }
+}
+.delivery-export-page .shipment-divider { min-height: 0; }
+.delivery-export-page .shipment-detail-panel .table-wrap:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
