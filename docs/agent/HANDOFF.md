@@ -419,3 +419,8 @@ Repository instructions, manifests, and continuity requirements were inspected. 
 - Local full suite: 674 passed, 1 skipped, 0 failed. Rendered scrolling verification remains outstanding.
 - Host remains on `codex/delivery-fixed-headers`; merge/return to the default branch remains pending for automatic updates.
 - Next action: verify Delivery Export scrolling in an authenticated browser, then merge the scoped branch through normal review and return the host to the default branch.
+
+### Shipment list scroll correction (2026-11-02)
+- Headless Edge fixture reproduced clipped rows: scrollTop remained 0 while the final row extended below the pane. Grid track sizing combined with clipped details hid the overflow.
+- Changed shipment groups to normal block flow and allowed details overflow; the same fixture scrolled 505px and brought the final row to the pane bottom at a 1543x900 viewport. Shared and column headers remain outside the scrolling groups.
+- Affected file: `public/styles/components.css`. Syntax and diff checks passed. Deployment continuation authorized by the preceding deploy request.
