@@ -73,7 +73,9 @@
     customOpen: false,
     saveQueue: Promise.resolve(),
     filter: { text: "", status: "all" },
-    editingId: ""
+    editingId: "",
+    addOpen: false,
+    loadError: false
   };
 
   const activeLibrary = () => state.library.filter((tariff) => tariff.isActive);
@@ -86,8 +88,11 @@
       if (state.canManage) data = await api("GET", "/api/delivery/tariff-codes?all=1");
       state.library = data.tariffs || [];
       state.loaded = true;
+      state.loadError = false;
     } catch (error) {
+      state.loadError = true;
       setInvoiceStatus(error.message, true);
+      setSettingsMessage(`Could not load the tariff library: ${error.message}`, true);
     }
     renderSettings();
     refreshSelector();
@@ -347,35 +352,63 @@
     return !text || searchTariffs([tariff], text).length > 0;
   }
 
-  function rowHtml(tariff) {
-    const editing = state.canManage && state.editingId === tariff.id;
+  function keywordChips(aliases) {
+    const words = String(aliases || "").split(",").map((word) => word.trim()).filter(Boolean);
+    return words.length ? `<span class="tariff-kw">${words.map((word) => `<span>${esc(word)}</span>`).join("")}</span>` : "";
+  }
+
+  function editRowHtml(tariff) {
     const verified = tariff.verificationStatus === "verified";
-    if (editing) {
-      return `
-        <tr data-tariff-row="${esc(tariff.id)}" class="is-editing">
-          <td><input data-tariff-field="tariffCode" value="${esc(tariff.tariffCode)}" aria-label="Tariff code" maxlength="40"></td>
-          <td><input data-tariff-field="description" value="${esc(tariff.description)}" aria-label="Description" maxlength="500"></td>
-          <td><input data-tariff-field="searchAliases" value="${esc(tariff.searchAliases)}" aria-label="Search keywords" maxlength="1000"></td>
-          <td><select data-tariff-field="verificationStatus" aria-label="Verification status"><option value="unverified"${verified ? "" : " selected"}>Unverified</option><option value="verified"${verified ? " selected" : ""}>Verified</option></select></td>
-          <td>${tariff.isActive ? "Active" : "Inactive"}</td>
-          <td><label><input type="checkbox" data-tariff-field="isPinned"${tariff.isPinned ? " checked" : ""}> Pin</label> <input type="number" class="tariff-order" data-tariff-field="displayOrder" value="${esc(tariff.displayOrder)}" aria-label="Display order"></td>
-          <td class="tariff-actions"><button type="button" class="button primary" data-tariff-save="${esc(tariff.id)}">Save</button> <button type="button" class="button secondary" data-tariff-cancel>Cancel</button></td>
-        </tr>`;
-    }
+    return `
+      <tr data-tariff-row="${esc(tariff.id)}" class="is-editing">
+        <td colspan="5">
+          <form class="tariff-edit-form" data-tariff-edit-form="${esc(tariff.id)}" novalidate>
+            <div class="tariff-form-grid">
+              <label class="tariff-field"><span>Tariff code <i class="req">*</i></span>
+                <input data-tariff-field="tariffCode" value="${esc(tariff.tariffCode)}" maxlength="40" autocomplete="off">
+                <small class="tariff-field-error" data-error-for="tariffCode"></small>
+              </label>
+              <label class="tariff-field"><span>Description <i class="req">*</i></span>
+                <input data-tariff-field="description" value="${esc(tariff.description)}" maxlength="500" autocomplete="off">
+                <small class="tariff-field-error" data-error-for="description"></small>
+              </label>
+              <label class="tariff-field tariff-field-wide">Search keywords
+                <input data-tariff-field="searchAliases" value="${esc(tariff.searchAliases)}" maxlength="1000" autocomplete="off" placeholder="Comma separated">
+              </label>
+            </div>
+            <div class="tariff-form-foot">
+              <label class="tariff-inline-check"><input type="checkbox" data-tariff-field="verified"${verified ? " checked" : ""}> Verified with customs</label>
+              <label class="tariff-inline-check"><input type="checkbox" data-tariff-field="isPinned"${tariff.isPinned ? " checked" : ""}> Pin to top</label>
+              <label class="tariff-inline-check">Order <input type="number" class="tariff-order" data-tariff-field="displayOrder" value="${esc(tariff.displayOrder)}" step="10"></label>
+              <span class="tariff-form-actions">
+                <button type="button" class="button secondary" data-tariff-cancel>Cancel</button>
+                <button type="submit" class="button primary">Save changes</button>
+              </span>
+            </div>
+          </form>
+        </td>
+      </tr>`;
+  }
+
+  function rowHtml(tariff) {
+    if (state.canManage && state.editingId === tariff.id) return editRowHtml(tariff);
+    const verified = tariff.verificationStatus === "verified";
     const actions = state.canManage
-      ? `<button type="button" class="button secondary" data-tariff-edit="${esc(tariff.id)}">Edit</button>
-         <button type="button" class="button secondary" data-tariff-toggle="${esc(tariff.id)}">${tariff.isActive ? "Deactivate" : "Reactivate"}</button>
-         <button type="button" class="button secondary" data-tariff-delete="${esc(tariff.id)}"${tariff.usageCount ? ` title="Used on ${esc(tariff.usageCount)} invoice line(s); deactivate instead"` : ""}>Delete</button>`
+      ? `<button type="button" class="tariff-act" data-tariff-edit="${esc(tariff.id)}">Edit</button>
+         <button type="button" class="tariff-act" data-tariff-toggle="${esc(tariff.id)}">${tariff.isActive ? "Deactivate" : "Reactivate"}</button>
+         <button type="button" class="tariff-act danger" data-tariff-delete="${esc(tariff.id)}"${tariff.usageCount ? ` title="Used on ${esc(tariff.usageCount)} invoice line(s); deactivate instead"` : ""}>Delete</button>`
       : "";
     return `
       <tr data-tariff-row="${esc(tariff.id)}"${tariff.isActive ? "" : ` class="is-inactive"`}>
-        <td><code>${esc(tariff.tariffCode)}</code></td>
-        <td>${esc(tariff.description)}</td>
-        <td>${esc(tariff.searchAliases)}</td>
-        <td><span class="tariff-badge ${verified ? "verified" : "unverified"}">${verified ? "Verified" : "Unverified"}</span></td>
-        <td>${tariff.isActive ? "Active" : "Inactive"}</td>
-        <td>${tariff.isPinned ? "Pinned · " : ""}${esc(tariff.displayOrder)}</td>
-        <td class="tariff-actions">${actions}</td>
+        <td class="col-code"><code>${esc(tariff.tariffCode)}</code></td>
+        <td class="col-desc"><span class="tariff-desc">${esc(tariff.description)}</span>${keywordChips(tariff.searchAliases)}</td>
+        <td class="col-status">
+          <span class="tariff-badge ${verified ? "verified" : "unverified"}">${verified ? "Verified" : "Unverified"}</span>
+          ${tariff.isActive ? "" : `<span class="tariff-badge inactive">Inactive</span>`}
+          ${tariff.isPinned ? `<span class="tariff-badge pinned">Pinned</span>` : ""}
+        </td>
+        <td class="col-order">${esc(tariff.displayOrder)}</td>
+        <td class="col-actions"><span class="tariff-actions">${actions}</span></td>
       </tr>`;
   }
 
@@ -383,18 +416,58 @@
     const body = $("#tariffCodeRows");
     if (!body) return;
     const rows = state.library.filter(matchesFilter);
-    body.innerHTML = rows.map(rowHtml).join("") || `<tr><td colspan="7">${state.loaded ? "No tariff codes match." : "Loading tariff codes..."}</td></tr>`;
+    const emptyText = !state.loaded
+      ? (state.loadError ? `Could not load tariff codes. <button type="button" class="tariff-act" data-tariff-retry>Retry</button>` : "Loading tariff codes...")
+      : (state.library.length ? "No tariff codes match your search or filter." : "No tariff codes yet. Use Add tariff to create the first one.");
+    body.innerHTML = rows.map(rowHtml).join("") || `<tr><td colspan="5" class="tariff-empty">${emptyText}</td></tr>`;
+    const counts = {
+      all: state.library.length,
+      active: state.library.filter((t) => t.isActive).length,
+      inactive: state.library.filter((t) => !t.isActive).length,
+      unverified: state.library.filter((t) => t.verificationStatus !== "verified").length
+    };
+    document.querySelectorAll("[data-tariff-filter]").forEach((chip) => {
+      const on = chip.dataset.tariffFilter === state.filter.status;
+      chip.classList.toggle("active", on);
+      chip.setAttribute("aria-pressed", String(on));
+      chip.querySelector("b").textContent = counts[chip.dataset.tariffFilter];
+    });
+    const count = $("#tariffCount");
+    if (count) count.textContent = state.loaded ? `Showing ${rows.length} of ${state.library.length}` : "";
     const form = $("#tariffAddForm");
-    if (form) form.hidden = !state.canManage;
+    if (form) form.hidden = !(state.canManage && state.addOpen);
+    const toggle = $("#tariffNewToggle");
+    if (toggle) {
+      toggle.hidden = !state.canManage;
+      toggle.setAttribute("aria-expanded", String(Boolean(state.addOpen)));
+    }
     const note = $("#tariffReadOnlyNote");
     if (note) note.hidden = state.canManage || !state.loaded;
   }
 
+  let messageTimer = 0;
   function setSettingsMessage(message, isError = false) {
     const target = $("#tariffCodesMessage");
     if (!target) return;
+    clearTimeout(messageTimer);
     target.textContent = message || "";
     target.classList.toggle("error", Boolean(isError));
+    target.classList.toggle("success", Boolean(message) && !isError);
+    if (message && !isError) messageTimer = setTimeout(() => setSettingsMessage(""), 5000);
+  }
+
+  function showFieldErrors(form, error) {
+    form.querySelectorAll("[data-error-for]").forEach((node) => { node.textContent = ""; });
+    form.querySelectorAll("[aria-invalid]").forEach((input) => input.removeAttribute("aria-invalid"));
+    if (!error) return;
+    const key = /description/i.test(error) ? "description" : "tariffCode";
+    const node = form.querySelector(`[data-error-for="${key}"]`);
+    const input = form.querySelector(`[data-tariff-new="${key}"], [data-tariff-field="${key}"]`);
+    if (node) node.textContent = error;
+    if (input) {
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
+    }
   }
 
   function replaceInLibrary(tariff) {
@@ -415,49 +488,95 @@
     refreshSelector();
   }
 
-  function readRow(row) {
+  function readFields(container, attr) {
     const fields = {};
-    row.querySelectorAll("[data-tariff-field]").forEach((input) => {
-      fields[input.dataset.tariffField] = input.type === "checkbox" ? input.checked : input.value;
+    container.querySelectorAll(`[${attr}]`).forEach((input) => {
+      fields[input.getAttribute(attr)] = input.type === "checkbox" ? input.checked : input.value;
     });
     return fields;
+  }
+
+  // The server expects verificationStatus; the forms use a plain checkbox.
+  function toPayload(fields) {
+    const { verified, ...rest } = fields;
+    return { ...rest, verificationStatus: verified ? "verified" : "unverified" };
+  }
+
+  function closeAddForm() {
+    state.addOpen = false;
+    const form = $("#tariffAddForm");
+    if (form) {
+      form.reset();
+      showFieldErrors(form, "");
+    }
+    renderSettings();
+    $("#tariffNewToggle")?.focus();
+  }
+
+  function onSettingsSubmit(event) {
+    const form = event.target;
+    if (form.id === "tariffAddForm") {
+      event.preventDefault();
+      const fields = toPayload(readFields(form, "data-tariff-new"));
+      const checked = validateCustom(fields.tariffCode, fields.description);
+      showFieldErrors(form, checked.error);
+      if (checked.error) return;
+      if (state.library.some((tariff) => tariff.tariffCode.toLowerCase() === checked.tariffCode.toLowerCase())) {
+        return showFieldErrors(form, `${checked.tariffCode} is already in the library.`);
+      }
+      const button = $("#tariffAddBtn");
+      button.disabled = true;
+      return settingsAction(async () => {
+        const created = await api("POST", "/api/delivery/tariff-codes", { ...fields, tariffCode: checked.tariffCode, description: checked.description });
+        replaceInLibrary(created.tariff);
+        form.reset();
+        $("[data-tariff-new=tariffCode]").focus();
+      }, "Tariff added. Add another, or close the form.").finally(() => { button.disabled = false; });
+    }
+    if (form.matches?.("[data-tariff-edit-form]")) {
+      event.preventDefault();
+      const tariffId = form.dataset.tariffEditForm;
+      const fields = toPayload(readFields(form, "data-tariff-field"));
+      const checked = validateCustom(fields.tariffCode, fields.description);
+      showFieldErrors(form, checked.error);
+      if (checked.error) return;
+      return settingsAction(async () => {
+        const updated = await api("PUT", `/api/delivery/tariff-codes/${encodeURIComponent(tariffId)}`, { ...fields, tariffCode: checked.tariffCode, description: checked.description });
+        replaceInLibrary(updated.tariff);
+        state.editingId = "";
+      }, "Tariff saved. Issued invoices keep their original wording.");
+    }
   }
 
   function onSettingsClick(event) {
     const target = event.target;
     const id = (name) => target.closest(`[${name}]`)?.getAttribute(name);
-    if (target.closest("#tariffAddBtn")) {
-      const form = $("#tariffAddForm");
-      const fields = {
-        tariffCode: form.querySelector("[data-tariff-new=tariffCode]").value,
-        description: form.querySelector("[data-tariff-new=description]").value,
-        searchAliases: form.querySelector("[data-tariff-new=searchAliases]").value,
-        isPinned: form.querySelector("[data-tariff-new=isPinned]").checked,
-        verificationStatus: form.querySelector("[data-tariff-new=verified]").checked ? "verified" : "unverified"
-      };
-      return settingsAction(async () => {
-        const created = await api("POST", "/api/delivery/tariff-codes", fields);
-        replaceInLibrary(created.tariff);
-        form.querySelectorAll("input[type=text]").forEach((input) => { input.value = ""; });
-        form.querySelectorAll("input[type=checkbox]").forEach((input) => { input.checked = false; });
-      }, "Tariff added.");
+    if (target.closest("#tariffNewToggle")) {
+      state.addOpen = !state.addOpen;
+      renderSettings();
+      if (state.addOpen) $("[data-tariff-new=tariffCode]")?.focus();
+      return;
+    }
+    if (target.closest("#tariffAddCancel")) return closeAddForm();
+    if (target.closest("[data-tariff-retry]")) {
+      setSettingsMessage("");
+      return load();
+    }
+    const chip = target.closest("[data-tariff-filter]");
+    if (chip) {
+      state.filter.status = chip.dataset.tariffFilter;
+      return renderSettings();
     }
     if (id("data-tariff-edit")) {
       state.editingId = id("data-tariff-edit");
-      return renderSettings();
+      renderSettings();
+      return $("[data-tariff-edit-form] [data-tariff-field=tariffCode]")?.focus();
     }
     if (target.closest("[data-tariff-cancel]")) {
+      const editedId = state.editingId;
       state.editingId = "";
-      return renderSettings();
-    }
-    if (id("data-tariff-save")) {
-      const tariffId = id("data-tariff-save");
-      const fields = readRow(target.closest("tr"));
-      return settingsAction(async () => {
-        const updated = await api("PUT", `/api/delivery/tariff-codes/${encodeURIComponent(tariffId)}`, fields);
-        replaceInLibrary(updated.tariff);
-        state.editingId = "";
-      }, "Tariff saved. Issued invoices keep their original wording.");
+      renderSettings();
+      return document.querySelector(`[data-tariff-edit="${editedId}"]`)?.focus();
     }
     if (id("data-tariff-toggle")) {
       const tariffId = id("data-tariff-toggle");
@@ -465,23 +584,40 @@
       return settingsAction(async () => {
         const updated = await api("PUT", `/api/delivery/tariff-codes/${encodeURIComponent(tariffId)}`, { isActive: !current.isActive });
         replaceInLibrary(updated.tariff);
-      }, current.isActive ? "Tariff deactivated." : "Tariff reactivated.");
+      }, current.isActive ? `${current.tariffCode} deactivated. It no longer appears in the invoice selector.` : `${current.tariffCode} reactivated.`);
     }
     if (id("data-tariff-delete")) {
       const tariffId = id("data-tariff-delete");
       const current = state.library.find((entry) => entry.id === tariffId);
-      if (!window.confirm(`Permanently delete ${current.tariffCode}? This cannot be undone.`)) return;
+      const used = current.usageCount ? ` It is used on ${current.usageCount} invoice line(s); consider deactivating instead.` : "";
+      if (!window.confirm(`Permanently delete ${current.tariffCode}?${used} This cannot be undone.`)) return;
       return settingsAction(async () => {
         await api("DELETE", `/api/delivery/tariff-codes/${encodeURIComponent(tariffId)}`);
         state.library = state.library.filter((entry) => entry.id !== tariffId);
-      }, "Tariff deleted.");
+      }, `${current.tariffCode} deleted.`);
+    }
+  }
+
+  function onSettingsKeydown(event) {
+    if (event.key !== "Escape") return;
+    if (event.target.closest?.("[data-tariff-edit-form]")) {
+      event.preventDefault();
+      event.target.closest("form").querySelector("[data-tariff-cancel]").click();
+    } else if (event.target.closest?.("#tariffAddForm")) {
+      event.preventDefault();
+      closeAddForm();
     }
   }
 
   function onSettingsInput(event) {
     if (event.target.id === "tariffSearch") state.filter.text = event.target.value;
-    else if (event.target.id === "tariffStatusFilter") state.filter.status = event.target.value;
-    else return;
+    else if (event.target.closest?.("#tariffAddForm, [data-tariff-edit-form]")) {
+      if (event.target.getAttribute("aria-invalid")) {
+        event.target.removeAttribute("aria-invalid");
+        event.target.closest("label")?.querySelector("[data-error-for]")?.replaceChildren();
+      }
+      return;
+    } else return;
     renderSettings();
   }
 
@@ -491,7 +627,8 @@
   document.addEventListener("focusin", onFocusIn);
   document.addEventListener("click", onSettingsClick);
   document.addEventListener("input", onSettingsInput);
-  document.addEventListener("change", onSettingsInput);
+  document.addEventListener("submit", onSettingsSubmit);
+  document.addEventListener("keydown", onSettingsKeydown);
 
   root.TariffUi = { load, selectorHtml, refreshSelector, renderSettings, state };
   load();

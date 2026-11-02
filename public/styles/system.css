@@ -638,8 +638,7 @@ body.release-notes-body {
 
 /* Settings forms: shipment defaults and customer defaults share the invoice grid */
 .delivery-export-page #shipmentDefaults .co-grid.settings-grid,
-.delivery-export-page #customerDefaults .co-grid.settings-grid,
-.delivery-export-page .tariff-add-form {
+.delivery-export-page #customerDefaults .co-grid.settings-grid {
   display: grid; gap: 6px 10px; padding: 10px 12px 12px; border: 1px solid var(--erp-edge); background: var(--surface);
 }
 .delivery-export-page #shipmentDefaults .co-grid.settings-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -650,11 +649,24 @@ body.release-notes-body {
   min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius); font-size: 12.5px; font-weight: 500;
 }
 .delivery-export-page #customerDefaults .co-grid.settings-grid textarea { min-height: 46px; }
-.delivery-export-page .tariff-add-form { grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr) minmax(0, 3fr) auto auto auto; align-items: end; }
-.delivery-export-page .tariff-add-form[hidden] { display: none; }
-.delivery-export-page .tariff-add-form .co-wide { grid-column: auto; }
-.delivery-export-page .tariff-filters { margin: 8px 12px; padding: 8px 12px; border: 1px solid var(--erp-edge); background: var(--surface); gap: 6px 10px; align-items: end; }
-.delivery-export-page .tariff-badge { border-radius: var(--erp-radius); }
+/* Tariff Codes: compact ERP treatment of the add form, toolbar and library table */
+.delivery-export-page .tariff-add-form { margin-bottom: 8px; padding: 10px 12px 12px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius); background: var(--surface); }
+.delivery-export-page .tariff-toolbar { margin-top: 0; margin-bottom: 8px; padding: 6px 8px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius); background: var(--surface); }
+.delivery-export-page .tariff-chip { min-height: 26px; padding: 0 10px; border-radius: var(--erp-radius); font-size: 12px; }
+.delivery-export-page .tariff-field { gap: 3px; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.delivery-export-page .tariff-field input, .delivery-export-page .tariff-order, .delivery-export-page .tariff-search input { min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius); font-size: 12.5px; font-weight: 500; color: var(--ink); background: var(--color-input); }
+.delivery-export-page .tariff-field input:focus, .delivery-export-page .tariff-order:focus, .delivery-export-page .tariff-search input:focus { border-color: var(--blue); outline: 2px solid color-mix(in srgb, var(--blue) 22%, transparent); outline-offset: 0; }
+.delivery-export-page .tariff-field small, .delivery-export-page .tariff-hint { font-size: 10.5px; line-height: 1.25; font-weight: 500; }
+.delivery-export-page .tariff-field-error { color: var(--red); font-weight: 700; }
+.delivery-export-page .tariff-inline-check { font-size: 12px; font-weight: 700; }
+.delivery-export-page .tariff-inline-check input[type="checkbox"] { width: 14px; height: 14px; }
+.delivery-export-page .tariff-table-wrap { margin-bottom: 4px; border-color: var(--erp-edge); border-radius: var(--erp-radius); }
+.delivery-export-page .tariff-table th { padding: 6px 10px; font-size: 10.5px; background: var(--erp-band); border-bottom-color: var(--erp-edge); }
+.delivery-export-page .tariff-table td { padding: 7px 10px; font-size: 12.5px; border-bottom-color: var(--line); }
+.delivery-export-page .tariff-table .col-code code { font-size: 12px; }
+.delivery-export-page .tariff-badge, .delivery-export-page .tariff-kw span, .delivery-export-page .tariff-order, .delivery-export-page .tariff-act { border-radius: var(--erp-radius); }
+.delivery-export-page .tariff-act { min-height: 26px; padding: 0 8px; font-size: 12px; }
+.delivery-export-page #tariffCodesMessage { padding: 6px 10px; border-radius: var(--erp-radius); font-size: 12.5px; }
 .delivery-export-page .authorisation-upload { margin: 0 12px 8px; padding: 18px; border: 1px dashed var(--erp-edge); border-radius: 0; background: var(--surface); }
 .delivery-export-page .authorisation-preview { margin: 0 12px; border: 1px solid var(--erp-edge); border-radius: 0; }
 
@@ -669,6 +681,5 @@ body.release-notes-body {
 @media (max-width: 900px) {
   .delivery-export-page #shipmentDefaults .co-grid.settings-grid,
   .delivery-export-page #customerDefaults .co-grid.settings-grid,
-  .delivery-export-page .tariff-add-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .delivery-export-page #archive .access-toolbar { grid-template-columns: 1fr 1fr; }
 }

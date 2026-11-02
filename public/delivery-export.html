@@ -338,30 +338,53 @@
         </div>
       </section>
       <section class="settings-panel" id="tariffCodes">
-        <div class="section-head tight shipment-detail-head">
+        <div class="section-head tight shipment-detail-head tariff-head">
           <div>
             <h2>Tariff Codes</h2>
             <p>The library behind the commercial invoice's Tariff Codes selector. Edits never change invoices already issued.</p>
           </div>
+          <button class="button primary" id="tariffNewToggle" type="button" aria-expanded="false" aria-controls="tariffAddForm" hidden>+ Add tariff</button>
         </div>
-        <div class="shipment-status-line" id="tariffCodesMessage" role="status"></div>
+        <div class="shipment-status-line" id="tariffCodesMessage" role="status" aria-live="polite"></div>
         <p class="shipment-status-line" id="tariffReadOnlyNote" hidden>Only administrators can change the tariff library. You can still select active tariffs on an invoice.</p>
-        <form class="co-grid settings-grid tariff-add-form" id="tariffAddForm" hidden onsubmit="return false">
-          <label>Tariff code<input data-tariff-new="tariffCode" type="text" autocomplete="off" maxlength="40"></label>
-          <label class="co-wide">Description<input data-tariff-new="description" type="text" autocomplete="off" maxlength="500"></label>
-          <label class="co-wide">Search keywords (comma separated)<input data-tariff-new="searchAliases" type="text" autocomplete="off" maxlength="1000"></label>
-          <label class="tariff-inline-check"><input data-tariff-new="verified" type="checkbox"> Verified</label>
-          <label class="tariff-inline-check"><input data-tariff-new="isPinned" type="checkbox"> Pin to top</label>
-          <button class="button primary" id="tariffAddBtn" type="button">Add tariff</button>
+        <form class="tariff-add-form" id="tariffAddForm" hidden novalidate>
+          <div class="tariff-form-grid">
+            <label class="tariff-field"><span>Tariff code <i class="req">*</i></span>
+              <input data-tariff-new="tariffCode" type="text" autocomplete="off" maxlength="40" inputmode="decimal" placeholder="e.g. 9001.50.00.000" aria-describedby="tariffNewCodeErr">
+              <small class="tariff-field-error" id="tariffNewCodeErr" data-error-for="tariffCode"></small>
+            </label>
+            <label class="tariff-field"><span>Description <i class="req">*</i></span>
+              <input data-tariff-new="description" type="text" autocomplete="off" maxlength="500" placeholder="What the invoice will print" aria-describedby="tariffNewDescErr">
+              <small class="tariff-field-error" id="tariffNewDescErr" data-error-for="description"></small>
+            </label>
+            <label class="tariff-field tariff-field-wide">Search keywords
+              <input data-tariff-new="searchAliases" type="text" autocomplete="off" maxlength="1000" placeholder="Comma separated, e.g. spectacles, eyewear, lenses">
+              <small class="tariff-hint">Words people might type in the invoice selector to find this code.</small>
+            </label>
+          </div>
+          <div class="tariff-form-foot">
+            <label class="tariff-inline-check"><input data-tariff-new="verified" type="checkbox"> Verified with customs</label>
+            <label class="tariff-inline-check"><input data-tariff-new="isPinned" type="checkbox"> Pin to top of selector</label>
+            <span class="tariff-form-actions">
+              <button class="button secondary" id="tariffAddCancel" type="button">Cancel</button>
+              <button class="button primary" id="tariffAddBtn" type="submit">Add tariff</button>
+            </span>
+          </div>
         </form>
-        <div class="tariff-filters">
-          <label>Search<input id="tariffSearch" type="search" autocomplete="off" placeholder="Code, description or keyword"></label>
-          <label>Show<select id="tariffStatusFilter"><option value="all">All</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="unverified">Unverified</option></select></label>
+        <div class="tariff-toolbar">
+          <label class="tariff-search"><span class="visually-hidden">Search tariffs</span><input id="tariffSearch" type="search" autocomplete="off" placeholder="Search code, description or keyword"></label>
+          <div class="tariff-chips" id="tariffStatusFilter" role="group" aria-label="Filter tariffs">
+            <button type="button" class="tariff-chip active" data-tariff-filter="all" aria-pressed="true">All <b></b></button>
+            <button type="button" class="tariff-chip" data-tariff-filter="active" aria-pressed="false">Active <b></b></button>
+            <button type="button" class="tariff-chip" data-tariff-filter="inactive" aria-pressed="false">Inactive <b></b></button>
+            <button type="button" class="tariff-chip" data-tariff-filter="unverified" aria-pressed="false">Unverified <b></b></button>
+          </div>
+          <span class="tariff-count" id="tariffCount" aria-live="polite"></span>
         </div>
-        <div class="table-wrap item-settings-wrap">
-          <table class="item-settings-table tariff-table">
-            <thead><tr><th>Tariff code</th><th>Description</th><th>Search keywords</th><th>Verification</th><th>Active</th><th>Order</th><th>Actions</th></tr></thead>
-            <tbody id="tariffCodeRows"><tr><td colspan="7">Loading tariff codes...</td></tr></tbody>
+        <div class="tariff-table-wrap">
+          <table class="tariff-table">
+            <thead><tr><th class="col-code">Tariff code</th><th class="col-desc">Description</th><th class="col-status">Status</th><th class="col-order">Order</th><th class="col-actions"><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody id="tariffCodeRows"><tr><td colspan="5" class="tariff-empty">Loading tariff codes...</td></tr></tbody>
           </table>
         </div>
       </section>
