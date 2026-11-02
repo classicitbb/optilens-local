@@ -162,13 +162,14 @@
               <label>Shipping date<input id="coShippingDate" name="shippingDate" type="date"></label>
               <label>Box
                 <select id="coBoxCode" name="boxCode">
-                  <option value="DHL-FLYER">DHL Express Flyer</option>
-                  <option value="DHL-BOX2">DHL Box 2</option>
-                  <option value="DHL-BOX3">DHL Box 3</option>
-                  <option value="DHL-BOX4">DHL Box 4</option>
-                  <option value="DHL-BOX5">DHL Box 5</option>
-                  <option value="FEDEX-SM">FedEx Small Box</option>
-                  <option value="FEDEX-MED">FedEx Medium Box</option>
+                  <option value="DHL-FLYER" data-carrier="DHL Air" data-max-kg="2.0">DHL Express Flyer (max 2 kg)</option>
+                  <option value="DHL-BOX2" data-carrier="DHL Air" data-max-kg="1.0">DHL Box 2 (max 1 kg)</option>
+                  <option value="DHL-BOX3" data-carrier="DHL Air" data-max-kg="2.0">DHL Box 3 (max 2 kg)</option>
+                  <option value="DHL-BOX4" data-carrier="DHL Air" data-max-kg="5.0">DHL Box 4 (max 5 kg)</option>
+                  <option value="DHL-BOX5" data-carrier="DHL Air" data-max-kg="10.0">DHL Box 5 (max 10 kg)</option>
+                  <option value="FEDEX-PAK" data-carrier="FedEx Express" data-max-kg="2.5">FedEx Padded Pak (max 2.5 kg)</option>
+                  <option value="FEDEX-SM" data-carrier="FedEx Express" data-max-kg="9.0">FedEx Small Box (max 9 kg)</option>
+                  <option value="FEDEX-MED" data-carrier="FedEx Express" data-max-kg="9.0">FedEx Medium Box (max 9 kg)</option>
                 </select>
               </label>
               <label>Packages<input id="coPackageCount" name="packageCount" type="number" min="1" step="1"></label>
