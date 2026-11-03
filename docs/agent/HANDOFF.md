@@ -447,3 +447,13 @@ Status: Complete — no active handoff.
 - Affected files: normalized-order, RX Capture review HTML/JS/CSS, focused regression tests and continuity records.
 - Validation: 120 focused tests passed, then the additional serializer regression passed (11 builder tests). Full local suite passed 680 tests with 1 skipped before that final regression was added; the host full suite including it passed during guarded deployment. Syntax and whitespace checks passed.
 - No blockers or approval remain. The host remains on the feature branch pending normal review/merge; this completion note is a documentation-only commit ahead of the deployed code.
+
+## RX Capture in-app confirmation and focus visibility (2026-11-03)
+
+Status: Implementation verified; deployment pending.
+
+- Changes: themed HTML dialog for submission and staged-release retry; modal-safe shortcuts; automatic focus reveal above the sticky action bar/below the shell header, with VisualViewport resize support. RX Capture combo lists opt into keeping their position/open state during scroll.
+- Affected files: RX Capture HTML/JS/CSS, shared RX combobox, continuity records.
+- Validation: syntax/whitespace checks and full local suite passed (681 passed, 1 skipped). Synthetic browser checks verified desktop/mobile layout, Escape/cancel and focus restoration, Tab/Enter revealing fields, and dropdown position/open state. Cancellation made zero writes; explicit confirmation made exactly one PATCH, one resolution POST and one submit POST to the synthetic fixture, reaching its RELEASED view. No production draft or source order was changed.
+- Blocker / approval: none; deployment continues the authorized RX Capture work.
+- Next action: push the scoped commit, run the guarded updater, then monitor verification.

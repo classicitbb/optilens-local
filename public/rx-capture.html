@@ -308,6 +308,15 @@
       </form>
     </section>
   </main>
+  <dialog id="submissionDialog" class="rx-confirm-dialog" aria-labelledby="submissionDialogTitle" aria-describedby="submissionDialogDescription">
+    <h2 id="submissionDialogTitle">Submit to Innovations?</h2>
+    <p id="submissionDialogDescription"></p>
+    <dl id="submissionDialogDetails"></dl>
+    <form method="dialog" class="action-row">
+      <button class="secondary-button" value="cancel" autofocus>Keep reviewing</button>
+      <button id="submissionDialogConfirm" class="primary-button" value="confirm">Submit to Innovations</button>
+    </form>
+  </dialog>
   <script src="/shared.js"></script>
   <script src="/rx-capture-validation.js" defer></script>
   <script src="/rx-capture-voice.js" defer></script>

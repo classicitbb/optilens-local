@@ -525,3 +525,13 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 
 @media (pointer: coarse) { .eye-mode label { min-height: 40px; } }
 @media (max-width: 600px) { .prescription-card .section-title-row { flex-wrap: wrap; } .eye-mode { order: 3; flex-basis: 100%; margin-inline-start: 0; } }
+
+.rx-confirm-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--color-border); border-radius: var(--rx-radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow); }
+.rx-confirm-dialog:modal { overscroll-behavior: contain; }
+.rx-confirm-dialog::backdrop { background: rgb(11 30 53 / .55); overflow: hidden; overscroll-behavior: contain; }
+.rx-confirm-dialog h2 { margin: 0 0 12px; font-size: 1.25rem; }
+.rx-confirm-dialog p { color: var(--color-text-muted); }
+.rx-confirm-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; margin: 20px 0 24px; }
+.rx-confirm-dialog dt { color: var(--color-text-muted); }
+.rx-confirm-dialog dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.rx-confirm-dialog .action-row { justify-content: flex-end; }

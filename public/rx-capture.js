@@ -104,6 +104,8 @@
     // saving and submitting are explicit (buttons or Ctrl+S / Ctrl+Enter).
     $("#reviewForm").addEventListener("submit", (event) => event.preventDefault());
     $("#reviewForm").addEventListener("keydown", advanceOnEnter);
+    $("#reviewForm").addEventListener("focusin", (event) => revealReviewField(event.target));
+    window.visualViewport?.addEventListener("resize", () => revealReviewField(document.activeElement));
     $("#saveReviewButton").addEventListener("click", saveReview);
     $("#reprocessButton").addEventListener("click", reprocess);
     document.querySelectorAll("[data-discard]").forEach((button) => button.addEventListener("click", discardOrder));
@@ -116,10 +118,11 @@
     });
     document.addEventListener("keydown", reviewShortcuts);
     // Every dropdown uses the website's combo list; Enter on a pick moves on.
-    document.querySelectorAll("#reviewForm select").forEach((select) => window.RxCombo.select(select, { onAdvance: (field) => focusNextField(field) }));
+    document.querySelectorAll("#reviewForm select").forEach((select) => window.RxCombo.select(select, { onAdvance: (field) => focusNextField(field), keepOpenOnScroll: true }));
     document.querySelectorAll("[data-lens]").forEach((input) => {
       const key = input.dataset.lens;
       state.lensCombos[key] = window.RxCombo.combo(input, {
+        keepOpenOnScroll: true,
         items: () => state.lensLabels[key] || [],
         allItems: () => [...new Set(lensMatches({}, null).map((item) => lensValue(item, key)))].sort(compareLensValues(key)),
         pinned: key === "design" ? isOwnLensDesign : undefined,
@@ -1203,6 +1206,20 @@
     focusNextField(field, event.shiftKey);
   }
 
+  // Measure the actual visible area: the sticky action bar and mobile keyboard
+  // can cover an input even when the browser considers it inside the viewport.
+  function revealReviewField(field) {
+    if (!field?.matches?.("#reviewForm input:not([type=hidden]), #reviewForm select, #reviewForm textarea") || field.disabled || field.closest(".submission-bar")) return;
+    const viewport = window.visualViewport;
+    const top = Math.max(viewport?.offsetTop || 0, $("#app-shell-header")?.getBoundingClientRect().bottom || 0) + 12;
+    const bar = $("#reviewForm .submission-bar").getBoundingClientRect();
+    const viewportBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+    const bottom = Math.min(viewportBottom, bar.top > top && bar.top < viewportBottom ? bar.top : viewportBottom) - 16;
+    const rect = field.getBoundingClientRect();
+    if (rect.top >= top && rect.bottom <= bottom) return;
+    window.scrollBy({ top: rect.top - top - Math.max(0, (bottom - top - rect.height) / 2), behavior: "instant" });
+  }
+
   function focusNextField(field, backwards) {
     const fields = [...$("#reviewForm").querySelectorAll("input, select, textarea")]
       .filter((item) => item.type !== "hidden" && item.tabIndex >= 0 && !item.disabled && !item.readOnly && item.offsetParent !== null);
@@ -1216,6 +1233,7 @@
   }
 
   function reviewShortcuts(event) {
+    if ($("#submissionDialog").open) return;
     if (!$("#reviewScreen").classList.contains("active") || $("#reviewForm").hidden) return;
     if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === "KeyC") {
       event.preventDefault();
@@ -1489,6 +1507,30 @@
 
   // One action: save the reviewed draft, record the submission choices, then
   // stage and release. Saving clears any earlier choices, so all three run together.
+  function confirmSubmission(title, description, details, confirmLabel) {
+    const dialog = $("#submissionDialog");
+    if (dialog.open) return Promise.resolve(false);
+    $("#submissionDialogTitle").textContent = title;
+    $("#submissionDialogDescription").textContent = description;
+    $("#submissionDialogConfirm").textContent = confirmLabel;
+    $("#submissionDialogDetails").replaceChildren(...details.flatMap(([label, value]) => {
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = label;
+      detail.textContent = value;
+      return [term, detail];
+    }));
+    dialog.returnValue = "";
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => {
+        const confirmed = dialog.returnValue === "confirm";
+        dialog.returnValue = "";
+        resolve(confirmed);
+      }, { once: true });
+      dialog.showModal();
+    });
+  }
+
   async function submitOrder() {
     if (!state.current?.normalizedOrder || !state.lensResolved) return;
     const lens = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
@@ -1496,7 +1538,10 @@
     const frame = draft.frame?.status === "UNCUT" ? "Uncut" : "Edged / enclosed";
     const customer = state.current.customer?.name || "the selected customer";
     const patient = normalizePatientName(draft.patient?.name) || "patient not identified";
-    if (!window.confirm(`Submit ${patient} for ${customer}?\n\nLens: ${lens}\nEyes: ${({ pair: "Pair", right: "Right only (OD)", left: "Left only (OS)" })[draft.prescription.eyeMode || "pair"]}\nFrame: ${frame}\n\nThis creates the RX file, stages it, and releases it to Innovations.`)) return;
+    if (!await confirmSubmission("Submit to Innovations?", "This saves the draft, creates the RX file, stages it and releases it to Innovations.", [
+      ["Patient", patient], ["Customer", customer], ["Lens", lens],
+      ["Eyes", ({ pair: "Pair", right: "Right only (OD)", left: "Left only (OS)" })[draft.prescription.eyeMode || "pair"]], ["Frame", frame]
+    ], "Submit to Innovations")) return;
     const id = encodeURIComponent(state.current.id);
     const button = $("#submitOrderButton");
     button.disabled = true;
@@ -1521,7 +1566,7 @@
   async function retryRelease() {
     const order = state.current;
     if (!order || order.status !== "STAGED" || !state.canRelease) return;
-    if (!window.confirm(`Retry the release of ${order.generatedFilename || "this staged RX"}? Matching archived and incoming content will be reused; a different file will never be overwritten.`)) return;
+    if (!await confirmSubmission("Retry release?", "Matching archived and incoming content will be reused; a different file will never be overwritten.", [["RX file", order.generatedFilename || "Staged RX"]], "Retry release")) return;
     const button = $("#retryReleaseButton");
     button.disabled = true;
     button.textContent = "RELEASING…";
