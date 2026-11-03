@@ -514,11 +514,14 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 .settings-check li[data-ok="true"] { color: var(--color-success); }
 .settings-check li[data-ok="false"] { color: var(--color-danger); background: var(--rx-danger-tint); }
 
-.eye-mode { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; border: 0; padding: 0; margin: 0 0 1rem; }
-.eye-mode legend { font-size: 0.8rem; margin-bottom: 0.35rem; }
-.eye-mode label { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; }
+.eye-mode { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; border: 0; padding: 0; margin: 0; margin-inline-start: auto; min-width: 0; }
+.eye-mode legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.eye-mode label { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 30px; font-size: 0.75rem; cursor: pointer; }
 .eye-mode input { width: 1rem; min-height: 1rem; accent-color: var(--accent, #008ca8); }
 .inactive-eye { opacity: 0.45; }
 
 .own-lens-chip[aria-pressed="false"] { background: var(--color-surface); border-color: var(--color-border); color: var(--color-text); }
 .own-lens-chip[aria-pressed="true"]::before { content: "✓"; }
+
+@media (pointer: coarse) { .eye-mode label { min-height: 40px; } }
+@media (max-width: 600px) { .prescription-card .section-title-row { flex-wrap: wrap; } .eye-mode { order: 3; flex-basis: 100%; margin-inline-start: 0; } }

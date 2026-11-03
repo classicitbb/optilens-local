@@ -223,14 +223,15 @@
         <section class="review-card prescription-card">
           <div class="section-title-row">
             <h2>Prescription</h2>
+            <fieldset class="eye-mode"><legend>Prescription entry</legend>
+              <label><input type="radio" name="eyeMode" value="pair" checked> Pair</label>
+              <label><input type="radio" name="eyeMode" value="right"> Right only (OD)</label>
+              <label><input type="radio" name="eyeMode" value="left"> Left only (OS)</label>
+            </fieldset>
             <button class="clear-section" type="button" data-clear-section="prescription">Clear</button>
           </div>
           <input type="hidden" data-path="prescription.eyeMode" value="pair">
-          <fieldset class="eye-mode"><legend>Prescription entry</legend>
-            <label><input type="radio" name="eyeMode" value="pair" checked> Pair</label>
-            <label><input type="radio" name="eyeMode" value="right"> Right only (OD)</label>
-            <label><input type="radio" name="eyeMode" value="left"> Left only (OS)</label>
-          </fieldset>
+
           <div class="rx-table-wrap">
             <table class="rx-table">
               <thead><tr><th scope="col">Eye</th><th scope="col">Sphere</th><th scope="col">Cylinder</th><th scope="col">Axis</th><th scope="col">ADD</th><th scope="col">Dist PD</th><th scope="col">Near PD</th><th scope="col">OC HT</th><th scope="col">Prism</th><th scope="col">Base</th></tr></thead>

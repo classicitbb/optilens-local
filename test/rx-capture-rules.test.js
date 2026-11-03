@@ -112,3 +112,11 @@ test("HT is split like the word height, so a bare HT value is not left unassigne
   assert.deepEqual(keys("Right eye -2.00 sphere HT 18. Left eye -1.00 sphere HT 17"), keys("Right eye -2.00 sphere height 18. Left eye -1.00 sphere height 17"));
   assert.deepEqual(keys("Right eye HT 18 -2.00 sphere"), ["right"]);
 });
+
+test("captured plano and leading-decimal powers normalize before review and generation", () => {
+  const result = order({ prescription: { od: { sphere: "PLANO", cylinder: "−.75" }, os: { sphere: "pl", cylinder: "- .50" } } });
+  assert.equal(result.prescription.od.sphere, "0.00");
+  assert.equal(result.prescription.od.cylinder, "-0.75");
+  assert.equal(result.prescription.os.sphere, "0.00");
+  assert.equal(result.prescription.os.cylinder, "-0.50");
+});

@@ -436,3 +436,13 @@ Status: Complete — no active handoff.
 - Affected files: RX Capture browser assets, normalized-order, order-builder, voice rules, extraction/transcription instructions, RX renderer, focused tests and continuity records.
 - Single-eye source intake acceptance remains unproven by this deployment; codes 1/2 follow the existing cloud RX fixture contract. Any live synthetic source acceptance test is a separate controlled source write. The annotated original image/audio was unavailable, so the +.75 work verifies decimal handling and mismatch detection rather than claiming an OCR accuracy result on that original input.
 - Host remains on the feature branch outside automatic master updates until normal review/merge. This completion record is a documentation-only commit ahead of the deployed code; no implementation remains unfinished.
+
+## RX Capture power formatting and compact eye selector (2026-11-03)
+
+Status: Implementation verified; deployment pending.
+
+- Current state: normalized-order and review rendering format PLANO as numeric zero and abbreviated negative powers with a leading zero; eye selection moved into the heading row with an accessible hidden legend and responsive wrap.
+- Affected files: normalized-order, RX Capture review HTML/JS/CSS, focused regression tests and continuity records.
+- Tests: focused suite passed 120 tests before the additional serializer regression; browser synthetic review confirmed sphere `0.00`, cylinder `-0.75`, and a 30px heading/selector. Full suite result pending.
+- Blocker / approval: none; deployment continues the authorized RX Capture corrections.
+- Next action: finish test verification, push the scoped change and run the guarded updater followed by monitor verification.

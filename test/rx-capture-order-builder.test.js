@@ -139,3 +139,11 @@ for (const [mode, side, excluded, code] of [["right", "od", "os", "1"], ["left",
     assert.ok(result.order.content.includes("lens_" + excluded + "_material_code:\n"));
   });
 }
+
+test("plano and abbreviated negative cylinder generate numeric RX powers", () => {
+  const captured = normalizedOrder();
+  captured.prescription.od = { sphere: "PLANO", cylinder: "−.75", axis: 90 };
+  const result = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(Number(result.order.prescription.od.sphere), 0);
+  assert.equal(result.order.prescription.od.cylinder, "-0.75");
+});

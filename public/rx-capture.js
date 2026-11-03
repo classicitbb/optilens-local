@@ -815,7 +815,8 @@
     order.frame.model ||= "Unknown";
     if (order.frame.supplied == null) order.frame.supplied = order.frame.status !== "UNCUT";
     document.querySelectorAll("[data-path]").forEach((input) => {
-      input.value = valueAtPath(order, input.dataset.path) ?? "";
+      const raw = valueAtPath(order, input.dataset.path) ?? "";
+      input.value = /^prescription\.(od|os)\.(sphere|cylinder|add)$/.test(input.dataset.path) ? window.RxValidation.formatField(input.dataset.path, raw) : raw;
       input.classList.remove("missing", "uncertain");
     });
     fieldForPath("prescription.eyeMode").value ||= "pair";
