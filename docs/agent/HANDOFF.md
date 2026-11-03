@@ -427,10 +427,12 @@ Repository instructions, manifests, and continuity requirements were inspected. 
 
 ## RX Capture review corrections (2026-11-03)
 
-Status: Implementation verified; deployment in progress.
+Status: Complete — no active handoff.
 
-- Changes: shared title cleanup; explicit pair/right/left eye selection through normalized drafts, validation and RX serialization; separate lab/customer lens selection; leading-decimal voice sign handling and numeric evidence mismatch flags; extraction/transcription decimal guidance.
-- Affected files: RX Capture browser assets, normalized-order, order-builder, voice rules, AI instruction modules, RX renderer and focused tests.
-- Validation: 679 passed, 1 skipped, 0 failed using `node --test --test-force-exit test/*.test.js`; ordinary npm test left the assistant test process open after assertions. Syntax checks and desktop/mobile synthetic browser interaction checks passed. No actual prescription extraction or source release was run.
-- Blocker: host generated monitor executable is locally modified and must be preserved before the guarded update. Deployment is explicitly authorized by the user; no further approval required.
-- Next action: run the guarded updater on this feature branch, then `node scripts/monitor-harness.js verify`.
+- Deployed code revision `5659348` through the guarded updater from `codex/rx-capture-review-fixes`. Host syntax/database smoke checks and the normal host suite passed. An additional host run with `node --test --test-force-exit test/*.test.js` passed 679 tests with 1 skipped and no failures. The local suite passed with the same exit option; ordinary local npm test left the assistant test process open after its assertions.
+- Changes: shared Mr/Mrs/Dr/Ms title cleanup; explicit pair/right/left eye selection across normalized drafts, validation and RX serialization; separate lab/customer lens catalogue filters; leading-decimal voice sign handling, numeric evidence mismatch flags, and extraction/transcription decimal guidance. Submission confirmation names the selected eye mode.
+- Desktop/mobile synthetic browser checks passed for mode switching, excluded-eye input disabling, lens source switching, title cleanup and saving. A separate authenticated live tab confirmed all three eye modes and both lens source controls. The existing user tab and its unsaved draft were preserved.
+- The generated host monitor binary was preserved in a scoped Git stash before update. The app restarted successfully; final verification initially found only the stopped monitor. The documented harness start restored it, and verification reported all systems online. No repair loop, source write, real AI extraction or actual order release was performed.
+- Affected files: RX Capture browser assets, normalized-order, order-builder, voice rules, extraction/transcription instructions, RX renderer, focused tests and continuity records.
+- Single-eye source intake acceptance remains unproven by this deployment; codes 1/2 follow the existing cloud RX fixture contract. Any live synthetic source acceptance test is a separate controlled source write. The annotated original image/audio was unavailable, so the +.75 work verifies decimal handling and mismatch detection rather than claiming an OCR accuracy result on that original input.
+- Host remains on the feature branch outside automatic master updates until normal review/merge. This completion record is a documentation-only commit ahead of the deployed code; no implementation remains unfinished.
