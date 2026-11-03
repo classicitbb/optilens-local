@@ -439,10 +439,11 @@ Status: Complete — no active handoff.
 
 ## RX Capture power formatting and compact eye selector (2026-11-03)
 
-Status: Implementation verified; deployment pending.
+Status: Complete — no active handoff.
 
-- Current state: normalized-order and review rendering format PLANO as numeric zero and abbreviated negative powers with a leading zero; eye selection moved into the heading row with an accessible hidden legend and responsive wrap.
+- Deployed revision `9dd8e26` through the guarded updater on `codex/rx-capture-review-fixes`. Host syntax/database smoke checks, normal host tests, restart and monitor verification passed; all systems online.
+- Normalized-order and saved-review rendering use the shared power formatter: PLANO/PL sphere becomes `0.00`, and abbreviated negative powers gain a leading zero (for example `−.75` becomes `-0.75`). This fixes the mismatch where review validation accepted plano but RX generation received a nonnumeric word. No power is rounded into a valid prescription.
+- The accessible eye selector shares the Prescription heading row on desktop (30px measured) and wraps into a compact row on mobile. Synthetic browser verification confirmed the displayed values and no horizontal overflow at 390px. No production draft or source order was changed.
 - Affected files: normalized-order, RX Capture review HTML/JS/CSS, focused regression tests and continuity records.
-- Tests: focused suite passed 120 tests before the additional serializer regression; browser synthetic review confirmed sphere `0.00`, cylinder `-0.75`, and a 30px heading/selector. Full suite result pending.
-- Blocker / approval: none; deployment continues the authorized RX Capture corrections.
-- Next action: finish test verification, push the scoped change and run the guarded updater followed by monitor verification.
+- Validation: 120 focused tests passed, then the additional serializer regression passed (11 builder tests). Full local suite passed 680 tests with 1 skipped before that final regression was added; the host full suite including it passed during guarded deployment. Syntax and whitespace checks passed.
+- No blockers or approval remain. The host remains on the feature branch pending normal review/merge; this completion note is a documentation-only commit ahead of the deployed code.
