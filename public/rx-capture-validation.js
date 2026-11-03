@@ -89,6 +89,21 @@
     return raw;
   }
 
+  function activeSides(order) {
+    const mode = order?.prescription?.eyeMode;
+    return mode === "right" ? ["od"] : mode === "left" ? ["os"] : ["od", "os"];
+  }
+
+  function isActivePath(order, path) {
+    const side = /^prescription\.(od|os)\./.exec(path)?.[1]
+      || ({ "pd.od": "od", "pd.os": "os", "pd.nearOd": "od", "pd.nearOs": "os", "frame.segHeightOd": "od", "frame.segHeightOs": "os" })[path];
+    return !side || activeSides(order).includes(side);
+  }
+
+  function stripPatientTitle(value) {
+    return String(value || "").replace(/(^|,\s*)(?:(?:mr|mrs|dr|ms)\.?(?:\s+|$))+/gi, "$1").trim();
+  }
+
   function validateOrder(order) {
     const errors = [];
     const warnings = [];
@@ -102,6 +117,7 @@
 
     const spheres = {};
     for (const [side, label, suffix] of EYES) {
+      if (!activeSides(order).includes(side)) continue;
       const eye = rx[side] || {};
       const at = (field) => `prescription.${side}.${field}`;
 
@@ -169,7 +185,7 @@
     else if (binocular !== null && (binocular < LIMITS.binocularPd.min || binocular > LIMITS.binocularPd.max)) error("pd.binocular", `Binocular PD ${fixed(binocular, 1)} mm is outside ${LIMITS.binocularPd.min}-${LIMITS.binocularPd.max} mm.`);
     const od = num(pd.od);
     const os = num(pd.os);
-    if (Number.isFinite(binocular) && Number.isFinite(od) && Number.isFinite(os) && Math.abs(od + os - binocular) > 1) {
+    if (activeSides(order).length === 2 && Number.isFinite(binocular) && Number.isFinite(od) && Number.isFinite(os) && Math.abs(od + os - binocular) > 1) {
       warn("pd.binocular", `OD + OS PD (${fixed(od + os, 1)} mm) does not match the binocular PD (${fixed(binocular, 1)} mm); the distance PDs are the ones submitted.`);
     }
 
@@ -219,5 +235,5 @@
     return /\b(?:progressive|bifocal|trifocal|multifocal|occupational)\b/i.test(text) ? "multifocal" : null;
   }
 
-  return { LIMITS, FRAME_DEFAULTS, edFor, num, formatField, toMinusCylinder, validateOrder, isProgressive, isMultifocal };
+  return { activeSides, isActivePath, stripPatientTitle, LIMITS, FRAME_DEFAULTS, edFor, num, formatField, toMinusCylinder, validateOrder, isProgressive, isMultifocal };
 });

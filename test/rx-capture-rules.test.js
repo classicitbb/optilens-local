@@ -5,6 +5,21 @@ const RxVoice = require("../public/rx-capture-voice");
 const { applyCaptureRules, normalizeOpticalOrder } = require("../lib/rx-capture/normalized-order");
 
 const order = (values) => normalizeOpticalOrder(values);
+test("patient titles are removed before surname formatting", () => {
+  for (const title of ["Mr", "Mrs.", "Dr", "Ms."]) {
+    assert.equal(normalizeOpticalOrder({ patient: { name: title + " Jane Doe" } }).patient.name, "DOE, JANE");
+    assert.equal(normalizeOpticalOrder({ patient: { name: "Doe, " + title + " Jane" } }).patient.name, "DOE, JANE");
+  }
+});
+
+test("single-eye normalization excludes the other eye and its review flags", () => {
+  const result = order({ patient: { name: "Jane Doe" }, prescription: { eyeMode: "right", od: { sphere: "+.75" }, os: { sphere: "+0.37" } }, pd: { od: "32", os: "99" }, uncertainFields: ["prescription.os.sphere"] });
+  assert.equal(result.prescription.eyeMode, "right");
+  assert.equal(result.prescription.os.sphere, null);
+  assert.equal(result.pd.os, null);
+  assert.deepEqual(require("../lib/rx-capture/normalized-order").criticalMissingFields(result), []);
+});
+
 const eye = (sphere, cylinder, axis) => ({ sphere, cylinder, axis });
 
 test("a zero cylinder with no axis is left blank when a sphere is read", () => {

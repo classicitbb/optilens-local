@@ -85,6 +85,13 @@
     window.addEventListener("beforeunload", warnUnsavedDictation);
     $("#customerSearch").addEventListener("focus", showFrequentCustomers);
     renderSegmentBoxes();
+    $("#labLensButton").addEventListener("click", chooseLabLenses);
+    document.querySelectorAll('[name="eyeMode"]').forEach((radio) => radio.addEventListener("change", () => {
+      fieldForPath("prescription.eyeMode").value = radio.value;
+      renderEyeMode();
+      runValidation();
+      renderIssues(currentDraft());
+    }));
     $("#ownLensButton").addEventListener("click", chooseOwnLenses);
     document.querySelectorAll("[data-clear-section]").forEach((button) => button.addEventListener("click", () => clearSection(button.dataset.clearSection)));
     $("#customerSearch").addEventListener("input", searchCustomers);
@@ -114,7 +121,7 @@
       const key = input.dataset.lens;
       state.lensCombos[key] = window.RxCombo.combo(input, {
         items: () => state.lensLabels[key] || [],
-        allItems: () => [...(state.lensUniverse?.[key] || [])].sort(compareLensValues(key)),
+        allItems: () => [...new Set(lensMatches({}, null).map((item) => lensValue(item, key)))].sort(compareLensValues(key)),
         pinned: key === "design" ? isOwnLensDesign : undefined,
         onAdvance: (field) => focusNextField(field),
         synonyms: LENS_SHORTHAND
@@ -811,6 +818,8 @@
       input.value = valueAtPath(order, input.dataset.path) ?? "";
       input.classList.remove("missing", "uncertain");
     });
+    fieldForPath("prescription.eyeMode").value ||= "pair";
+    renderEyeMode();
     restorePdDerivation();
     const edValue = window.RxValidation.num(fieldForPath("frame.ed").value);
     const edEstimate = window.RxValidation.edFor(fieldForPath("frame.a").value, fieldForPath("frame.b").value);
@@ -885,6 +894,7 @@
         }
       } catch { /* the employee chooses from the lists instead */ }
     }
+    state.lensSource = isOwnLensDesign(values.design || "") ? "own" : "lab";
     for (const key of LENS_KEYS) {
       setLensValue(key, values[key]);
       lensInput(key).classList.toggle("guessed", guessed && Boolean(values[key]));
@@ -927,7 +937,7 @@
   }
 
   function lensMatches(choices, except) {
-    return state.catalog.filter((item) => LENS_KEYS.every((key) => key === except || !choices[key] || lensValue(item, key) === choices[key]));
+    return state.catalog.filter((item) => (state.lensSource === "own" ? isOwnLensDesign(designLabel(item)) : !isOwnLensDesign(designLabel(item))) && LENS_KEYS.every((key) => key === except || !choices[key] || lensValue(item, key) === choices[key]));
   }
 
   function compareLensValues(key) {
@@ -948,8 +958,17 @@
   // One action for the usual job: switch the design to the customer-supplied
   // ("Custom Lens") design of the current lens type, keeping material and
   // colour where they still fit; the normal conflict repair clears the rest.
+  function chooseLabLenses() {
+    if (!state.catalog || !state.canEdit) return;
+    state.lensSource = "lab";
+    if (isOwnLensDesign(lensChoices().design)) setLensValue("design", "");
+    onLensCommit("design");
+    lensInput("design").focus();
+  }
+
   function chooseOwnLenses() {
     if (!state.catalog || !state.canEdit) return;
+    state.lensSource = "own";
     const current = lensChoices().design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
     const designs = [...state.lensUniverse.design].filter(isOwnLensDesign);
     const target = designs.find((label) => label.startsWith(`${current} · `)) || designs.find((label) => label.startsWith("Single Vision · ")) || designs[0];
@@ -966,12 +985,13 @@
     if (!state.canEdit) return;
     if (section === "prescription") {
       document.querySelectorAll(".prescription-card [data-path]").forEach((input) => {
+        if (input.dataset.path === "prescription.eyeMode") return;
         input.value = "";
         input.classList.remove("missing", "uncertain");
       });
       state.pdDerived = new Set();
       runValidation(false);
-      fieldForPath("prescription.od.sphere").focus();
+      fieldForPath(`prescription.${window.RxValidation.activeSides(currentDraft())[0]}.sphere`).focus();
       return showNotice("Prescription cleared. Save the draft or enter the new values.");
     }
     for (const key of LENS_KEYS) {
@@ -1007,7 +1027,9 @@
     setHiddenPath("lensRequest.style", design?.style || "");
     setHiddenPath("lensRequest.option", choices.option);
     setHiddenPath("lensRequest.catalogAlias", state.lensResolved?.alias || "");
-    $("#ownLensButton").setAttribute("aria-pressed", String(isOwnLensDesign(choices.design)));
+    $("#ownLensButton").setAttribute("aria-pressed", String(state.lensSource === "own"));
+    $("#labLensButton").setAttribute("aria-pressed", String(state.lensSource !== "own"));
+    $("#labLensButton").disabled = !state.canEdit;
     $("#lensComboCount").textContent = `${matches.length} valid combination${matches.length === 1 ? "" : "s"}`;
     const summary = $("#lensSummary");
     summary.classList.toggle("resolved", Boolean(state.lensResolved));
@@ -1088,6 +1110,7 @@
   // distance PDs fill a blank (or previously derived) binocular PD. A value
   // the employee typed is never overwritten.
   function syncPd(changed) {
+    if (fieldForPath("prescription.eyeMode").value !== "pair") return;
     const { num, formatField } = window.RxValidation;
     const fields = { binocular: fieldForPath("pd.binocular"), od: fieldForPath("pd.od"), os: fieldForPath("pd.os") };
     const path = (key) => `pd.${key}`;
@@ -1148,6 +1171,17 @@
 
   // The workflow decides the job type sent to Innovations. Measurements stay
   // tucked away for traced and uncut jobs unless the photo supplied them.
+  function renderEyeMode() {
+    const draft = currentDraft();
+    document.querySelectorAll('[name="eyeMode"]').forEach((radio) => { radio.checked = radio.value === draft.prescription.eyeMode; });
+    document.querySelectorAll(".prescription-card .rx-table input[data-path]").forEach((input) => {
+      const active = window.RxValidation.isActivePath(draft, input.dataset.path);
+      input.disabled = !state.canEdit || !active;
+      input.closest("tr").classList.toggle("inactive-eye", !active);
+    });
+    fieldForPath("pd.binocular").closest("label").hidden = draft.prescription.eyeMode !== "pair";
+  }
+
   function renderFrameState() {
     const status = fieldForPath("frame.status").value;
     const hasMeasurements = ["frame.a", "frame.b", "frame.dbl", "frame.ed"].some((path) => fieldForPath(path).value.trim());
@@ -1258,7 +1292,7 @@
     const notes = state.current?.extractedOrder?.voiceNotes || [];
     const issues = [
       ...effectiveMissingFields(order).map((path) => ({ path, kind: "Missing" })),
-      ...(order.uncertainFields || []).map((path) => ({ path, kind: "Uncertain" }))
+      ...(order.uncertainFields || []).filter((path) => window.RxValidation.isActivePath(order, path)).map((path) => ({ path, kind: "Uncertain" }))
     ];
     $("#issuesCard").hidden = issues.length === 0 && notes.length === 0;
     $("#issuesList").replaceChildren(...issues.map((issue) => {
@@ -1276,6 +1310,7 @@
   function effectiveMissingFields(order) {
     const pdCovered = Boolean(order.pd?.binocular) || Boolean(order.pd?.od && order.pd?.os);
     return (order.missingFields || []).filter((path) => {
+      if (!window.RxValidation.isActivePath(order, path)) return false;
       if (/^(frame|lensRequest)\./.test(path)) return false;
       if (path === "pd.type" || (pdCovered && /^pd\.(?:binocular|od|os)$/.test(path))) return false;
       if (/^prescription\.(od|os)\.(prism|base)$/.test(path)) return false;
@@ -1460,7 +1495,7 @@
     const frame = draft.frame?.status === "UNCUT" ? "Uncut" : "Edged / enclosed";
     const customer = state.current.customer?.name || "the selected customer";
     const patient = normalizePatientName(draft.patient?.name) || "patient not identified";
-    if (!window.confirm(`Submit ${patient} for ${customer}?\n\nLens: ${lens}\nFrame: ${frame}\n\nThis creates the RX file, stages it, and releases it to Innovations.`)) return;
+    if (!window.confirm(`Submit ${patient} for ${customer}?\n\nLens: ${lens}\nEyes: ${({ pair: "Pair", right: "Right only (OD)", left: "Left only (OS)" })[draft.prescription.eyeMode || "pair"]}\nFrame: ${frame}\n\nThis creates the RX file, stages it, and releases it to Innovations.`)) return;
     const id = encodeURIComponent(state.current.id);
     const button = $("#submitOrderButton");
     button.disabled = true;
@@ -1745,7 +1780,7 @@
   }
 
   function normalizePatientName(value) {
-    const name = String(value || "").trim().replace(/\s+/g, " ");
+    const name = window.RxValidation.stripPatientTitle(value).replace(/\s+/g, " ");
     if (!name) return null;
     if (name.includes(",")) {
       const [last, ...first] = name.split(",");

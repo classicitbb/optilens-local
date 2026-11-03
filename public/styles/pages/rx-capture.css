@@ -513,3 +513,12 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 .settings-check li { padding: 7px 12px; border: 1px solid var(--color-border); border-radius: var(--rx-radius); background: var(--color-surface); }
 .settings-check li[data-ok="true"] { color: var(--color-success); }
 .settings-check li[data-ok="false"] { color: var(--color-danger); background: var(--rx-danger-tint); }
+
+.eye-mode { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; border: 0; padding: 0; margin: 0 0 1rem; }
+.eye-mode legend { font-size: 0.8rem; margin-bottom: 0.35rem; }
+.eye-mode label { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; cursor: pointer; }
+.eye-mode input { width: 1rem; min-height: 1rem; accent-color: var(--accent, #008ca8); }
+.inactive-eye { opacity: 0.45; }
+
+.own-lens-chip[aria-pressed="false"] { background: var(--color-surface); border-color: var(--color-border); color: var(--color-text); }
+.own-lens-chip[aria-pressed="true"]::before { content: "✓"; }

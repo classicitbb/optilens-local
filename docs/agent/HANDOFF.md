@@ -424,3 +424,13 @@ Repository instructions, manifests, and continuity requirements were inspected. 
 - Headless Edge fixture reproduced clipped rows: scrollTop remained 0 while the final row extended below the pane. Grid track sizing combined with clipped details hid the overflow.
 - Changed shipment groups to normal block flow and allowed details overflow; the same fixture scrolled 505px and brought the final row to the pane bottom at a 1543x900 viewport. Shared and column headers remain outside the scrolling groups.
 - Affected file: `public/styles/components.css`. Syntax and diff checks passed. Deployment continuation authorized by the preceding deploy request.
+
+## RX Capture review corrections (2026-11-03)
+
+Status: Implementation verified; deployment in progress.
+
+- Changes: shared title cleanup; explicit pair/right/left eye selection through normalized drafts, validation and RX serialization; separate lab/customer lens selection; leading-decimal voice sign handling and numeric evidence mismatch flags; extraction/transcription decimal guidance.
+- Affected files: RX Capture browser assets, normalized-order, order-builder, voice rules, AI instruction modules, RX renderer and focused tests.
+- Validation: 679 passed, 1 skipped, 0 failed using `node --test --test-force-exit test/*.test.js`; ordinary npm test left the assistant test process open after assertions. Syntax checks and desktop/mobile synthetic browser interaction checks passed. No actual prescription extraction or source release was run.
+- Blocker: host generated monitor executable is locally modified and must be preserved before the guarded update. Deployment is explicitly authorized by the user; no further approval required.
+- Next action: run the guarded updater on this feature branch, then `node scripts/monitor-harness.js verify`.
