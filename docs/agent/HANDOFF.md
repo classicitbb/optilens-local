@@ -450,10 +450,10 @@ Status: Complete — no active handoff.
 
 ## RX Capture in-app confirmation and focus visibility (2026-11-03)
 
-Status: Implementation verified; deployment pending.
+Status: Complete — no active handoff.
 
-- Changes: themed HTML dialog for submission and staged-release retry; modal-safe shortcuts; automatic focus reveal above the sticky action bar/below the shell header, with VisualViewport resize support. RX Capture combo lists opt into keeping their position/open state during scroll.
-- Affected files: RX Capture HTML/JS/CSS, shared RX combobox, continuity records.
-- Validation: syntax/whitespace checks and full local suite passed (681 passed, 1 skipped). Synthetic browser checks verified desktop/mobile layout, Escape/cancel and focus restoration, Tab/Enter revealing fields, and dropdown position/open state. Cancellation made zero writes; explicit confirmation made exactly one PATCH, one resolution POST and one submit POST to the synthetic fixture, reaching its RELEASED view. No production draft or source order was changed.
-- Blocker / approval: none; deployment continues the authorized RX Capture work.
-- Next action: push the scoped commit, run the guarded updater, then monitor verification.
+- Deployed revision `117516c` through the guarded updater on `codex/rx-capture-review-fixes`. Host smoke checks, normal full tests, restart and final monitor verification passed; all systems online.
+- Changes: themed HTML dialog for submission and staged-release retry, showing patient/customer/lens/eye/frame details; safe initial focus, Escape/cancel and browser-managed focus return. Review keyboard shortcuts do not run behind the modal. Automatic focus reveal measures the sticky bar, shell header and VisualViewport. RX Capture combo lists opt into repositioning during scrolling; other consumers keep their prior close-on-scroll behavior.
+- Affected files: RX Capture HTML/JS/CSS, shared RX combobox and continuity records.
+- Validation: syntax/whitespace checks and full local suite passed (681 passed, 1 skipped). Synthetic browser checks verified desktop/mobile dialog layout, Escape/cancel, restored focus, Tab/Enter revealing covered fields, and dropdown position/open state. Cancellation made zero write requests; explicit confirmation made exactly one PATCH, one resolution POST and one submit POST to the fixture, reaching its RELEASED view. No production draft or source order was changed.
+- No blockers, approval requirements or implementation steps remain. Host remains on the feature branch pending normal review/merge; this completion record is a documentation-only commit ahead of the deployed code.
