@@ -5,6 +5,21 @@ const RxVoice = require("../public/rx-capture-voice");
 const { applyCaptureRules, normalizeOpticalOrder } = require("../lib/rx-capture/normalized-order");
 
 const order = (values) => normalizeOpticalOrder(values);
+test("patient titles are removed before surname formatting", () => {
+  for (const title of ["Mr", "Mrs.", "Dr", "Ms."]) {
+    assert.equal(normalizeOpticalOrder({ patient: { name: title + " Jane Doe" } }).patient.name, "DOE, JANE");
+    assert.equal(normalizeOpticalOrder({ patient: { name: "Doe, " + title + " Jane" } }).patient.name, "DOE, JANE");
+  }
+});
+
+test("single-eye normalization excludes the other eye and its review flags", () => {
+  const result = order({ patient: { name: "Jane Doe" }, prescription: { eyeMode: "right", od: { sphere: "+.75" }, os: { sphere: "+0.37" } }, pd: { od: "32", os: "99" }, uncertainFields: ["prescription.os.sphere"] });
+  assert.equal(result.prescription.eyeMode, "right");
+  assert.equal(result.prescription.os.sphere, null);
+  assert.equal(result.pd.os, null);
+  assert.deepEqual(require("../lib/rx-capture/normalized-order").criticalMissingFields(result), []);
+});
+
 const eye = (sphere, cylinder, axis) => ({ sphere, cylinder, axis });
 
 test("a zero cylinder with no axis is left blank when a sphere is read", () => {
@@ -96,4 +111,12 @@ test("HT is split like the word height, so a bare HT value is not left unassigne
   const keys = (text) => RxVoice.splitTranscript(text).map((piece) => piece.key);
   assert.deepEqual(keys("Right eye -2.00 sphere HT 18. Left eye -1.00 sphere HT 17"), keys("Right eye -2.00 sphere height 18. Left eye -1.00 sphere height 17"));
   assert.deepEqual(keys("Right eye HT 18 -2.00 sphere"), ["right"]);
+});
+
+test("captured plano and leading-decimal powers normalize before review and generation", () => {
+  const result = order({ prescription: { od: { sphere: "PLANO", cylinder: "−.75" }, os: { sphere: "pl", cylinder: "- .50" } } });
+  assert.equal(result.prescription.od.sphere, "0.00");
+  assert.equal(result.prescription.od.cylinder, "-0.75");
+  assert.equal(result.prescription.os.sphere, "0.00");
+  assert.equal(result.prescription.os.cylinder, "-0.50");
 });

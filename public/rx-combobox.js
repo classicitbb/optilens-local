@@ -81,7 +81,7 @@
 
   // Type-to-search input. `items()` returns the current labels; a pick sets the
   // input value and fires input + change. Enter picks and calls onAdvance.
-  function combo(input, { items, allItems, pinned, conflictNote = "Other choices · picking clears conflicts", onAdvance = () => {}, empty = "No matches", synonyms }) {
+  function combo(input, { keepOpenOnScroll = false, items, allItems, pinned, conflictNote = "Other choices · picking clears conflicts", onAdvance = () => {}, empty = "No matches", synonyms }) {
     const matches = matcher(synonyms);
     const wrap = document.createElement("div");
     wrap.className = "combo";
@@ -121,6 +121,7 @@
       return wider;
     };
     const entry = {
+      keepOpenOnScroll,
       close() {
         list.classList.remove("on");
         list.remove();
@@ -227,12 +228,13 @@
 
   // Native <select> with the combo list as its popup. Closed, Enter is left to
   // the page (it moves to the next field); Space or arrows open the list.
-  function select(field, { onAdvance = () => {} } = {}) {
+  function select(field, { onAdvance = () => {}, keepOpenOnScroll = false } = {}) {
     field.classList.add("cb-select", "cb-field");
     const list = createList(field);
     let active = -1;
     const options = () => [...field.options].filter((option) => !option.disabled);
     const entry = {
+      keepOpenOnScroll,
       close() {
         list.classList.remove("on");
         list.remove();
@@ -323,7 +325,10 @@
   });
   window.addEventListener("scroll", (event) => {
     if (event.target?.closest?.(".cblist")) return;
-    closeAll();
+    for (const entry of [...openLists]) {
+      if (entry.keepOpenOnScroll) entry.reposition();
+      else entry.close();
+    }
   }, true);
   window.addEventListener("resize", () => closeAll());
 

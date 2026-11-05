@@ -359,3 +359,12 @@ test("voice is reported unavailable without the AI key", () => {
   assert.match(off.reason, /not configured/);
   assert.equal(createRxCaptureService({ loadRxAiConfig: () => ({ apiKey: "k" }) }).voiceStatus().available, true);
 });
+
+ test("a power that disagrees with quoted decimal evidence is flagged", () => {
+  const { applyVoiceRules, spokenSign } = require("../lib/rx-capture/voice-rules");
+  const { normalizeOpticalOrder } = require("../lib/rx-capture/normalized-order");
+  const order = normalizeOpticalOrder({ prescription: { os: { sphere: "+0.37" } } });
+  const result = applyVoiceRules(order, [{ field: "prescription.os.sphere", text: "left sphere +.75" }], "left sphere +.75");
+  assert.ok(result.uncertainFields.includes("prescription.os.sphere"));
+  assert.equal(spokenSign("+.75"), "signed");
+ });

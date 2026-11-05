@@ -120,3 +120,30 @@ test("distance PDs are sent over the binocular note, which only fills a blank ey
   const one = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
   assert.equal(one.order.prescription.os.far, "32.0");
 });
+
+for (const [mode, side, excluded, code] of [["right", "od", "os", "1"], ["left", "os", "od", "2"]]) {
+  test(mode + " only serializes the selected eye", () => {
+    const input = normalizedOrder();
+    input.prescription.eyeMode = mode;
+    input.prescription[side].sphere = "+.75";
+    input.prescription[excluded].sphere = "+0.37";
+    const gen = generator();
+    gen.renderRxText = require("../lib/rx-generator").renderRxText;
+    gen.loadConfig = () => ({ defaults: { rxEye: "3" }, output: { extension: ".rx", lineEnding: "LF" } });
+    const result = buildRxCaptureOrder(input, { ...resolution(), labNum: "TEST", remoteOperator: "TEST", customerSequence: "1" }, { generator: gen, reserveIdentifiers: false });
+    assert.equal(result.order.rxEye, code);
+    assert.equal(result.order.prescription[excluded].sphere, "");
+    assert.match(result.order.content, new RegExp("rx_eye:" + code));
+    assert.ok(result.order.content.includes("rx_" + side + "_sphere:+0.75"));
+    assert.ok(result.order.content.includes("rx_" + excluded + "_sphere:\n"));
+    assert.ok(result.order.content.includes("lens_" + excluded + "_material_code:\n"));
+  });
+}
+
+test("plano and abbreviated negative cylinder generate numeric RX powers", () => {
+  const captured = normalizedOrder();
+  captured.prescription.od = { sphere: "PLANO", cylinder: "−.75", axis: 90 };
+  const result = buildRxCaptureOrder(captured, resolution(), { generator: generator(), reserveIdentifiers: false });
+  assert.equal(Number(result.order.prescription.od.sphere), 0);
+  assert.equal(result.order.prescription.od.cylinder, "-0.75");
+});

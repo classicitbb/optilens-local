@@ -424,3 +424,36 @@ Repository instructions, manifests, and continuity requirements were inspected. 
 - Headless Edge fixture reproduced clipped rows: scrollTop remained 0 while the final row extended below the pane. Grid track sizing combined with clipped details hid the overflow.
 - Changed shipment groups to normal block flow and allowed details overflow; the same fixture scrolled 505px and brought the final row to the pane bottom at a 1543x900 viewport. Shared and column headers remain outside the scrolling groups.
 - Affected file: `public/styles/components.css`. Syntax and diff checks passed. Deployment continuation authorized by the preceding deploy request.
+
+## RX Capture review corrections (2026-11-03)
+
+Status: Complete — no active handoff.
+
+- Deployed code revision `5659348` through the guarded updater from `codex/rx-capture-review-fixes`. Host syntax/database smoke checks and the normal host suite passed. An additional host run with `node --test --test-force-exit test/*.test.js` passed 679 tests with 1 skipped and no failures. The local suite passed with the same exit option; ordinary local npm test left the assistant test process open after its assertions.
+- Changes: shared Mr/Mrs/Dr/Ms title cleanup; explicit pair/right/left eye selection across normalized drafts, validation and RX serialization; separate lab/customer lens catalogue filters; leading-decimal voice sign handling, numeric evidence mismatch flags, and extraction/transcription decimal guidance. Submission confirmation names the selected eye mode.
+- Desktop/mobile synthetic browser checks passed for mode switching, excluded-eye input disabling, lens source switching, title cleanup and saving. A separate authenticated live tab confirmed all three eye modes and both lens source controls. The existing user tab and its unsaved draft were preserved.
+- The generated host monitor binary was preserved in a scoped Git stash before update. The app restarted successfully; final verification initially found only the stopped monitor. The documented harness start restored it, and verification reported all systems online. No repair loop, source write, real AI extraction or actual order release was performed.
+- Affected files: RX Capture browser assets, normalized-order, order-builder, voice rules, extraction/transcription instructions, RX renderer, focused tests and continuity records.
+- Single-eye source intake acceptance remains unproven by this deployment; codes 1/2 follow the existing cloud RX fixture contract. Any live synthetic source acceptance test is a separate controlled source write. The annotated original image/audio was unavailable, so the +.75 work verifies decimal handling and mismatch detection rather than claiming an OCR accuracy result on that original input.
+- Host remains on the feature branch outside automatic master updates until normal review/merge. This completion record is a documentation-only commit ahead of the deployed code; no implementation remains unfinished.
+
+## RX Capture power formatting and compact eye selector (2026-11-03)
+
+Status: Complete — no active handoff.
+
+- Deployed revision `9dd8e26` through the guarded updater on `codex/rx-capture-review-fixes`. Host syntax/database smoke checks, normal host tests, restart and monitor verification passed; all systems online.
+- Normalized-order and saved-review rendering use the shared power formatter: PLANO/PL sphere becomes `0.00`, and abbreviated negative powers gain a leading zero (for example `−.75` becomes `-0.75`). This fixes the mismatch where review validation accepted plano but RX generation received a nonnumeric word. No power is rounded into a valid prescription.
+- The accessible eye selector shares the Prescription heading row on desktop (30px measured) and wraps into a compact row on mobile. Synthetic browser verification confirmed the displayed values and no horizontal overflow at 390px. No production draft or source order was changed.
+- Affected files: normalized-order, RX Capture review HTML/JS/CSS, focused regression tests and continuity records.
+- Validation: 120 focused tests passed, then the additional serializer regression passed (11 builder tests). Full local suite passed 680 tests with 1 skipped before that final regression was added; the host full suite including it passed during guarded deployment. Syntax and whitespace checks passed.
+- No blockers or approval remain. The host remains on the feature branch pending normal review/merge; this completion note is a documentation-only commit ahead of the deployed code.
+
+## RX Capture in-app confirmation and focus visibility (2026-11-03)
+
+Status: Complete — no active handoff.
+
+- Deployed revision `117516c` through the guarded updater on `codex/rx-capture-review-fixes`. Host smoke checks, normal full tests, restart and final monitor verification passed; all systems online.
+- Changes: themed HTML dialog for submission and staged-release retry, showing patient/customer/lens/eye/frame details; safe initial focus, Escape/cancel and browser-managed focus return. Review keyboard shortcuts do not run behind the modal. Automatic focus reveal measures the sticky bar, shell header and VisualViewport. RX Capture combo lists opt into repositioning during scrolling; other consumers keep their prior close-on-scroll behavior.
+- Affected files: RX Capture HTML/JS/CSS, shared RX combobox and continuity records.
+- Validation: syntax/whitespace checks and full local suite passed (681 passed, 1 skipped). Synthetic browser checks verified desktop/mobile dialog layout, Escape/cancel, restored focus, Tab/Enter revealing covered fields, and dropdown position/open state. Cancellation made zero write requests; explicit confirmation made exactly one PATCH, one resolution POST and one submit POST to the fixture, reaching its RELEASED view. No production draft or source order was changed.
+- No blockers, approval requirements or implementation steps remain. Host remains on the feature branch pending normal review/merge; this completion record is a documentation-only commit ahead of the deployed code.

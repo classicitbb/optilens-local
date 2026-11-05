@@ -513,3 +513,25 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 .settings-check li { padding: 7px 12px; border: 1px solid var(--color-border); border-radius: var(--rx-radius); background: var(--color-surface); }
 .settings-check li[data-ok="true"] { color: var(--color-success); }
 .settings-check li[data-ok="false"] { color: var(--color-danger); background: var(--rx-danger-tint); }
+
+.eye-mode { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; border: 0; padding: 0; margin: 0; margin-inline-start: auto; min-width: 0; }
+.eye-mode legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.eye-mode label { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 30px; font-size: 0.75rem; cursor: pointer; }
+.eye-mode input { width: 1rem; min-height: 1rem; accent-color: var(--accent, #008ca8); }
+.inactive-eye { opacity: 0.45; }
+
+.own-lens-chip[aria-pressed="false"] { background: var(--color-surface); border-color: var(--color-border); color: var(--color-text); }
+.own-lens-chip[aria-pressed="true"]::before { content: "✓"; }
+
+@media (pointer: coarse) { .eye-mode label { min-height: 40px; } }
+@media (max-width: 600px) { .prescription-card .section-title-row { flex-wrap: wrap; } .eye-mode { order: 3; flex-basis: 100%; margin-inline-start: 0; } }
+
+.rx-confirm-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--color-border); border-radius: var(--rx-radius); background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow); }
+.rx-confirm-dialog:modal { overscroll-behavior: contain; }
+.rx-confirm-dialog::backdrop { background: rgb(11 30 53 / .55); overflow: hidden; overscroll-behavior: contain; }
+.rx-confirm-dialog h2 { margin: 0 0 12px; font-size: 1.25rem; }
+.rx-confirm-dialog p { color: var(--color-text-muted); }
+.rx-confirm-dialog dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; margin: 20px 0 24px; }
+.rx-confirm-dialog dt { color: var(--color-text-muted); }
+.rx-confirm-dialog dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
+.rx-confirm-dialog .action-row { justify-content: flex-end; }

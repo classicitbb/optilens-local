@@ -85,6 +85,13 @@
     window.addEventListener("beforeunload", warnUnsavedDictation);
     $("#customerSearch").addEventListener("focus", showFrequentCustomers);
     renderSegmentBoxes();
+    $("#labLensButton").addEventListener("click", chooseLabLenses);
+    document.querySelectorAll('[name="eyeMode"]').forEach((radio) => radio.addEventListener("change", () => {
+      fieldForPath("prescription.eyeMode").value = radio.value;
+      renderEyeMode();
+      runValidation();
+      renderIssues(currentDraft());
+    }));
     $("#ownLensButton").addEventListener("click", chooseOwnLenses);
     document.querySelectorAll("[data-clear-section]").forEach((button) => button.addEventListener("click", () => clearSection(button.dataset.clearSection)));
     $("#customerSearch").addEventListener("input", searchCustomers);
@@ -97,6 +104,8 @@
     // saving and submitting are explicit (buttons or Ctrl+S / Ctrl+Enter).
     $("#reviewForm").addEventListener("submit", (event) => event.preventDefault());
     $("#reviewForm").addEventListener("keydown", advanceOnEnter);
+    $("#reviewForm").addEventListener("focusin", (event) => revealReviewField(event.target));
+    window.visualViewport?.addEventListener("resize", () => revealReviewField(document.activeElement));
     $("#saveReviewButton").addEventListener("click", saveReview);
     $("#reprocessButton").addEventListener("click", reprocess);
     document.querySelectorAll("[data-discard]").forEach((button) => button.addEventListener("click", discardOrder));
@@ -109,12 +118,13 @@
     });
     document.addEventListener("keydown", reviewShortcuts);
     // Every dropdown uses the website's combo list; Enter on a pick moves on.
-    document.querySelectorAll("#reviewForm select").forEach((select) => window.RxCombo.select(select, { onAdvance: (field) => focusNextField(field) }));
+    document.querySelectorAll("#reviewForm select").forEach((select) => window.RxCombo.select(select, { onAdvance: (field) => focusNextField(field), keepOpenOnScroll: true }));
     document.querySelectorAll("[data-lens]").forEach((input) => {
       const key = input.dataset.lens;
       state.lensCombos[key] = window.RxCombo.combo(input, {
+        keepOpenOnScroll: true,
         items: () => state.lensLabels[key] || [],
-        allItems: () => [...(state.lensUniverse?.[key] || [])].sort(compareLensValues(key)),
+        allItems: () => [...new Set(lensMatches({}, null).map((item) => lensValue(item, key)))].sort(compareLensValues(key)),
         pinned: key === "design" ? isOwnLensDesign : undefined,
         onAdvance: (field) => focusNextField(field),
         synonyms: LENS_SHORTHAND
@@ -808,9 +818,12 @@
     order.frame.model ||= "Unknown";
     if (order.frame.supplied == null) order.frame.supplied = order.frame.status !== "UNCUT";
     document.querySelectorAll("[data-path]").forEach((input) => {
-      input.value = valueAtPath(order, input.dataset.path) ?? "";
+      const raw = valueAtPath(order, input.dataset.path) ?? "";
+      input.value = /^prescription\.(od|os)\.(sphere|cylinder|add)$/.test(input.dataset.path) ? window.RxValidation.formatField(input.dataset.path, raw) : raw;
       input.classList.remove("missing", "uncertain");
     });
+    fieldForPath("prescription.eyeMode").value ||= "pair";
+    renderEyeMode();
     restorePdDerivation();
     const edValue = window.RxValidation.num(fieldForPath("frame.ed").value);
     const edEstimate = window.RxValidation.edFor(fieldForPath("frame.a").value, fieldForPath("frame.b").value);
@@ -885,6 +898,7 @@
         }
       } catch { /* the employee chooses from the lists instead */ }
     }
+    state.lensSource = isOwnLensDesign(values.design || "") ? "own" : "lab";
     for (const key of LENS_KEYS) {
       setLensValue(key, values[key]);
       lensInput(key).classList.toggle("guessed", guessed && Boolean(values[key]));
@@ -927,7 +941,7 @@
   }
 
   function lensMatches(choices, except) {
-    return state.catalog.filter((item) => LENS_KEYS.every((key) => key === except || !choices[key] || lensValue(item, key) === choices[key]));
+    return state.catalog.filter((item) => (state.lensSource === "own" ? isOwnLensDesign(designLabel(item)) : !isOwnLensDesign(designLabel(item))) && LENS_KEYS.every((key) => key === except || !choices[key] || lensValue(item, key) === choices[key]));
   }
 
   function compareLensValues(key) {
@@ -948,8 +962,17 @@
   // One action for the usual job: switch the design to the customer-supplied
   // ("Custom Lens") design of the current lens type, keeping material and
   // colour where they still fit; the normal conflict repair clears the rest.
+  function chooseLabLenses() {
+    if (!state.catalog || !state.canEdit) return;
+    state.lensSource = "lab";
+    if (isOwnLensDesign(lensChoices().design)) setLensValue("design", "");
+    onLensCommit("design");
+    lensInput("design").focus();
+  }
+
   function chooseOwnLenses() {
     if (!state.catalog || !state.canEdit) return;
+    state.lensSource = "own";
     const current = lensChoices().design.split(" · ")[0] || state.current?.normalizedOrder?.lensRequest?.lensType || "";
     const designs = [...state.lensUniverse.design].filter(isOwnLensDesign);
     const target = designs.find((label) => label.startsWith(`${current} · `)) || designs.find((label) => label.startsWith("Single Vision · ")) || designs[0];
@@ -966,12 +989,13 @@
     if (!state.canEdit) return;
     if (section === "prescription") {
       document.querySelectorAll(".prescription-card [data-path]").forEach((input) => {
+        if (input.dataset.path === "prescription.eyeMode") return;
         input.value = "";
         input.classList.remove("missing", "uncertain");
       });
       state.pdDerived = new Set();
       runValidation(false);
-      fieldForPath("prescription.od.sphere").focus();
+      fieldForPath(`prescription.${window.RxValidation.activeSides(currentDraft())[0]}.sphere`).focus();
       return showNotice("Prescription cleared. Save the draft or enter the new values.");
     }
     for (const key of LENS_KEYS) {
@@ -1007,7 +1031,9 @@
     setHiddenPath("lensRequest.style", design?.style || "");
     setHiddenPath("lensRequest.option", choices.option);
     setHiddenPath("lensRequest.catalogAlias", state.lensResolved?.alias || "");
-    $("#ownLensButton").setAttribute("aria-pressed", String(isOwnLensDesign(choices.design)));
+    $("#ownLensButton").setAttribute("aria-pressed", String(state.lensSource === "own"));
+    $("#labLensButton").setAttribute("aria-pressed", String(state.lensSource !== "own"));
+    $("#labLensButton").disabled = !state.canEdit;
     $("#lensComboCount").textContent = `${matches.length} valid combination${matches.length === 1 ? "" : "s"}`;
     const summary = $("#lensSummary");
     summary.classList.toggle("resolved", Boolean(state.lensResolved));
@@ -1088,6 +1114,7 @@
   // distance PDs fill a blank (or previously derived) binocular PD. A value
   // the employee typed is never overwritten.
   function syncPd(changed) {
+    if (fieldForPath("prescription.eyeMode").value !== "pair") return;
     const { num, formatField } = window.RxValidation;
     const fields = { binocular: fieldForPath("pd.binocular"), od: fieldForPath("pd.od"), os: fieldForPath("pd.os") };
     const path = (key) => `pd.${key}`;
@@ -1148,6 +1175,17 @@
 
   // The workflow decides the job type sent to Innovations. Measurements stay
   // tucked away for traced and uncut jobs unless the photo supplied them.
+  function renderEyeMode() {
+    const draft = currentDraft();
+    document.querySelectorAll('[name="eyeMode"]').forEach((radio) => { radio.checked = radio.value === draft.prescription.eyeMode; });
+    document.querySelectorAll(".prescription-card .rx-table input[data-path]").forEach((input) => {
+      const active = window.RxValidation.isActivePath(draft, input.dataset.path);
+      input.disabled = !state.canEdit || !active;
+      input.closest("tr").classList.toggle("inactive-eye", !active);
+    });
+    fieldForPath("pd.binocular").closest("label").hidden = draft.prescription.eyeMode !== "pair";
+  }
+
   function renderFrameState() {
     const status = fieldForPath("frame.status").value;
     const hasMeasurements = ["frame.a", "frame.b", "frame.dbl", "frame.ed"].some((path) => fieldForPath(path).value.trim());
@@ -1168,6 +1206,20 @@
     focusNextField(field, event.shiftKey);
   }
 
+  // Measure the actual visible area: the sticky action bar and mobile keyboard
+  // can cover an input even when the browser considers it inside the viewport.
+  function revealReviewField(field) {
+    if (!field?.matches?.("#reviewForm input:not([type=hidden]), #reviewForm select, #reviewForm textarea") || field.disabled || field.closest(".submission-bar")) return;
+    const viewport = window.visualViewport;
+    const top = Math.max(viewport?.offsetTop || 0, $("#app-shell-header")?.getBoundingClientRect().bottom || 0) + 12;
+    const bar = $("#reviewForm .submission-bar").getBoundingClientRect();
+    const viewportBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+    const bottom = Math.min(viewportBottom, bar.top > top && bar.top < viewportBottom ? bar.top : viewportBottom) - 16;
+    const rect = field.getBoundingClientRect();
+    if (rect.top >= top && rect.bottom <= bottom) return;
+    window.scrollBy({ top: rect.top - top - Math.max(0, (bottom - top - rect.height) / 2), behavior: "instant" });
+  }
+
   function focusNextField(field, backwards) {
     const fields = [...$("#reviewForm").querySelectorAll("input, select, textarea")]
       .filter((item) => item.type !== "hidden" && item.tabIndex >= 0 && !item.disabled && !item.readOnly && item.offsetParent !== null);
@@ -1181,6 +1233,7 @@
   }
 
   function reviewShortcuts(event) {
+    if ($("#submissionDialog").open) return;
     if (!$("#reviewScreen").classList.contains("active") || $("#reviewForm").hidden) return;
     if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === "KeyC") {
       event.preventDefault();
@@ -1258,7 +1311,7 @@
     const notes = state.current?.extractedOrder?.voiceNotes || [];
     const issues = [
       ...effectiveMissingFields(order).map((path) => ({ path, kind: "Missing" })),
-      ...(order.uncertainFields || []).map((path) => ({ path, kind: "Uncertain" }))
+      ...(order.uncertainFields || []).filter((path) => window.RxValidation.isActivePath(order, path)).map((path) => ({ path, kind: "Uncertain" }))
     ];
     $("#issuesCard").hidden = issues.length === 0 && notes.length === 0;
     $("#issuesList").replaceChildren(...issues.map((issue) => {
@@ -1276,6 +1329,7 @@
   function effectiveMissingFields(order) {
     const pdCovered = Boolean(order.pd?.binocular) || Boolean(order.pd?.od && order.pd?.os);
     return (order.missingFields || []).filter((path) => {
+      if (!window.RxValidation.isActivePath(order, path)) return false;
       if (/^(frame|lensRequest)\./.test(path)) return false;
       if (path === "pd.type" || (pdCovered && /^pd\.(?:binocular|od|os)$/.test(path))) return false;
       if (/^prescription\.(od|os)\.(prism|base)$/.test(path)) return false;
@@ -1453,6 +1507,30 @@
 
   // One action: save the reviewed draft, record the submission choices, then
   // stage and release. Saving clears any earlier choices, so all three run together.
+  function confirmSubmission(title, description, details, confirmLabel) {
+    const dialog = $("#submissionDialog");
+    if (dialog.open) return Promise.resolve(false);
+    $("#submissionDialogTitle").textContent = title;
+    $("#submissionDialogDescription").textContent = description;
+    $("#submissionDialogConfirm").textContent = confirmLabel;
+    $("#submissionDialogDetails").replaceChildren(...details.flatMap(([label, value]) => {
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = label;
+      detail.textContent = value;
+      return [term, detail];
+    }));
+    dialog.returnValue = "";
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => {
+        const confirmed = dialog.returnValue === "confirm";
+        dialog.returnValue = "";
+        resolve(confirmed);
+      }, { once: true });
+      dialog.showModal();
+    });
+  }
+
   async function submitOrder() {
     if (!state.current?.normalizedOrder || !state.lensResolved) return;
     const lens = [state.lensResolved.material, designLabel(state.lensResolved), state.lensResolved.option].join(" · ");
@@ -1460,7 +1538,10 @@
     const frame = draft.frame?.status === "UNCUT" ? "Uncut" : "Edged / enclosed";
     const customer = state.current.customer?.name || "the selected customer";
     const patient = normalizePatientName(draft.patient?.name) || "patient not identified";
-    if (!window.confirm(`Submit ${patient} for ${customer}?\n\nLens: ${lens}\nFrame: ${frame}\n\nThis creates the RX file, stages it, and releases it to Innovations.`)) return;
+    if (!await confirmSubmission("Submit to Innovations?", "This saves the draft, creates the RX file, stages it and releases it to Innovations.", [
+      ["Patient", patient], ["Customer", customer], ["Lens", lens],
+      ["Eyes", ({ pair: "Pair", right: "Right only (OD)", left: "Left only (OS)" })[draft.prescription.eyeMode || "pair"]], ["Frame", frame]
+    ], "Submit to Innovations")) return;
     const id = encodeURIComponent(state.current.id);
     const button = $("#submitOrderButton");
     button.disabled = true;
@@ -1485,7 +1566,7 @@
   async function retryRelease() {
     const order = state.current;
     if (!order || order.status !== "STAGED" || !state.canRelease) return;
-    if (!window.confirm(`Retry the release of ${order.generatedFilename || "this staged RX"}? Matching archived and incoming content will be reused; a different file will never be overwritten.`)) return;
+    if (!await confirmSubmission("Retry release?", "Matching archived and incoming content will be reused; a different file will never be overwritten.", [["RX file", order.generatedFilename || "Staged RX"]], "Retry release")) return;
     const button = $("#retryReleaseButton");
     button.disabled = true;
     button.textContent = "RELEASING…";
@@ -1745,7 +1826,7 @@
   }
 
   function normalizePatientName(value) {
-    const name = String(value || "").trim().replace(/\s+/g, " ");
+    const name = window.RxValidation.stripPatientTitle(value).replace(/\s+/g, " ");
     if (!name) return null;
     if (name.includes(",")) {
       const [last, ...first] = name.split(",");
