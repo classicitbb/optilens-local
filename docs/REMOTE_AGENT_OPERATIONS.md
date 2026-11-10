@@ -111,6 +111,15 @@ node scripts/monitor-harness.js verify
 
 The host follows `master`. After a branch is merged, the monitor (or the automatic Git check) offers the update and applies it from master; nobody needs to switch branches on the host first. An agent that deployed a branch for testing may leave the host on it, but that branch is then outside automatic updates until it is merged or the host is returned to master.
 
+Code that reaches the host checkout by another route (a `git pull` or GitHub Desktop
+on the host) no longer leaves the service stale: the service records the commit it
+loaded at startup, and when `HEAD` moves past it the monitor reports a pending restart
+and the automatic check restarts onto it (installing dependencies or running
+migrations only if the diff needs them). A failed run backs off for 30 minutes.
+The updater retries a racy `git fetch`, and a failed update only reinstalls
+dependencies if it had already stopped the service, so `EPERM` on locked native
+modules should no longer appear. Pushing to `master` remains the normal route.
+
 For a deployment that must first fast-forward the host from a shared remote,
 use the guarded update script instead of manually pulling and restarting:
 
