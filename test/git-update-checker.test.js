@@ -174,3 +174,22 @@ test("classifies non-interactive Git credential failures for operator alerting",
   assert.match(status.error, /terminal prompts disabled/);
   assert.equal(isGitAuthorizationFailure("network timeout"), false);
 });
+
+test("code pulled outside the updater is flagged as pending a restart until the service reloads it", async () => {
+  const w = makeWorld();
+  try {
+    const loaded = git(w.host, "rev-parse", "HEAD");
+    const checker = () => createGitUpdateChecker(w.host, { deployBranch: "master", runningRevision: loaded });
+    assert.equal((await checker().refresh()).restartPending, false);
+
+    w.push("Hand-pulled change");
+    git(w.host, "pull", "-q", "--ff-only");
+    const s = await checker().refresh();
+    assert.equal(s.updateAvailable, false);
+    assert.equal(s.restartPending, true);
+    assert.deepEqual(s.restartPendingPaths, ["app.txt"]);
+
+    const reloaded = createGitUpdateChecker(w.host, { deployBranch: "master", runningRevision: git(w.host, "rev-parse", "HEAD") });
+    assert.equal((await reloaded.refresh()).restartPending, false);
+  } finally { w.cleanup(); }
+});

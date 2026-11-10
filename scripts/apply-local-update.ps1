@@ -141,7 +141,10 @@ function Restore-PreviousRevision {
         Write-UpdateLog "Could not restore source revision. Manual intervention is required."
         return
     }
-    if ((Invoke-NpmCi) -ne 0) { Write-UpdateLog "Could not restore dependencies. Manual intervention is required." }
+    # node_modules is only touched by Install-ProductionDependencies, which stops the service
+    # first. If it never ran, the running service still has the old modules loaded and a
+    # reinstall here would fail with EPERM on the locked native files, so leave them alone.
+    if ($script:serviceStoppedForDependencies -and (Invoke-NpmCi) -ne 0) { Write-UpdateLog "Could not restore dependencies. Manual intervention is required." }
     if ($script:serviceStoppedForDependencies) {
         & (Join-Path $PSScriptRoot "restart-app.ps1") -ProjectRoot $ProjectRoot -Port $Port *>> $logFile
         if ($LASTEXITCODE -ne 0) { Write-UpdateLog "Could not restart the service after dependency restore. Manual intervention is required." }
@@ -224,6 +227,16 @@ function Install-ProductionDependencies {
         $script:serviceStoppedForDependencies = $true
     }
     $exitCode = Invoke-NpmCi
+    if ($exitCode -ne 0) {
+        # Antivirus or a lingering node.exe can hold a native module for a few seconds after the
+        # service stops. Clear any node process still running from this checkout and retry once.
+        Write-UpdateLog "npm ci failed (exit $exitCode); releasing file locks and retrying once."
+        Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -and $_.CommandLine -like "*$ProjectRoot*" -and $_.ProcessId -ne $PID } |
+            ForEach-Object { Invoke-CimMethod -InputObject $_ -MethodName Terminate -ErrorAction SilentlyContinue | Out-Null }
+        Start-Sleep -Seconds 5
+        $exitCode = Invoke-NpmCi
+    }
     if ($exitCode -ne 0) { throw "Dependency installation failed with exit code $exitCode." }
 }
 
@@ -310,8 +323,15 @@ try {
             throw "Refusing to pull into a checkout with local changes: $files"
         }
         Invoke-UpdateStep "git fetch" {
-            & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
-            if ($LASTEXITCODE -ne 0) { throw "Git fetch failed with exit code $LASTEXITCODE." }
+            # The monitor, GitHub Desktop and this script can all fetch at once, and Git then
+            # refuses with "cannot lock ref". That is transient, so retry before failing.
+            for ($attempt = 1; $attempt -le 4; $attempt++) {
+                & git -c "safe.directory=$ProjectRoot" fetch --quiet $GitRemote *>> $logFile
+                if ($LASTEXITCODE -eq 0) { break }
+                if ($attempt -eq 4) { throw "Git fetch failed with exit code $LASTEXITCODE." }
+                Write-UpdateLog "Git fetch attempt $attempt failed (exit $LASTEXITCODE); retrying."
+                Start-Sleep -Seconds (2 * $attempt)
+            }
         }
         $pulledRevision = (& git -c "safe.directory=$ProjectRoot" rev-parse "$GitRemote/$GitBranch").Trim()
         # The host runs the deploy branch. If it is resting on another branch (a feature branch an

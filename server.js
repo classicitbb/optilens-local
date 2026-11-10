@@ -9,7 +9,7 @@ const { getConfig } = require("./lib/config");
 const { normalizeVaultData } = require("./lib/credential-vault");
 const credentialVault = require("./lib/credential-vault");
 const { protectString, unprotectString } = require("./lib/windows-protected-store");
-const { createUpdateManager } = require("./lib/update-manager");
+const { createUpdateManager, planForChangedPaths } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
 const { shouldReleaseScheduledUpdate } = require("./lib/update-runner-state");
 const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
@@ -25,7 +25,7 @@ const vaultFile = path.join(dataDir, "vault.json");
 const VAULT_SALT = "optilens-credentials-v1";
 const applicationStartedAt = new Date().toISOString();
 const updateManager = createUpdateManager(__dirname, applicationStartedAt);
-const gitUpdateChecker = createGitUpdateChecker(__dirname);
+const gitUpdateChecker = createGitUpdateChecker(__dirname, { runningRevision: readRunningRevision() });
 const hostIncidentReporter = createHostIncidentReporter({ dataDir });
 const hostRecoveryObserver = createHostRecoveryObserver({ projectRoot: __dirname, dataDir });
 // Pushed revisions are applied automatically unless the host administrator
@@ -885,6 +885,15 @@ function writeLocalDevCors(res, req) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+// HEAD at the moment this process loaded its code; see createGitUpdateChecker.
+function readRunningRevision() {
+  try {
+    return require("node:child_process").execFileSync("git", ["-c", `safe.directory=${__dirname}`, "-C", __dirname, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true, timeout: 10000 }).trim();
+  } catch {
+    return "";
+  }
+}
+
 function buildUpdateStatus() {
   const application = updateManager.getStatus();
   const git = gitUpdateChecker.getStatus();
@@ -894,8 +903,15 @@ function buildUpdateStatus() {
     label: `${git.behind} Git commit${git.behind === 1 ? "" : "s"}`,
     restartRequired: true
   }] : [];
-  const changedAreas = application.changedAreas.concat(gitChange);
-  const available = application.available || git.updateAvailable;
+  const restartChange = git.restartPending && !git.updateAvailable ? [{
+    id: "git-restart",
+    label: "code pulled outside the updater",
+    restartRequired: true
+  }] : [];
+  const changedAreas = application.changedAreas.concat(gitChange, restartChange);
+  const restartOnly = Boolean(git.restartPending && !git.updateAvailable);
+  const restartScope = restartOnly ? planForChangedPaths(git.restartPendingPaths || []) : null;
+  const available = application.available || git.updateAvailable || restartOnly;
 
   return {
     ...application,
@@ -908,7 +924,9 @@ function buildUpdateStatus() {
     plan: {
       ...application.plan,
       reloadBrowser: available,
-      restartService: application.plan.restartService || git.updateAvailable,
+      restartService: application.plan.restartService || git.updateAvailable || restartOnly,
+      installDependencies: Boolean(application.plan.installDependencies || restartScope?.installDependencies),
+      runMigrations: Boolean(application.plan.runMigrations || restartScope?.runMigrations),
       pullGit: git.updateAvailable
     }
   };
@@ -1056,6 +1074,14 @@ async function refreshGitUpdatesOnSchedule() {
     return;
   }
   if (AUTO_APPLY_GIT_UPDATES && status.plan.pullGit && status.git.autoApplySafe && !status.git.localChanges && !scheduledUpdate) {
+    scheduleApplicationUpdate(status);
+    return;
+  }
+  // Code already on disk but not loaded (pulled by hand): restart onto it, no pull needed. A
+  // failed run backs off for 30 minutes so a broken revision cannot restart the service in a loop.
+  const lastRun = status.updateRun;
+  const recentFailure = lastRun?.status === "failed" && Date.now() - Date.parse(lastRun.updatedAt || 0) < 30 * 60 * 1000;
+  if (AUTO_APPLY_GIT_UPDATES && status.git.restartPending && !status.git.updateAvailable && !status.git.localChanges && !scheduledUpdate && !recentFailure) {
     scheduleApplicationUpdate(status);
   }
 }
