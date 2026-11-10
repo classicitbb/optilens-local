@@ -1001,7 +1001,9 @@ function scheduleApplicationUpdate(status) {
         if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
         console.error("Could not start local update:", error.message);
       });
-      child.once("exit", (code) => {
+      child.once("exit", (code, signal) => {
+        try { fs.appendFileSync(path.join(dataDir, "update-spawn.log"), `${new Date().toISOString()} runner pid ${child.pid} exited code=${code} signal=${signal}
+`); } catch { /* best effort */ }
         if (code !== 0 && code !== null) console.error(`Local update runner exited with code ${code}; see data/update-spawn.log and data/local-update.log.`);
       });
       child.unref();
