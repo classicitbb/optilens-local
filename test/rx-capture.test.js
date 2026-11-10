@@ -639,3 +639,16 @@ test("RX Capture lists the capturing user on each order row and on the review sc
   assert.match(client, /capturedByLabel\(order\)/);
   assert.doesNotMatch(client, /createdByUserId \|\| ""\)\.toLowerCase\(\) === /);
 });
+
+test("Flat Top bifocal Custom Lens (clear) and Gray Custom show as customer-supplied Custom Lens designs", () => {
+  const { mergeOwnLensStyles } = require("../lib/rx-capture/alias-resolver");
+  const { isCustomerSuppliedLens } = require("../lib/rx-catalog-sync");
+  const row = (alias, material, option) => ({ alias, materialGroupCode: "1", mfType: "Bifocal", materialDescription: material, styleDescription: "Flat Top 28", colorDescription: option });
+  const merged = mergeOwnLensStyles([row("0000002800725", "Plastic 1.50", "Custom Lens"), row("0280002800041", "Photochromic 1.50", "Gray Custom"), row("0000002800001", "Plastic 1.50", "SRCoated")]);
+  const own = merged.filter((lens) => lens.displayStyle === "Custom Lens");
+  assert.deepEqual(own.map((lens) => lens.colorDescription).sort(), ["Custom Lens", "Gray Custom"]);
+  assert.ok(own.every((lens) => lens.customerSupplied));
+  assert.equal(merged.find((lens) => lens.colorDescription === "SRCoated").displayStyle, undefined);
+  assert.equal(isCustomerSuppliedLens("Flat Top 28", "Gray Custom"), true);
+  assert.equal(isCustomerSuppliedLens("Flat Top 28", "SRCoated"), false);
+});
