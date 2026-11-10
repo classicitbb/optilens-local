@@ -12,7 +12,7 @@ const { protectString, unprotectString } = require("./lib/windows-protected-stor
 const { createUpdateManager, planForChangedPaths } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
 const { shouldReleaseScheduledUpdate } = require("./lib/update-runner-state");
-const { powershell, runHostScript, tailTextFile } = require("./lib/host-control");
+const { launchIndependent, runHostScript, tailTextFile } = require("./lib/host-control");
 const { createHostIncidentReporter } = require("./lib/host-incidents");
 const { createHostRecoveryObserver } = require("./lib/host-recovery-observer");
 
@@ -982,29 +982,18 @@ function scheduleApplicationUpdate(status) {
 
   setTimeout(() => {
     try {
-      // Capture the runner's own output. A runner that dies before it writes any state (bad
-      // launch context, parse error, blocked policy) otherwise leaves no trace at all.
-      let spawnLog = "ignore";
-      try { spawnLog = fs.openSync(path.join(dataDir, "update-spawn.log"), "a"); } catch { /* fall back to ignoring output */ }
-      const child = spawn(powershell, args, {
-        detached: true,
-        stdio: ["ignore", spawnLog, spawnLog],
-        windowsHide: true,
-        cwd: __dirname
-      });
-      if (spawnLog !== "ignore") {
-        try { fs.writeSync(spawnLog, `${new Date().toISOString()} launched pid ${child.pid}: ${args.join(" ")}
-`); } catch { /* best effort */ }
-        try { fs.closeSync(spawnLog); } catch { /* the child holds its own handle */ }
-      }
+      // The runner must outlive this service (it stops and restarts it), so it is started
+      // independently; see launchIndependent. Its launch result is kept in update-spawn.log.
+      const child = launchIndependent(args, { cwd: __dirname, logFile: path.join(dataDir, "update-spawn.log") });
       child.once("error", (error) => {
         if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
         console.error("Could not start local update:", error.message);
       });
-      child.once("exit", (code, signal) => {
-        try { fs.appendFileSync(path.join(dataDir, "update-spawn.log"), `${new Date().toISOString()} runner pid ${child.pid} exited code=${code} signal=${signal}
-`); } catch { /* best effort */ }
-        if (code !== 0 && code !== null) console.error(`Local update runner exited with code ${code}; see data/update-spawn.log and data/local-update.log.`);
+      child.once("exit", (code) => {
+        // The launcher only reports whether the runner was created; the runner logs its own progress.
+        if (code === 0) return;
+        if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
+        console.error(`Local update runner could not be launched (exit ${code}); see data/update-spawn.log.`);
       });
       child.unref();
     } catch (error) {
@@ -2941,7 +2930,7 @@ const server = http.createServer(async (req, res) => {
       const logDir = path.join(dataDir, "logs");
       fs.mkdirSync(logDir, { recursive: true });
       const runner = path.join(__dirname, "scripts", "run-rx-catalog-sync-hidden.ps1");
-      const child = spawn("powershell.exe", ["-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", runner, "-ProjectRoot", __dirname], { cwd: __dirname, detached: true, stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
+      const child = launchIndependent(["-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", runner, "-ProjectRoot", __dirname], { cwd: __dirname, logFile: path.join(logDir, "rx-alias-sync-launch.log") });
       child.unref();
       return { started: true, pid: child.pid };
     });
