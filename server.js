@@ -982,15 +982,27 @@ function scheduleApplicationUpdate(status) {
 
   setTimeout(() => {
     try {
+      // Capture the runner's own output. A runner that dies before it writes any state (bad
+      // launch context, parse error, blocked policy) otherwise leaves no trace at all.
+      let spawnLog = "ignore";
+      try { spawnLog = fs.openSync(path.join(dataDir, "update-spawn.log"), "a"); } catch { /* fall back to ignoring output */ }
       const child = spawn(powershell, args, {
         detached: true,
-        stdio: "ignore",
+        stdio: ["ignore", spawnLog, spawnLog],
         windowsHide: true,
         cwd: __dirname
       });
+      if (spawnLog !== "ignore") {
+        try { fs.writeSync(spawnLog, `${new Date().toISOString()} launched pid ${child.pid}: ${args.join(" ")}
+`); } catch { /* best effort */ }
+        try { fs.closeSync(spawnLog); } catch { /* the child holds its own handle */ }
+      }
       child.once("error", (error) => {
         if (scheduledUpdate?.requestedAt === requestedAt) scheduledUpdate = null;
         console.error("Could not start local update:", error.message);
+      });
+      child.once("exit", (code) => {
+        if (code !== 0 && code !== null) console.error(`Local update runner exited with code ${code}; see data/update-spawn.log and data/local-update.log.`);
       });
       child.unref();
     } catch (error) {
