@@ -8,6 +8,10 @@
  *   --passphrase <p>   or   the OPTILENS_SYNC_PASSPHRASE environment variable.
  * Commits by default; pass --dry-run to preview without writing.
  * Optional: --entities customers,contacts,order_activity
+ * Pricing mirror (inn_* entities, read-only mirror of Innovations pricing): these are
+ *   DRY-RUN BY DEFAULT even though other entities commit by default. Pass --commit to
+ *   write. --full ignores the LastUpdated watermark and reads every row (the first run
+ *   is always full). --entities all-inn selects every inn_* entity.
  * Optional: --backfill-statements — first-ever historical sync of statements;
  *   suppresses the "statement ready" email that would otherwise fire for
  *   every pre-existing statement (they'd all look "new" on an empty table).
@@ -45,7 +49,19 @@ function arg(name) {
 
   const useCredentialVault = process.argv.includes('--use-credential-vault');
   const passphrase = (typeof arg('--passphrase') === 'string' && arg('--passphrase')) || process.env.OPTILENS_SYNC_PASSPHRASE || '';
-  const dryRun = process.argv.includes('--dry-run');
+  const mirror = require(path.join(__dirname, '..', 'lib', 'innovations-pricing-mirror'));
+  let entitiesArgRaw = arg('--entities');
+  if (entitiesArgRaw === 'all-inn') entitiesArgRaw = mirror.MIRROR_ENTITY_NAMES.join(',');
+  const requestedEntities = typeof entitiesArgRaw === 'string'
+    ? entitiesArgRaw.split(',').map((s) => s.trim()).filter(Boolean)
+    : undefined;
+  const touchesMirror = (requestedEntities || []).some((e) => mirror.isMirrorEntity(e));
+  if (touchesMirror && requestedEntities.some((e) => !mirror.isMirrorEntity(e))) {
+    console.error('Do not mix inn_* mirror entities with other entities in one run (the mirror is dry-run-first).');
+    process.exit(1);
+  }
+  // Mirror entities never commit unless --commit is given explicitly.
+  const dryRun = process.argv.includes('--dry-run') || (touchesMirror && !process.argv.includes('--commit'));
   if (!useCredentialVault && !passphrase) {
     console.error('Missing vault passphrase: set OPTILENS_SYNC_PASSPHRASE or pass --passphrase <p>.');
     process.exit(2);
@@ -72,10 +88,8 @@ function arg(name) {
       process.exit(4);
     }
   }
-  const entitiesArg = arg('--entities');
-  const entities = typeof entitiesArg === 'string'
-    ? entitiesArg.split(',').map((s) => s.trim()).filter(Boolean)
-    : undefined;
+  const entities = requestedEntities;
+  const mirrorFull = process.argv.includes('--full');
   const suppressStatementEmails = process.argv.includes('--backfill-statements');
 
   // --serve-requests: process the cloud "Sync now" queue (writes) instead of a
@@ -85,7 +99,7 @@ function arg(name) {
   try {
     const result = serveRequests
       ? await innovationsSync.runRequested(creds, {})
-      : await innovationsSync.sync(creds, { commit: !dryRun, entities, suppressStatementEmails });
+      : await innovationsSync.sync(creds, { commit: !dryRun, entities, suppressStatementEmails, mirrorFull });
     console.log(JSON.stringify({ ts: new Date().toISOString(), mode: serveRequests ? 'serve-requests' : (dryRun ? 'dry-run' : 'sync'), ...result }, null, 2));
     const ok = serveRequests ? true : result.ok;
     process.exit(ok ? 0 : 1);
