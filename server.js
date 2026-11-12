@@ -34,6 +34,7 @@ const hostRecoveryObserver = createHostRecoveryObserver({ projectRoot: __dirname
 const AUTO_APPLY_GIT_UPDATES = !["0", "false", "no", "off"].includes(String(process.env.OPTILENS_AUTO_APPLY_UPDATES || "true").toLowerCase());
 let scheduledUpdate = null;
 let supplierMailboxPoller = null;
+let innovationsSyncWorker = null;
 
 /** SHA-256 hash of pin+salt, returned as base64 */
 function hashPin(pin) {
@@ -250,6 +251,7 @@ const plSecure = require("./lib/secure-config-pricelist");
 const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
+const { createSyncWorker } = require("./lib/innovations-sync-worker");
 const rxOrderSubmitter = require("./lib/rx-order-submitter");
 const stockOrderSubmitter = require("./lib/stock-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
@@ -2889,6 +2891,13 @@ const server = http.createServer(async (req, res) => {
 
   // Recent local operator log. The cloud remains the source of truth for
   // received rows/dead letters; this explains whether the office agent ran.
+  if (url.pathname === "/api/connectors/innovations-sync/worker" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return innovationsSyncWorker ? innovationsSyncWorker.status() : { running: false, detail: "Set OPTILENS_SYNC_WORKER=on and restart the service." };
+    });
+  }
+
   if (url.pathname === "/api/connectors/innovations-sync/logs" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
@@ -3753,6 +3762,20 @@ function loadLiveGatewayStartupCredentials() {
   return credentials ? { credentials, source: "windows-protected-store" } : null;
 }
 
+// Unattended CV API credentials for the always-on Innovations sync worker.
+function loadSyncWorkerCredentials() {
+  if (String(process.env.OPTILENS_SYNC_USE_CREDENTIAL_VAULT || "").toLowerCase() === "true") {
+    const credentials = credentialVault.cvApiFromVault();
+    if (!credentials) throw new Error("CV API key not configured in the Credentials Vault.");
+    return credentials;
+  }
+  const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
+  if (!passphrase) throw new Error("Set OPTILENS_SYNC_PASSPHRASE (or OPTILENS_SYNC_USE_CREDENTIAL_VAULT=true) for the sync worker.");
+  const token = plSecure.unlock(passphrase);
+  if (!token) throw new Error("OPTILENS_SYNC_PASSPHRASE did not unlock the vault.");
+  try { return plSecure.getCvApi(token); } finally { plSecure.lock(token); }
+}
+
 function requireLoopbackMonitor(req) {
   if (!isLoopbackRequest(req) || !isAllowedLocalOrigin(req.headers.origin || "")) {
     const error = new Error("Monitor actions are only available from localhost.");
@@ -4014,6 +4037,10 @@ server.listen(port, host, () => {
   }
   if (edition.isModuleEnabled("email")) startEmailSync();
   if (edition.isModuleEnabled("integrations")) startLiveGatewayOnBoot();
+  if (edition.isModuleEnabled("integrations") && String(process.env.OPTILENS_SYNC_WORKER || "").toLowerCase() === "on") {
+    innovationsSyncWorker = createSyncWorker({ loadCredentials: loadSyncWorkerCredentials });
+    innovationsSyncWorker.start();
+  }
   siteSettings.refresh().catch((error) => console.error("Site settings were not loaded:", error.message));
   if (edition.restricted) {
     startEditionRenewal({ onUpdate: (result) => console.log(`Edition manifest updated: ${result.message} Restart the service to start or stop background workers.`) });
