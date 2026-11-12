@@ -84,6 +84,38 @@ Leave the setting absent or false during reconciliation and review. Do not add i
 to committed `.env` files. The ledger and append-only audit log retain the proposal,
 approver, QBO ID, snapshot hash, and final result.
 
+## Cutover date and automatic apply (decided 2026-11-11)
+
+Invoices dated before the cutover were imported into QBO from the CSV export
+(`invoice-export-quickbooks-combined-mssql.sql`) and carry no OptiLens marker,
+so the sync never looks at them. Set the host-only setting:
+
+```text
+OPTILENS_QBO_CUTOVER_DATE=YYYY-MM-DD
+```
+
+A production run refuses to start without it, and every discovery window is
+clamped to start on or after it. Stop the CSV import for invoices dated on or
+after the same date, or they will be duplicated.
+
+Discovery uses the same scope as the CSV export: the export's order types, and
+it excludes accounts 3628, 1000, 1001, 650044, IDS, OSVS, BOS, PSMT, any account
+ending in `ED`, and inactive customers. PSMT invoices (taken from `Invoices` in
+the CSV export) are not synced yet and stay on the CSV path.
+
+Automatic production writes need both host-only settings:
+
+```text
+OPTILENS_QBO_PRODUCTION_APPLY_ENABLED=true
+OPTILENS_QBO_PRODUCTION_AUTO_APPLY=true
+```
+
+With both set, an apply run (`--apply` or the task installed with `-Apply`)
+applies each proposal immediately through the same re-checks as a manual
+approval (fresh Innovations read, payload hash, QBO search, snapshot hash).
+Anything those checks reject stays an exception or failure for review. The audit
+event records `approvalPolicy: automatic-production-apply`.
+
 ## Records and audit
 
 `qbo.invoice_sync_ledger` is the idempotency and reconciliation ledger. It stores one row per Innovations invoice and QBO realm, source totals and timestamps, QBO transaction IDs, payload hash, status, retry count, and errors.
