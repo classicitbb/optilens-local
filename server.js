@@ -35,6 +35,7 @@ const AUTO_APPLY_GIT_UPDATES = !["0", "false", "no", "off"].includes(String(proc
 let scheduledUpdate = null;
 let supplierMailboxPoller = null;
 let innovationsSyncWorker = null;
+let qboGatewayWorker = null;
 
 /** SHA-256 hash of pin+salt, returned as base64 */
 function hashPin(pin) {
@@ -252,6 +253,7 @@ const plConnector = require("./lib/optilens-connector");
 const plCvConnector = require("./lib/cv-api-connector");
 const innovationsSync = require("./lib/innovations-sync");
 const { createSyncWorker } = require("./lib/innovations-sync-worker");
+const { createQboGatewayWorker } = require("./lib/qbo-gateway-worker");
 const rxOrderSubmitter = require("./lib/rx-order-submitter");
 const stockOrderSubmitter = require("./lib/stock-order-submitter");
 const innovationsSyncLog = require("./lib/innovations-sync-log");
@@ -2891,6 +2893,13 @@ const server = http.createServer(async (req, res) => {
 
   // Recent local operator log. The cloud remains the source of truth for
   // received rows/dead letters; this explains whether the office agent ran.
+  if (url.pathname === "/api/connectors/qbo/worker" && req.method === "GET") {
+    return handleApi(res, async () => {
+      await requirePermission(req, "integrations.read");
+      return qboGatewayWorker ? qboGatewayWorker.status() : { running: false, detail: "Set OPTILENS_QBO_WORKER=on and restart the service." };
+    });
+  }
+
   if (url.pathname === "/api/connectors/innovations-sync/worker" && req.method === "GET") {
     return handleApi(res, async () => {
       await requirePermission(req, "integrations.read");
@@ -4040,6 +4049,12 @@ server.listen(port, host, () => {
   if (edition.isModuleEnabled("integrations") && String(process.env.OPTILENS_SYNC_WORKER || "").toLowerCase() === "on") {
     innovationsSyncWorker = createSyncWorker({ loadCredentials: loadSyncWorkerCredentials });
     innovationsSyncWorker.start();
+  }
+  // Outbound half of the CV Web QBO gateway: finishes Connect, runs Disconnect/Reconcile.
+  if (edition.isModuleEnabled("integrations") && String(process.env.OPTILENS_QBO_WORKER || "").toLowerCase() === "on") {
+    const qboSync = require("./lib/qbo-invoice-sync");
+    qboGatewayWorker = createQboGatewayWorker({ syncInvoices: qboSync.syncInvoices, log: qboSync.appendLog });
+    qboGatewayWorker.start();
   }
   siteSettings.refresh().catch((error) => console.error("Site settings were not loaded:", error.message));
   if (edition.restricted) {
