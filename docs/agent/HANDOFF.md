@@ -457,3 +457,14 @@ Status: Complete — no active handoff.
 - Affected files: RX Capture HTML/JS/CSS, shared RX combobox and continuity records.
 - Validation: syntax/whitespace checks and full local suite passed (681 passed, 1 skipped). Synthetic browser checks verified desktop/mobile dialog layout, Escape/cancel, restored focus, Tab/Enter revealing covered fields, and dropdown position/open state. Cancellation made zero write requests; explicit confirmation made exactly one PATCH, one resolution POST and one submit POST to the fixture, reaching its RELEASED view. No production draft or source order was changed.
 - No blockers, approval requirements or implementation steps remain. Host remains on the feature branch pending normal review/merge; this completion record is a documentation-only commit ahead of the deployed code.
+
+## Automatic customer creation and linking
+
+Status: Local build ready for controlled integration verification.
+
+- Implemented migration 059, the authenticated customer create/status API, destination processing and the existing invoice apply integration. Affected code is in `lib/qbo-customer-creation-sync.js`, `lib/qbo-invoice-sync.js`, `lib/qbo-invoice-routes.js`, and the InnovaAPI client. Migration and route ownership are classified for QBO editions.
+- The repository had no OptiLens Local customer creation workflow to extend. The authenticated API is the current save entry point. A staff-facing customer form is not part of this implementation.
+- Synthetic tests cover verified match reuse, ambiguous matches, interrupted create reconciliation, dry-run isolation and repeated invoice resolution. The full suite result is recorded below. Migration execution and cross-process locking have not been exercised against SQL Server.
+- Deployment and live verification remain pending. Controlled destination writes and enabling their gates require explicit authorization. No live customer writes or deployment were performed.
+- Next action: run `node --test test/customer-creation-sync.test.js test/edition-build.test.js` before packaging migration 059 for an authorized test environment. Verify a read-only Innovations customer lookup and QuickBooks company read before attempting controlled customer creation in that environment.
+- Final validation: `npm test` passed with 724 passed, 1 skipped and 0 failed. The seven focused customer tests passed. Syntax checks and `git diff --check` passed.

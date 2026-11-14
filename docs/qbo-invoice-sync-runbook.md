@@ -135,3 +135,29 @@ The authenticated read endpoint is:
 - VAT code IDs must be configured in the vault; no tax code is guessed.
 - Freight, discounts, payments, cancellations, and automatic credit application are not enabled.
 - The default discovery window is the last 90 days; manual date filters are supported by the API.
+
+## Automatic customer creation and linking
+
+The QBO edition owns the OptiLens Local customer registry. An automation manager
+can save a customer using a POST to
+`/api/automation/qbo-invoices/customers` with JSON fields `account` and `name`.
+The response includes the local customer ID. A GET on the same route shows
+the configured company's customer jobs and destination errors.
+
+Set `OPTILENS_CUSTOMER_SYNC_ENABLED` to enable customer processing on existing
+invoice apply runs. Preview runs leave customer records and jobs untouched.
+The apply worker reads Innovations customer identities, handles queued local
+customers and stores QuickBooks links in the existing company-scoped mapping
+table. QuickBooks is a destination in this workflow.
+
+`OPTILENS_INNOVATIONS_CUSTOMER_CREATE_ENABLED` separately enables customer
+creation through the authenticated InnovaAPI customer endpoint. QuickBooks
+production customer creates require `OPTILENS_QBO_PRODUCTION_APPLY_ENABLED`.
+Invoice proposals and transaction approval still follow the existing policy.
+
+The customer registry and its company job are committed together. The worker
+serializes customer processing with a SQL application lock. Each destination
+reconciles before a create. QuickBooks uses a stable customer request ID.
+If InnovaAPI may have accepted a create and the master lookup still finds
+nothing, the job remains visible for review and checks again on later runs.
+A confirmed mapping or a unique verified account match can resolve a job.
