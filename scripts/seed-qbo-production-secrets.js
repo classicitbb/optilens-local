@@ -9,7 +9,9 @@
 const readline = require('node:readline');
 const { bootstrapConfigured, configured, fileFor, load, save } = require('../lib/qbo-secret-store');
 
-const ENVIRONMENT = 'production';
+// --sandbox seeds the separate sandbox store (for the connect/disconnect test).
+const ENVIRONMENT = process.argv.includes('--sandbox') ? 'sandbox' : 'production';
+const LABEL = ENVIRONMENT === 'sandbox' ? 'Sandbox' : 'Production';
 const replace = process.argv.includes('--replace');
 
 function ask(question, { hidden = false } = {}) {
@@ -39,14 +41,14 @@ async function main() {
   if (!process.stdin.isTTY) throw new Error('Run this at the host console. It will not read secrets from a pipe, a file, or a scheduled task.');
 
   const existing = load(ENVIRONMENT);
-  if (existing && !replace) throw new Error(`A production QBO store already exists at ${fileFor(ENVIRONMENT)}. Re-run with --replace to overwrite it.`);
+  if (existing && !replace) throw new Error(`A ${ENVIRONMENT} QBO store already exists at ${fileFor(ENVIRONMENT)}. Re-run with --replace to overwrite it.`);
 
   console.log(`Seeding the QuickBooks ${ENVIRONMENT} application identity.`);
   console.log('Values are not echoed, logged, or committed.\n');
 
-  const clientId = await askRequired('Production Client ID: ');
-  const clientSecret = await askRequired('Production Client Secret (hidden): ', { hidden: true });
-  const realmId = await askRequired('Production Realm / Company ID: ');
+  const clientId = await askRequired(`${LABEL} Client ID: `);
+  const clientSecret = await askRequired(`${LABEL} Client Secret (hidden): `, { hidden: true });
+  const realmId = await askRequired(`${LABEL} Realm / Company ID: `);
   if (!/^\d+$/.test(realmId)) throw new Error('The realm ID must be numeric.');
   const vatZeroTaxCodeId = await ask('VAT zero-rate tax code ID (optional): ');
   const vatStandardTaxCodeId = await ask('VAT standard-rate tax code ID (optional): ');
@@ -64,15 +66,15 @@ async function main() {
   }, ENVIRONMENT);
 
   const stored = bootstrapConfigured(ENVIRONMENT);
-  if (!stored) throw new Error('The production store did not read back with a complete application identity.');
+  if (!stored) throw new Error(`The ${ENVIRONMENT} store did not read back with a complete application identity.`);
 
-  console.log(`\nStored the production application identity for realm ...${String(stored.realmId).slice(-4)}.`);
+  console.log(`\nStored the ${ENVIRONMENT} application identity for realm ...${String(stored.realmId).slice(-4)}.`);
   console.log(configured(ENVIRONMENT)
     ? 'A refresh token is already present; this store can run a sync.'
     : 'No refresh token yet. Authorize through the CV Web gateway, then run: npm run qbo:auth:exchange');
 }
 
 main().catch((error) => {
-  console.error(`QuickBooks production seed failed: ${error.message}`);
+  console.error(`QuickBooks ${ENVIRONMENT} seed failed: ${error.message}`);
   process.exit(1);
 });

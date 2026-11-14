@@ -196,3 +196,12 @@
 .rule-status.error { color:#a72e2e; }
 #newRuleForm:not([hidden]) { margin-bottom:12px; }
 @media (max-width:560px) { .rx-fields-2,.rx-fields-3 { grid-template-columns:1fr; }.rx-wide { grid-column:auto; }.rx-rx-grid { grid-template-columns:42px repeat(5,78px); overflow:auto; padding-bottom:4px; }.rx-preview-summary { grid-template-columns:1fr; }.rx-preview-summary div { border-right:0; border-bottom:1px solid #d9e3ec; }.rx-preview-summary div:last-child { border-bottom:0; } }
+
+.qbo-exception-fix { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 4px; }
+.qbo-exception-fix input, .qbo-exception-fix select { flex:1 1 220px; min-width:0; height:30px; border:1px solid #d9c9a8; border-radius:6px; padding:0 8px; font-size:11px; background:#fff; color:#112d48; }
+.qbo-exception-fix button { height:30px; padding:0 12px; border-radius:6px; border:1px solid #0d6efd; background:#0d6efd; color:#fff; font-size:11px; font-weight:700; cursor:pointer; }
+.qbo-exception-fix button.secondary { background:#fff; color:#112d48; border-color:#c9d6e2; }
+.qbo-exception-fix button:disabled { opacity:.55; cursor:progress; }
+.qbo-exception-hint { color:#7a6a53; font-size:11px; }
+.qbo-exception-item p.qbo-exception-result { margin:2px 0; color:#8a2b0b; font-size:11px; }
+.qbo-exception-item p.qbo-exception-result:empty { display:none; }
