@@ -239,6 +239,81 @@
         : "No transaction history loaded.";
     } catch (error) { $("#qboInvoiceSyncLedger").textContent = error.message || "Unable to load transaction history."; }
   }
+  let qboFixOptions = null;
+  const qboExceptionKind = (reason) => /customer mapping/i.test(reason) ? "customer" : /tax code/i.test(reason) ? "tax" : /item mapping/i.test(reason) ? "item" : "other";
+  async function loadQboFixOptions() {
+    if (!qboFixOptions) qboFixOptions = await (await request("/api/automation/qbo-invoices/fix-options")).json();
+    return qboFixOptions;
+  }
+  function qboFixControls(row, kind) {
+    const id = escapeHtml(row.source_invoice_id);
+    const recheck = `<button type="button" class="secondary" data-qbo-action="recheck" data-invoice="${id}">Re-check</button>`;
+    if (kind === "customer") return `<div class="qbo-exception-fix"><input type="search" list="qboCustomerOptions" placeholder="Search QBO customer…" data-qbo-field="customer" aria-label="QBO customer for account ${escapeHtml(row.source_customer_account || "")}"><button type="button" data-qbo-action="map-customer" data-invoice="${id}" data-account="${escapeHtml(row.source_customer_account || "")}" data-name="${escapeHtml(row.source_customer_name || "")}">Confirm mapping</button>${recheck}</div>`;
+    if (kind === "tax") return `<div class="qbo-exception-fix"><select data-qbo-field="tax" aria-label="QBO tax code for VAT 17.5%"><option value="">Choose the 17.5% VAT tax code…</option></select><button type="button" data-qbo-action="save-tax" data-invoice="${id}">Save tax code</button>${recheck}</div>`;
+    if (kind === "item") return `<div class="qbo-exception-fix"><span class="qbo-exception-hint">Create or rename the item in QuickBooks so its name matches exactly, then re-check.</span>${recheck}</div>`;
+    return `<div class="qbo-exception-fix">${recheck}</div>`;
+  }
+  async function fillQboFixControls(container) {
+    const needsOptions = container.querySelector('[data-qbo-field]');
+    if (!needsOptions) return;
+    try {
+      const options = await loadQboFixOptions();
+      let list = document.getElementById("qboCustomerOptions");
+      if (!list) { list = document.createElement("datalist"); list.id = "qboCustomerOptions"; container.appendChild(list); }
+      list.innerHTML = options.customers.map((c) => `<option value="${escapeHtml(c.displayName)}"></option>`).join("");
+      container.querySelectorAll('select[data-qbo-field="tax"]').forEach((select) => {
+        select.innerHTML = `<option value="">Choose the 17.5% VAT tax code…</option>${options.taxCodes.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}${t.description ? ` — ${escapeHtml(t.description)}` : ""}</option>`).join("")}`;
+      });
+      container.querySelectorAll('input[data-qbo-field="customer"]').forEach((input) => {
+        const button = input.parentElement.querySelector('[data-qbo-action="map-customer"]');
+        const guess = `${button.dataset.name} - ${button.dataset.account}`.toLowerCase();
+        const hit = options.customers.find((c) => c.displayName.toLowerCase() === guess);
+        if (hit) input.value = hit.displayName;
+      });
+    } catch (error) {
+      container.querySelectorAll(".qbo-exception-fix").forEach((fix) => fix.insertAdjacentHTML("beforeend", `<span class="qbo-exception-hint">Could not load QuickBooks options: ${escapeHtml(error.message || "request failed")}</span>`));
+    }
+  }
+  async function recheckQboInvoices(ids) {
+    const result = await (await postJson("/api/automation/qbo-invoices/recheck", { sourceInvoiceIds: ids })).json();
+    return result.results || [];
+  }
+  async function handleQboExceptionAction(event) {
+    const button = event.target.closest("[data-qbo-action]");
+    if (!button) return;
+    const item = button.closest(".qbo-exception-item");
+    const note = item.querySelector(".qbo-exception-result");
+    const action = button.dataset.qboAction;
+    const rows = [...document.querySelectorAll(".qbo-exception-item")];
+    button.disabled = true;
+    note.textContent = "Working…";
+    try {
+      let idsToRecheck = [button.dataset.invoice];
+      if (action === "map-customer") {
+        const typed = item.querySelector('[data-qbo-field="customer"]').value.trim();
+        const customer = (qboFixOptions?.customers || []).find((c) => c.displayName === typed);
+        if (!customer) throw new Error("Pick a customer from the QuickBooks list.");
+        await postJson("/api/automation/qbo-invoices/customer-mappings", { sourceAccount: button.dataset.account, qboCustomerId: customer.id });
+        idsToRecheck = rows.filter((r) => r.dataset.kind === "customer" && r.dataset.account === button.dataset.account).map((r) => r.dataset.invoice);
+      } else if (action === "save-tax") {
+        const taxCodeId = item.querySelector('[data-qbo-field="tax"]').value;
+        if (!taxCodeId) throw new Error("Choose a tax code first.");
+        await postJson("/api/automation/qbo-invoices/tax-code", { taxCodeId });
+        qboFixOptions = null;
+        idsToRecheck = rows.filter((r) => r.dataset.kind === "tax").map((r) => r.dataset.invoice);
+      }
+      const results = await recheckQboInvoices(idsToRecheck);
+      const mine = results.find((r) => r.sourceInvoiceId === button.dataset.invoice);
+      await loadQboInvoiceLedger();
+      await loadQboInvoiceExceptions();
+      const fresh = [...document.querySelectorAll(".qbo-exception-item")].find((r) => r.dataset.invoice === button.dataset.invoice);
+      const target = fresh ? fresh.querySelector(".qbo-exception-result") : null;
+      if (target) target.textContent = mine ? `Still an exception: ${mine.reason || mine.status}` : "";
+    } catch (error) {
+      note.textContent = error.message || "That fix could not be applied.";
+      button.disabled = false;
+    }
+  }
   async function loadQboInvoiceExceptions() {
     const container = $("#qboInvoiceSyncExceptions");
     const count = $("#qboInvoiceSyncExceptionCount");
@@ -247,8 +322,9 @@
       const rows = data.rows || [];
       count.textContent = String(rows.length);
       container.innerHTML = rows.length
-        ? `<div class="qbo-exception-list">${rows.map((row) => `<article class="qbo-exception-item"><div class="qbo-exception-meta"><strong>Invoice ${escapeHtml(row.source_invoice_id)}</strong><span>${escapeHtml(row.source_customer_account || row.source_customer_name || "Unmatched customer")}</span></div><p>${escapeHtml(row.last_error || "No reason recorded.")}</p><small>Updated ${escapeHtml(formatSyncTime(row.updated_at))}</small></article>`).join("")}</div>`
+        ? `<div class="qbo-exception-list">${rows.map((row) => { const kind = qboExceptionKind(row.last_error || ""); return `<article class="qbo-exception-item" data-invoice="${escapeHtml(row.source_invoice_id)}" data-kind="${kind}" data-account="${escapeHtml(row.source_customer_account || "")}"><div class="qbo-exception-meta"><strong>Invoice ${escapeHtml(row.source_invoice_id)}</strong><span>${escapeHtml(row.source_customer_account || row.source_customer_name || "Unmatched customer")}</span></div><p>${escapeHtml(row.last_error || "No reason recorded.")}</p>${qboFixControls(row, kind)}<p class="qbo-exception-result" role="status"></p><small>Updated ${escapeHtml(formatSyncTime(row.updated_at))}</small></article>`; }).join("")}</div>`
         : "No exceptions are currently recorded.";
+      if (rows.length) fillQboFixControls(container);
     } catch (error) {
       count.textContent = "—";
       container.textContent = error.message || "Unable to load exceptions for review.";
@@ -283,6 +359,7 @@
   $("#stageRx").addEventListener("click", () => run(stage));
   $("#downloadRx").addEventListener("click", () => run(download));
   $("#releaseRx").addEventListener("click", () => run(release));
+  $("#qboInvoiceSyncExceptions").addEventListener("click", handleQboExceptionAction);
   qboSyncButton.addEventListener("click", () => runQboInvoiceSync(false));
   qboDryRunButton.addEventListener("click", () => runQboInvoiceSync(true));
   toggleConditionalFields();
