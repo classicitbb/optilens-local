@@ -5,7 +5,7 @@ const {
 } = require('../lib/live-data-gateway');
 
 test('gateway exposes only approved reads', () => {
-  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_invoice', 'innovations.customer_orders', 'optilens.customer_deliveries']);
+  assert.deepEqual(OPERATIONS, ['innovations.customer_account', 'innovations.customer_statement', 'innovations.customer_invoice', 'innovations.customer_orders', 'optilens.customer_deliveries', 'innovations.all_orders', 'optilens.all_deliveries']);
 });
 
 test('order payload exposes the portal order-list fields needed for a customer to find an order', () => {

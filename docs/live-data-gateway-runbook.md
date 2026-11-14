@@ -11,6 +11,21 @@ and does not periodically copy customer data.
 - Recent Innovations order status for the exact linked account number.
 - OptiLens Local delivery status for the exact linked account number.
 
+Staff-only, all-customer reads (Admin > Orders > Active Rx and Shipments). These
+are not tied to a customer: the request carries `target.scope = "all_customers"`
+and the website only queues them for staff.
+
+- `innovations.all_orders`: every active lab order (same active-WIP rules as the
+  per-customer read), each with its own account and customer name.
+- `optilens.all_deliveries`: open shipments plus those closed since
+  `closed_since` (the site sends 45 days), with every item on its own customer.
+
+Both are read-only and return `source_status: "live"`. Responses are capped near
+800 KB (and 5,000 orders / 2,000 shipments); beyond that the newest rows are
+returned with `truncated: true` rather than an error. The agent must be restarted
+on the new build before the website will queue these, because the heartbeat
+capabilities list is what enables them.
+
 The operation registry is in `lib/live-data-gateway.js`. Arbitrary paths, SQL,
 and customer searches are not accepted.
 
