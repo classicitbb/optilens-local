@@ -20,6 +20,8 @@
     { "match": "editions/**", "owner": "never" },
     { "match": "outputs/**", "owner": "never" },
     { "match": "test-results/**", "owner": "never" },
+    { "match": "-result.txt", "owner": "never" },
+    { "match": "WindowsTempli-result.txt", "owner": "never" },
 
     { "match": ".gitignore", "owner": "core" },
     { "match": ".env.example", "owner": "core" },
@@ -31,7 +33,7 @@
     { "match": "lib/chemistry-catalog-sync.js", "owner": "chemistry" },
     { "match": "lib/chemistry*.js", "owner": "chemistry" },
     { "match": "lib/qbo-*.js", "owner": "qbo" },
-    { "match": "lib/innova-api-client.js", "owner": "never" },
+    { "match": "lib/innova-api-client.js", "owner": "qbo" },
     { "match": "lib/email/**", "owner": "email" },
     { "match": "lib/inventory/**", "owner": "inventory-intelligence" },
     { "match": "lib/metrics/inventory*.js", "owner": "inventory-intelligence" },

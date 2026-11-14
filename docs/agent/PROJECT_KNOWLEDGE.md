@@ -83,3 +83,7 @@ Update this file with public-safe, durable facts that help the next agent: repos
 - RX Capture normalizes sphere/cylinder/ADD with the shared lossless power formatter at the normalized-order boundary and when rendering saved review values: PLANO/PL sphere becomes `0.00`, and leading-decimal negative cylinder becomes `-0.75`. Invalid/non-quarter powers are not rounded into valid prescriptions. The eye selector shares the Prescription heading row on desktop and wraps below it on small screens.
 
 - RX Capture submission and staged-release retry use the themed native HTML `#submissionDialog`, with explicit confirm/cancel, Escape dismissal and browser-managed modal focus. Ctrl shortcuts do not run behind the modal. Review field focus measures the shell header, sticky submission bar and VisualViewport before revealing a covered field. RX Capture opts into `RxCombo` `keepOpenOnScroll` so dropdowns reposition during this scroll; other consumers retain the default close-on-scroll behavior.
+
+## Customer creation and linking
+
+Migration 059 adds the QBO module's local customer registry and company-scoped customer jobs. The OptiLens Local creation entry point is the automation-manager customer POST API documented in the QBO invoice sync runbook. Apply-mode invoice sync uses the Innovations customer master and existing QBO mappings. Local saves commit the customer and its queued job together. Customer destination states and core audit events record each outcome. QuickBooks-only records do not trigger upstream sync.

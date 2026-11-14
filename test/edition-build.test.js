@@ -107,7 +107,7 @@ test("code that server.js loads at start-up ships even when its module is not li
 test("a tracked file with no rule fails the plan, and shipped code cannot need a 'never' file", () => {
   const unknown = plan(["server.js", "mystery.bin"]);
   assert.match(unknown.problems.join("\n"), /not classified[\s\S]*mystery\.bin/);
-  const needsNever = plan(["server.js", "lib/innova-api-client.js"], { "server.js": 'require("./lib/innova-api-client")' });
+  const needsNever = plan(["server.js", "AI_OPERATING_SYSTEM.md"], { "server.js": 'require("./AI_OPERATING_SYSTEM.md")' });
   assert.match(needsNever.problems.join("\n"), /marked 'never'/);
   const badModule = plan(["server.js"], {}, { modules: ["rx-capture", "nonsense"] });
   assert.match(badModule.problems.join("\n"), /unknown module: nonsense/);
