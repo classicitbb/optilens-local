@@ -87,3 +87,7 @@ Update this file with public-safe, durable facts that help the next agent: repos
 ## Customer creation and linking
 
 Migration 059 adds the QBO module's local customer registry and company-scoped customer jobs. The OptiLens Local creation entry point is the automation-manager customer POST API documented in the QBO invoice sync runbook. Apply-mode invoice sync uses the Innovations customer master and existing QBO mappings. Local saves commit the customer and its queued job together. Customer destination states and core audit events record each outcome. QuickBooks-only records do not trigger upstream sync.
+
+## FedEx in Delivery and Export
+
+- Innovations shipping methods were verified with a read-only query of dbo.ShippingMethods. DHL Express is method 16 and FedEx is method 17. Both are eligible for export document preparation. New FedEx certificate drafts default to the FedEx Padded Pak unless a package was selected explicitly.
