@@ -478,3 +478,12 @@ Status: Local implementation complete. Deployment and live document verification
 - Syntax and whitespace checks passed. Commercial invoice defaults tests passed (6/6). Full suite: 706 passed, 1 skipped, 27 failed across PDF rendering, Git, PowerShell and local networking tests.
 - Blocker: the managed checkout denied creation of the feature-branch ref. Deployment needs a writable Git checkout and the guarded host update. No additional approval is needed for the read-only lookup.
 - Next action: in a writable checkout, create the feature branch with `git switch -c codex/fedex-delivery-export`, then run the suite and use the guarded update and health verification.
+## Host Monitor task and process inventory (2026-11-16)
+
+Status: Complete — no active handoff.
+
+- Added a read-only **Tasks & Processes** tab to the native Host Monitor. It shows registered scheduled tasks with names beginning `OptiLens` and their state/last/next run details, plus processes associated with the project root or monitor, including PID, start time and memory.
+- Inventory refreshes with the monitor's existing refresh cycle and has a manual Refresh button. It does not launch, stop, or modify tasks or processes. Command lines are used only for local filtering and are not displayed.
+- Affected files: `scripts/OptiLensHostMonitorLauncher.cs`, `docs/LOCAL_UPDATES.md`.
+- Validation: source review and `git diff --check`; monitor compilation and application tests not run.
+- No host access, task execution, deployment, or restart was performed. The monitor executable should be rebuilt and relaunched by the normal guarded update flow after this source change is deployed.

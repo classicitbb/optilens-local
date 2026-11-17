@@ -93,6 +93,7 @@ internal sealed class OptiLensHostMonitor : Form
         var tabs = new TabControl { Location = new Point(18, 78), Size = new Size(724, 390), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
         Controls.Add(tabs);
         tabs.TabPages.Add(BuildConnectionsPage());
+        tabs.TabPages.Add(BuildHostActivityPage());
         tabs.TabPages.Add(BuildSyncPage());
         tabs.TabPages.Add(BuildHttpsPage());
 
@@ -203,6 +204,60 @@ internal sealed class OptiLensHostMonitor : Form
         return page;
     }
 
+    private TabPage BuildHostActivityPage()
+    {
+        var page = new TabPage("Tasks & Processes");
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        page.Controls.Add(layout);
+        var header = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(6), WrapContents = false };
+        header.Controls.Add(new Label { Text = "OptiLens scheduled tasks and host processes (read only)", AutoSize = true });
+        var refresh = new Button { Text = "Refresh", AutoSize = true };
+        refresh.Click += async delegate { await RefreshHostActivity(); };
+        header.Controls.Add(refresh);
+        layout.Controls.Add(header, 0, 0);
+        ConfigureActivityList(activityTasks, new[] { new KeyValuePair<string, int>("Scheduled task", 250), new KeyValuePair<string, int>("State", 95), new KeyValuePair<string, int>("Last run", 145), new KeyValuePair<string, int>("Last result", 90), new KeyValuePair<string, int>("Next run", 145) });
+        ConfigureActivityList(activityProcesses, new[] { new KeyValuePair<string, int>("Process", 220), new KeyValuePair<string, int>("PID", 75), new KeyValuePair<string, int>("Started", 180), new KeyValuePair<string, int>("Memory", 100) });
+        layout.Controls.Add(activityTasks, 0, 1);
+        layout.Controls.Add(activityProcesses, 0, 2);
+        return page;
+    }
+
+    private readonly ListView activityTasks = new ListView();
+    private readonly ListView activityProcesses = new ListView();
+
+    private static void ConfigureActivityList(ListView list, IEnumerable<KeyValuePair<string, int>> columns)
+    {
+        list.View = View.Details; list.FullRowSelect = true; list.GridLines = true; list.Dock = DockStyle.Fill;
+        foreach (var column in columns) list.Columns.Add(column.Key, column.Value);
+    }
+
+    private async Task RefreshHostActivity()
+    {
+        try
+        {
+            var root = projectRoot.Replace("'", "''");
+            var script = "$ErrorActionPreference='Stop'; $root='" + root + "'; $tasks=@(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'OptiLens*' } | ForEach-Object { $i=Get-ScheduledTaskInfo -TaskName $_.TaskName -TaskPath $_.TaskPath -ErrorAction SilentlyContinue; [pscustomobject]@{name=($_.TaskPath+$_.TaskName);state=[string]$_.State;lastRun=if($i){$i.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss')}else{''};lastResult=if($i){$i.LastTaskResult}else{''};nextRun=if($i){$i.NextRunTime.ToString('yyyy-MM-dd HH:mm:ss')}else{''}} }); $procs=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*OptiLens*' -or ($_.CommandLine -and $_.CommandLine.Contains($root)) } | ForEach-Object { [pscustomobject]@{name=$_.Name;pid=$_.ProcessId;started='';memory=''} }); foreach($p in $procs){$g=Get-Process -Id $p.pid -ErrorAction SilentlyContinue; if($g){$p.started=$g.StartTime.ToString('yyyy-MM-dd HH:mm:ss');$p.memory=[math]::Round($g.WorkingSet64/1MB,1).ToString()+' MB'}}; [pscustomobject]@{tasks=$tasks;processes=$procs}|ConvertTo-Json -Depth 4 -Compress";
+            var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"" + script.Replace("\"", "\\\"") + "\"") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            var output = await Task.Run(() => { using (var proc = Process.Start(psi)) { var stdout = proc.StandardOutput.ReadToEnd(); var stderr = proc.StandardError.ReadToEnd(); proc.WaitForExit(12000); if (proc.ExitCode != 0) throw new InvalidOperationException(stderr); return stdout; } });
+            var data = Map(json.DeserializeObject(output));
+            activityTasks.BeginUpdate(); activityTasks.Items.Clear();
+            foreach (var item in json.DeserializeObject(json.Serialize(Value(data, "tasks"))) as object[] ?? new object[0])
+            { var rowData = Map(item); var row = new ListViewItem(S(Value(rowData, "name"))); row.SubItems.Add(S(Value(rowData, "state"))); row.SubItems.Add(S(Value(rowData, "lastRun"))); row.SubItems.Add(S(Value(rowData, "lastResult"))); row.SubItems.Add(S(Value(rowData, "nextRun"))); activityTasks.Items.Add(row); }
+            activityTasks.EndUpdate();
+            activityProcesses.BeginUpdate(); activityProcesses.Items.Clear();
+            foreach (var item in json.DeserializeObject(json.Serialize(Value(data, "processes"))) as object[] ?? new object[0])
+            { var rowData = Map(item); var row = new ListViewItem(S(Value(rowData, "name"))); row.SubItems.Add(S(Value(rowData, "pid"))); row.SubItems.Add(S(Value(rowData, "started"))); row.SubItems.Add(S(Value(rowData, "memory"))); activityProcesses.Items.Add(row); }
+            activityProcesses.EndUpdate();
+        }
+        catch (Exception ex)
+        {
+            activityTasks.Items.Clear(); activityTasks.Items.Add(new ListViewItem("Task/process inventory unavailable: " + ex.Message));
+        }
+    }
+
     private TabPage BuildHttpsPage()
     {
         var page = new TabPage("HTTPS & DNS");
@@ -269,6 +324,7 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
             await RefreshQboInvoiceSyncStatus();
+            await RefreshHostActivity();
             RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !startVisible && !hasFailure && !hasWarning)
