@@ -468,3 +468,13 @@ Status: Local build ready for controlled integration verification.
 - Deployment and live verification remain pending. Controlled destination writes and enabling their gates require explicit authorization. No live customer writes or deployment were performed.
 - Next action: run `node --test test/customer-creation-sync.test.js test/edition-build.test.js` before packaging migration 059 for an authorized test environment. Verify a read-only Innovations customer lookup and QuickBooks company read before attempting controlled customer creation in that environment.
 - Final validation: `npm test` passed with 724 passed, 1 skipped and 0 failed. The seven focused customer tests passed. Syntax checks and `git diff --check` passed.
+
+## FedEx Delivery and Export
+
+Status: Local implementation complete. Deployment and live document verification pending.
+
+- Read-only Innovations lookup confirmed DHL Express (16) and FedEx (17), with one FedEx method.
+- Affected files: lib/source-innovations.js, lib/db.js, and lib/beswift-co.js. Both methods now qualify for export document preparation, and new FedEx certificate drafts use the FedEx Padded Pak by default.
+- Syntax and whitespace checks passed. Commercial invoice defaults tests passed (6/6). Full suite: 706 passed, 1 skipped, 27 failed across PDF rendering, Git, PowerShell and local networking tests.
+- Blocker: the managed checkout denied creation of the feature-branch ref. Deployment needs a writable Git checkout and the guarded host update. No additional approval is needed for the read-only lookup.
+- Next action: in a writable checkout, create the feature branch with `git switch -c codex/fedex-delivery-export`, then run the suite and use the guarded update and health verification.
