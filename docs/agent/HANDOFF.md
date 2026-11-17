@@ -468,3 +468,13 @@ Status: Local build ready for controlled integration verification.
 - Deployment and live verification remain pending. Controlled destination writes and enabling their gates require explicit authorization. No live customer writes or deployment were performed.
 - Next action: run `node --test test/customer-creation-sync.test.js test/edition-build.test.js` before packaging migration 059 for an authorized test environment. Verify a read-only Innovations customer lookup and QuickBooks company read before attempting controlled customer creation in that environment.
 - Final validation: `npm test` passed with 724 passed, 1 skipped and 0 failed. The seven focused customer tests passed. Syntax checks and `git diff --check` passed.
+
+## Host Monitor task and process inventory (2026-11-16)
+
+Status: Complete — no active handoff.
+
+- Added a read-only **Tasks & Processes** tab to the native Host Monitor. It shows registered scheduled tasks with names beginning `OptiLens` and their state/last/next run details, plus processes associated with the project root or monitor, including PID, start time and memory.
+- Inventory refreshes with the monitor's existing refresh cycle and has a manual Refresh button. It does not launch, stop, or modify tasks or processes. Command lines are used only for local filtering and are not displayed.
+- Affected files: `scripts/OptiLensHostMonitorLauncher.cs`, `docs/LOCAL_UPDATES.md`.
+- Validation: source review and `git diff --check`; monitor compilation and application tests not run.
+- No host access, task execution, deployment, or restart was performed. The monitor executable should be rebuilt and relaunched by the normal guarded update flow after this source change is deployed.
