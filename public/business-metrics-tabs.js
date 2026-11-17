@@ -17,7 +17,7 @@
   var dateLabel = BM.dateLabel, monthLabel = BM.monthLabel;
 
   var SECTIONS = ["sales", "invoices", "profitability", "deliveries", "pricing",
-    "cost-lists", "data-quality"];
+    "cost-lists", "data-quality", "order-quality"];
 
   // One state object per tab, so each refreshes on its own clock.
   var tabs = {};
@@ -315,6 +315,58 @@
       return out;
     },
 
+    "order-quality": function (d) {
+      var q = d.orderQuality;
+      if (!q) return '<div class="ov-empty">Live Innovations source unavailable.</div>';
+
+      var open = q.checks.reduce(function (n, c) { return n + c.count; }, 0);
+      var back = q.checks.reduce(function (n, c) { return n + c.cameBack; }, 0);
+      var recent = q.editRate && q.editRate.recent, prior = q.editRate && q.editRate.prior;
+      var trend = recent && prior
+        ? (recent.pct < prior.pct ? "down from " : recent.pct > prior.pct ? "up from " : "same as ") + prior.pct + "% in the 30 days before"
+        : "";
+
+      var out = '<div class="ov-tiles ov-fade">' +
+        stat("Rx orders needing a lens change", recent ? recent.pct + "%" : "–",
+          recent ? intf(recent.edited) + " of " + intf(recent.orders) + " in 30 days · " + trend : "not enough data") +
+        stat("Open findings", intf(open), back ? intf(back) + " came back after being marked fixed" : "patterns seen " + intf(q.thresholds.minOrders) + "+ times") +
+        stat("Handled", intf(q.decisions.handled), q.decisions.available ? "accepted, fixed or dismissed" : "decisions could not be read") +
+        stat("Lens redirects", intf(q.redirectRules), "rules in Innovations") +
+        "</div>";
+
+      var active = q.checks.filter(function (c) { return c.count > 0; });
+      if (active.length) {
+        out += '<div class="ov-fade"><div class="ov-rail-label">Needs review · ' + active.length + " of " +
+          q.checks.length + " checks</div><div class=\"ov-rail\">" +
+          active.map(function (c) {
+            return '<button type="button" class="ov-exc ' + esc(c.severity) + '" data-open="oq:' + esc(c.code) + '"' +
+              ' aria-label="' + esc(intf(c.count) + " " + c.label + ". Open details.") + '">' +
+              '<span class="ov-exc-top"><span class="ov-exc-n">' + intf(c.count) + "</span>" +
+              '<span class="ov-exc-label">' + esc(c.label) + "</span>" +
+              '<span class="ov-exc-arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span></span>' +
+              '<span class="ov-exc-detail">' + esc(c.detail) + "</span></button>";
+          }).join("") + "</div></div>";
+      } else {
+        out += '<div class="ov-fade"><div class="ov-allclear">Nothing to review in the last ' +
+          intf(q.windowDays) + " days.</div></div>";
+      }
+
+      out += panel("Review lists", "open in a drawer · Accept, Fixed or Dismiss each finding",
+        '<div class="ov-rows">' + q.checks.map(function (c) {
+          return openRow("oq:" + c.code, c.label, c.detail, c.count);
+        }).join("") + "</div>");
+
+      out += '<div class="ov-note ov-fade">' +
+        '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:16px">info</span><span>' +
+        "Findings are live from Innovations over the last " + intf(q.windowDays) + " days and appear when seen on at least " +
+        intf(q.thresholds.minOrders) + " orders. Nothing here changes Innovations: Accept, Fixed and Dismiss are recorded in this app only, " +
+        "and a finding marked Fixed returns if it is seen again. Redirect matches are approximate because staff edits carry short names " +
+        "while redirects hold full lens names. Staff are counted, never named." +
+        "</span></div>";
+
+      return out;
+    },
+
     "cost-lists": function (d) {
       var c = d.costLists;
       if (!c) return '<div class="ov-empty">Live Innovations source unavailable.</div>';
@@ -454,7 +506,92 @@
     };
   }
 
+  var OQ_COLUMNS = {
+    "lens-swap": [
+      { key: "oldValue", label: "Changed from", format: "text" },
+      { key: "newValue", label: "Changed to", format: "text" },
+      { key: "orders", label: "Orders", format: "int", align: "right" },
+      { key: "customers", label: "Customers", format: "int", align: "right" },
+      { key: "staffAccounts", label: "Staff accounts", format: "int", align: "right" },
+      { key: "redirectLabel", label: "Redirect", format: "text" },
+      { key: "suggestion", label: "Suggested fix", format: "text" },
+      { key: "lastSeen", label: "Last seen", format: "date" }
+    ],
+    "lens-unresolved": [
+      { key: "name", label: "Lens", format: "text" },
+      { key: "directionLabel", label: "What happens", format: "text" },
+      { key: "orders", label: "Orders", format: "int", align: "right" },
+      { key: "customers", label: "Customers", format: "int", align: "right" },
+      { key: "staffAccounts", label: "Staff accounts", format: "int", align: "right" },
+      { key: "suggestion", label: "Suggested fix", format: "text" },
+      { key: "lastSeen", label: "Last seen", format: "date" }
+    ],
+    "addon-by-hand": [
+      { key: "name", label: "Add-on", format: "text" },
+      { key: "change", label: "What staff do", format: "text" },
+      { key: "orders", label: "Orders", format: "int", align: "right" },
+      { key: "customers", label: "Customers", format: "int", align: "right" },
+      { key: "staffAccounts", label: "Staff accounts", format: "int", align: "right" },
+      { key: "suggestion", label: "Suggested fix", format: "text" },
+      { key: "lastSeen", label: "Last seen", format: "date" }
+    ],
+    "order-errors": [
+      { key: "code", label: "Code", format: "int", align: "right" },
+      { key: "message", label: "Error", format: "text" },
+      { key: "orders", label: "Orders", format: "int", align: "right" },
+      { key: "customers", label: "Customers", format: "int", align: "right" },
+      { key: "sampleOrderId", label: "Sample order", format: "text" },
+      { key: "suggestion", label: "Suggested fix", format: "text" },
+      { key: "lastSeen", label: "Last seen", format: "date" }
+    ]
+  };
+
+  var OQ_PROMPTS = {
+    accepted: "What will be changed in Innovations to stop this?",
+    fixed: "What was changed in Innovations?",
+    dismissed: "Why is this not a problem?"
+  };
+
+  function oqTable(code) {
+    var q = tabs["order-quality"].data.orderQuality;
+    var check = q.checks.find(function (c) { return c.code === code; });
+    var rows = (q.rows[code] || []).map(function (r) {
+      return Object.assign({}, r, {
+        redirectLabel: r.redirect === "redirect-bypassed" ? "Similar redirect exists" : "No redirect found",
+        directionLabel: r.direction === "lost" ? "Arrives, then becomes unresolved" : "Unresolved, then re-picked",
+        suggestion: (r.cameBack ? "Came back after being marked fixed. " : "") + r.suggestion
+      });
+    });
+    function act(decision, label) {
+      return {
+        label: label, prompt: OQ_PROMPTS[decision],
+        endpoint: "/api/business-metrics/order-quality/decision",
+        payload: { checkCode: code, decision: decision },
+        keys: { findingKey: "findingKey" },
+        contextKeys: ["orders", "customers"]
+      };
+    }
+    return {
+      kind: "oq:" + code,
+      title: check.label,
+      subtitle: check.detail + " · last " + q.windowDays + " days" + (check.truncated ? " · showing the top " + rows.length : ""),
+      emptyText: "Nothing to review for this check.",
+      summary: [
+        { label: "Findings", value: check.count, format: "int" },
+        { label: "Orders affected", value: check.orders, format: "int" }
+      ],
+      columns: OQ_COLUMNS[code],
+      rows: rows,
+      rowActions: [act("accepted", "Accept"), act("fixed", "Fixed"), act("dismissed", "Dismiss")]
+    };
+  }
+
   var LOCAL_TABLES = {
+    "oq:lens-swap": function () { return oqTable("lens-swap"); },
+    "oq:lens-unresolved": function () { return oqTable("lens-unresolved"); },
+    "oq:addon-by-hand": function () { return oqTable("addon-by-hand"); },
+    "oq:order-errors": function () { return oqTable("order-errors"); },
+
     "dq:zero-cost": function () { return dqTable("zero-cost"); },
     "dq:cost-exceeds-price": function () { return dqTable("cost-exceeds-price"); },
     "dq:zero-price": function () { return dqTable("zero-price"); },
@@ -589,7 +726,8 @@
       invoices: null,
       profitability: "profit-customers",
       deliveries: null,
-      pricing: null
+      pricing: null,
+      "order-quality": "oq:lens-swap"
     }[tab.name];
 
     if (pick && LOCAL_TABLES[pick]) {

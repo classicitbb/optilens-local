@@ -321,22 +321,25 @@
     }
     var cols = data.columns || [];
     var clickable = Boolean(data.next);
-    var action = data.rowAction || null;
+    // One action (rowAction) or several (rowActions), e.g. Accept / Fixed / Dismiss.
+    var actions = data.rowActions || (data.rowAction ? [data.rowAction] : []);
 
     return '<table class="bm-table"><thead><tr>' +
       cols.map(function (c) {
         return '<th class="' + (c.align === "right" ? "num" : "") + '">' + esc(c.label) + "</th>";
       }).join("") +
-      (action ? "<th></th>" : "") +
+      (actions.length ? "<th></th>" : "") +
       "</tr></thead><tbody>" +
       data.rows.map(function (row, i) {
         return '<tr class="' + (clickable ? "clickable" : "") + '" data-row="' + i + '">' +
           cols.map(function (c) {
             return '<td class="' + (c.align === "right" ? "num" : "") + '">' + esc(formatCell(row[c.key], c.format)) + "</td>";
           }).join("") +
-          (action
-            ? '<td class="num"><button type="button" class="ov-btn ov-row-action" data-action-row="' + i + '">' +
-              esc(action.label) + "</button></td>"
+          (actions.length
+            ? '<td class="num">' + actions.map(function (action, k) {
+              return '<button type="button" class="ov-btn ov-row-action" data-action-row="' + i +
+                '" data-action-idx="' + k + '">' + esc(action.label) + "</button>";
+            }).join(" ") + "</td>"
             : "") +
           "</tr>";
       }).join("") +
@@ -368,9 +371,10 @@
 
     // Row action — the one place the drawer writes. Declared by the payload
     // (rowAction), so this stays generic rather than knowing about any one report.
-    var action = top.data && top.data.rowAction;
-    if (action) {
+    var actions = (top.data && (top.data.rowActions || (top.data.rowAction ? [top.data.rowAction] : []))) || [];
+    if (actions.length) {
       el.querySelectorAll("[data-action-row]").forEach(function (button) {
+        var action = actions[Number(button.dataset.actionIdx || 0)];
         button.addEventListener("click", async function (event) {
           event.stopPropagation();
           var row = top.data.rows[Number(button.dataset.actionRow)];
@@ -383,6 +387,11 @@
           Object.keys(action.keys || {}).forEach(function (field) {
             body[field] = row[action.keys[field]];
           });
+          // Optional snapshot of the row's figures, so a later reader can see what was decided on.
+          if (action.contextKeys) {
+            body.context = {};
+            action.contextKeys.forEach(function (k) { body.context[k] = row[k]; });
+          }
 
           button.disabled = true;
           button.textContent = "…";

@@ -142,6 +142,7 @@ const {
   getRecommendations,
   recordDecision: recordRecommendationDecision
 } = require("./lib/metrics/inventory-recommendations");
+const { recordDecision: recordOrderQualityDecision } = require("./lib/metrics/order-quality-decisions");
 const { handleInventoryRoute } = require("./lib/inventory/routes");
 const { ask: askAssistant, systemAsk, executeAction, ACTION_TOOLS, getAssistantStatus, loadProviderConfig, saveProviderConfig, transcribeAudio, getKnowledgeStatus } = require("./lib/metrics/assistant");
 const { getLensSummary, getLensDetails, streamLensCsv } = require("./lib/lens-grid-service");
@@ -1779,6 +1780,21 @@ const server = http.createServer(async (req, res) => {
         actorUserId: actor.userId || null,
         actorName: actor.username || actor.userId || "unknown"
       });
+    });
+  }
+
+  // Order quality review: accepting, marking fixed or dismissing a finding. Lands in the
+  // app database only; Innovations is never written to from here.
+  if (url.pathname === "/api/business-metrics/order-quality/decision" && req.method === "POST") {
+    return handleApi(res, async () => {
+      const actor = await requirePermission(req, "business-metrics.manage");
+      const body = await readJsonBody(req);
+      const result = await recordOrderQualityDecision(body, {
+        actorUserId: actor.userId || null,
+        actorName: actor.username || actor.userId || "unknown"
+      });
+      metricsCache.delete("detail:order-quality");
+      return result;
     });
   }
 
