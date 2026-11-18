@@ -2,14 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "optilens-local",
-      "runtimeExecutable": "powershell",
+      "name": "optilens-dev-preview",
+      "runtimeExecutable": "node",
       "runtimeArgs": [
-        "-NoProfile",
-        "-Command",
-        "foreach ($n in 'OPTILENS_DB_SERVER','OPTILENS_DB_NAME','OPTILENS_DB_USER','OPTILENS_DB_PASSWORD','OPTILENS_DB_ENCRYPT','OPTILENS_DB_TRUST_CERT','OPTILENS_WRITEBACK_ENABLED','OPTILENS_SOURCE_MSSQL_SERVER','OPTILENS_SOURCE_MSSQL_DATABASE','OPTILENS_SOURCE_MSSQL_USER','OPTILENS_SOURCE_MSSQL_PASSWORD','OPTILENS_SOURCE_MSSQL_ENCRYPT','OPTILENS_SOURCE_MSSQL_TRUST_CERT','OPTILENS_SOURCE_MSSQL_MODE') { $v = [Environment]::GetEnvironmentVariable($n,'User'); if ($v) { [Environment]::SetEnvironmentVariable($n,$v,'Process') } }; node server.js"
+        "scripts/dev-preview.js"
       ],
-      "port": 8080,
+      "port": 8090,
       "autoPort": true
     }
   ],

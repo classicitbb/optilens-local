@@ -5,6 +5,9 @@ const { spawn } = require("node:child_process");
 const { URL } = require("node:url");
 const nodeCrypto = require("node:crypto");
 const sql = require("mssql");
+const devPreview = require("./lib/dev-preview");
+// Must run before lib/config loads .env: a dev preview forces workers, write-back and self-update off.
+const DEV_PREVIEW = devPreview.applyDevPreviewEnv(process.env);
 const { getConfig } = require("./lib/config");
 const { normalizeVaultData } = require("./lib/credential-vault");
 const credentialVault = require("./lib/credential-vault");
@@ -12,7 +15,12 @@ const { protectString, unprotectString } = require("./lib/windows-protected-stor
 const { createUpdateManager, planForChangedPaths } = require("./lib/update-manager");
 const { createGitUpdateChecker } = require("./lib/git-update-checker");
 const { shouldReleaseScheduledUpdate } = require("./lib/update-runner-state");
-const { launchIndependent, runHostScript, tailTextFile } = require("./lib/host-control");
+const hostControl = require("./lib/host-control");
+const { tailTextFile } = hostControl;
+// A dev preview must never stop, restart, repair or update the host it happens to run on.
+const blockedInDevPreview = () => { throw new Error("Host controls are disabled in dev preview."); };
+const launchIndependent = DEV_PREVIEW ? blockedInDevPreview : hostControl.launchIndependent;
+const runHostScript = DEV_PREVIEW ? blockedInDevPreview : hostControl.runHostScript;
 const { createHostIncidentReporter } = require("./lib/host-incidents");
 const { createHostRecoveryObserver } = require("./lib/host-recovery-observer");
 
@@ -620,6 +628,7 @@ const config = getConfig();
 const host = config.host;
 const port = config.port;
 const publicDir = path.join(__dirname, "public");
+const liveReload = DEV_PREVIEW ? devPreview.createLiveReload({ root: __dirname }) : null;
 const AUTH_COOKIE = "optilens_session";
 const AUTH_TTL = 8 * 60 * 60 * 1000;
 const authSessionFile = path.join(dataDir, "auth-sessions.protected");
@@ -1096,6 +1105,10 @@ async function refreshGitUpdatesOnSchedule() {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // Dev preview only: the live reload feed and its client script (no data, no auth needed).
+  if (DEV_PREVIEW && url.pathname === devPreview.EVENTS_PATH) return liveReload.handle(req, res);
+  if (DEV_PREVIEW && url.pathname === devPreview.CLIENT_PATH) return devPreview.sendClient(res);
 
   // Public, and reachable over plain HTTP through IIS: devices that do not
   // trust the LAN certificate yet come here to install it.
@@ -3114,7 +3127,7 @@ const server = http.createServer(async (req, res) => {
       "Content-Type": mimeTypes[ext] || "application/octet-stream",
       "Cache-Control": "no-store"
     });
-    res.end(content);
+    res.end(DEV_PREVIEW && ext === ".html" ? devPreview.injectClient(content) : content);
   });
 });
 
@@ -4054,6 +4067,13 @@ function beswiftBetaRelease() {
 
 server.listen(port, host, () => {
   console.log(`OptiLens Local listening on http://${host}:${port}`);
+  if (DEV_PREVIEW) {
+    // A dev preview is a viewer for edits, not a second production service: no pollers, sync
+    // workers, TLS front, RX recovery, update checks or write-back. Live reload stays on.
+    console.log("DEV PREVIEW: background workers, write-back, TLS, update checks and host controls are disabled; live reload is on.");
+    siteSettings.refresh().catch((error) => console.error("Site settings were not loaded:", error.message));
+    return;
+  }
   console.error(`OptiLens recovery observer boot ${new Date().toISOString()}`);
   refreshGitUpdatesOnSchedule().catch(() => {});
   const gitUpdateTimer = setInterval(() => {

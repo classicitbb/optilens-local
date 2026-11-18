@@ -548,3 +548,12 @@ Status: Complete — no active handoff.
 - Affected files: `scripts/OptiLensHostMonitorLauncher.cs`, `docs/LOCAL_UPDATES.md`.
 - Validation: source review and `git diff --check`; monitor compilation and application tests not run.
 - No host access, task execution, deployment, or restart was performed. The monitor executable should be rebuilt and relaunched by the normal guarded update flow after this source change is deployed.
+
+## Dev preview and ship flow (2026-11-18)
+
+Status: Complete — no active handoff.
+
+- Added a safe hot-reload dev preview (`npm run dev:preview`), an isolated dev checkout (`npm run dev:setup`) and a one-command publish through the guarded updater (`npm run ship`). Details and flags are in `docs/DEV_PREVIEW.md`. When the service runs from its own folder, set the user variable `OPTILENS_LIVE_CHECKOUT` to that folder so `ship` applies the update there.
+- Safety: `OPTILENS_DEV_PREVIEW=1` disables workers, write-back, TLS, update checks and host controls. The previous `.claude/launch.json` started a full second service from the working copy (port 8081) with every worker enabled; it was stopped and the launch configuration now runs the dev preview.
+- Validation: the new tests pass on the Windows host (21 passed, 1 skipped), including publish and revert against scratch git repositories. The live apply step is exercised by the deployment that ships this change.
+- Production recovery: the Innovations hot and warm sync tiers had been deferring silently behind an abandoned sync lock (its process no longer existed). The lock was renamed with the existing `abandoned` suffix convention, not deleted.
