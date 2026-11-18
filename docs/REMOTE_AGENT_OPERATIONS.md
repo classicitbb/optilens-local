@@ -1,14 +1,17 @@
 # Remote Agent Operations
 
-This document is the operational runbook for agents working from a machine
-other than the OptiLens host. It applies only to the authoritative host
-checkout:
+Use the active production workstation and its registered service checkout for
+deployments and recovery. The original server was retired from the application
+role during the Windows workstation cutover. Its checkout and SSH inventory
+below remain relevant for legacy infrastructure inspection.
 
-`C:\Users\Administrator\Documents\GitHub\optilens-local`
-
-`C:\DEV\optilens-local` is an agent-first working copy; humans use it second.
-Check `git status` before editing, as it may hold uncommitted agent or human
-changes. Deployment and restart still go through the host checkout above.
+Before changing a host, read the latest cutover notes in `docs/agent/HANDOFF.md`
+and locate the active application checkout through host-local configuration.
+Compare the public and candidate host-local `/api/health/live` application
+fingerprints and startup timestamps. If liveness is unavailable, confirm the
+active host from the approved routing and host-local service configuration.
+Use the documented guarded update on the confirmed host through the approved
+remote console or preconfigured SSH. Leave the retired app service stopped.
 
 ## Remote access
 
