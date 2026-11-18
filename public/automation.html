@@ -26,7 +26,6 @@
       <div class="automation-tab-bar">
         <nav class="workflow-tabs" aria-label="Automation tabs">
           <button class="active" type="button" data-tab="scheduled" aria-controls="scheduled" aria-current="true">Quickbooks Sync</button>
-          <button type="button" data-tab="rules" aria-controls="rules">Automation capabilities</button>
           <button type="button" data-tab="file-generation" aria-controls="file-generation">File Generation</button>
           <button type="button" data-tab="llm" aria-controls="llm">Local LLM</button>
           <button type="button" data-tab="audit" aria-controls="audit">Audit log</button>
@@ -36,18 +35,14 @@
           <div id="automationHelp" role="tooltip">
             <strong>Automation capabilities</strong>
             <ul>
-              <li><span class="icon icon--navy" aria-hidden="true">📋</span> <strong>Rule-based workflows</strong> define trigger → condition → action rules without direct database writes.</li>
-              <li><span class="icon icon--teal" aria-hidden="true">🔌</span> <strong>API tool routing</strong> sends automation actions through audited platform APIs.</li>
-              <li><span class="icon icon--success" aria-hidden="true">✅</span> <strong>Approval gates</strong> require explicit approval for write-back, pricing, and shipment-close actions.</li>
-              <li><span class="icon icon--gold" aria-hidden="true">📨</span> <strong>Notification hooks</strong> cover email, local webhook, and file-drop review notifications.</li>
+              <li><span class="icon icon--navy" aria-hidden="true">📋</span> <span><strong>Rule-based workflows</strong> define trigger → condition → action rules without direct database writes.</span></li>
+              <li><span class="icon icon--teal" aria-hidden="true">🔌</span> <span><strong>API tool routing</strong> sends automation actions through audited platform APIs.</span></li>
+              <li><span class="icon icon--success" aria-hidden="true">✅</span> <span><strong>Approval gates</strong> require explicit approval for write-back, pricing, and shipment-close actions.</span></li>
+              <li><span class="icon icon--gold" aria-hidden="true">📨</span> <span><strong>Notification hooks</strong> cover email, local webhook, and file-drop review notifications.</span></li>
             </ul>
           </div>
         </div>
       </div>
-
-      <section class="workflow-panel" id="rules" aria-label="Automation capabilities">
-        <div class="automation-capabilities-note">The planned capabilities are available from the help button at the end of the tab row.</div>
-      </section>
 
       <section class="workflow-panel" id="file-generation">
         <div class="rx-heading">
