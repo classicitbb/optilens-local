@@ -6,6 +6,8 @@
 
 ## Windows workstation cutover
 
+- Monitor update blocker resolved in `f6805f8`: the generated executable and icon are no longer tracked. The live local executable matched the prior shipped build before the one-time reconciliation. The guarded update passed the UI build, smoke check, and application tests, then restarted the service and rebuilt the monitor. The live checkout stayed clean after the rebuild and the monitor harness passed.
+
 - HTTPS monitor follow-up: the old monitor searched the local machine's IIS certificate store. Updated it to verify the site's actual HTTPS listener and display the exported public root on split hosts. Built and replaced the workstation monitor executable with a rollback copy, verified the interactive process and site health, and did not restart the Node service. Source changes remain in the working tree. Captured the staged installer requirements in `docs/procedures/install-or-move-optilens.md`.
 
 ### QuickBooks connection follow-up
