@@ -208,11 +208,6 @@
     } catch (error) { setStatus(error.message || "Unable to load RX generator data.", "error"); }
   }
 
-  function updateAutomationCrumb(button) {
-    const crumb = document.querySelector("#app-shell-header .top-crumb");
-    if (crumb) crumb.textContent = "Automation";
-  }
-
   function formatSyncTime(value) {
     if (!value) return "Not recorded";
     const parsed = new Date(value);
@@ -347,11 +342,20 @@
     } catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "QuickBooks invoice sync failed."; qboSyncButton.disabled = false; qboDryRunButton.disabled = false; }
   }
 
-  document.querySelectorAll(".workflow-tabs button").forEach((button) => button.addEventListener("click", () => {
-    document.querySelectorAll(".workflow-tabs button").forEach((item) => item.classList.toggle("active", item === button));
+  const tabs = document.querySelectorAll(".workflow-tabs [data-tab]");
+  tabs.forEach((button) => button.addEventListener("click", () => {
+    tabs.forEach((item) => {
+      item.classList.toggle("active", item === button);
+      if (item === button) item.setAttribute("aria-current", "true");
+      else item.removeAttribute("aria-current");
+    });
     document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
-    updateAutomationCrumb(button);
   }));
+  const help = $(".automation-help");
+  help.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") help.classList.add("tooltip-dismissed");
+  });
+  help.addEventListener("focusout", () => help.classList.remove("tooltip-dismissed"));
   ["patientMode", "lensMode", "prescriptionMode", "coatingMode"].forEach((name) => form.elements[name].addEventListener("change", toggleConditionalFields));
   ["lensSupplier", "lensCatalog", "lensOption"].forEach((name) => form.elements[name].addEventListener("change", syncLensOptions));
   $("#previewRx").addEventListener("click", () => run(preview));
