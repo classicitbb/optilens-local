@@ -1,25 +1,51 @@
-.module-body:has(.workflow-tabs) { background:#f4f1e9; }
-.module-body:has(.workflow-tabs) .module-main { padding:0; }
-.module-body:has(.workflow-tabs) .module-workspace { min-height:calc(100vh - 56px); border:0; border-radius:0; box-shadow:none; background:#f7f5ef; }
-.module-body:has(.workflow-tabs) .module-title { padding:18px 24px 16px; background:#f7f5ef; border-bottom:1px solid #d9d5ca; }
-.module-body:has(.workflow-tabs) .module-title h1 { color:#0b1e35; font-size:28px; letter-spacing:-.02em; }
-.module-body:has(.workflow-tabs) .workflow-tabs { min-height:48px; box-sizing:border-box; padding:0 16px; gap:4px; border:0; background:#0b1e35; overflow-x:auto; }
-.module-body:has(.workflow-tabs) .workflow-tabs button,
-.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link { min-height:38px; display:inline-flex; align-items:center; border:0; border-radius:8px; padding:9px 14px; color:#b9cbe0; background:transparent; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
-.module-body:has(.workflow-tabs) .workflow-tabs button.active { border:0; background:#dfeaf5; color:#0b1e35; }
-.module-body:has(.workflow-tabs) .workflow-tabs button:hover,
-.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link:hover { background:#163d67; color:#fff; }
-.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link { background:#c89130; color:#0b1e35; }
-.module-body:has(.workflow-tabs) .workflow-tabs .automation-tab-link:hover { background:#e0a63b; color:#0b1e35; }
-.module-body:has(.workflow-tabs) .workflow-panel { padding:22px 24px 32px; }
-.module-body:has(.workflow-tabs) .capability-grid article { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
-.capability-accordion { border:1px solid #ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
-.capability-accordion > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px 18px; cursor:pointer; color:#0b1e35; font-size:15px; font-weight:800; list-style:none; }
-.capability-accordion > summary::-webkit-details-marker { display:none; }
-.capability-accordion > summary::before { content:"›"; margin-right:2px; color:#45688d; font-size:22px; font-weight:400; line-height:.7; transform:rotate(0deg); transition:transform .15s ease; }
-.capability-accordion[open] > summary::before { transform:rotate(90deg); }
-.capability-accordion > summary > :first-child { margin-right:auto; }
-.capability-accordion-content { margin:0; padding:0 14px 14px; }
+.module-body.automation-page { background:#f4f1e9; }
+.automation-page .module-main { max-width:none; padding:0; }
+.automation-page .module-workspace { min-height:calc(100vh - 56px); border:0; border-radius:0; box-shadow:none; background:#f7f5ef; }
+.automation-tab-bar { display:flex; align-items:center; background:#0b1e35; }
+.automation-page .workflow-tabs { flex:1; min-width:0; min-height:48px; padding:0 16px; gap:4px; border:0; background:transparent; overflow-x:auto; }
+.automation-page .automation-tab-bar .workflow-tabs button[data-tab] { flex:0 0 auto; min-height:38px; border:0; border-radius:8px; padding:9px 14px; color:#b9cbe0; background:transparent; font-size:12px; font-weight:800; white-space:nowrap; }
+.automation-page .automation-tab-bar .workflow-tabs button[data-tab].active { background:#dfeaf5; color:#0b1e35; }
+.automation-page .workflow-tabs button:not(.active):hover { background:#163d67; color:#fff; }
+.automation-page .workflow-panel { padding:22px 24px 32px; }
+.automation-page .capability-grid { margin:0; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.automation-page .capability-grid article { border-color:#ded9cc; border-radius:12px; background:#fffdf9; box-shadow:0 8px 24px rgba(11,30,53,.06); }
+.automation-help { position:relative; flex:0 0 auto; margin-inline:6px 12px; }
+.automation-help-button {
+  width:32px;
+  height:32px;
+  border:1px solid #b9cbe0;
+  border-radius:50%;
+  background:transparent;
+  color:#dfeaf5;
+  font:inherit;
+  font-weight:800;
+  cursor:help;
+}
+#automationHelp {
+  visibility:hidden;
+  position:absolute;
+  z-index:5;
+  top:100%;
+  right:0;
+  width:min(320px,calc(100vw - 24px));
+  margin:0;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--surface);
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  font-size:12px;
+}
+.automation-help #automationHelp strong { color:var(--ink); }
+.automation-help #automationHelp ul { display:grid; gap:8px; margin:8px 0 0; padding:0; list-style:none; }
+.automation-help #automationHelp li { display:grid; grid-template-columns:20px minmax(0,1fr); gap:5px; align-items:start; line-height:1.35; }
+.automation-help #automationHelp li .icon { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:5px; font-size:12px; }
+.automation-capabilities-note { max-width:620px; padding:16px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--muted); font-size:13px; }
+.automation-help:not(.tooltip-dismissed):is(:hover,:focus-within) #automationHelp { visibility:visible; }
+@media (max-width:700px) {
+  .automation-page .capability-grid { grid-template-columns:1fr; }
+}
 .scheduled-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin:0 0 12px; }
 .scheduled-heading h2 { margin:2px 0 4px; color:#071d35; font-size:22px; }
 .scheduled-heading p:not(.eyebrow) { max-width:760px; margin:0; color:#45688d; font-size:13px; line-height:1.38; }
