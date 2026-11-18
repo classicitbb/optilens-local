@@ -33,37 +33,20 @@
         </nav>
         <div class="automation-help">
           <button type="button" class="automation-help-button" aria-label="About Automation" aria-describedby="automationHelp">?</button>
-          <p id="automationHelp" role="tooltip">Review automation capabilities, controlled file generation, scheduled tasks, and the supplier exception inbox in one accountable workspace.</p>
+          <div id="automationHelp" role="tooltip">
+            <strong>Automation capabilities</strong>
+            <ul>
+              <li><span class="icon icon--navy" aria-hidden="true">📋</span> <strong>Rule-based workflows</strong> define trigger → condition → action rules without direct database writes.</li>
+              <li><span class="icon icon--teal" aria-hidden="true">🔌</span> <strong>API tool routing</strong> sends automation actions through audited platform APIs.</li>
+              <li><span class="icon icon--success" aria-hidden="true">✅</span> <strong>Approval gates</strong> require explicit approval for write-back, pricing, and shipment-close actions.</li>
+              <li><span class="icon icon--gold" aria-hidden="true">📨</span> <strong>Notification hooks</strong> cover email, local webhook, and file-drop review notifications.</li>
+            </ul>
+          </div>
         </div>
       </div>
 
       <section class="workflow-panel" id="rules" aria-label="Automation capabilities">
-        <div class="capability-grid">
-          <article>
-            <span class="icon icon--navy">📋</span>
-            <h3>Rule-based workflows</h3>
-            <p>Define trigger → condition → action rules that run against platform data without direct database writes.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon icon--teal">🔌</span>
-            <h3>API tool routing</h3>
-            <p>All automation actions are routed through audited platform APIs. No automation script has direct DB access.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon icon--success">✅</span>
-            <h3>Approval gates</h3>
-            <p>High-impact actions (write-back, price changes, shipment close) require explicit approval before execution.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-          <article>
-            <span class="icon icon--gold">📨</span>
-            <h3>Notification hooks</h3>
-            <p>Email, local webhook, and file-drop notifications when rules fire or require human review.</p>
-            <span class="badge planned">Planned</span>
-          </article>
-        </div>
+        <div class="automation-capabilities-note">The planned capabilities are available from the help button at the end of the tab row.</div>
       </section>
 
       <section class="workflow-panel" id="file-generation">

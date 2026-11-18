@@ -37,6 +37,11 @@
   box-shadow:var(--shadow);
   font-size:12px;
 }
+.automation-help #automationHelp strong { color:var(--ink); }
+.automation-help #automationHelp ul { display:grid; gap:8px; margin:8px 0 0; padding:0; list-style:none; }
+.automation-help #automationHelp li { display:grid; grid-template-columns:20px minmax(0,1fr); gap:5px; align-items:start; line-height:1.35; }
+.automation-help #automationHelp li .icon { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:5px; font-size:12px; }
+.automation-capabilities-note { max-width:620px; padding:16px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--muted); font-size:13px; }
 .automation-help:not(.tooltip-dismissed):is(:hover,:focus-within) #automationHelp { visibility:visible; }
 @media (max-width:700px) {
   .automation-page .capability-grid { grid-template-columns:1fr; }
