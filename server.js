@@ -3772,6 +3772,13 @@ function liveGatewayAutostartStatus() {
 }
 
 function loadLiveGatewayStartupCredentials() {
+  let protectedStoreError;
+  try {
+    const credentials = liveGatewayAutostart.load();
+    if (credentials) return { credentials, source: "windows-protected-store" };
+  } catch (error) {
+    protectedStoreError = error;
+  }
   const passphrase = process.env.OPTILENS_SYNC_PASSPHRASE || "";
   if (passphrase) {
     const token = plSecure.unlock(passphrase);
@@ -3783,8 +3790,8 @@ function loadLiveGatewayStartupCredentials() {
     }
   }
 
-  const credentials = liveGatewayAutostart.load();
-  return credentials ? { credentials, source: "windows-protected-store" } : null;
+  if (protectedStoreError) throw new Error("Reconnect the live gateway under the OptiLens Windows service account.");
+  return null;
 }
 
 // Unattended CV API credentials for the always-on Innovations sync worker.
