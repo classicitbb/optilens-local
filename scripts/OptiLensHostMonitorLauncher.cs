@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -716,7 +717,11 @@ internal sealed class OptiLensHostMonitor : Form
         restartInProgress = true; restartProgressStartedAt = DateTime.UtcNow; restartProgressRunId = "";
         SetServiceControls(); ShowRestartProgress(); restartProgressSummary.Text = initialMessage; restartProgressSummary.ForeColor = Color.DarkGoldenrod; restartProgressBar.Value = 0;
         restartProgressBox.Text = "Waiting for durable restart state and logs..." + Environment.NewLine;
-        if (launchRestart) RunHostScript("restart-app.ps1");
+        if (launchRestart && !RunHostScript("restart-app.ps1", requireElevation: true))
+        {
+            FinishRestartProgress(false, "Restart could not start. Check the Windows permission prompt or the monitor log.");
+            return;
+        }
         restartProgressTimer.Start(); var ignored = RefreshRestartProgress();
     }
 
@@ -929,16 +934,39 @@ internal sealed class OptiLensHostMonitor : Form
         catch (Exception error) { logsBox.Text = "Logs unavailable: " + error.Message; }
     }
 
-    private async Task<string> RunCapturedHostScript(string name, string arguments, int timeoutMs)
+    private static bool IsElevated()
+    {
+        using (var identity = WindowsIdentity.GetCurrent())
+        {
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+    }
+
+    private async Task<string> RunCapturedHostScript(string name, string arguments, int timeoutMs, bool requireElevation = false)
     {
         var script = Path.Combine(projectRoot, "scripts", name);
         var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-        var args = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + script +
+        var args = "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script +
             "\" -ProjectRoot \"" + projectRoot + "\" " + arguments;
         var info = new ProcessStartInfo(powershell, args) {
             WorkingDirectory = projectRoot, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8
         };
+        if (requireElevation && !IsElevated())
+        {
+            return await Task.Run(() => {
+                var elevated = new ProcessStartInfo(powershell, args) {
+                    WorkingDirectory = projectRoot, UseShellExecute = true, Verb = "runas",
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                using (var process = Process.Start(elevated))
+                {
+                    if (!process.WaitForExit(timeoutMs)) throw new TimeoutException(name + " did not finish in time.");
+                    if (process.ExitCode != 0) throw new InvalidOperationException(name + " exited with code " + process.ExitCode + ".");
+                    return "";
+                }
+            });
+        }
         return await Task.Run(async delegate {
             using (var process = Process.Start(info))
             {
@@ -967,7 +995,7 @@ internal sealed class OptiLensHostMonitor : Form
         try
         {
             await RunCapturedHostScript(start ? "start-app.ps1" : "stop-app.ps1",
-                "-Port " + port + (start ? "" : " -Intentional"), 90000);
+                "-Port " + port + (start ? "" : " -Intentional"), 90000, requireElevation: true);
         }
         catch (Exception exception)
         {
@@ -979,19 +1007,27 @@ internal sealed class OptiLensHostMonitor : Form
         if (error != null) MessageBox.Show(this, error, "OptiLens service action failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
-    private void RunHostScript(string name, bool intentionalStop = false, string extraArguments = "")
+    private bool RunHostScript(string name, bool intentionalStop = false, string extraArguments = "", bool requireElevation = false)
     {
         try
         {
             var script = Path.Combine(projectRoot, "scripts", name);
-            if (!File.Exists(script)) return;
+            if (!File.Exists(script)) throw new FileNotFoundException("Host script is missing.", name);
             var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
             var args = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"" + script + "\" -ProjectRoot \"" + projectRoot + "\" -Port " + port + (intentionalStop ? " -Intentional" : "") + " " + extraArguments;
-            Process.Start(new ProcessStartInfo(powershell, args) { WorkingDirectory = projectRoot, CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+            bool elevate = requireElevation && !IsElevated();
+            var info = new ProcessStartInfo(powershell, args) {
+                WorkingDirectory = projectRoot, CreateNoWindow = !elevate, UseShellExecute = elevate,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+            if (elevate) info.Verb = "runas";
+            Process.Start(info).Dispose();
+            return true;
         }
         catch (Exception error)
         {
             Log("failed to launch script " + name + ": " + error.Message);
+            return false;
         }
     }
 
