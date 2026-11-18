@@ -6,6 +6,13 @@
 
 ## Windows workstation cutover
 
+### Protected credentials follow-up
+
+- Deployed `23ea8d5`. The live-data gateway now prefers the readable Windows-protected connection over the legacy passphrase. DPAPI stderr is captured and an unreadable stored mailbox password reports that it needs reconnecting. Verified protected gateway startup, both database health checks, and the monitor harness. Preserved the abandoned Innovations sync lock under a backup name after verifying its recorded process was gone.
+- Validation: the guarded update passed the UI build and smoke check. Its advisory suite failed the worker request fixture while the live lock was present. All 10 protected-store and worker tests passed in the development checkout. The separate in-app update launch warning was not reproduced through the guarded PowerShell update.
+- Latest health: HTTPS, app SQL, source SQL, and the protected live-data gateway were verified. Innovations cloud sync still reported an error after the lock recovery, and its log recorded an unreachable receiver. A successful new hot sync remains unverified.
+- Blocker and next action: three enabled mailbox passwords could not be decrypted under the destination identity. Reconnect the affected mailboxes through the supported account setup under the destination service account, or obtain explicit approval for protected migration from their original Windows identity. Then verify mailbox sync through its normal read path. No saved mailbox value was changed.
+
 - Monitor update blocker resolved in `f6805f8`: the generated executable and icon are no longer tracked. The live local executable matched the prior shipped build before the one-time reconciliation. The guarded update passed the UI build, smoke check, and application tests, then restarted the service and rebuilt the monitor. The live checkout stayed clean after the rebuild and the monitor harness passed.
 
 - HTTPS monitor follow-up: the old monitor searched the local machine's IIS certificate store. Updated it to verify the site's actual HTTPS listener and display the exported public root on split hosts. Built and replaced the workstation monitor executable with a rollback copy, verified the interactive process and site health, and did not restart the Node service. Source changes remain in the working tree. Captured the staged installer requirements in `docs/procedures/install-or-move-optilens.md`.
