@@ -14,6 +14,11 @@ using System.Windows.Forms;
 internal sealed class OptiLensHostMonitor : Form
 {
     private static readonly string monitorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "logs", "host-monitor.log");
+    private static readonly Color Canvas = Color.FromArgb(244, 242, 237);
+    private static readonly Color Ink = Color.FromArgb(11, 30, 53);
+    private static readonly Color Accent = Color.FromArgb(18, 108, 123);
+    private static readonly Color Border = Color.FromArgb(205, 213, 223);
+
     private readonly string projectRoot;
     private readonly int port;
     private readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -76,28 +81,32 @@ internal sealed class OptiLensHostMonitor : Form
         showSignal = signal;
         startVisible = visibleOnStartup;
         Text = "OptiLens Local Host Monitor";
-        ClientSize = new Size(760, 500);
-        MinimumSize = new Size(620, 380);
+        ClientSize = new Size(940, 620);
+        MinimumSize = new Size(690, 460);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Font = new Font("Segoe UI", 9);
         StartPosition = FormStartPosition.CenterScreen;
         ShowInTaskbar = true;
         Icon = Icon.ExtractAssociatedIcon(Process.GetCurrentProcess().MainModule.FileName) ?? SystemIcons.Application;
 
         summary.Text = "Checking local service…";
-        summary.AutoSize = true;
-        summary.Location = new Point(20, 48);
+        summary.AutoEllipsis = true;
+        summary.SetBounds(20, 53, 900, 23);
+        summary.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         Controls.Add(summary);
 
-        var heading = new Label { Text = "OptiLens Local Host Monitor", AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold), Location = new Point(18, 16) };
+        var heading = new Label { Text = "OptiLens Local Host Monitor", AutoSize = true, Font = new Font("Segoe UI", 17, FontStyle.Bold), Location = new Point(18, 15) };
         Controls.Add(heading);
 
-        var tabs = new TabControl { Location = new Point(18, 78), Size = new Size(724, 390), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
+        var tabs = new TabControl { Location = new Point(18, 86), Size = new Size(904, 516), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
         Controls.Add(tabs);
         tabs.TabPages.Add(BuildConnectionsPage());
         tabs.TabPages.Add(BuildHostActivityPage());
         tabs.TabPages.Add(BuildSyncPage());
         tabs.TabPages.Add(BuildHttpsPage());
+        ApplyMonitorAppearance(this);
 
-        var menu = new ContextMenuStrip();
+        var menu = new ContextMenuStrip { Font = Font };
         menu.Items.Add("Open monitor", null, delegate { ShowMonitorWindow(); });
         menu.Items.Add("Open OptiLens Local", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:" + port + "/") { UseShellExecute = true }); });
         menu.Items.Add("Open OptiLens HTTPS", null, delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); });
@@ -131,19 +140,21 @@ internal sealed class OptiLensHostMonitor : Form
     {
         var page = new TabPage("Connections");
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        layout.Padding = new Padding(10);
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 106));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
         page.Controls.Add(layout);
 
-        var service = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), WrapContents = false };
+        var service = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true };
         updateStatus.Text = "Updates: not checked"; updateStatus.AutoSize = true; service.Controls.Add(updateStatus);
+        service.SetFlowBreak(updateStatus, true);
         service.Controls.Add(checkUpdatesButton); service.Controls.Add(applyUpdatesButton); service.Controls.Add(fixErrorsButton);
         service.Controls.Add(startServiceButton); service.Controls.Add(restartServiceButton); service.Controls.Add(stopServiceButton);
         layout.Controls.Add(service, 0, 0);
         connections.View = View.Details;
         connections.FullRowSelect = true;
-        connections.GridLines = true;
+        connections.AccessibleName = "Service connections";
         connections.Dock = DockStyle.Fill;
         connections.Columns.Add("Connection", 230);
         connections.Columns.Add("Status", 100);
@@ -172,7 +183,8 @@ internal sealed class OptiLensHostMonitor : Form
     {
         var page = new TabPage("Innovations Sync");
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
+        layout.Padding = new Padding(10);
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(layout);
@@ -181,6 +193,9 @@ internal sealed class OptiLensHostMonitor : Form
         layout.Controls.Add(actions, 0, 0);
         syncStatus.Text = "Sync: checking…"; syncStatus.AutoSize = true; actions.Controls.Add(syncStatus);
         syncCredentials.Text = "Credentials: checking…"; syncCredentials.AutoSize = true; actions.Controls.Add(syncCredentials);
+        actions.SetFlowBreak(syncCredentials, true);
+        actions.Controls.Add(new Label { Text = "Account", AutoSize = true, Margin = new Padding(4, 8, 4, 0) });
+        accountBox.AccessibleName = "Account";
         actions.Controls.Add(accountBox);
         var selfTest = new Button { Text = "Run self-test" }; selfTest.Click += async delegate { await RunSelfTest(); }; actions.Controls.Add(selfTest);
         var dryRun = new Button { Text = "Dry run" }; dryRun.Click += async delegate { await RunSync(false); }; actions.Controls.Add(dryRun);
@@ -197,6 +212,8 @@ internal sealed class OptiLensHostMonitor : Form
         entities.Controls.Add(suppressEmails);
 
         var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 105 };
+        resultBox.AccessibleName = "Sync results";
+        logsBox.AccessibleName = "Sync logs";
         resultBox.Text = "Self-test and sync results will appear here.";
         logsBox.Text = "Loading sync logs…";
         split.Panel1.Controls.Add(resultBox); split.Panel2.Controls.Add(logsBox);
@@ -208,18 +225,21 @@ internal sealed class OptiLensHostMonitor : Form
     {
         var page = new TabPage("Tasks & Processes");
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        layout.Padding = new Padding(10);
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
         page.Controls.Add(layout);
         var header = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(6), WrapContents = false };
-        header.Controls.Add(new Label { Text = "OptiLens scheduled tasks and host processes (read only)", AutoSize = true });
+        header.Controls.Add(new Label { Text = "Scheduled tasks and host processes (read only)", AutoSize = true, Margin = new Padding(3, 8, 12, 0) });
         var refresh = new Button { Text = "Refresh", AutoSize = true };
         refresh.Click += async delegate { await RefreshHostActivity(); };
         header.Controls.Add(refresh);
         layout.Controls.Add(header, 0, 0);
         ConfigureActivityList(activityTasks, new[] { new KeyValuePair<string, int>("Scheduled task", 250), new KeyValuePair<string, int>("State", 95), new KeyValuePair<string, int>("Last run", 145), new KeyValuePair<string, int>("Last result", 90), new KeyValuePair<string, int>("Next run", 145) });
         ConfigureActivityList(activityProcesses, new[] { new KeyValuePair<string, int>("Process", 220), new KeyValuePair<string, int>("PID", 75), new KeyValuePair<string, int>("Started", 180), new KeyValuePair<string, int>("Memory", 100) });
+        activityTasks.AccessibleName = "Scheduled tasks";
+        activityProcesses.AccessibleName = "Host processes";
         layout.Controls.Add(activityTasks, 0, 1);
         layout.Controls.Add(activityProcesses, 0, 2);
         return page;
@@ -230,7 +250,7 @@ internal sealed class OptiLensHostMonitor : Form
 
     private static void ConfigureActivityList(ListView list, IEnumerable<KeyValuePair<string, int>> columns)
     {
-        list.View = View.Details; list.FullRowSelect = true; list.GridLines = true; list.Dock = DockStyle.Fill;
+        list.View = View.Details; list.FullRowSelect = true; list.Dock = DockStyle.Fill;
         foreach (var column in columns) list.Columns.Add(column.Key, column.Value);
     }
 
@@ -265,18 +285,61 @@ internal sealed class OptiLensHostMonitor : Form
         page.Controls.Add(layout);
         layout.Controls.Add(new Label { Text = "OptiLens LAN HTTPS", AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) });
         httpsStatus.AutoSize = true; localCaStatus.AutoSize = true;
-        layout.Controls.Add(httpsStatus); layout.Controls.Add(localCaStatus);
+        layout.SetFlowBreak(layout.Controls[0], true);
+        layout.Controls.Add(httpsStatus);
+        layout.SetFlowBreak(httpsStatus, true);
+        layout.Controls.Add(localCaStatus);
+        layout.SetFlowBreak(localCaStatus, true);
         var openHttps = new Button { Text = "Open HTTPS site", Width = 120 };
         var openDns = new Button { Text = "Open DNS console", Width = 120 };
         var exportRoot = new Button { Text = "Open root certificate", Width = 145 };
         var renewLeaf = new Button { Text = "Renew server certificate", Width = 165 };
         layout.Controls.Add(openHttps); layout.Controls.Add(openDns); layout.Controls.Add(exportRoot); layout.Controls.Add(renewLeaf);
+        layout.SetFlowBreak(renewLeaf, true);
         layout.Controls.Add(new Label { Text = "The CA private key stays on this host. Install the exported public root certificate and use this host as DNS on each LAN device before browsing optilens.cv.net.", AutoSize = true, MaximumSize = new Size(650, 0) });
         openHttps.Click += delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); };
         openDns.Click += delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); };
         exportRoot.Click += delegate { Process.Start(new ProcessStartInfo(Path.Combine(projectRoot, "data", "certificates")) { UseShellExecute = true }); };
         renewLeaf.Click += delegate { if (MessageBox.Show("Issue and bind a fresh OptiLens server certificate now?", "Confirm certificate renewal", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes) RunHostScript("manage-local-https.ps1", false, "-Action RenewServerCertificate"); };
         return page;
+    }
+
+    private void ApplyMonitorAppearance(Control control)
+    {
+        if (SystemInformation.HighContrast) return;
+
+        if (control is Form)
+        {
+            control.BackColor = Canvas;
+            control.ForeColor = Ink;
+        }
+        else if (control is TabPage)
+        {
+            ((TabPage)control).UseVisualStyleBackColor = false;
+            control.BackColor = Color.White;
+        }
+        else if (control is Button)
+        {
+            var button = (Button)control;
+            bool primary = button == applyUpdatesButton || button == startServiceButton;
+            button.AutoSize = true;
+            button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            button.MinimumSize = new Size(button.Width, 30);
+            button.Padding = new Padding(6, 0, 6, 0);
+            button.UseVisualStyleBackColor = false;
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderColor = primary ? Accent : Border;
+            button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(15, 85, 98) : Canvas;
+            button.BackColor = primary ? Accent : Color.White;
+            button.ForeColor = primary ? Color.White : Ink;
+        }
+        else if (control is ListView || control is TextBox)
+        {
+            control.BackColor = Color.White;
+            control.ForeColor = Ink;
+        }
+
+        foreach (Control child in control.Controls) ApplyMonitorAppearance(child);
     }
 
     private async Task<string> Api(string path, string method = "GET", object body = null)
@@ -514,6 +577,9 @@ internal sealed class OptiLensHostMonitor : Form
             updateProgressWindow.Controls.Add(updateProgressBox);
             updateProgressWindow.Controls.Add(updateProgressBar);
             updateProgressWindow.Controls.Add(updateProgressSummary);
+            updateProgressWindow.Padding = new Padding(12);
+            updateProgressBox.AccessibleName = "update progress log";
+            ApplyMonitorAppearance(updateProgressWindow);
         }
         updateProgressWindow.Show();
         updateProgressWindow.BringToFront();
@@ -617,6 +683,9 @@ internal sealed class OptiLensHostMonitor : Form
             restartProgressBar = new ProgressBar { Dock = DockStyle.Top, Height = 22, Minimum = 0, Maximum = 100, Style = ProgressBarStyle.Continuous };
             restartProgressBox = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill, Font = new Font("Consolas", 9) };
             restartProgressWindow.Controls.Add(restartProgressBox); restartProgressWindow.Controls.Add(restartProgressBar); restartProgressWindow.Controls.Add(restartProgressSummary);
+            restartProgressWindow.Padding = new Padding(12);
+            restartProgressBox.AccessibleName = "restart progress log";
+            ApplyMonitorAppearance(restartProgressWindow);
         }
         restartProgressWindow.Show(); restartProgressWindow.BringToFront();
     }

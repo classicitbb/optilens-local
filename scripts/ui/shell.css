@@ -1,0 +1,14 @@
+/* Keep Tailwind Preflight out of the existing HTML layouts. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "@heroui/styles/themes/shared/theme.css";
+@import "@heroui/styles/themes/default/variables.css" layer(theme);
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/components/button.css" layer(components);
+@import "@heroui/styles/components/card.css" layer(components);
+@import "@heroui/styles/components/input.css" layer(components);
+@import "@heroui/styles/components/kbd.css" layer(components);
+
+.shell-search-mount {
+  display: contents;
+}

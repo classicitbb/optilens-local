@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OptiLens BeSwift CO",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claims OptiLens BeSwift CO jobs and fills the BeSwift certificate form for operator review.",
   "action": {
     "default_title": "OptiLens BeSwift CO",
@@ -23,7 +23,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["popup.html", "popup.js", "popup.css"],
+      "resources": ["popup.html", "popup.js", "ui/popup.css"],
       "matches": ["<all_urls>"]
     }
   ],

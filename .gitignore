@@ -34,3 +34,7 @@ docs/rx-capture/*.heic
 # in Git, and a stray .pem is a private signing key.
 extensions/*.crx
 extensions/*.pem
+
+# Generated browser UI assets, built by npm install or npm run build:ui.
+/public/assets/ui/
+/extensions/*/ui/

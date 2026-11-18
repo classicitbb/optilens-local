@@ -1,3 +1,5 @@
+@import url("/assets/ui/shell.css");
+
 @font-face {
   font-family: "Plus Jakarta Sans";
   font-style: normal;
@@ -207,4 +209,38 @@
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
   --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.5), 0 6px 6px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
+}
+
+/* Map HeroUI's semantic roles to the same palette as the operational UI. */
+:root {
+  --background: var(--color-canvas);
+  --foreground: var(--color-text);
+  --surface-foreground: var(--foreground);
+  --surface-secondary: var(--color-surface-raised);
+  --surface-secondary-foreground: var(--foreground);
+  --overlay: var(--color-surface);
+  --overlay-foreground: var(--foreground);
+  --border: var(--color-border);
+  --separator: var(--border);
+  --field-background: var(--color-input);
+  --field-foreground: var(--foreground);
+  --field-border: var(--border);
+  --field-border-width: 1px;
+  --accent: var(--color-interactive-hover);
+  --accent-foreground: var(--cv-paper);
+  --focus: var(--color-interactive-hover);
+  --success: var(--color-success);
+  --warning: var(--color-accent);
+  --danger: var(--color-danger);
+  --radius: var(--radius-sm);
+}
+
+:root[data-theme="dark"] {
+  --accent-foreground: var(--cv-navy);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --accent-foreground: var(--cv-navy);
+  }
 }

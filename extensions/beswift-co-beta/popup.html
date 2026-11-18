@@ -1,47 +1,14 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OptiLens BeSwift CO (Beta)</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="ui/popup.css">
 </head>
 <body>
-  <main>
-    <h1>BeSwift CO <span class="tag">BETA</span> <span id="version" class="version"></span></h1>
-    <label>OptiLens URL
-      <input id="baseUrl" value="http://192.168.254.7:8080">
-    </label>
-    <label>Claim code
-      <input id="claimCode" autocomplete="off">
-    </label>
-    <button id="startBtn" type="button">Claim and fill</button>
-    <label class="inline">
-      <input id="autoDrive" type="checkbox">
-      Auto-drive: run queued jobs automatically
-    </label>
-    <label>Fill speed
-      <select id="fillSpeed">
-        <option value="1">1x - original pacing</option>
-        <option value="2">2x - default</option>
-        <option value="3">3x</option>
-        <option value="4">4x</option>
-      </select>
-    </label>
-    <p id="status" role="status"></p>
-    <section id="jobPanel" hidden>
-      <p id="jobStatusLine"></p>
-      <fieldset id="resolutionBox" hidden>
-        <legend>Record the fix (optional)</legend>
-        <label>Field<input id="resField" type="text" autocomplete="off"></label>
-        <label>Expected<input id="resExpected" type="text" autocomplete="off"></label>
-        <label>Actually had<input id="resActual" type="text" autocomplete="off"></label>
-        <label>What you did<textarea id="resFix" rows="2"></textarea></label>
-        <label>Notes / root cause<textarea id="resNote" rows="2"></textarea></label>
-      </fieldset>
-      <button id="resumeBtn" type="button" hidden>Save fix &amp; Resume</button>
-      <ol id="jobLog"></ol>
-    </section>
-  </main>
+  <div id="popup" data-beta></div>
+  <script src="ui/popup.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

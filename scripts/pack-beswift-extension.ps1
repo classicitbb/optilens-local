@@ -29,6 +29,9 @@ if (-not (Test-Path $keyFile)) { throw "Signing key missing: $keyFile. Restore i
 if (-not (Test-Path $edge))    { throw "Edge not found at $edge" }
 if (-not (Test-Path $publicDir)) { New-Item -ItemType Directory -Path $publicDir -Force | Out-Null }
 
+& node (Join-Path $ProjectRoot "scripts/build-ui.mjs")
+if ($LASTEXITCODE -ne 0) { throw "Browser UI build failed. Install the npm dependencies before packing." }
+
 $version = (Get-Content (Join-Path $extensionDir "manifest.json") -Raw | ConvertFrom-Json).version
 Write-Host "Packing BeSwift CO (Beta) v$version"
 

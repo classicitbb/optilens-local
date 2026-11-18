@@ -683,3 +683,42 @@ body.release-notes-body {
   .delivery-export-page #customerDefaults .co-grid.settings-grid,
   .delivery-export-page #archive .access-toolbar { grid-template-columns: 1fr 1fr; }
 }
+
+/* Shared surfaces keep their local layout and use the same interaction roles. */
+@media screen {
+  .module-title,
+  .section-head,
+  .status-head {
+    border-bottom-color: var(--separator);
+  }
+
+  :is(.module-workspace, .module-screen, .band, .status-board, .admin-panel, .notes-panel) {
+    background-color: var(--surface);
+    border-color: var(--border);
+  }
+
+  :is(.button.primary, .pl-btn-primary, .login-container .login-btn, .setup-submit, .save-entry-btn, .pin-btn):not(:disabled) {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  :is(.button.primary, .pl-btn-primary, .login-container .login-btn, .setup-submit, .save-entry-btn, .pin-btn):not(:disabled):hover {
+    background-color: color-mix(in srgb, var(--accent) 88%, var(--accent-foreground));
+  }
+
+  :is(.module-main, .login-container, .module-workspace) :is(button, a, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  :is(.table-wrap, .table-scroll) th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (forced-colors: active) {
+    :is(.module-main, .login-container, .module-workspace) :focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}

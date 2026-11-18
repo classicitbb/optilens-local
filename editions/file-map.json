@@ -5,6 +5,7 @@
     { "match": ".aider*", "owner": "never" },
     { "match": ".claude/**", "owner": "never" },
     { "match": ".agents/**", "owner": "never" },
+    { "match": ".codex/**", "owner": "never" },
     { "match": ".github/**", "owner": "never" },
     { "match": ".git-commit-msg-tmp.txt", "owner": "never" },
     { "match": "AGENTS*.md", "owner": "never" },

@@ -38,18 +38,27 @@
     "codex:launch": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-codex.ps1",
     "codex:launch:current": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/launch-codex.ps1 -Current",
     "codex:shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-codex-desktop-shortcut.ps1",
-    "app:monitor:harness": "node scripts/monitor-harness.js"
+    "app:monitor:harness": "node scripts/monitor-harness.js",
+    "build:ui": "node scripts/build-ui.mjs",
+    "postinstall": "npm run build:ui"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@heroui/react": "^3.2.7",
+    "@heroui/styles": "^3.2.7",
+    "@tailwindcss/node": "^4.3.5",
+    "esbuild": "^0.28.2",
     "exceljs": "^4.4.0",
     "imapflow": "^1.6.3",
     "mailparser": "^3.9.14",
     "mssql": "^12.5.5",
     "nodemailer": "^9.0.3",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5"
   },
   "directories": {
     "doc": "docs",

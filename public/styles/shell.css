@@ -1589,3 +1589,69 @@ label {
   top: 0;
   z-index: 100;
 }
+
+.top {
+  box-shadow: 0 1px 0 var(--separator), 0 4px 16px -12px var(--foreground);
+}
+
+.top :is(button, a):focus-visible,
+.top .search-bar[data-focus-visible="true"] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.top .search-bar .kbd {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.search-palette, .launcher-panel, .auth-panel {
+  border-color: var(--border);
+}
+
+.top .search-bar {
+  min-width: 0;
+  min-height: 36px;
+  font-size: .8125rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+}
+
+.top .search-bar .sb-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.search-content-card {
+  gap: 0;
+  padding: 0;
+}
+
+.search-content-card .search-input-wrap {
+  flex-direction: row;
+  align-items: center;
+  color: var(--muted);
+}
+
+.search-content-card .search-input {
+  min-width: 0;
+  height: auto;
+  box-shadow: none;
+  background: transparent;
+}
+
+.search-content-card .search-results { display: block; }
+.search-overlay :is(.search-input, .search-result-item):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+@media (max-width: 600px) {
+  .top { grid-template-columns: minmax(0, 1fr) auto; }
+  .top-left, .top-left .brand { min-width: 0; }
+  .top-left .brand strong { font-size: clamp(.75rem, 3.4vw, .9375rem); }
+  .top-right { gap: 2px; }
+  .top-right .user-chip { padding-inline: 4px; }
+}

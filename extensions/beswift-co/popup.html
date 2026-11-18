@@ -1,27 +1,14 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OptiLens BeSwift CO</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="ui/popup.css">
 </head>
 <body>
-  <main>
-    <h1>BeSwift CO</h1>
-    <label>OptiLens URL
-      <input id="baseUrl" value="http://192.168.254.7:8080">
-    </label>
-    <label>Claim code
-      <input id="claimCode" autocomplete="off">
-    </label>
-    <button id="startBtn" type="button">Claim and fill</button>
-    <p id="status" role="status"></p>
-    <section id="jobPanel" hidden>
-      <p id="jobStatusLine"></p>
-      <button id="resumeBtn" type="button" hidden>Resume</button>
-      <ol id="jobLog"></ol>
-    </section>
-  </main>
+  <div id="popup"></div>
+  <script src="ui/popup.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
