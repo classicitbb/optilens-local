@@ -118,7 +118,7 @@ function bearerToken(req) {
   const h = req.headers["authorization"] || "";
   return h.startsWith("Bearer ") ? h.slice(7).trim() : null;
 }
-const { getIntegrationHealthSnapshot } = require("./lib/integration-health");
+const { getIntegrationHealthSnapshot, setSyncWorkerStatusReader } = require("./lib/integration-health");
 const {
   buildDashboard,
   createDeviceRegistration,
@@ -4065,6 +4065,7 @@ server.listen(port, host, () => {
   if (edition.isModuleEnabled("integrations") && String(process.env.OPTILENS_SYNC_WORKER || "").toLowerCase() === "on") {
     innovationsSyncWorker = createSyncWorker({ loadCredentials: loadSyncWorkerCredentials });
     innovationsSyncWorker.start();
+    setSyncWorkerStatusReader(() => innovationsSyncWorker.status());
   }
   // Outbound half of the CV Web QBO gateway: finishes Connect, runs Disconnect/Reconcile.
   if (edition.isModuleEnabled("integrations") && String(process.env.OPTILENS_QBO_WORKER || "").toLowerCase() === "on") {
