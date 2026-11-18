@@ -1,5 +1,7 @@
 # In-app local updates
 
+The Host Monitor executable and icon are generated on each Windows host. Rebuilding them keeps the checkout clean. For the one-time upgrade from a checkout that tracked these files, close the monitor before applying the update. If Git reports a modified monitor executable, verify or back up that build and restore only that tracked file before running the guarded update. The updater rebuilds the monitor at the existing shortcut target.
+
 OptiLens Local checks its loaded application files every minute while an administrator is signed in. The server also fetches the configured Git upstream every five minutes. The header's update button performs an immediate file and Git check.
 
 When new files are found, the button becomes **Apply updates**. Selecting it performs the applicable work silently and reloads the browser once the updated app is healthy:
