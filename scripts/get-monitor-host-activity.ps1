@@ -13,9 +13,9 @@ $tasks = @(Get-ScheduledTask -TaskName 'OptiLens*' -ErrorAction SilentlyContinue
     [pscustomobject]@{
         name = $task.TaskPath + $task.TaskName
         state = [string]$task.State
-        lastRun = $(if ($info) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') })
+        lastRun = $(if ($info -and $null -ne $info.LastRunTime) { $info.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss') })
         lastResult = $(if ($info) { $info.LastTaskResult })
-        nextRun = $(if ($info) { $info.NextRunTime.ToString('yyyy-MM-dd HH:mm:ss') })
+        nextRun = $(if ($info -and $null -ne $info.NextRunTime) { $info.NextRunTime.ToString('yyyy-MM-dd HH:mm:ss') })
     }
 })
 
