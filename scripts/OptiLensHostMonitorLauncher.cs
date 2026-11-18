@@ -1072,6 +1072,8 @@ internal sealed class OptiLensHostMonitor : Form
     {
         try
         {
+            // The compiler otherwise defaults this executable to legacy TLS.
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var port = 8080;
             var trayMode = false;

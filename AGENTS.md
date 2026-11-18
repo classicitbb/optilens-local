@@ -49,7 +49,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 - Preserve unrelated human changes and use feature branches.
 - Use the guarded remote editing/deployment flow; do not edit multiple checkouts.
 - Run relevant syntax checks and `npm test`; finish deployments with the documented health verification.
-- Deploy completed application builds to production by default through the guarded update flow, then verify the requested behavior live and run the documented health check before reporting completion. The user's request to keep a change local overrides this default.
+- The business owner authorizes production deployment when requesting an OptiLens fix or implementation. Deploy completed changes through the guarded update flow and verify the requested behavior and host health in production before reporting completion. Separate deployment confirmation is unnecessary unless the user limits the task to local work or another separately controlled action is required.
 - Do not repeatedly restart or reset after a failed recovery. Preserve logs and report the failure.
 - The business owner grants standing authority for assigned repository build tasks: run tests, apply app-database migrations, use the guarded deployment/restart flow, and complete health verification without waiting for a separate deployment or migration approval. Preserve the normal safeguards, audit trail, and failure reporting.
 - Scheduled synchronizations, source-system writes, credential/permission changes, external sends, and financial actions remain separately controlled unless the assigned task expressly includes them.
