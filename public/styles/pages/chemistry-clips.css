@@ -223,3 +223,22 @@
   .cc-header-actions { justify-content: stretch; }
   .cc-header-actions .cc-btn { flex: 1; }
 }
+
+.cc-pin-card, .cc-fieldset, .cc-table {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+
+.cc-btn-primary:not(:disabled) {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.cc-btn-primary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--accent) 88%, var(--accent-foreground));
+}
+
+.cc-body :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

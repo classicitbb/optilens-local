@@ -2488,7 +2488,8 @@
     style.textContent = `
       #${TOAST_ID}{position:fixed!important;z-index:2147483647!important;top:16px;right:16px;
         width:420px;max-width:calc(100vw - 32px);height:auto;max-height:70vh;display:flex;flex-direction:column;
-        background:#0f172a;color:#e2e8f0;border:1px solid #1e293b;border-radius:10px;
+        --olb-surface:#0b1e35;--olb-raised:#14304f;--olb-border:#284867;--olb-focus:#56bdcb;--olb-gold:#dba744;
+        background:var(--olb-surface);color:#f4f2ed;border:1px solid var(--olb-border);border-radius:10px;
         font:12.5px/1.4 Segoe UI,Arial,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.4);overflow:hidden;
         resize:both;min-width:240px;min-height:44px;transition:opacity .12s ease}
       #${TOAST_ID}.olb-transparent{opacity:.35}
@@ -2496,14 +2497,15 @@
       #${TOAST_ID}.olb-collapsed{height:auto!important;max-height:none;resize:none}
       #${TOAST_ID}.olb-collapsed .olb-pinned,#${TOAST_ID}.olb-collapsed .olb-feed{display:none!important}
       #${TOAST_ID} .olb-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:move;
-        background:#111827;border-bottom:1px solid #1e293b;font-weight:600;letter-spacing:.2px;user-select:none}
-      #${TOAST_ID} .olb-tag{background:#f97316;color:#111827;font-size:10px;font-weight:700;
+        background:var(--olb-raised);border-bottom:1px solid var(--olb-border);font-weight:600;letter-spacing:.2px;user-select:none}
+      #${TOAST_ID} .olb-tag{background:var(--olb-gold);color:var(--olb-surface);font-size:10px;font-weight:700;
         padding:1px 6px;border-radius:999px;letter-spacing:.5px}
       #${TOAST_ID} .olb-head .olb-spacer{flex:1}
       #${TOAST_ID} .olb-ctrl{cursor:pointer;background:transparent;border:0;color:#94a3b8;font-size:14px;
         line-height:1;padding:2px 5px;border-radius:5px}
       #${TOAST_ID} .olb-ctrl:hover{background:#1e293b;color:#e2e8f0}
-      #${TOAST_ID} .olb-ctrl.on{color:#f97316}
+      #${TOAST_ID} .olb-ctrl.on{color:var(--olb-gold)}
+      #${TOAST_ID} :is(button,input,textarea):focus-visible{outline:2px solid var(--olb-focus);outline-offset:2px}
       #${TOAST_ID} .olb-pinned{padding:11px 12px;border-bottom:1px solid #1e293b;line-height:1.4}
       #${TOAST_ID} .olb-pinned.olb-pause{background:#7c2d12;color:#fed7aa}
       #${TOAST_ID} .olb-pinned.olb-done{background:#14532d;color:#bbf7d0}

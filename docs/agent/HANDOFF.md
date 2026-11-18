@@ -5,6 +5,15 @@
 - Last synchronized: 2026-10-26
 
 
+## HeroUI interface refresh
+
+Status: Complete — no active implementation handoff.
+
+- Added the shared HeroUI command palette, themed module controls, and standalone screen updates. Both BeSwift editions load the same locally bundled popup interface and retain their existing job controllers. The WinForms monitor uses the project palette and wraps its action groups on narrow windows.
+- Build assets with `npm run build:ui`. The npm install lifecycle and beta packer handle this in their normal flows. Project Codex configuration and the React agent skill are included.
+- Verified the HTML entries and popup flows in Edge with fixture responses, and compiled the monitor with the Windows .NET Framework compiler. The local RX-generator test requires a synchronized source catalogue. The HTTPS test skips when OpenSSL is absent.
+- The host deploys the app and WinForms monitor through the guarded updater. Publish the beta extension through its signed host update feed. The stable extension is available as an unpacked build.
+
 ## Clearance catalogue — deployed
 
 Status: Complete — no active handoff.

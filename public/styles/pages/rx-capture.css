@@ -535,3 +535,19 @@ select { appearance: none; -webkit-appearance: none; background-image: var(--rx-
 .rx-confirm-dialog dt { color: var(--color-text-muted); }
 .rx-confirm-dialog dd { margin: 0; overflow-wrap: anywhere; font-weight: 600; }
 .rx-confirm-dialog .action-row { justify-content: flex-end; }
+
+/* Use the platform roles in the capture flow without changing scanner sizing. */
+.rx-app :is(.orders-panel, .capture-card, .review-card, .processing-panel, .failed-panel) {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+
+.rx-app :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.rx-app .notice:not(.error) {
+  background-color: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+}

@@ -1,9 +1,13 @@
-const CACHE_NAME = "optilens-local-v13";
+const CACHE_NAME = "optilens-local-v14";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/styles.css",
   "/styles/tokens.css",
+  "/styles/system.css",
+  "/assets/ui/shell.css",
+  "/assets/ui/shell.js",
+  "/shared.js",
   "/styles/base.css",
   "/styles/components.css",
   "/styles/shell.css",

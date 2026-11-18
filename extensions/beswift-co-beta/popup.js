@@ -2,7 +2,7 @@ document.querySelector("#version").textContent = `v${chrome.runtime.getManifest(
 
 const baseInput = document.querySelector("#baseUrl");
 const claimInput = document.querySelector("#claimCode");
-const startBtn = document.querySelector("#startBtn");
+const claimForm = document.querySelector("#claimForm");
 const statusEl = document.querySelector("#status");
 const jobPanel = document.querySelector("#jobPanel");
 const jobStatusLine = document.querySelector("#jobStatusLine");
@@ -54,7 +54,8 @@ chrome.storage.local.get(["baseUrl", "lastAutomationJobId", "autoDrive", "fillSp
   }
 });
 
-startBtn.addEventListener("click", () => {
+claimForm.addEventListener("submit", (event) => {
+  event.preventDefault();
   const baseUrl = baseInput.value.trim().replace(/\/$/, "");
   const claimCode = claimInput.value.trim();
   if (!baseUrl || !claimCode) {

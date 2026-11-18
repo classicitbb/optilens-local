@@ -377,6 +377,13 @@ try {
         }
     }
 
+    if (-not $InstallDependencies) {
+        Invoke-UpdateStep "browser UI build" {
+            & npm.cmd run build:ui --if-present *>> $logFile
+            if ($LASTEXITCODE -ne 0) { throw "Browser UI build failed. See the update log." }
+        }
+    }
+
     # Fast, blocking gate: does every changed file parse, and can the new
     # code reach both databases. Seconds, not the ~30s+ of the full suite.
     Invoke-UpdateStep "smoke check" {

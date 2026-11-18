@@ -171,6 +171,9 @@ function renderShellHeader() {
       </button>
     </div>
   </header>`;
+
+  const searchTrigger = mount.querySelector("#searchTrigger");
+  if (searchTrigger) window.OptiLensUI?.mountSearchTrigger(searchTrigger);
 }
 
 function getShellPageConfig() {
@@ -370,7 +373,7 @@ function injectOverlays() {
   <div class="search-palette">
     <div class="search-input-wrap">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      <input class="search-input" id="searchInput" type="search" placeholder="Search modules, settings, endpoints…" autocomplete="off" spellcheck="false">
+      <input class="search-input" id="searchInput" type="search" placeholder="Search modules, settings, endpoints…" aria-label="Search modules, settings and endpoints" autocomplete="off" spellcheck="false">
     </div>
     <div class="search-results" id="searchResults"></div>
   </div>
@@ -543,6 +546,8 @@ function injectOverlays() {
     if (!document.getElementById("globalAssistantDrawer")) html += assistantDrawerHtml;
   }
   if (html) document.body.insertAdjacentHTML("afterbegin", html);
+  const searchPanel = document.querySelector("#searchOverlay .search-palette");
+  if (searchPanel) window.OptiLensUI?.mountSearchPanel(searchPanel);
 }
 
 // ─── Launcher ────────────────────────────────────────────────────────────────
@@ -587,13 +592,26 @@ function wireSearch() {
   if (!overlay) return;
   const searchHref = trigger?.dataset.searchHref || "";
 
-  function open()  { overlay.hidden = false; input?.focus(); renderResults(""); }
-  function close() { 
+  let returnFocus;
+  let closeTimer;
+
+  function open() {
+    if (overlay.hidden) returnFocus = document.activeElement;
+    clearTimeout(closeTimer);
+    overlay.classList.remove("closing");
+    overlay.hidden = false;
+    input?.focus();
+    renderResults(input?.value || "");
+  }
+
+  function close() {
+    if (overlay.hidden || overlay.classList.contains("closing")) return;
     overlay.classList.add("closing");
-    setTimeout(() => {
-      overlay.hidden = true;  
+    closeTimer = setTimeout(() => {
+      overlay.hidden = true;
       overlay.classList.remove("closing");
-      if (input) input.value = ""; 
+      if (input) input.value = "";
+      if (returnFocus instanceof HTMLElement && returnFocus !== document.body) returnFocus.focus();
     }, 200);
   }
 
@@ -607,7 +625,17 @@ function wireSearch() {
   overlay?.addEventListener("click", e => { if (e.target === overlay) close(); });
   document.addEventListener("keydown", e => {
     if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); open(); }
-    if (e.key === "Escape" && !overlay?.hidden) close();
+    if (overlay.hidden) return;
+    if (e.key === "Escape") close();
+    if (e.key !== "Tab") return;
+
+    const links = results?.querySelectorAll("a[href]");
+    const last = links?.[links.length - 1] || input;
+    const active = document.activeElement;
+    if (!overlay.contains(active) || (e.shiftKey ? active === input : active === last)) {
+      e.preventDefault();
+      (e.shiftKey ? last : input)?.focus();
+    }
   });
   input?.addEventListener("input", () => renderResults(input.value));
 

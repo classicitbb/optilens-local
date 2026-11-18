@@ -1,0 +1,166 @@
+@import "tailwindcss" source(none);
+@import "@heroui/styles";
+
+:root {
+  --background: #f4f2ed;
+  --foreground: #0b1e35;
+  --surface: #fff;
+  --surface-secondary: #f8f6f1;
+  --muted: #4a6880;
+  --accent: #126c7b;
+  --accent-foreground: #fff;
+  --warning: #c89130;
+  --border: #cdd5df;
+  --field-border: var(--border);
+  --field-border-width: 1px;
+  --focus: var(--accent);
+  --radius: .625rem;
+  color-scheme: light;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  width: 352px;
+  max-width: 100%;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+main {
+  padding: calc(var(--spacing) * 3);
+}
+
+.popup-card {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.popup-heading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 3);
+  padding: calc(var(--spacing) * 4);
+  background: var(--foreground);
+  color: var(--surface);
+  border-bottom: 2px solid var(--warning);
+}
+
+.popup-brand {
+  color: #b8d4df;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.popup-heading h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.popup-edition {
+  display: grid;
+  justify-items: end;
+  gap: var(--spacing);
+  font-size: .6875rem;
+}
+
+.popup-edition .chip {
+  background: var(--warning);
+  color: var(--foreground);
+}
+
+.popup-content,
+.popup-workflow,
+.popup-preferences,
+#jobPanel,
+#resolutionBox {
+  display: grid;
+  gap: calc(var(--spacing) * 3);
+}
+
+.popup-content {
+  padding: calc(var(--spacing) * 4);
+}
+
+.popup-field {
+  display: grid;
+  gap: var(--spacing);
+}
+
+.popup-field select {
+  width: 100%;
+}
+
+.popup-option {
+  display: flex;
+  gap: calc(var(--spacing) * 2);
+  align-items: center;
+  font-size: .875rem;
+  cursor: pointer;
+}
+
+.popup-option input {
+  appearance: auto;
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+}
+
+#jobPanel, .popup-preferences {
+  border-top: 1px solid var(--border);
+  padding-top: calc(var(--spacing) * 3);
+}
+
+#status, #jobStatusLine, #jobLog {
+  color: var(--muted);
+  font-size: .8125rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+#jobStatusLine {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+#status:empty {
+  position: absolute;
+}
+
+#jobLog:empty {
+  display: none;
+}
+
+#jobLog {
+  max-height: 11rem;
+  overflow: auto;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3) calc(var(--spacing) * 2) 1.75rem;
+  background: var(--surface-secondary);
+  border-radius: var(--radius);
+  list-style: decimal;
+}
+
+#jobLog li + li {
+  margin-top: var(--spacing);
+}
+
+#resolutionBox {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: calc(var(--spacing) * 3);
+}
+
+#resolutionBox legend {
+  padding-inline: var(--spacing);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+
+[hidden] {
+  display: none !important;
+}
