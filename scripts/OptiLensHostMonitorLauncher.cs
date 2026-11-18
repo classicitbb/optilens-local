@@ -50,7 +50,11 @@ internal sealed class OptiLensHostMonitor : Form
     private readonly Timer timer = new Timer { Interval = 10000 };
     private readonly Timer activationTimer = new Timer { Interval = 250 };
     private readonly System.Threading.EventWaitHandle showSignal;
+    private readonly Button syncNowButton = new Button { Text = "Sync now" };
     private bool serviceOnline;
+    private bool serviceActionInProgress;
+    private bool refreshInProgress;
+    private bool activityRefreshInProgress;
     private bool exitRequested;
     private bool firstRefresh = true;
     private string lastIncidentFingerprint = "";
@@ -101,8 +105,10 @@ internal sealed class OptiLensHostMonitor : Form
         var tabs = new TabControl { Location = new Point(18, 86), Size = new Size(904, 516), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
         Controls.Add(tabs);
         tabs.TabPages.Add(BuildConnectionsPage());
-        tabs.TabPages.Add(BuildHostActivityPage());
-        tabs.TabPages.Add(BuildSyncPage());
+        var activityPage = BuildHostActivityPage();
+        var syncPage = BuildSyncPage();
+        tabs.TabPages.Add(activityPage);
+        tabs.TabPages.Add(syncPage);
         tabs.TabPages.Add(BuildHttpsPage());
         ApplyMonitorAppearance(this);
 
@@ -112,23 +118,30 @@ internal sealed class OptiLensHostMonitor : Form
         menu.Items.Add("Open OptiLens HTTPS", null, delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); });
         menu.Items.Add("Open local DNS console", null, delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); });
         trayStartService = new ToolStripMenuItem("Start OptiLens Local");
-        trayStartService.Click += delegate { if (!restartInProgress) RunHostScript("start-app.ps1"); };
+        trayStartService.Click += async delegate { await SetServiceRunning(true); };
         menu.Items.Add(trayStartService);
         trayRestartService = new ToolStripMenuItem("Restart OptiLens Local");
         trayRestartService.Click += delegate { BeginRestartProgressWorkflow(true, "Restart requested from the tray."); };
         menu.Items.Add(trayRestartService);
         trayStopService = new ToolStripMenuItem("Shut down OptiLens Local");
-        trayStopService.Click += delegate { if (!restartInProgress) RunHostScript("stop-app.ps1", true); };
+        trayStopService.Click += async delegate { await SetServiceRunning(false); };
         menu.Items.Add(trayStopService);
         menu.Items.Add("Check for pushed updates", null, async delegate { await CheckUpdates(); });
         menu.Items.Add("Exit monitor", null, delegate { exitRequested = true; Close(); });
         tray = new NotifyIcon { Icon = Icon, Text = "OptiLens Local Host Monitor", ContextMenuStrip = menu, Visible = true };
         tray.DoubleClick += delegate { ShowMonitorWindow(); };
 
-        timer.Tick += async delegate { await RefreshAll(); };
+        timer.Tick += async delegate {
+            await RefreshAll();
+            if (Visible && tabs.SelectedTab == syncPage) await RefreshLogs();
+        };
+        tabs.SelectedIndexChanged += async delegate {
+            if (tabs.SelectedTab == activityPage) await RefreshHostActivity();
+            if (tabs.SelectedTab == syncPage) await RefreshLogs();
+        };
         activationTimer.Tick += delegate { try { if (showSignal.WaitOne(0)) ShowMonitorWindow(); } catch { } };
         restartProgressTimer.Tick += async delegate { await RefreshRestartProgress(); };
-        Shown += async delegate { await RefreshAll(); await RefreshLogs(); };
+        Shown += async delegate { await RefreshAll(); await CheckUpdates(); };
         FormClosing += OnFormClosing;
         FormClosed += delegate { Log("closed"); timer.Stop(); restartProgressTimer.Stop(); tray.Visible = false; tray.Dispose(); http.Dispose(); };
         timer.Start();
@@ -173,9 +186,9 @@ internal sealed class OptiLensHostMonitor : Form
         checkUpdatesButton.Click += async delegate { await CheckUpdates(); };
         applyUpdatesButton.Click += async delegate { await ApplyUpdates(); };
         fixErrorsButton.Click += async delegate { await FixErrors(); };
-        startServiceButton.Click += delegate { if (!restartInProgress) RunHostScript("start-app.ps1"); };
+        startServiceButton.Click += async delegate { await SetServiceRunning(true); };
         restartServiceButton.Click += delegate { BeginRestartProgressWorkflow(true, "Restart requested from Connections."); };
-        stopServiceButton.Click += delegate { if (!restartInProgress) RunHostScript("stop-app.ps1", true); };
+        stopServiceButton.Click += async delegate { await SetServiceRunning(false); };
         return page;
     }
 
@@ -199,7 +212,7 @@ internal sealed class OptiLensHostMonitor : Form
         actions.Controls.Add(accountBox);
         var selfTest = new Button { Text = "Run self-test" }; selfTest.Click += async delegate { await RunSelfTest(); }; actions.Controls.Add(selfTest);
         var dryRun = new Button { Text = "Dry run" }; dryRun.Click += async delegate { await RunSync(false); }; actions.Controls.Add(dryRun);
-        var sync = new Button { Text = "Sync now" }; sync.Click += async delegate { await RunSync(true); }; actions.Controls.Add(sync);
+        syncNowButton.Click += async delegate { await RunSync(true); }; actions.Controls.Add(syncNowButton);
         var refresh = new Button { Text = "Refresh logs" }; refresh.Click += async delegate { await RefreshLogs(); }; actions.Controls.Add(refresh);
 
         var entities = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), AutoScroll = true, WrapContents = true };
@@ -250,18 +263,17 @@ internal sealed class OptiLensHostMonitor : Form
 
     private static void ConfigureActivityList(ListView list, IEnumerable<KeyValuePair<string, int>> columns)
     {
-        list.View = View.Details; list.FullRowSelect = true; list.Dock = DockStyle.Fill;
+        list.View = View.Details; list.FullRowSelect = true; list.ShowItemToolTips = true; list.Dock = DockStyle.Fill;
         foreach (var column in columns) list.Columns.Add(column.Key, column.Value);
     }
 
     private async Task RefreshHostActivity()
     {
+        if (activityRefreshInProgress) return;
+        activityRefreshInProgress = true;
         try
         {
-            var root = projectRoot.Replace("'", "''");
-            var script = "$ErrorActionPreference='Stop'; $root='" + root + "'; $tasks=@(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like 'OptiLens*' } | ForEach-Object { $i=Get-ScheduledTaskInfo -TaskName $_.TaskName -TaskPath $_.TaskPath -ErrorAction SilentlyContinue; [pscustomobject]@{name=($_.TaskPath+$_.TaskName);state=[string]$_.State;lastRun=if($i){$i.LastRunTime.ToString('yyyy-MM-dd HH:mm:ss')}else{''};lastResult=if($i){$i.LastTaskResult}else{''};nextRun=if($i){$i.NextRunTime.ToString('yyyy-MM-dd HH:mm:ss')}else{''}} }); $procs=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*OptiLens*' -or ($_.CommandLine -and $_.CommandLine.Contains($root)) } | ForEach-Object { [pscustomobject]@{name=$_.Name;pid=$_.ProcessId;started='';memory=''} }); foreach($p in $procs){$g=Get-Process -Id $p.pid -ErrorAction SilentlyContinue; if($g){$p.started=$g.StartTime.ToString('yyyy-MM-dd HH:mm:ss');$p.memory=[math]::Round($g.WorkingSet64/1MB,1).ToString()+' MB'}}; [pscustomobject]@{tasks=$tasks;processes=$procs}|ConvertTo-Json -Depth 4 -Compress";
-            var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"" + script.Replace("\"", "\\\"") + "\"") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            var output = await Task.Run(() => { using (var proc = Process.Start(psi)) { var stdout = proc.StandardOutput.ReadToEnd(); var stderr = proc.StandardError.ReadToEnd(); proc.WaitForExit(12000); if (proc.ExitCode != 0) throw new InvalidOperationException(stderr); return stdout; } });
+            var output = await RunCapturedHostScript("get-monitor-host-activity.ps1", "", 15000);
             var data = Map(json.DeserializeObject(output));
             activityTasks.BeginUpdate(); activityTasks.Items.Clear();
             foreach (var item in json.DeserializeObject(json.Serialize(Value(data, "tasks"))) as object[] ?? new object[0])
@@ -274,8 +286,14 @@ internal sealed class OptiLensHostMonitor : Form
         }
         catch (Exception ex)
         {
-            activityTasks.Items.Clear(); activityTasks.Items.Add(new ListViewItem("Task/process inventory unavailable: " + ex.Message));
+            activityTasks.Items.Clear();
+            activityProcesses.Items.Clear();
+            var failure = new ListViewItem("Inventory unavailable") { ToolTipText = ex.Message };
+            failure.SubItems.Add("Error");
+            failure.SubItems.Add(ex.Message);
+            activityTasks.Items.Add(failure);
         }
+        finally { activityRefreshInProgress = false; }
     }
 
     private TabPage BuildHttpsPage()
@@ -321,17 +339,24 @@ internal sealed class OptiLensHostMonitor : Form
         else if (control is Button)
         {
             var button = (Button)control;
-            bool primary = button == applyUpdatesButton || button == startServiceButton;
+            bool primary = button == applyUpdatesButton || button == startServiceButton
+                || button == restartServiceButton || button == syncNowButton;
             button.AutoSize = true;
             button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            button.MinimumSize = new Size(button.Width, 30);
-            button.Padding = new Padding(6, 0, 6, 0);
+            button.MinimumSize = new Size(button.Width, 34);
+            button.Margin = new Padding(3, 3, 5, 4);
+            button.Padding = new Padding(8, 0, 8, 0);
             button.UseVisualStyleBackColor = false;
             button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderColor = primary ? Accent : Border;
-            button.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(15, 85, 98) : Canvas;
-            button.BackColor = primary ? Accent : Color.White;
-            button.ForeColor = primary ? Color.White : Ink;
+            EventHandler updateColors = delegate {
+                bool emphasized = button.Enabled && primary;
+                button.BackColor = !button.Enabled ? Color.FromArgb(239, 242, 245) : emphasized ? Accent : Color.White;
+                button.ForeColor = !button.Enabled ? Color.FromArgb(90, 106, 119) : emphasized ? Color.White : Ink;
+                button.FlatAppearance.BorderColor = emphasized ? Accent : Border;
+                button.FlatAppearance.MouseOverBackColor = emphasized ? Color.FromArgb(15, 85, 98) : Canvas;
+            };
+            button.EnabledChanged += updateColors;
+            updateColors(button, EventArgs.Empty);
         }
         else if (control is ListView || control is TextBox)
         {
@@ -358,11 +383,16 @@ internal sealed class OptiLensHostMonitor : Form
 
     private async Task RefreshAll()
     {
+        if (refreshInProgress || serviceActionInProgress) return;
+        refreshInProgress = true;
+        serviceOnline = false;
         try
         {
-            var health = Map(json.DeserializeObject(await Api("/api/health")));
-            serviceOnline = health != null;
+            var live = Map(json.DeserializeObject(await Api("/api/health/live")));
+            serviceOnline = S(Value(live, "service")) == "optilens-local";
+            if (!serviceOnline) throw new InvalidOperationException("OptiLens liveness check failed.");
             SetServiceControls();
+            var health = Map(json.DeserializeObject(await Api("/api/health")));
             connections.Items.Clear();
             var hasFailure = false;
             var hasWarning = false;
@@ -387,7 +417,6 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
             await RefreshQboInvoiceSyncStatus();
-            await RefreshHostActivity();
             RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !startVisible && !hasFailure && !hasWarning)
@@ -400,17 +429,34 @@ internal sealed class OptiLensHostMonitor : Form
                 firstRefresh = false;
             }
         }
-        catch
+        catch (Exception error)
         {
-            serviceOnline = false;
-            summary.Text = "OptiLens Local service is offline — use the tray menu to start it.";
+            if (serviceOnline)
+            {
+                summary.Text = "Service is responding; connection checks are unavailable.";
+                summary.ForeColor = Color.DarkGoldenrod;
+                Log("health refresh failed: " + error.Message);
+                return;
+            }
+            if (File.Exists(Path.Combine(projectRoot, "data", "service-stop.requested")))
+            {
+                summary.Text = "OptiLens Local was shut down by an operator.";
+                summary.ForeColor = Color.DarkGoldenrod;
+                tray.Icon = SystemIcons.Information;
+                tray.Text = "OptiLens Local: shut down";
+                SetServiceControls();
+                fixErrorsButton.Enabled = false;
+                return;
+            }
+            summary.Text = "OptiLens Local service is offline — use Start service to restore it.";
             summary.ForeColor = Color.Firebrick;
             tray.Icon = SystemIcons.Error; tray.Text = "OptiLens Local: service offline";
             SetServiceControls();
             fixErrorsButton.Enabled = !restartInProgress;
             var _ = ReportIncident(new List<string> { "OptiLens Local service" });
-            if (!restartInProgress) RunHostScript("ensure-app-running.ps1");
+            if (!restartInProgress && !serviceActionInProgress) RunHostScript("ensure-app-running.ps1");
         }
+        finally { refreshInProgress = false; }
     }
 
     private async Task CheckUpdates()
@@ -655,7 +701,7 @@ internal sealed class OptiLensHostMonitor : Form
 
     private void SetServiceControls()
     {
-        var enabled = !restartInProgress;
+        var enabled = !restartInProgress && !serviceActionInProgress;
         startServiceButton.Enabled = enabled && !serviceOnline;
         restartServiceButton.Enabled = enabled && serviceOnline;
         stopServiceButton.Enabled = enabled && serviceOnline;
@@ -730,12 +776,13 @@ internal sealed class OptiLensHostMonitor : Form
         summary.Text = succeeded ? "OptiLens Local restart completed." : "OptiLens Local restart failed: " + message; summary.ForeColor = succeeded ? Color.ForestGreen : Color.Firebrick;
         var ignored = RefreshAll();
     }
-    private void ShowMonitorWindow()
+    private async void ShowMonitorWindow()
     {
         ShowInTaskbar = true;
         Show();
         WindowState = FormWindowState.Normal;
         Activate();
+        await CheckUpdates();
     }
 
     private void HideToTray()
@@ -855,14 +902,81 @@ internal sealed class OptiLensHostMonitor : Form
         var entities = entityChecks.Values.Where(c => c.Checked).Select(c => S(c.Tag)).ToArray();
         if (entities.Length == 0) { resultBox.Text = "Select at least one entity."; return; }
         if (commit && MessageBox.Show("Write the selected Innovations data to Classic Visions now?", "Confirm sync", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        try { resultBox.Text = json.Serialize(json.DeserializeObject(await Api("/api/monitor/innovations-sync/run", "POST", new { commit = commit, entities = entities, suppressStatementEmails = suppressEmails.Checked }))); await RefreshSyncStatus(); await RefreshLogs(); }
+        try {
+            var run = Map(json.DeserializeObject(await Api("/api/monitor/innovations-sync/run", "POST", new { commit = commit, entities = entities, suppressStatementEmails = suppressEmails.Checked })));
+            resultBox.Text = (commit ? "Sync" : "Dry run") + " started (process " + S(Value(run, "pid")) + "). Follow its progress in the sync log below.";
+            await RefreshSyncStatus(); await RefreshLogs();
+        }
         catch (Exception error) { resultBox.Text = "Sync failed: " + error.Message; }
     }
 
     private async Task RefreshLogs()
     {
-        try { logsBox.Text = json.Serialize(json.DeserializeObject(await Api("/api/monitor/innovations-sync/logs?limit=80"))); }
+        try
+        {
+            var data = Map(json.DeserializeObject(await Api("/api/monitor/innovations-sync/logs?limit=30")));
+            var entries = Value(data, "events") as object[] ?? new object[0];
+            var text = string.Join(Environment.NewLine, entries.Reverse().Select(entry => {
+                var item = Map(entry);
+                DateTimeOffset time;
+                var stamp = DateTimeOffset.TryParse(S(Value(item, "at")), out time) ? time.LocalDateTime.ToString("MMM d HH:mm:ss") : "";
+                var outcome = Value(item, "ok") is bool ? ((bool)Value(item, "ok") ? " [OK]" : " [Failed]") : "";
+                return (stamp + "  " + S(Value(item, "event")) + " " +
+                    S(Value(item, "tier")) + outcome + " " + S(Value(item, "error"))).Trim();
+            }));
+            if (logsBox.Text != text) logsBox.Text = text;
+        }
         catch (Exception error) { logsBox.Text = "Logs unavailable: " + error.Message; }
+    }
+
+    private async Task<string> RunCapturedHostScript(string name, string arguments, int timeoutMs)
+    {
+        var script = Path.Combine(projectRoot, "scripts", name);
+        var powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+        var args = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + script +
+            "\" -ProjectRoot \"" + projectRoot + "\" " + arguments;
+        var info = new ProcessStartInfo(powershell, args) {
+            WorkingDirectory = projectRoot, UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8
+        };
+        return await Task.Run(async delegate {
+            using (var process = Process.Start(info))
+            {
+                var output = process.StandardOutput.ReadToEndAsync();
+                var errors = process.StandardError.ReadToEndAsync();
+                if (!process.WaitForExit(timeoutMs))
+                {
+                    if (!process.HasExited) process.Kill();
+                    throw new TimeoutException(name + " did not finish in time.");
+                }
+                var error = (await errors).Trim();
+                if (process.ExitCode != 0) throw new InvalidOperationException(
+                    string.IsNullOrEmpty(error) ? name + " exited with code " + process.ExitCode : error);
+                return await output;
+            }
+        });
+    }
+
+    private async Task SetServiceRunning(bool start)
+    {
+        if (serviceActionInProgress || restartInProgress) return;
+        serviceActionInProgress = true;
+        SetServiceControls();
+        summary.Text = start ? "Starting OptiLens Local…" : "Shutting down OptiLens Local…";
+        string error = null;
+        try
+        {
+            await RunCapturedHostScript(start ? "start-app.ps1" : "stop-app.ps1",
+                "-Port " + port + (start ? "" : " -Intentional"), 90000);
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+            Log("service action failed: " + error);
+        }
+        finally { serviceActionInProgress = false; }
+        await RefreshAll();
+        if (error != null) MessageBox.Show(this, error, "OptiLens service action failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     private void RunHostScript(string name, bool intentionalStop = false, string extraArguments = "")

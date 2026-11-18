@@ -60,5 +60,7 @@ The first run after install has no fingerprints and sends everything once
 4. Merge the CV Web `innovations-sync-freshness` branch so the freshness alert
    goes live.
 
+The Host Monitor and shared integration health use the in-service worker state when it is active. The two retired task names are used only on legacy installations where the worker is off.
+
 Manual CLI runs (`scripts/innovations-sync-cli.js`) still work; they take the
 same lock, and the worker waits for them.

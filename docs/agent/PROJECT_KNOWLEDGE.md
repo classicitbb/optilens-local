@@ -26,7 +26,7 @@
 
 - The server serves the existing HTML modules and browser controllers. The shared command palette and BeSwift popups use React 19, HeroUI v3, and Tailwind CSS v4. The web theme maps HeroUI semantic roles to `public/styles/tokens.css`, with page-specific layouts in `public/styles/pages/`.
 - `npm ci` builds local browser assets through `postinstall`. After editing `scripts/ui/`, run `npm run build:ui`. The build writes the web bundle to `public/assets/ui/` and a self-contained popup bundle into each BeSwift edition. The beta packer rebuilds the assets before signing.
-- Host Monitor is a C# WinForms application with native controls and a matching palette. Build its executable with `npm run app:monitor:build`. The source retains the existing tray and host actions.
+- Host Monitor is a C# WinForms application with native controls and a matching palette. Tasks & Processes uses the read-only `scripts/get-monitor-host-activity.ps1` inventory. Innovations Sync health uses the active in-service worker and falls back to Windows task status on legacy installs. Build its executable with `npm run app:monitor:build`. The source retains the existing tray and host actions.
 - HeroUI documentation is configured in project-local `.codex/config.toml`. The free React skill is under `.agents/skills/heroui-react/`.
 
 ## Windows CLI launcher

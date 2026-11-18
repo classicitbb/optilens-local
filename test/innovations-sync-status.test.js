@@ -66,3 +66,30 @@ test('sync status warns and errors when the latest successful run is stale', () 
   assert.equal(error.lastRunAgeMinutes, 270);
   assert.match(error.detail, /stale/);
 });
+
+test('live Innovations worker supersedes the retired Windows tasks', () => {
+  const now = new Date('2026-07-27T16:00:00.000Z');
+  const lastHot = '2026-07-27T15:58:00.000Z';
+  const status = getInnovationsSyncStatus({
+    now,
+    workerStatus: { running: true, lastSuccess: { hot: lastHot } },
+    taskReader: () => assert.fail('Worker installations do not use Windows tasks'),
+  });
+  assert.equal(status.state, 'online');
+  assert.equal(status.mode, 'worker');
+  assert.equal(status.lastRun, lastHot);
+  assert.doesNotMatch(status.detail, /task is not installed/);
+});
+
+test('worker failures and delayed hot syncs are visible', () => {
+  const now = new Date('2026-07-27T16:00:00.000Z');
+  const lastSuccess = { hot: '2026-07-27T15:40:00.000Z' };
+  const check = (fields) => getInnovationsSyncStatus({
+    now, workerStatus: { running: true, lastSuccess, ...fields },
+  });
+  assert.equal(check({}).state, 'warning');
+  assert.equal(check({ lastAttempt: { warm: '2026-07-27T15:59:00.000Z' } }).state, 'error');
+  const failure = check({ lastError: { message: 'internal error detail' } });
+  assert.equal(failure.state, 'error');
+  assert.doesNotMatch(failure.detail, /internal error detail/);
+});
