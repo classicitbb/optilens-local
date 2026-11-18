@@ -18,6 +18,13 @@
 
 Status: Complete — no active handoff
 
+## Automation capability tooltip (2026-11-18)
+
+Status: Complete — no active handoff.
+
+- Moved the four planned Automation capability cards into the end-of-tab-row help tooltip. The capabilities tab now provides a compact pointer to that tooltip. Affected files are `public/automation.html` and `public/styles/pages/automation.css`.
+- `npm run check`, `node --check public/automation.js`, the design-system tests, and `git diff --check` passed. PR 130 was merged and the active workstation updater deployed the change. Public health reports the new application revision, live CSS contains the tooltip list rules, and live JavaScript contains the tooltip dismissal behavior. Host Monitor verification passed.
+
 - Stock Submissions console fix: changed the live workstation task action from direct Node execution to `wscript.exe` with a protected host-local launcher. Task Scheduler's triggers, principal, and settings matched before and after the change. A benign hidden-process probe preserved a nonzero exit code. The first normal scheduled run through the new launcher completed with exit code 0. The task remains visible in Host Monitor.
 
 - Current state: the operator confirmed a clean production checkout on `master`, healthy application liveness, a running Host Monitor, and 14 registered modules. The harness reported active source `N/A`, so this baseline does not establish source connectivity. The Windows client workspace has Node 26 and Git. Codex Desktop is registered and Claude Desktop is running. Both clients share repository instructions through `CLAUDE.md` importing `AGENTS.md`. Desktop instruction loading and the service rehearsal remain unverified.
