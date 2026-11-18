@@ -11,6 +11,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 - `docs/agent/INTEGRATIONS.md`
 - `docs/agent/HANDOFF.md`
 - `docs/REMOTE_AGENT_OPERATIONS.md` before host access, deployment, restart, or recovery
+- `docs/WINDOWS_WORKSTATION_CUTOVER.md` for desktop agent setup or moving the live service to a new Windows machine
 - For operations-agent work: the review brief, README, build task, then relevant code/tests under `docs/operations-agent/`
 
 ## Data rules
@@ -43,6 +44,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 
 ## Workflow
 
+- Make application workflows accessible to both Codex and Claude through documented, testable interfaces with the same authorization and auditing as the UI.
 - Work in the authoritative host checkout identified by secure host configuration, or in the agent-first `C:\DEV\optilens-local` working copy. Check `git status` and the current branch first; deployment and restart still go through the host checkout.
 - Preserve unrelated human changes and use feature branches.
 - Use the guarded remote editing/deployment flow; do not edit multiple checkouts.

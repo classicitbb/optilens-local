@@ -12,6 +12,10 @@
 - Commands and dependencies: `package.json`
 - Configuration-name template: `.env.example`
 - Remote operating procedure: `docs/REMOTE_AGENT_OPERATIONS.md`
+- Windows desktop agent setup and live application cutover: `docs/WINDOWS_WORKSTATION_CUTOVER.md`. Claude Code imports `AGENTS.md` through `CLAUDE.md`; use the same project rules in both desktop clients.
+- Installer automation and migration acceptance criteria: `docs/procedures/install-or-move-optilens.md`.
+- The internal Node service and Host Monitor now run on the Windows workstation. SQL Server and Technitium stay on their existing hosts. Verify the current OptiLens web target with an authoritative DNS lookup and trusted HTTPS. Older IIS and DNS setup examples describe the pre-cutover layout.
+- The workstation Stock Submissions task uses `wscript.exe` and a protected host-local launcher under `data/task-launchers/` so its interactive-token task can reach the incoming share without flashing a console window. The launcher waits for Node and returns its exit code to Task Scheduler.
 - Current scoped build instructions: the applicable module documentation
 - Exact continuation: `docs/agent/HANDOFF.md`
 

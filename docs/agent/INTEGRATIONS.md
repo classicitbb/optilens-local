@@ -10,6 +10,7 @@ This public file records boundaries, not private topology.
 - Use versioned contracts, idempotency, bounded retries, audit context, and reconciliation.
 - For assigned repository build tasks, production application deployment, app-database migrations, restart, and health verification are standing-authorized. Source-system writes, external sends, credential/permission changes, destructive actions, and access expansion remain separately controlled unless the task expressly includes them.
 - Record new non-sensitive connector names and contract ownership here; record private access details only in the approved secure system.
+- Remote Desktop Commander can reach the approved controller for the existing SSH route in the remote operations runbook. A harmless host-identity check and an SSH inventory that returned only configuration presence verified the route. Keep SSH key material and protected configuration on the authorized hosts.
 
 ## RX Capture image extraction
 

@@ -1,5 +1,7 @@
 # Local HTTPS and DNS
 
+The Windows workstation cutover moved the OptiLens Node listener and Host Monitor to the workstation. Technitium continues to own the LAN zone on the existing DNS host, and the apex address now targets the workstation. Use the [workstation cutover runbook](WINDOWS_WORKSTATION_CUTOVER.md) for current routing and verification. The fixed address, co-hosted IIS binding, and loopback proxy examples below describe the pre-cutover layout and are retained for rollback reference.
+
 OptiLens Local is available at `https://optilens.cv.net/` on the LAN. The IIS and
 Technitium DNS host is `192.168.254.7`.
 

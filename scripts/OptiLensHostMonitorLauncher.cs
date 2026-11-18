@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
@@ -15,6 +16,8 @@ using System.Windows.Forms;
 internal sealed class OptiLensHostMonitor : Form
 {
     private static readonly string monitorLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "logs", "host-monitor.log");
+    private Button dnsConsoleButton;
+    private Button renewCertificateButton;
     private static readonly Color Canvas = Color.FromArgb(244, 242, 237);
     private static readonly Color Ink = Color.FromArgb(11, 30, 53);
     private static readonly Color Accent = Color.FromArgb(18, 108, 123);
@@ -313,9 +316,12 @@ internal sealed class OptiLensHostMonitor : Form
         var openDns = new Button { Text = "Open DNS console", Width = 120 };
         var exportRoot = new Button { Text = "Open root certificate", Width = 145 };
         var renewLeaf = new Button { Text = "Renew server certificate", Width = 165 };
+        dnsConsoleButton = openDns;
+        renewCertificateButton = renewLeaf;
+        openDns.Enabled = renewLeaf.Enabled = false;
         layout.Controls.Add(openHttps); layout.Controls.Add(openDns); layout.Controls.Add(exportRoot); layout.Controls.Add(renewLeaf);
         layout.SetFlowBreak(renewLeaf, true);
-        layout.Controls.Add(new Label { Text = "The CA private key stays on this host. Install the exported public root certificate and use this host as DNS on each LAN device before browsing optilens.cv.net.", AutoSize = true, MaximumSize = new Size(650, 0) });
+        layout.Controls.Add(new Label { Text = "On split-host installations, manage DNS and certificate renewal on the DNS and signing host.", AutoSize = true, MaximumSize = new Size(650, 0) });
         openHttps.Click += delegate { Process.Start(new ProcessStartInfo("https://optilens.cv.net/") { UseShellExecute = true }); };
         openDns.Click += delegate { Process.Start(new ProcessStartInfo("http://127.0.0.1:5380/") { UseShellExecute = true }); };
         exportRoot.Click += delegate { Process.Start(new ProcessStartInfo(Path.Combine(projectRoot, "data", "certificates")) { UseShellExecute = true }); };
@@ -418,7 +424,7 @@ internal sealed class OptiLensHostMonitor : Form
             await RefreshSyncStatus();
             await RefreshRxAliasSyncStatus();
             await RefreshQboInvoiceSyncStatus();
-            RefreshTlsStatus();
+            await RefreshTlsStatus();
             if (hasFailure) await ReportIncident(failedConnections);
             if (firstRefresh && !startVisible && !hasFailure && !hasWarning)
             {
@@ -871,7 +877,7 @@ internal sealed class OptiLensHostMonitor : Form
         }
     }
 
-    private void RefreshTlsStatus()
+    private async Task RefreshTlsStatus()
     {
         try
         {
@@ -879,11 +885,29 @@ internal sealed class OptiLensHostMonitor : Form
             {
                 store.Open(OpenFlags.ReadOnly);
                 var root = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(c => c.FriendlyName == "OptiLens Local Root CA");
-                var leaf = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(c => c.FriendlyName == "OptiLens HTTPS - optilens.cv.net");
-                httpsStatus.Text = leaf == null ? "HTTPS certificate: missing" : "HTTPS certificate: optilens.cv.net, expires " + leaf.NotAfter.ToShortDateString();
-                httpsStatus.ForeColor = leaf == null || leaf.NotAfter < DateTime.Now.AddDays(30) ? Color.Firebrick : Color.ForestGreen;
-                localCaStatus.Text = root == null ? "Local CA: missing" : "Local CA: present, expires " + root.NotAfter.ToShortDateString();
-                localCaStatus.ForeColor = root == null ? Color.Firebrick : Color.ForestGreen;
+                dnsConsoleButton.Enabled = renewCertificateButton.Enabled = root != null && root.HasPrivateKey;
+                var rootFile = Path.Combine(projectRoot, "data", "certificates", "OptiLens-Local-Root-CA.cer");
+                using (var publicRoot = root == null && File.Exists(rootFile) ? new X509Certificate2(rootFile) : null)
+                {
+                    var displayedRoot = root ?? publicRoot;
+                    localCaStatus.Text = displayedRoot == null ? "OptiLens root CA: unavailable" :
+                        (root == null ? "Public root CA: expires " : "Local CA: expires ") + displayedRoot.NotAfter.ToShortDateString();
+                    localCaStatus.ForeColor = displayedRoot == null || displayedRoot.NotAfter <= DateTime.Now ? Color.Firebrick : Color.ForestGreen;
+                }
+            }
+            var request = (HttpWebRequest)WebRequest.Create("https://optilens.cv.net/api/health/live");
+            request.AllowAutoRedirect = false;
+            using (var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            using (timeout.Token.Register(request.Abort))
+            using (var response = (HttpWebResponse)await request.GetResponseAsync())
+            {
+                if (response.StatusCode != HttpStatusCode.OK || request.ServicePoint.Certificate == null)
+                    throw new InvalidOperationException("The site did not return a verified HTTPS health response.");
+                using (var leaf = new X509Certificate2(request.ServicePoint.Certificate))
+                {
+                    httpsStatus.Text = "HTTPS verified: optilens.cv.net, expires " + leaf.NotAfter.ToShortDateString();
+                    httpsStatus.ForeColor = leaf.NotAfter < DateTime.Now.AddDays(30) ? Color.Firebrick : Color.ForestGreen;
+                }
             }
         }
         catch (Exception error) { httpsStatus.Text = "HTTPS status unavailable: " + error.Message; httpsStatus.ForeColor = Color.Firebrick; }
