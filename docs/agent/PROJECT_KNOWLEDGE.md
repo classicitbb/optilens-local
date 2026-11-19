@@ -104,3 +104,11 @@ Migration 059 adds the QBO module's local customer registry and company-scoped c
 ## FedEx in Delivery and Export
 
 - Innovations shipping methods were verified with a read-only query of dbo.ShippingMethods. DHL Express is method 16 and FedEx is method 17. Both are eligible for export document preparation. New FedEx certificate drafts default to the FedEx Padded Pak unless a package was selected explicitly.
+
+- Automation shares the Delivery & Export `--erp-*` tokens in `public/styles/system.css`: neutral canvas, square panels, gray header bands and compact controls. Automation-only rules cover QuickBooks review/reconciliation and File Generation without changing their actions or other modules.
+
+- Dev preview scratch database selection is applied after vault merging. `OPTILENS_DEV_DB_SERVER` is a process-scoped optional listener override requiring preview mode and `OPTILENS_DEV_DB_NAME`. Migration execution retargets legacy app-database `USE` statements to the connected database; fresh initialization tolerates absent legacy patient-name columns and unconfigured mailbox seeds.
+
+- Automation QuickBooks header owns Compare and the CSV scope/download controls; review action delegation is scoped to the enclosing sync card so header controls retain their behavior. Sync-detail events refresh exact duplicate-error suppression while distinct review failures remain visible.
+
+- Automation uses a viewport-height flex workspace: QuickBooks Sync removes its outer card border/gutters and lets the invoice area fill remaining space; other tabs retain their own scrolling. Header buttons, CSV link and scope selector share a 34px height, with a page-local 4px control radius.

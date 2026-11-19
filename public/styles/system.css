@@ -504,7 +504,7 @@ body.release-notes-body {
    source health, the settings dialogs, the add-rows dialog, and the document
    preview). Tokens mirror #commercialInvoice above; the paper invoice itself
    is deliberately untouched. */
-.delivery-export-page {
+:is(.delivery-export-page, .automation-page) {
   --erp-canvas: color-mix(in srgb, var(--ink) 5%, var(--surface));
   --erp-band: color-mix(in srgb, var(--ink) 9%, var(--surface));
   --erp-readonly: color-mix(in srgb, var(--ink) 6%, var(--surface));
@@ -722,3 +722,124 @@ body.release-notes-body {
     }
   }
 }
+
+
+/* Automation shares Delivery & Export's compact operational surfaces. */
+body.automation-page { background: var(--erp-canvas); }
+.automation-page .module-workspace { background: var(--erp-canvas); }
+.automation-page .automation-tab-bar {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--erp-edge);
+}
+.automation-page .workflow-tabs { min-height: 48px; padding: 5px 12px 0; gap: 2px; }
+.automation-page .automation-tab-bar .workflow-tabs button[data-tab] {
+  min-height: 42px; padding: 10px 14px; border: 1px solid transparent; border-bottom: 0;
+  border-radius: var(--erp-radius) var(--erp-radius) 0 0;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 700;
+}
+.automation-page .automation-tab-bar .workflow-tabs button[data-tab].active {
+  border-color: var(--erp-edge); background: var(--surface); color: var(--ink);
+}
+.automation-page .workflow-tabs button:not(.active):hover { background: var(--erp-band); color: var(--ink); }
+.automation-page .automation-help-button {
+  border-color: var(--erp-edge); border-radius: var(--erp-radius);
+  background: var(--surface); color: var(--ink);
+}
+.automation-page #automationHelp { border-radius: var(--erp-radius); }
+.automation-page .workflow-panel { padding: 12px; }
+.automation-page :is(.scheduled-task-card, .rx-card, .rx-preview, .placeholder-pane, .capability-grid article) {
+  border: 1px solid var(--erp-edge); border-radius: 0; background: var(--surface); box-shadow: none;
+}
+.automation-page .scheduled-task-card { gap: 12px; padding: 12px; }
+.automation-page :is(.scheduled-heading, .rx-card-title) {
+  padding: 8px 12px; border-bottom: 1px solid var(--erp-edge); background: var(--erp-band);
+}
+.automation-page .scheduled-heading { margin: -12px -12px 0; }
+.automation-page .rx-card-title { margin: -11px -12px 9px; }
+.automation-page :is(.scheduled-task-main h3, .rx-card h3, .qbo-exception-review h4) { color: var(--ink); font-size: 13px; }
+.automation-page :is(.scheduled-task-main p, .rx-heading p:not(.eyebrow), .rx-card-title p, .qbo-ledger-preview, .qbo-exception-review p, .rx-fields label, .rx-fields small, .rx-preview-summary span) { color: var(--muted); }
+.automation-page .rx-heading h2 { color: var(--ink); font-size: 16px; }
+.automation-page :is(.scheduled-task-icon, .rx-card-title .icon) { border-radius: var(--erp-radius); }
+.automation-page .scheduled-task-icon { width: 28px; height: 28px; flex-basis: 28px; font-size: 16px; background: var(--blue); color: var(--accent-foreground); }
+.automation-page .scheduled-task-meta { gap: 0; border: 1px solid var(--erp-edge); background: var(--erp-readonly); }
+.automation-page .scheduled-task-meta div { border: 0; border-radius: 0; background: transparent; padding: 6px 10px; }
+.automation-page .scheduled-task-meta dt { color: var(--muted); }
+.automation-page .scheduled-task-meta dd { color: var(--ink); }
+.automation-page :is(.button, .qbo-exception-fix button) {
+  min-height: 28px; padding: 3px 12px; border: 1px solid var(--erp-edge);
+  border-radius: var(--erp-radius); font-size: 12.5px; font-weight: 700;
+}
+.automation-page :is(.button.secondary, .qbo-exception-fix button.secondary) { background: var(--surface); color: var(--ink); }
+.automation-page :is(.button.primary, .qbo-exception-fix button:not(.secondary)) { border-color: var(--blue); background: var(--blue); color: var(--accent-foreground); }
+.automation-page :is(.rx-fields input, .rx-fields select, .rx-fields textarea, .rx-rx-grid input, .qbo-exception-fix input, .qbo-exception-fix select) {
+  min-height: 28px; padding: 3px 7px; border: 1px solid var(--erp-edge); border-radius: var(--erp-radius);
+  background: var(--input-bg); color: var(--ink); font-size: 12.5px;
+}
+.automation-page :is(.rx-preview-summary, .qbo-exception-review-heading) { background: var(--erp-band); }
+.automation-page .qbo-exception-review-heading { padding: 8px 10px; }
+.automation-page :is(.qbo-ledger-preview, .qbo-exception-review, .rx-preview-summary, .rx-preview-summary div) { border-color: var(--erp-edge); }
+.automation-page .rx-preview-summary strong { color: var(--ink); }
+.automation-page .rx-preview pre { background: var(--erp-readonly); color: var(--ink); }
+.automation-page :is(.scheduled-notice, .rx-status, .qbo-exception-item, .qbo-exception-count, .rx-test-badge) { border-radius: var(--erp-radius); box-shadow: none; }
+.automation-page .qbo-exception-item { border-color: var(--erp-edge); border-inline-start: 3px solid var(--amber); background: var(--surface); }
+.automation-page .qbo-exception-item :is(p, small, .qbo-exception-hint, .qbo-exception-meta span) { color: var(--muted); }
+.automation-page .qbo-exception-meta { color: var(--ink); }
+@media (max-width: 700px) {
+  .automation-page .workflow-panel { padding: 8px; }
+  .automation-page .scheduled-heading { display: flex; flex-wrap: wrap; gap: 8px; }
+  .automation-page .scheduled-heading .button { margin-top: 0; }
+}
+
+.automation-page :is(.qbo-lane, .qbo-pill, .qbo-switch span, .qbo-notice p, .qbo-job, .qbo-table-wrap, .qbo-progress) { border-radius: var(--erp-radius); }
+.automation-page .qbo-lane { min-height: 28px; padding: 3px 10px; font-size: 12px; border-color: var(--erp-edge); }
+.automation-page .qbo-lane strong { font-size: 13px; }
+.automation-page .qbo-lane[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 -2px var(--blue); background: var(--erp-band); }
+.automation-page :is(.qbo-search input, .qbo-export select, .qbo-fix input, .qbo-fix select) { min-height: 28px; padding: 3px 7px; border-radius: var(--erp-radius); border-color: var(--erp-edge); }
+.automation-page :is(.qbo-table-wrap, .qbo-job, .qbo-notice p) { border-color: var(--erp-edge); }
+.automation-page :is(.qbo-table th, .qbo-job) { background: var(--erp-band); }
+.automation-page .qbo-table :is(th, td) { border-inline-end: 1px solid var(--line); }
+.automation-page .scheduled-task-meta { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.automation-page .scheduled-task-meta > div + div { border-inline-start: 1px solid var(--erp-edge); }
+.automation-page .scheduled-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.automation-page .button:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--erp-band); color: var(--ink); }
+.automation-page .button.primary:hover:not(:disabled) { background: var(--blue-dark); color: var(--accent-foreground); }
+@media (max-width: 900px) { .automation-page .scheduled-task-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.automation-page :is(.scheduled-task-card, .scheduled-task-main, .scheduled-task-main > div, .qbo-review, .qbo-toolbar, .qbo-table-wrap) { min-width: 0; }
+.automation-page .scheduled-task-main { flex: 1 1 280px; }
+.automation-page .scheduled-task-main p { overflow-wrap: anywhere; }
+.automation-page .qbo-fix :is(input, select) { min-width: 0; max-width: 100%; }
+
+/* Sync header and its status strip form one continuous panel. */
+.automation-page .qbo-scheduled-card .scheduled-heading { margin-bottom: 0; }
+.automation-page .qbo-scheduled-card .scheduled-task-meta {
+  margin: -12px -12px 0; border: 0; border-bottom: 1px solid var(--erp-edge);
+  gap: 0; grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.automation-page .qbo-scheduled-card .scheduled-task-meta > div { padding: 5px 12px; }
+.automation-page .qbo-scheduled-card .scheduled-task-meta dd { font-size: 11px; }
+.automation-page .scheduled-actions { align-items: center; justify-content: flex-end; }
+.automation-page #qboHeaderExport select { max-width: 185px; font-size: 11px; }
+@media (max-width: 900px) {
+  .automation-page .qbo-scheduled-card .scheduled-task-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .automation-page .qbo-scheduled-card .scheduled-task-meta > div { border-bottom: 1px solid var(--erp-edge); }
+  .automation-page .qbo-scheduled-card .scheduled-task-meta > div:last-child { grid-column: 1 / -1; }
+  .automation-page .scheduled-actions { justify-content: flex-start; }
+}
+
+/* Full-window Automation workspace with gently softened controls. */
+body.automation-page { --erp-radius: 4px; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.automation-page #app-shell-header { flex: 0 0 auto; }
+.automation-page .module-main { flex: 1; min-height: 0; width: 100%; margin: 0; }
+.automation-page .module-workspace { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.automation-page .automation-tab-bar { flex: 0 0 auto; }
+.automation-page .module-workspace > .workflow-panel.active { flex: 1; min-height: 0; overflow: auto; }
+.automation-page #scheduled.active { display: flex; padding: 0; }
+.automation-page .qbo-scheduled-card { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; border: 0; border-radius: 0; gap: 0; }
+.automation-page .qbo-scheduled-card .scheduled-heading { flex: 0 0 auto; margin: 0; }
+.automation-page .qbo-scheduled-card .scheduled-task-meta { flex: 0 0 auto; margin: 0; }
+.automation-page .qbo-review { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; padding: 12px 0 0; }
+.automation-page .qbo-review > :is(.qbo-lanes, .qbo-toolbar, .qbo-notice) { margin-inline: 12px; flex: 0 0 auto; }
+.automation-page .qbo-table-wrap { flex: 1; min-height: 160px; border: 0; border-radius: 0; }
+.automation-page .scheduled-actions :is(.button, select) { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 34px; min-height: 34px; margin: 0; padding-block: 0; line-height: 1.2; border-radius: var(--erp-radius); }
+.automation-page #qboHeaderExport { align-items: center; }

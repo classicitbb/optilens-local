@@ -8,6 +8,32 @@ const os = require("node:os");
 const path = require("node:path");
 const preview = require("../lib/dev-preview");
 
+test("legacy migration USE statements stay on the selected scratch database", () => {
+  const { targetMigrationDatabase } = require("../lib/migrations");
+  const sql = "USE [optilens_local];\r\nGO\r\nSELECT 'optilens_local' AS label;";
+  assert.equal(targetMigrationDatabase(sql, "preview]db"), "USE [preview]]db];\r\nGO\r\nSELECT 'optilens_local' AS label;");
+  assert.throws(() => targetMigrationDatabase(sql, ""), /target database/);
+});
+
+test("preview database selection wins over a saved live vault profile", () => {
+  const { execFileSync } = require("node:child_process");
+  const script = `
+    const vault = require('./lib/credential-vault');
+    vault.mergeSqlServerVaultEntry = (base) => ({ ...base, database: 'live_db', server: 'live-server' });
+    const { getConfig } = require('./lib/config');
+    const assert = require('node:assert/strict');
+    process.env.OPTILENS_DEV_PREVIEW = '1';
+    process.env.OPTILENS_DEV_DB_NAME = 'scratch_db';
+    process.env.OPTILENS_DEV_DB_SERVER = 'preview-server';
+    assert.equal(getConfig().appDb.database, 'scratch_db');
+    assert.equal(getConfig().appDb.server, 'preview-server');
+    process.env.OPTILENS_DEV_PREVIEW = '0';
+    assert.equal(getConfig().appDb.database, 'live_db');
+    assert.equal(getConfig().appDb.server, 'live-server');
+  `;
+  execFileSync(process.execPath, ['-e', script], { cwd: path.join(__dirname, '..'), windowsHide: true });
+});
+
 test("dev preview mode forces every production-touching switch off and moves to its own port", () => {
   const env = {
     OPTILENS_DEV_PREVIEW: "1",
