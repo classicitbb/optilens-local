@@ -7,6 +7,16 @@
 
 
 
+
+## Automation full-window workspace (2026-11-19)
+
+Status: Local implementation complete — rendered verification blocked by browser responsiveness.
+
+- Affected files: `public/styles/system.css` and continuity records. Equalized header action/select/link heights, softened Automation control corners, removed the sync card border/gutters and extended the workspace to the remaining viewport. Other tabs retain scrollable panels.
+- Validation: four design-system tests and `git diff --check` passed. Existing preview tabs and a fresh tab timed out during browser inspection/navigation, so rendered sizing has not been verified. No connection troubleshooting, database changes or deployment was performed; the user explicitly deferred the connection issue.
+- Approval required: none for further local verification; production deployment remains pending explicit authorization.
+- Next action: when the browser responds, open the existing dev preview and verify equal control heights and edge-to-edge QuickBooks Sync at desktop and narrow widths.
+
 ## Automation header refinements (2026-11-19)
 
 Status: Complete — no active handoff.
