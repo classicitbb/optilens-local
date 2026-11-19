@@ -8,44 +8,18 @@
 
 
 
-## Automation full-window workspace (2026-11-19)
+## Automation production deployment (2026-11-19)
 
-Status: Local implementation complete — rendered verification blocked by browser responsiveness.
+Status: Master published; production restart blocked by host elevation.
 
-- Affected files: `public/styles/system.css` and continuity records. Equalized header action/select/link heights, softened Automation control corners, removed the sync card border/gutters and extended the workspace to the remaining viewport. Other tabs retain scrollable panels.
-- Validation: four design-system tests and `git diff --check` passed. Existing preview tabs and a fresh tab timed out during browser inspection/navigation, so rendered sizing has not been verified. No connection troubleshooting, database changes or deployment was performed; the user explicitly deferred the connection issue.
-- Approval required: none for further local verification; production deployment remains pending explicit authorization.
-- Next action: when the browser responds, open the existing dev preview and verify equal control heights and edge-to-edge QuickBooks Sync at desktop and narrow widths.
-
-## Automation header refinements (2026-11-19)
-
-Status: Complete — no active handoff.
-
-- Updated the running dev preview: status cells join the heading edge-to-edge; Compare sits beside Preview new invoices; the CSV scope/download sits with Run sync; the QB icon is removed. Exact errors already displayed in the sync detail are omitted from the review notice, with status events keeping this synchronized. Failed initial review loads now say Invoices unavailable instead of staying at Loading invoices.
-- Affected files: `public/automation.html`, `public/automation.js`, `public/qbo-invoices.js`, shared system CSS and continuity records.
-- Validation: 19 focused design/review/reconciliation tests, JS syntax and whitespace checks passed. Browser verification confirmed the compact layout and that changing the moved CSV selector changes its download scope correctly. No download, comparison, invoice sync or posting action was executed.
-- The preview still reports an existing source connection failure; this layout change does not establish working source connectivity. The full-suite stall recorded earlier remains unresolved. Production deployment is still awaiting explicit authorization for the earlier implementation.
-
-## Migrated Automation dev preview (2026-11-19)
-
-Status: Preview running — first-admin setup awaits the operator.
-
-- Ran all 57 registered migrations on an isolated scratch app database; verified the connected target, all checkpoints and an idempotent second run with zero migrations applied. Preview liveness returned HTTP 200. Opened the preview browser; it displays first-admin setup and the DEV PREVIEW badge. The Automation screen requires that initial account setup.
-- Affected files: `lib/config.js`, `lib/migrations.js`, migrations 027/051, `test/dev-preview.test.js`, preview documentation and continuity records. Fixed vault precedence for scratch selection, explicit preview listener selection, legacy migration target switching, fresh-database patient-column compilation and unconfigured-mailbox seeding.
-- An initial migration attempt selected the main app database through a legacy `USE` statement and stopped on its existing migration checkpoint after the idempotent core-schema batch. This motivated the migration-target fix. No business sync, accounting action, source-system write or production deployment was requested or performed.
-- Validation: 14 focused preview/design-system tests, JavaScript syntax and whitespace checks passed. SQL migration verification covered the actual fresh database and repeat execution. The previous full-suite stall remains unresolved.
-- Approval/action required: account initialization is an authentication change reserved to the operator under the task instructions. No administrator was created by the agent.
-- Next action: complete the displayed first-admin setup in the scratch preview, then open `/modules/automation` to review the style. Production deployment remains pending explicit authorization as recorded above.
-
-## Automation utilitarian styling (2026-11-19)
-
-Status: Local implementation complete — deployment awaiting explicit authorization.
-
-- Branch: `codex/automation-utilitarian-style`, based on the latest QuickBooks review and connection-state implementation.
-- Affected files: `public/styles/system.css`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Automation now consumes the same ERP canvas, band, border and radius tokens as Delivery & Export. Scoped styles flatten tabs, cards, review filters, tables and RX generator controls. No workflow or business action changed.
-- Validation: `npm run check`, four design-system tests, and `git diff --check` passed. Inert synthetic screenshots checked desktop, narrow-screen and dark-theme presentation; authenticated production behavior was not exercised. Full `npm test` and a `--test-force-exit` retry stalled after 132 reported tests on the updated checkout and were interrupted. Full-suite success is not established.
-- Approval required: the task's supplied instructions require explicit authorization for production/host deployment; repository standing deployment authority does not override that instruction. No deployment, restart, sync, accounting write or external send occurred.
-- Next action: after deployment authorization, run `npm run ship -- -m "Match Automation to Delivery and Export operational styling"` through the documented guarded flow, then verify the authenticated Automation screen and host health. Investigate the full-suite stall separately if it repeats in that flow.
+- User explicitly authorized publishing to master and production. PR #134 merged as `48f2088`; the active production checkout is clean on that revision. The earlier pending-authorization notes are superseded.
+- Implemented Delivery & Export operational tokens, attached status cells, header Compare/CSV controls, duplicate-error suppression, equal-height controls, softened corners and a borderless viewport workspace. Also included scratch-preview configuration/migration isolation and fresh-database migration fixes.
+- Affected files: Automation HTML/JS, QuickBooks review JS, shared system CSS, config/migration runner, migrations 027/051, focused preview tests and continuity documentation.
+- Local validation: 29 focused tests, JavaScript syntax and whitespace checks passed. Preview scratch initialization applied all 57 migrations with zero on repeat. Earlier desktop header and CSV-scope behavior was browser-verified; final viewport visual verification was blocked by browser timeouts. The user deferred the preview connection issue.
+- Production validation: guarded update built browser assets, passed smoke checks and its full application suite (788 passed, 2 skipped, 0 failed). Migration runner applied zero pending migrations. Public HTTPS serves the new full-window, equal-height and borderless CSS. Host Monitor verification passed; service and both databases remain online.
+- Exact blocker: the guarded restart failed with `Access is denied` when the unelevated remote console tried stopping the elevated Node service. One documented loopback repair request was accepted but produced no repair log or completed restart. The original runtime fingerprint/start timestamp remains active. No further restart/reset attempt was made.
+- Required action: an authorized operator must use the existing Host Monitor's elevated Restart service action and approve its Windows elevation prompt. No credential or permission change is required.
+- Executable next action after that restart: `node scripts/monitor-harness.js verify`; compare public and host-local liveness fingerprints/start timestamps and verify the new Automation UI. Do not report the backend runtime updated until this succeeds.
 
 ## Windows workstation cutover
 
