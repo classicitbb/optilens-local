@@ -219,6 +219,20 @@
   function renderQboInvoiceSyncStatus(sync) {
     $("#qboInvoiceSyncDetail").textContent = sync.detail;
     $("#qboInvoiceSyncMode").textContent = sync.environment ? `${sync.environment}${sync.realmId ? ` · realm ${sync.realmId}` : ""}` : "Not configured";
+    const connection = $("#qboInvoiceSyncConnection");
+    if (connection) {
+      connection.textContent = "";
+      if (sync.environment && sync.realmId) {
+        const link = document.createElement("a");
+        link.href = sync.environment === "production" ? "https://app.qbo.intuit.com/app/homepage" : "https://app.sandbox.qbo.intuit.com/app/homepage";
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Connected - confirm in QuickBooks";
+        connection.appendChild(link);
+      } else {
+        connection.textContent = "Not connected - credentials missing from the protected store";
+      }
+    }
     $("#qboInvoiceSyncSchedule").textContent = `Every ${sync.intervalMinutes} minutes`;
     $("#qboInvoiceSyncTaskState").textContent = sync.running ? "Running" : (sync.task?.state || "Not installed");
     $("#qboInvoiceSyncLastRun").textContent = formatSyncTime(sync.lastRun);
