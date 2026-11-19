@@ -30,7 +30,9 @@ npm run dev:preview    # http://127.0.0.1:8090 (next free port if busy)
 
 The preview is a viewer, not a second production service. `OPTILENS_DEV_PREVIEW=1` forces off: write-back, privileged data access, supplier mailbox poller, email sync, live gateway, Innovations/QBO workers, TLS front, RX recovery, update checks and the host stop/restart/repair controls. It listens on 127.0.0.1 only (`OPTILENS_DEV_HOST` to change).
 
-The preview reads the real source and app databases, and saved settings are real. To isolate writes, create a scratch app database and set `OPTILENS_DEV_DB_NAME`.
+The preview reads the real source and app databases, and saved settings are real. To isolate writes, create a scratch app database and set `OPTILENS_DEV_DB_NAME`. This selection overrides a saved vault database only in preview mode. If the preview needs a different database listener, set `OPTILENS_DEV_DB_SERVER` in the preview process environment; it is honored only alongside an explicit scratch database. Neither setting changes saved production configuration.
+
+Before running migrations in a separate Node process, set `OPTILENS_DEV_PREVIEW=1` and call `applyDevPreviewEnv` before loading configuration. Verify the actual connected database before applying. New databases need the base `core`, `delivery`, `integration`, and `archive` schemas from the bootstrap script. The migration runner retargets legacy `USE` statements to its configured database. A fresh scratch database presents first-admin setup; complete that separately through the normal UI. It contains no production users or invoice history.
 
 `npm run dev:preview` refuses to run inside the production checkout (its watchdog log is fresh); pass `--here` only if you accept that edits there are served immediately.
 

@@ -5,6 +5,18 @@
 - Last synchronized: 2026-11-18
 
 
+
+## Migrated Automation dev preview (2026-11-19)
+
+Status: Preview running — first-admin setup awaits the operator.
+
+- Ran all 57 registered migrations on an isolated scratch app database; verified the connected target, all checkpoints and an idempotent second run with zero migrations applied. Preview liveness returned HTTP 200. Opened the preview browser; it displays first-admin setup and the DEV PREVIEW badge. The Automation screen requires that initial account setup.
+- Affected files: `lib/config.js`, `lib/migrations.js`, migrations 027/051, `test/dev-preview.test.js`, preview documentation and continuity records. Fixed vault precedence for scratch selection, explicit preview listener selection, legacy migration target switching, fresh-database patient-column compilation and unconfigured-mailbox seeding.
+- An initial migration attempt selected the main app database through a legacy `USE` statement and stopped on its existing migration checkpoint after the idempotent core-schema batch. This motivated the migration-target fix. No business sync, accounting action, source-system write or production deployment was requested or performed.
+- Validation: 14 focused preview/design-system tests, JavaScript syntax and whitespace checks passed. SQL migration verification covered the actual fresh database and repeat execution. The previous full-suite stall remains unresolved.
+- Approval/action required: account initialization is an authentication change reserved to the operator under the task instructions. No administrator was created by the agent.
+- Next action: complete the displayed first-admin setup in the scratch preview, then open `/modules/automation` to review the style. Production deployment remains pending explicit authorization as recorded above.
+
 ## Automation utilitarian styling (2026-11-19)
 
 Status: Local implementation complete — deployment awaiting explicit authorization.

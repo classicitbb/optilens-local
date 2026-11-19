@@ -47,7 +47,10 @@ IF NOT EXISTS (SELECT 1 FROM mail.accounts WHERE account_code = N'orders')
 INSERT INTO mail.accounts (account_code, address, display_name, is_shared, imap_host, imap_port, imap_secure, smtp_host, smtp_port, smtp_secure, username, credential_source)
 SELECT TOP 1 N'orders', LOWER(mailbox_username), N'Orders', 1, server_hostname, ISNULL(port, 993), ISNULL(ssl_enabled, 1),
        server_hostname, 465, 1, mailbox_username, N'vault'
-FROM ops.MailboxConfigurations WHERE configuration_code = N'classic-visions-orders';
+FROM ops.MailboxConfigurations
+WHERE configuration_code = N'classic-visions-orders'
+  AND NULLIF(LTRIM(RTRIM(server_hostname)), N'') IS NOT NULL
+  AND NULLIF(LTRIM(RTRIM(mailbox_username)), N'') IS NOT NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_mail_folders_account')
