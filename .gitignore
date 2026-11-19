@@ -40,3 +40,6 @@ extensions/*.pem
 # Generated browser UI assets, built by npm install or npm run build:ui.
 /public/assets/ui/
 /extensions/*/ui/
+
+# local admin credentials file - never commit
+automation.txt
