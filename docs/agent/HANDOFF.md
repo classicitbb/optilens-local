@@ -4,6 +4,17 @@
 - Status: Complete — no active handoff
 - Last synchronized: 2026-11-18
 
+
+## Automation utilitarian styling (2026-11-19)
+
+Status: Local implementation complete — deployment awaiting explicit authorization.
+
+- Branch: `codex/automation-utilitarian-style`, based on the latest QuickBooks review and connection-state implementation.
+- Affected files: `public/styles/system.css`, `docs/agent/PROJECT_KNOWLEDGE.md`, and this handoff. Automation now consumes the same ERP canvas, band, border and radius tokens as Delivery & Export. Scoped styles flatten tabs, cards, review filters, tables and RX generator controls. No workflow or business action changed.
+- Validation: `npm run check`, four design-system tests, and `git diff --check` passed. Inert synthetic screenshots checked desktop, narrow-screen and dark-theme presentation; authenticated production behavior was not exercised. Full `npm test` and a `--test-force-exit` retry stalled after 132 reported tests on the updated checkout and were interrupted. Full-suite success is not established.
+- Approval required: the task's supplied instructions require explicit authorization for production/host deployment; repository standing deployment authority does not override that instruction. No deployment, restart, sync, accounting write or external send occurred.
+- Next action: after deployment authorization, run `npm run ship -- -m "Match Automation to Delivery and Export operational styling"` through the documented guarded flow, then verify the authenticated Automation screen and host health. Investigate the full-suite stall separately if it repeats in that flow.
+
 ## Windows workstation cutover
 
 ### Protected credentials follow-up
