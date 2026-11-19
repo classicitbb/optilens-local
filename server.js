@@ -213,6 +213,7 @@ const { handleQboInvoiceRoute } = require("./lib/qbo-invoice-routes");
 const { handleJobFloorRoute } = require("./lib/job-floor-routes");
 const { handleInnovationsConsoleRoute } = require("./lib/innovations-console-routes");
 const { getQboInvoiceSyncStatus } = require("./lib/qbo-invoice-sync");
+const globalSearch = require("./lib/global-search");
 const { handlePrivilegedDataAccessRoute } = require("./lib/privileged-data-access-routes");
 const { handleChemistryRoute } = require("./lib/chemistry-routes");
 const { handleRxCaptureRoute, recoverRxCaptureProcessing } = require("./lib/rx-capture/routes");
@@ -1970,6 +1971,23 @@ const server = http.createServer(async (req, res) => {
     return handleApi(res, async () => {
       await requirePermission(req, "delivery.read");
       return { customers: await listExportCustomers(url.searchParams.get("q") || "") };
+    });
+  }
+
+  // Header search: one query, every record type the signed-in person may read.
+  if (url.pathname === "/api/search" && req.method === "GET") {
+    return handleApi(res, async () => {
+      const user = await currentUser(req);
+      const reviewRows = globalSearch.cachedReviewRows(() => require("./lib/qbo-invoice-sync").loadReview());
+      return globalSearch.searchAll({
+        query: url.searchParams.get("q") || "",
+        can: (permission) => user.permissions.includes(permission),
+        providers: [
+          { id: "invoices", label: "Invoices", permission: "automation.read", run: async (q) => globalSearch.invoiceHits(await reviewRows(), q) },
+          { id: "shipments", label: "Shipments", permission: "delivery.read", run: async (q) => globalSearch.shipmentHits(await searchCurrentShipmentIds(q)) },
+          { id: "customers", label: "Customers", permission: "delivery.read", run: async (q) => globalSearch.customerHits(await listCustomers(q)) }
+        ]
+      });
     });
   }
 

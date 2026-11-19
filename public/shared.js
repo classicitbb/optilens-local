@@ -80,6 +80,7 @@ function setup() {
   wireThemeToggle();
   wireLauncher();
   wireSearch();
+  watchPageFilters();
   wireAuth();
   wireUpdateCheck();
   wireConnectionRecovery();
@@ -139,7 +140,7 @@ function renderShellHeader() {
       </button>
       ${config.search !== false ? `<button class="search-bar" id="searchTrigger" type="button" aria-label="Search (Ctrl+K)"${config.searchHref ? ` data-search-href="${esc(config.searchHref)}"` : ""}>
         <span class="material-symbols-outlined">search</span>
-        <span class="sb-text">Search modules, wiki, settings…</span>
+        <span class="sb-text">Search pages, invoices, shipments, customers.</span>
         <kbd>Ctrl+K</kbd>
       </button>` : ""}
     </div>
@@ -583,6 +584,69 @@ function wireLauncher() {
 
 // ─── Search ──────────────────────────────────────────────────────────────────
 
+// Page filters: a standalone search box marked data-page-filter hands its job to the header search.
+// Typing in the palette filters that box's table in place, so pages need no search box of their own.
+const PAGE_SEARCH = { query: new URLSearchParams(window.location.search).get("q") || "", bound: new WeakSet() };
+const pageFilterInputs = () => [...document.querySelectorAll("input[data-page-filter]")];
+
+function applyPageQuery(field) {
+  if (field.value === PAGE_SEARCH.query) return;
+  field.value = PAGE_SEARCH.query;
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  field.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function setPageQuery(value) {
+  PAGE_SEARCH.query = String(value || "");
+  pageFilterInputs().forEach(applyPageQuery);
+  renderSearchTrigger();
+}
+
+function bindPageFilters() {
+  for (const field of pageFilterInputs()) {
+    if (PAGE_SEARCH.bound.has(field)) continue;
+    PAGE_SEARCH.bound.add(field);
+    const holder = field.closest("label, .records-search, .tariff-search") || field;
+    holder.style.display = "none";
+    if (PAGE_SEARCH.query) applyPageQuery(field);
+  }
+  renderSearchTrigger();
+}
+
+function renderSearchTrigger() {
+  const text = document.querySelector("#searchTrigger .sb-text");
+  if (!text) return;
+  const base = text.dataset.base || (text.dataset.base = text.textContent);
+  const filtering = Boolean(PAGE_SEARCH.query) && pageFilterInputs().length > 0;
+  text.textContent = filtering ? `Filtering this page: \u201c${PAGE_SEARCH.query}\u201d` : base;
+  let clear = document.querySelector("#searchTrigger .sb-clear");
+  if (!filtering) { clear?.remove(); return; }
+  if (clear) return;
+  clear = document.createElement("span");
+  clear.className = "sb-clear";
+  clear.setAttribute("role", "button");
+  clear.tabIndex = 0;
+  clear.setAttribute("aria-label", "Clear the page filter");
+  clear.textContent = "\u00d7";
+  const reset = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const field = document.querySelector("#searchInput");
+    if (field) field.value = "";
+    setPageQuery("");
+  };
+  clear.addEventListener("click", reset);
+  clear.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") reset(event); });
+  text.after(clear);
+}
+
+function watchPageFilters() {
+  bindPageFilters();
+  let frame = 0;
+  new MutationObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(bindPageFilters); })
+    .observe(document.body, { childList: true, subtree: true });
+}
+
 function wireSearch() {
   if (getShellPageConfig().search === false) return;
   const trigger = document.querySelector("#searchTrigger");
@@ -600,7 +664,11 @@ function wireSearch() {
     clearTimeout(closeTimer);
     overlay.classList.remove("closing");
     overlay.hidden = false;
-    input?.focus();
+    if (input) {
+      if (PAGE_SEARCH.query && !input.value) input.value = PAGE_SEARCH.query;
+      input.placeholder = pageFilterInputs().length ? "Search everywhere. This page filters as you type." : "Search pages, invoices, shipments, customers.";
+      input.focus();
+    }
     renderResults(input?.value || "");
   }
 
@@ -610,7 +678,7 @@ function wireSearch() {
     closeTimer = setTimeout(() => {
       overlay.hidden = true;
       overlay.classList.remove("closing");
-      if (input) input.value = "";
+      if (input && !PAGE_SEARCH.query) input.value = "";
       if (returnFocus instanceof HTMLElement && returnFocus !== document.body) returnFocus.focus();
     }, 200);
   }
@@ -637,21 +705,67 @@ function wireSearch() {
       (e.shiftKey ? last : input)?.focus();
     }
   });
-  input?.addEventListener("input", () => renderResults(input.value));
+  input?.addEventListener("input", () => {
+    if (pageFilterInputs().length) setPageQuery(input.value.trim());
+    renderResults(input.value);
+  });
+  input?.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (pageFilterInputs().length && PAGE_SEARCH.query) close();
+    else results?.querySelector("a[href]")?.click();
+  });
 
-  function renderResults(query) {
-    if (!results) return;
+  let searchSeq = 0;
+  let searchTimer = 0;
+
+  function paint(query, groups, searching) {
     const q = query.trim().toLowerCase();
     const visibleIndex = SEARCH_INDEX.filter(canAccessSharedItem);
     const hits = q ? visibleIndex.filter(x => x.label.toLowerCase().includes(q) || x.meta.toLowerCase().includes(q)) : visibleIndex;
-    if (!hits.length) { results.innerHTML = `<div class="search-empty">No results for "${esc(query)}"</div>`; return; }
-    results.innerHTML = hits.map(x => `
+    const parts = [];
+    if (q && pageFilterInputs().length) parts.push(`<div class="search-page-filter">Filtering this page for \u201c${esc(query.trim())}\u201d. Press Enter to keep it.</div>`);
+    if (hits.length) {
+      if (q) parts.push('<div class="search-group-title">Pages and settings</div>');
+      parts.push(...hits.map(x => `
       <a class="search-result-item" href="${esc(x.href)}">
         <span class="search-result-icon material-symbols-outlined" style="background:${esc(x.color)}">${esc(x.icon)}</span>
         ${esc(x.label)}
         <span class="search-result-meta">${esc(x.meta)}</span>
-      </a>`).join("");
+      </a>`));
+    }
+    for (const group of groups) {
+      parts.push(`<div class="search-group-title">${esc(group.label)}</div>`);
+      parts.push(...group.hits.map(hit => `
+      <a class="search-result-item" href="${esc(hit.href)}">
+        <span class="search-result-icon material-symbols-outlined" style="background:${esc(group.color || "#1A8A9C")}">${esc(group.icon || "search")}</span>
+        <span class="search-result-text">${esc(hit.title)}</span>
+        <span class="search-result-meta">${esc(hit.meta || "")}</span>
+      </a>`));
+      if (group.more) parts.push(`<div class="search-more">${group.more} more. Keep typing to narrow.</div>`);
+    }
+    if (searching) parts.push('<div class="search-empty">Searching invoices, shipments and customers.</div>');
+    else if (!hits.length && !groups.length) parts.push(`<div class="search-empty">No results for "${esc(query)}"</div>`);
+    results.innerHTML = parts.join("");
     results.querySelectorAll("a").forEach(a => a.addEventListener("click", close));
+  }
+
+  function renderResults(query) {
+    if (!results) return;
+    const text = query.trim();
+    clearTimeout(searchTimer);
+    searchSeq += 1;
+    if (text.length < 2) { paint(query, [], false); return; }
+    paint(query, [], true);
+    const seq = searchSeq;
+    searchTimer = setTimeout(async () => {
+      let groups = [];
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(text)}`, { credentials: "same-origin", cache: "no-store" });
+        if (response.ok) groups = (await response.json()).groups || [];
+      } catch { /* the page and settings results still stand */ }
+      if (seq === searchSeq) paint(query, groups, false);
+    }, 250);
   }
 }
 

@@ -102,6 +102,8 @@
     { "match": "public/styles/pages/innovations-console.css", "owner": "automation" },
     { "match": "public/styles/pages/job-floor.css", "owner": "automation" },
     { "match": "public/styles/pages/automation.css", "owner": "automation" },
+  { "match": "public/qbo-invoices.js", "owner": "automation" },
+  { "match": "public/styles/pages/qbo-invoices.css", "owner": "automation" },
     { "match": "public/business-metrics-inventory-intelligence.js", "owner": "inventory-intelligence" },
     { "match": "public/inventory-intelligence.html", "owner": "inventory-intelligence" },
     { "match": "public/styles/pages/inventory*.css", "owner": "inventory-intelligence" },

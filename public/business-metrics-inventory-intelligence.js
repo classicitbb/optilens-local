@@ -272,7 +272,7 @@
       '<div id="iiQueueView">' +
         '<div class="ii-toolbar ii-queue-toolbar">' +
           '<div class="ii-toolbar-group">' +
-            '<label class="ii-field">Search<input class="ii-input ii-search" id="iiSearch" type="search" placeholder="Item, SKU or supplier" autocomplete="off"></label>' +
+            '<label class="ii-field">Search<input class="ii-input ii-search" id="iiSearch" data-page-filter type="search" placeholder="Item, SKU or supplier" autocomplete="off"></label>' +
             '<label class="ii-field">Show<select class="ii-select" id="iiStatus">' +
               '<option value="ACTIVE">Awaiting action</option><option value="DECIDED">Decided</option><option value="ALL">Everything</option></select></label>' +
           '</div>' +

@@ -1,0 +1,94 @@
+/* QuickBooks invoice review workspace. Uses the shared design tokens; no decoration beyond colour for status. */
+.qbo-review { display: grid; gap: 8px; margin-top: 8px; }
+
+.qbo-lanes { display: flex; flex-wrap: wrap; gap: 6px; }
+.qbo-lane {
+  display: inline-flex; gap: 6px; align-items: baseline; padding: 5px 10px; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--color-text); background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: 999px;
+}
+.qbo-lane:hover { background: var(--color-surface-raised); }
+.qbo-lane[aria-pressed="true"] { border-color: var(--color-interactive); box-shadow: inset 0 0 0 1px var(--color-interactive); background: var(--color-surface-raised); }
+.qbo-lane-label { font-weight: 700; color: var(--color-text-muted); }
+.qbo-lane strong { font-size: 15px; }
+.qbo-lane small { font-size: 12px; color: var(--color-text-muted); }
+.qbo-lane[data-tone="exception"] strong { color: var(--color-danger); }
+.qbo-lane[data-tone="posted"] strong { color: var(--color-success); }
+
+.qbo-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.qbo-search { flex: 1 1 240px; max-width: 420px; }
+.qbo-search input { width: 100%; padding: 5px 10px; font: inherit; font-weight: 400; color: var(--color-text); background: var(--color-input); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.qbo-actions .button { padding-block: 5px; min-height: 0; }
+.qbo-export { display: inline-flex; gap: 6px; align-items: center; }
+.qbo-export select { padding: 5px 6px; font: inherit; color: var(--color-text); background: var(--color-input); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-actions .button[disabled] { opacity: .5; cursor: not-allowed; }
+
+.qbo-notice:empty { display: none; }
+.qbo-notice { display: grid; gap: 6px; font-size: 13px; }
+.qbo-notice p { margin: 0; padding: 5px 10px; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-notice .qbo-notice-error, .qbo-job-issue { color: var(--color-danger); }
+.qbo-job { display: grid; gap: 6px; padding: 10px 12px; background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-job-line { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.qbo-job-line span { color: var(--color-text-muted); }
+.qbo-job .qbo-job-issue { padding: 0; background: none; border: 0; }
+.qbo-progress { height: 6px; overflow: hidden; background: var(--color-border); border-radius: 3px; }
+.qbo-progress span { display: block; height: 100%; background: var(--color-interactive); transition: width .4s ease; }
+.qbo-job[data-state="finished"] .qbo-progress span { background: var(--color-success); }
+.qbo-job[data-state="finished_with_errors"] .qbo-progress span { background: var(--color-danger); }
+
+.qbo-table-wrap { overflow: auto; overscroll-behavior: contain; min-height: 240px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; }
+.qbo-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.qbo-table th { position: sticky; top: 0; z-index: 1; padding: 6px 10px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-surface-raised); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+.qbo-table td { padding: 0 10px; height: 26px; line-height: 1.2; vertical-align: middle; border-bottom: 1px solid var(--color-border); }
+.qbo-row:hover td { background: var(--color-surface-raised); }
+.qbo-check { width: 28px; }
+.qbo-table input[type="checkbox"] { margin: 0; }
+.qbo-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qbo-customer { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qbo-customer small { color: var(--color-text-muted); }
+.qbo-expand { padding: 0; font: inherit; font-weight: 700; color: var(--color-interactive); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.qbo-link { margin-left: 6px; font-size: 12px; color: var(--color-interactive); }
+
+.qbo-pill { display: inline-block; padding: 0 8px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid currentColor; border-radius: 999px; }
+.qbo-pill[data-tone="ready"] { color: var(--color-interactive-hover); }
+.qbo-pill[data-tone="attention"] { color: #8a6212; }
+.qbo-pill[data-tone="exception"] { color: var(--color-danger); }
+.qbo-pill[data-tone="posted"] { color: var(--color-success); }
+.qbo-pill[data-tone="new"] { color: var(--color-text-muted); }
+
+.qbo-detail td { height: auto; padding: 10px 14px 12px; line-height: 1.4; background: var(--color-surface-raised); }
+.qbo-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 18px; margin: 0 0 10px; }
+.qbo-facts dt { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--color-text-muted); }
+.qbo-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.qbo-fact-wide { grid-column: 1 / -1; }
+.qbo-holds { margin: 0 0 10px; padding-left: 18px; color: #8a6212; }
+.qbo-error { margin: 0 0 10px; color: var(--color-danger); }
+.qbo-error p { margin: 2px 0 8px; color: var(--color-text); }
+.qbo-fix { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.qbo-fix input, .qbo-fix select { min-width: 260px; padding: 5px 8px; font: inherit; color: var(--color-text); background: var(--color-input); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-fix .button { padding-block: 5px; min-height: 0; }
+
+.qbo-table-foot { display: flex; gap: 10px; align-items: center; margin: 0; padding: 10px 12px; font-size: 12px; color: var(--color-text-muted); }
+.qbo-empty { margin: 0; padding: 28px 12px; text-align: center; color: var(--color-text-muted); }
+
+/* Tighter header card on this tab so the invoice table gets the screen. */
+.qbo-scheduled-card { padding-block: 10px; }
+.qbo-scheduled-card .scheduled-heading { margin-bottom: 6px; }
+.qbo-scheduled-card .scheduled-task-meta { margin-block: 6px; gap: 6px; }
+.qbo-scheduled-card .scheduled-task-meta > div { padding: 4px 10px; }
+.qbo-expand, .qbo-link { line-height: 1.2; }
+.qbo-pill { font-size: 11.5px; line-height: 1.5; }
+
+.qbo-sort { display: inline-flex; gap: 4px; align-items: center; padding: 0; font: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.qbo-sort:hover { color: var(--color-text); }
+.qbo-sort span { font-size: 9px; }
+.qbo-num .qbo-sort { flex-direction: row-reverse; }
+
+.qbo-switch span { margin-left: .4rem; padding: 0 .45rem; border-radius: 999px; background: #e5e7eb; color: #374151; font-weight: 600; }
+.qbo-switch[data-on="true"] span { background: #166534; color: #fff; }
+
+
+.qbo-lane-compare { margin-left: auto; }
+.qbo-customer small { display: block; }
+

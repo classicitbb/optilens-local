@@ -40,8 +40,14 @@ test('a malformed cutover date fails closed', () => {
   });
 });
 
-test('automatic apply needs both the apply gate and the auto-apply setting', () => {
-  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: undefined, OPTILENS_QBO_PRODUCTION_AUTO_APPLY: 'true' }, () => assert.equal(productionAutoApplyEnabled(), false));
-  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: 'true', OPTILENS_QBO_PRODUCTION_AUTO_APPLY: undefined }, () => assert.equal(productionAutoApplyEnabled(), false));
-  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: 'true', OPTILENS_QBO_PRODUCTION_AUTO_APPLY: 'true' }, () => assert.equal(productionAutoApplyEnabled(), true));
+// Auto-post is a saved on/off setting (data/qbo-posting.json, switched from the Quickbooks Sync screen). The
+// server-wide apply gate still has to be on, and the old OPTILENS_QBO_PRODUCTION_AUTO_APPLY variable is ignored.
+test('automatic apply needs both the apply gate and the saved auto-post setting', () => {
+  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: undefined }, () => assert.equal(productionAutoApplyEnabled({ autoPost: true }), false));
+  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: 'true' }, () => assert.equal(productionAutoApplyEnabled({ autoPost: false }), false));
+  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: 'true' }, () => assert.equal(productionAutoApplyEnabled({ autoPost: true }), true));
+});
+
+test('the retired auto-apply environment variable no longer turns posting on', () => {
+  withEnv({ OPTILENS_QBO_PRODUCTION_APPLY_ENABLED: 'true', OPTILENS_QBO_PRODUCTION_AUTO_APPLY: 'true' }, () => assert.equal(productionAutoApplyEnabled({ autoPost: false }), false));
 });

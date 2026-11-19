@@ -1655,3 +1655,12 @@ label {
   .top-right { gap: 2px; }
   .top-right .user-chip { padding-inline: 4px; }
 }
+
+/* Header search: grouped live results and the page-filter state */
+.search-group-title { padding: 8px 16px 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.search-page-filter { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.search-more { padding: 2px 16px 8px; font-size: 12px; color: var(--muted); }
+.search-result-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-bar .sb-clear { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 16px; line-height: 1; color: var(--muted); }
+.search-bar .sb-clear:hover, .search-bar .sb-clear:focus-visible { background: var(--bg-elevated); color: var(--ink); }
+
