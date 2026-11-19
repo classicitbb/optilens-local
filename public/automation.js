@@ -216,8 +216,12 @@
 
   const qboSyncButton = $("#runQboInvoiceSync");
   const qboDryRunButton = $("#runQboInvoiceSyncDryRun");
+  function setQboSyncDetail(message) {
+    $("#qboInvoiceSyncDetail").textContent = message;
+    document.dispatchEvent(new CustomEvent("qbo-sync:detail"));
+  }
   function renderQboInvoiceSyncStatus(sync) {
-    $("#qboInvoiceSyncDetail").textContent = sync.detail;
+    setQboSyncDetail(sync.detail);
     $("#qboInvoiceSyncMode").textContent = sync.environment ? `${sync.environment}${sync.realmId ? ` · realm ${sync.realmId}` : ""}` : "Not configured";
     const connection = $("#qboInvoiceSyncConnection");
     if (connection) {
@@ -242,18 +246,18 @@
   const refreshQboInvoiceWorkspace = () => document.dispatchEvent(new CustomEvent("qbo-invoices:refresh"));
   async function loadQboInvoiceSyncStatus() {
     try { renderQboInvoiceSyncStatus(await (await request("/api/automation/qbo-invoices")).json()); }
-    catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "Unable to load QuickBooks sync status."; qboSyncButton.disabled = true; qboDryRunButton.disabled = true; }
+    catch (error) { setQboSyncDetail(error.message || "Unable to load QuickBooks sync status."); qboSyncButton.disabled = true; qboDryRunButton.disabled = true; }
   }
   async function runQboInvoiceSync(dryRun) {
     qboSyncButton.disabled = true; qboDryRunButton.disabled = true;
-    $("#qboInvoiceSyncDetail").textContent = dryRun ? "Previewing eligible Innovations invoices…" : "Synchronizing invoices to QuickBooks…";
+    setQboSyncDetail(dryRun ? "Previewing eligible Innovations invoices…" : "Synchronizing invoices to QuickBooks…");
     try {
       const result = await (await postJson("/api/automation/qbo-invoices/run", { dryRun })).json();
       const c = result.counts || {};
-      $("#qboInvoiceSyncDetail").textContent = `${dryRun ? "Preview" : "Sync"} complete: ${c.created || 0} created, ${c.updated || 0} updated, ${c.skipped || 0} skipped, ${c.exception || 0} exceptions.`;
+      setQboSyncDetail(`${dryRun ? "Preview" : "Sync"} complete: ${c.created || 0} created, ${c.updated || 0} updated, ${c.skipped || 0} skipped, ${c.exception || 0} exceptions.`);
       await loadQboInvoiceSyncStatus();
       refreshQboInvoiceWorkspace();
-    } catch (error) { $("#qboInvoiceSyncDetail").textContent = error.message || "QuickBooks invoice sync failed."; qboSyncButton.disabled = false; qboDryRunButton.disabled = false; }
+    } catch (error) { setQboSyncDetail(error.message || "QuickBooks invoice sync failed."); qboSyncButton.disabled = false; qboDryRunButton.disabled = false; }
   }
 
   const tabs = document.querySelectorAll(".workflow-tabs [data-tab]");

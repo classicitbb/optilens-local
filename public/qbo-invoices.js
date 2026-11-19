@@ -5,6 +5,10 @@
   const root = document.getElementById("qboInvoiceWorkspace");
   if (!root) return;
 
+  const card = root.closest(".qbo-scheduled-card") || root;
+  const headerExport = card.querySelector("#qboHeaderExport");
+  const duplicateHeaderMessage = (message) => Boolean(message && message.trim() === document.getElementById("qboInvoiceSyncDetail")?.textContent.trim());
+
   const API = "/api/automation/qbo-invoices";
   const PAGE_SIZE = 50;
   const BATCH_LIMIT = 25;
@@ -119,7 +123,7 @@
   function renderReconNotice() {
     const { data, loading, error } = state.recon;
     const lines = [];
-    if (error) lines.push(`<p class="qbo-notice-error">${escapeHtml(error)}</p>`);
+    if (error && !duplicateHeaderMessage(error)) lines.push(`<p class="qbo-notice-error">${escapeHtml(error)}</p>`);
     if (loading) lines.push("<p>Reading QuickBooks.</p>");
     if (data) {
       const summary = data.summary;
@@ -155,7 +159,7 @@
 
   function renderReconTable() {
     const { data, loading, error } = state.recon;
-    if (!data) { slot("table").innerHTML = `<p class="qbo-empty">${loading ? "Comparing with QuickBooks." : escapeHtml(error || "Nothing to show yet.")}</p>`; return; }
+    if (!data) { slot("table").innerHTML = `<p class="qbo-empty">${loading ? "Comparing with QuickBooks." : escapeHtml(error ? "Comparison unavailable." : "Nothing to show yet.")}</p>`; return; }
     const list = visibleRecon();
     const shown = list.slice(0, state.recon.visible);
     slot("table").innerHTML = list.length ? `
@@ -170,10 +174,13 @@
   function renderLanes() {
     if (state.view === "reconcile") { renderReconLanes(); return; }
     renderInvoiceLanes();
-    slot("lanes").insertAdjacentHTML("beforeend", `<button type="button" class="qbo-lane qbo-lane-compare" data-action="view" data-view="reconcile" title="Every invoice in QuickBooks against Innovations, including ones not entered through this tool"><span class="qbo-lane-label">Compare with QuickBooks</span></button>`);
   }
 
   function renderActions() {
+    if (headerExport) headerExport.innerHTML = `
+      <select data-role="export-scope" aria-label="Which invoices to include in the CSV">${EXPORT_SCOPES.map(([value, label]) => `<option value="${value}" ${value === state.exportScope ? "selected" : ""}>${label}</option>`).join("")}</select>
+      <a class="button secondary" href="${API}/export.csv?scope=${encodeURIComponent(state.exportScope)}" download>CSV for QuickBooks</a>`;
+
     if (state.view === "reconcile") {
       slot("actions").innerHTML = `<button type="button" class="button secondary" data-action="recon-refresh" ${state.recon.loading ? "disabled" : ""}>${state.recon.loading ? "Reading QuickBooks." : "Refresh from QuickBooks"}</button>`;
       return;
@@ -222,10 +229,7 @@
       ${readyOnPage && canPost() ? `<button type="button" class="button secondary" data-action="select-batch">Select next ${Math.min(BATCH_LIMIT, readyOnPage)}</button>` : ""}
       ${selected ? `<button type="button" class="button secondary" data-action="clear-selection">Clear (${selected})</button>` : ""}
       <button type="button" class="button primary" data-action="post-selected" ${selected && canPost() ? "" : "disabled"}>${confirming ? `Confirm: post ${selected} to QuickBooks` : `Post ${selected || ""} selected`.replace("  ", " ")}</button>
-      <span class="qbo-export">
-        <select data-role="export-scope" aria-label="Which invoices to include in the CSV">${EXPORT_SCOPES.map(([value, label]) => `<option value="${value}" ${value === state.exportScope ? "selected" : ""}>${label}</option>`).join("")}</select>
-        <a class="button secondary" href="${API}/export.csv?scope=${encodeURIComponent(state.exportScope)}" download>CSV for QuickBooks</a>
-      </span>`;
+      `;
   }
 
   function renderNotice() {
@@ -233,7 +237,7 @@
     const review = state.review;
     const lines = [];
     if (state.info) lines.push(`<p>${escapeHtml(state.info)}</p>`);
-    if (state.error) lines.push(`<p class="qbo-notice-error">${escapeHtml(state.error)}</p>`);
+    if (state.error && !duplicateHeaderMessage(state.error)) lines.push(`<p class="qbo-notice-error">${escapeHtml(state.error)}</p>`);
     if (review?.canPost && review.autoPost) lines.push(`<p>Auto-post is on: Ready invoices post on each sync, up to ${review.autoPostPerRun || 25} at a time. Exceptions, credit notes, VAT and large invoices always wait for you.</p>`);
     if (review && !review.canPost) lines.push("<p>Posting to QuickBooks is switched off on this server. You can still review every invoice and download the CSV.</p>");
     if (state.job) {
@@ -333,7 +337,7 @@
 
   function renderTable() {
     if (state.view === "reconcile") { renderReconTable(); return; }
-    if (!state.review) { slot("table").textContent = "Loading invoices…"; return; }
+    if (!state.review) { slot("table").textContent = state.error ? "Invoices unavailable." : "Loading invoices…"; return; }
     const list = visibleRows();
     const shown = list.slice(0, state.visible);
     slot("table").innerHTML = list.length ? `
@@ -491,11 +495,11 @@
     <div class="qbo-table-wrap" data-slot="table"></div>
     <datalist id="qboCustomerOptions" data-slot="customers"></datalist>`;
 
-  root.addEventListener("click", (event) => {
+  card.addEventListener("click", (event) => {
     const el = event.target.closest("[data-action]");
     if (el && el.tagName !== "INPUT" && !el.disabled && actions[el.dataset.action]) actions[el.dataset.action](el);
   });
-  root.addEventListener("change", (event) => {
+  card.addEventListener("change", (event) => {
     if (event.target.matches('input[data-action="select"]')) actions.select(event.target);
     if (event.target.matches('[data-role="export-scope"]')) { state.exportScope = event.target.value; renderActions(); }
   });
@@ -503,6 +507,7 @@
     if (event.target.matches('[data-role="search"]')) { state.query = event.target.value; state.visible = PAGE_SIZE; renderActions(); renderTable(); }
   });
   document.addEventListener("qbo-invoices:refresh", refresh);
+  document.addEventListener("qbo-sync:detail", renderNotice);
   window.addEventListener("resize", fitTable);
   window.addEventListener("focus", () => { if (!jobRunning()) void refresh(); });
 

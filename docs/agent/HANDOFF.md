@@ -6,6 +6,16 @@
 
 
 
+
+## Automation header refinements (2026-11-19)
+
+Status: Complete — no active handoff.
+
+- Updated the running dev preview: status cells join the heading edge-to-edge; Compare sits beside Preview new invoices; the CSV scope/download sits with Run sync; the QB icon is removed. Exact errors already displayed in the sync detail are omitted from the review notice, with status events keeping this synchronized. Failed initial review loads now say Invoices unavailable instead of staying at Loading invoices.
+- Affected files: `public/automation.html`, `public/automation.js`, `public/qbo-invoices.js`, shared system CSS and continuity records.
+- Validation: 19 focused design/review/reconciliation tests, JS syntax and whitespace checks passed. Browser verification confirmed the compact layout and that changing the moved CSV selector changes its download scope correctly. No download, comparison, invoice sync or posting action was executed.
+- The preview still reports an existing source connection failure; this layout change does not establish working source connectivity. The full-suite stall recorded earlier remains unresolved. Production deployment is still awaiting explicit authorization for the earlier implementation.
+
 ## Migrated Automation dev preview (2026-11-19)
 
 Status: Preview running — first-admin setup awaits the operator.

@@ -809,3 +809,20 @@ body.automation-page { background: var(--erp-canvas); }
 .automation-page .scheduled-task-main { flex: 1 1 280px; }
 .automation-page .scheduled-task-main p { overflow-wrap: anywhere; }
 .automation-page .qbo-fix :is(input, select) { min-width: 0; max-width: 100%; }
+
+/* Sync header and its status strip form one continuous panel. */
+.automation-page .qbo-scheduled-card .scheduled-heading { margin-bottom: 0; }
+.automation-page .qbo-scheduled-card .scheduled-task-meta {
+  margin: -12px -12px 0; border: 0; border-bottom: 1px solid var(--erp-edge);
+  gap: 0; grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.automation-page .qbo-scheduled-card .scheduled-task-meta > div { padding: 5px 12px; }
+.automation-page .qbo-scheduled-card .scheduled-task-meta dd { font-size: 11px; }
+.automation-page .scheduled-actions { align-items: center; justify-content: flex-end; }
+.automation-page #qboHeaderExport select { max-width: 185px; font-size: 11px; }
+@media (max-width: 900px) {
+  .automation-page .qbo-scheduled-card .scheduled-task-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .automation-page .qbo-scheduled-card .scheduled-task-meta > div { border-bottom: 1px solid var(--erp-edge); }
+  .automation-page .qbo-scheduled-card .scheduled-task-meta > div:last-child { grid-column: 1 / -1; }
+  .automation-page .scheduled-actions { justify-content: flex-start; }
+}

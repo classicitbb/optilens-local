@@ -108,3 +108,5 @@ Migration 059 adds the QBO module's local customer registry and company-scoped c
 - Automation shares the Delivery & Export `--erp-*` tokens in `public/styles/system.css`: neutral canvas, square panels, gray header bands and compact controls. Automation-only rules cover QuickBooks review/reconciliation and File Generation without changing their actions or other modules.
 
 - Dev preview scratch database selection is applied after vault merging. `OPTILENS_DEV_DB_SERVER` is a process-scoped optional listener override requiring preview mode and `OPTILENS_DEV_DB_NAME`. Migration execution retargets legacy app-database `USE` statements to the connected database; fresh initialization tolerates absent legacy patient-name columns and unconfigured mailbox seeds.
+
+- Automation QuickBooks header owns Compare and the CSV scope/download controls; review action delegation is scoped to the enclosing sync card so header controls retain their behavior. Sync-detail events refresh exact duplicate-error suppression while distinct review failures remain visible.
