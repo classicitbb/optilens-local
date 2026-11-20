@@ -2,14 +2,15 @@
 
 ## Payments review release (2026-11-19)
 
-Status: Validated locally; authorized master publication and guarded deployment in progress.
+Status: Complete — no active handoff.
 
 - Current state: read-only Payments workspace, reconciliation model, source/QBO reads, authenticated GET route and QBO edition ownership are implemented. No accounting/source write endpoint, migration or schedule is introduced. CV Web remains unchanged in this milestone.
 - Affected files: `lib/qbo-payment-*`, `lib/qbo-invoice-sync.js`, `lib/edition.js`, `server.js`, Automation HTML/JS, Payments JS/CSS, payment tests and continuity records. See `docs/PAYMENTS_SYNC_BUILD.md` for the remaining implementation sequence.
 - Tests: 31 initial focused tests and all 95 QuickBooks/edition tests passed. Synthetic desktop/mobile browser checks passed with zero write requests and zero page errors. Syntax and whitespace checks passed. A harmless development sandbox company read succeeded.
-- Exact limitation: the development source connection timed out. Both ordinary and force-exit full-suite attempts stopped progressing after 132 passing tests and were interrupted; full-suite success is not claimed.
-- Approval: user explicitly authorized push to master, deployment and health restoration. Financial posting/source writes remain outside this release.
-- Executable next action: run the guarded `scripts/apply-local-update.ps1 -PullGit -GitRemote origin -GitBranch master` on the verified service checkout, then `node scripts/monitor-harness.js verify`; compare public/loopback runtime fingerprints and startup timestamps.
+- Deployed `fba3429` to master through the existing loopback update control and guarded updater. Browser build, syntax/database smoke checks and restart succeeded; Host Monitor verification reported all systems online. Public and loopback application fingerprints match after restart. The payment script is served over trusted HTTPS, and an unauthenticated review request returns 401.
+- Harmless production verification: source receipt/allocation schema read succeeded. A five-receipt comparison completed against production QuickBooks: one matched candidate and four exceptions; posting remained disabled. Only aggregate counts were retained. No source or accounting transaction was written.
+- Exact validation limitations: both development full-suite attempts stopped progressing after 132 passing tests and were interrupted. The host advisory suite reported an assertion failure in `test/innovations-sync-worker.test.js:65` (fixture row returned `ok:false` instead of `ok:true`); this is outside the Payments files. Full-suite success is not claimed. Live authenticated browser verification timed out; synthetic desktop/mobile checks and the live host comparison passed.
+- No deployment or health-restoration step remains. Future payment-write and CV Web milestones remain in `docs/PAYMENTS_SYNC_BUILD.md` and require their own accounting decisions and controlled-write authorization.
 
 - Repository: `classicitbb/optilens-local`
 - Status: Complete — no active handoff
@@ -21,16 +22,14 @@ Status: Validated locally; authorized master publication and guarded deployment 
 
 ## Automation production deployment (2026-11-19)
 
-Status: Master published; production restart blocked by host elevation.
+Status: Complete — no active handoff. Earlier restart blocker superseded by the successful Payments release restart.
 
 - User explicitly authorized publishing to master and production. PR #134 merged as `48f2088`; the active production checkout is clean on that revision. The earlier pending-authorization notes are superseded.
 - Implemented Delivery & Export operational tokens, attached status cells, header Compare/CSV controls, duplicate-error suppression, equal-height controls, softened corners and a borderless viewport workspace. Also included scratch-preview configuration/migration isolation and fresh-database migration fixes.
 - Affected files: Automation HTML/JS, QuickBooks review JS, shared system CSS, config/migration runner, migrations 027/051, focused preview tests and continuity documentation.
 - Local validation: 29 focused tests, JavaScript syntax and whitespace checks passed. Preview scratch initialization applied all 57 migrations with zero on repeat. Earlier desktop header and CSV-scope behavior was browser-verified; final viewport visual verification was blocked by browser timeouts. The user deferred the preview connection issue.
 - Production validation: guarded update built browser assets, passed smoke checks and its full application suite (788 passed, 2 skipped, 0 failed). Migration runner applied zero pending migrations. Public HTTPS serves the new full-window, equal-height and borderless CSS. Host Monitor verification passed; service and both databases remain online.
-- Exact blocker: the guarded restart failed with `Access is denied` when the unelevated remote console tried stopping the elevated Node service. One documented loopback repair request was accepted but produced no repair log or completed restart. The original runtime fingerprint/start timestamp remains active. No further restart/reset attempt was made.
-- Required action: an authorized operator must use the existing Host Monitor's elevated Restart service action and approve its Windows elevation prompt. No credential or permission change is required.
-- Executable next action after that restart: `node scripts/monitor-harness.js verify`; compare public and host-local liveness fingerprints/start timestamps and verify the new Automation UI. Do not report the backend runtime updated until this succeeds.
+- The earlier unelevated restart failed with `Access is denied`. That blocker is superseded: the Payments release used the existing loopback update control, the guarded restart completed, and public/loopback liveness and Host Monitor verification passed. No operator elevation step remains for this deployment.
 
 ## Windows workstation cutover
 
