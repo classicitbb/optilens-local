@@ -1,5 +1,16 @@
 # Work Handoff
 
+## Payments review release (2026-11-19)
+
+Status: Validated locally; authorized master publication and guarded deployment in progress.
+
+- Current state: read-only Payments workspace, reconciliation model, source/QBO reads, authenticated GET route and QBO edition ownership are implemented. No accounting/source write endpoint, migration or schedule is introduced. CV Web remains unchanged in this milestone.
+- Affected files: `lib/qbo-payment-*`, `lib/qbo-invoice-sync.js`, `lib/edition.js`, `server.js`, Automation HTML/JS, Payments JS/CSS, payment tests and continuity records. See `docs/PAYMENTS_SYNC_BUILD.md` for the remaining implementation sequence.
+- Tests: 31 initial focused tests and all 95 QuickBooks/edition tests passed. Synthetic desktop/mobile browser checks passed with zero write requests and zero page errors. Syntax and whitespace checks passed. A harmless development sandbox company read succeeded.
+- Exact limitation: the development source connection timed out. Both ordinary and force-exit full-suite attempts stopped progressing after 132 passing tests and were interrupted; full-suite success is not claimed.
+- Approval: user explicitly authorized push to master, deployment and health restoration. Financial posting/source writes remain outside this release.
+- Executable next action: run the guarded `scripts/apply-local-update.ps1 -PullGit -GitRemote origin -GitBranch master` on the verified service checkout, then `node scripts/monitor-harness.js verify`; compare public/loopback runtime fingerprints and startup timestamps.
+
 - Repository: `classicitbb/optilens-local`
 - Status: Complete — no active handoff
 - Last synchronized: 2026-11-18

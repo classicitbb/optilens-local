@@ -1,0 +1,16 @@
+#qboPaymentWorkspace { display:grid; gap:12px; min-width:0; }
+.payment-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:10px; }
+.payment-toolbar label { display:grid; gap:4px; font-size:13px; }
+.payment-toolbar input { max-width:100%; font:inherit; }
+.payment-table-wrap { max-height:60vh; min-height:180px; }
+.payment-table-wrap table { min-width:760px; }
+.payment-table-wrap caption { padding:10px; text-align:left; color:var(--color-text-muted); }
+.payment-table-wrap td { height:auto; padding-block:10px; vertical-align:top; }
+.payment-table-wrap tbody th { text-transform:none; letter-spacing:normal; top:auto; inset-inline-start:0; z-index:0; }
+.payment-table-wrap summary { cursor:pointer; min-width:160px; padding-block:4px; }
+.payment-evidence { max-width:420px; line-height:1.5; }
+.payment-evidence pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+.payment-notice { margin:0; color:var(--color-text-muted); font-size:13px; line-height:1.5; }
+.workflow-tabs [role="tab"][aria-selected="true"] { border-bottom:3px solid currentColor !important; }
+.workflow-tabs button:focus-visible, #qboPaymentWorkspace :focus-visible { outline:2px solid var(--color-interactive); outline-offset:3px; }
+@media (max-width:700px) { .automation-page #payments { padding:12px; } .payment-toolbar { align-items:stretch; } }

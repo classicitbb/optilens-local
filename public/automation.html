@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles/pages/automation.css?v=automation-tabs-20261118">
   <link rel="stylesheet" href="/styles/pages/qbo-invoices.css?v=review-20261119k">
   <link rel="stylesheet" href="/styles/system.css">
+  <link rel="stylesheet" href="/styles/pages/qbo-payments.css?v=payments-20261119">
 </head>
 <body class="module-body automation-page">
 
@@ -27,6 +28,7 @@
       <div class="automation-tab-bar">
         <nav class="workflow-tabs" aria-label="Automation tabs">
           <button class="active" type="button" data-tab="scheduled" aria-controls="scheduled" aria-current="true">Quickbooks Sync</button>
+          <button type="button" data-tab="payments" aria-controls="payments">Payments</button>
           <button type="button" data-tab="file-generation" aria-controls="file-generation">File Generation</button>
           <button type="button" data-tab="llm" aria-controls="llm">Local LLM</button>
           <button type="button" data-tab="audit" aria-controls="audit">Audit log</button>
@@ -45,7 +47,26 @@
         </div>
       </div>
 
-      <section class="workflow-panel" id="file-generation">
+      <section class="workflow-panel" id="payments" hidden>
+        <article class="scheduled-task-card" aria-labelledby="qboPaymentTitle">
+          <div class="scheduled-task-main"><div><h3 id="qboPaymentTitle">Innovations → QuickBooks payments</h3>
+            <p>Review receipts, invoice allocations and existing payments. Posting is not available yet.</p></div></div>
+          <div id="qboPaymentWorkspace">
+            <form class="payment-toolbar">
+              <label>Receipt date from <input type="date" name="from" required></label>
+              <label>Through <input type="date" name="to" required></label>
+              <label>Newest receipts <input type="number" name="limit" min="1" max="100" value="50" required></label>
+              <button type="submit" class="button" data-payment-compare>Compare with QuickBooks</button>
+            </form>
+            <div class="qbo-lanes" data-payment-lanes aria-label="Payment filters"></div>
+            <label class="qbo-search">Find a receipt <input type="search" data-payment-search data-page-filter placeholder="Receipt, customer or invoice" autocomplete="off"></label>
+            <p class="payment-notice" data-payment-notice role="status" aria-live="polite">Read-only. No receipts or accounting entries will be changed.</p>
+            <div class="qbo-table-wrap payment-table-wrap" data-payment-table role="region" aria-label="Payment comparison" tabindex="0"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="workflow-panel" id="file-generation" hidden>
         <div class="rx-heading">
           <div>
             <p class="eyebrow">Test-only RX workspace</p>
@@ -134,7 +155,7 @@
         </section>
       </section>
 
-      <section class="workflow-panel" id="llm">
+      <section class="workflow-panel" id="llm" hidden>
         <div class="placeholder-pane">
           Local LLM integration will surface here. Assistants access data through audited platform APIs only — no direct write path to business databases. Requires a locally running model endpoint (e.g. Ollama).
         </div>
@@ -167,7 +188,7 @@
           </article>
       </section>
 
-      <section class="workflow-panel" id="audit">
+      <section class="workflow-panel" id="audit" hidden>
         <div class="placeholder-pane">Full audit trail of all automation actions, approvals, and rejections will stream here.</div>
       </section>
 
@@ -178,6 +199,7 @@
   <script src="/shared.js"></script>
   <script src="/pwa.js"></script>
   <script src="/qbo-invoices.js?v=review-20261119k"></script>
-  <script src="/automation.js?v=automation-tabs-20261118"></script>
+  <script src="/qbo-payments.js?v=payments-20261119"></script>
+  <script src="/automation.js?v=payments-20261119"></script>
 </body>
 </html>

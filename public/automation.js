@@ -261,13 +261,33 @@
   }
 
   const tabs = document.querySelectorAll(".workflow-tabs [data-tab]");
+  document.querySelector('.workflow-tabs').setAttribute('role', 'tablist');
+  tabs.forEach((button) => {
+    button.id = `automation-tab-${button.dataset.tab}`;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(button.classList.contains('active')));
+    button.tabIndex = button.classList.contains('active') ? 0 : -1;
+    const panel = document.getElementById(button.dataset.tab);
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', button.id);
+    button.addEventListener('keydown', (event) => {
+      const index = [...tabs].indexOf(button);
+      const target = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index - 1 + tabs.length) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
+      if (target !== undefined) { event.preventDefault(); tabs[target].focus(); }
+    });
+  });
   tabs.forEach((button) => button.addEventListener("click", () => {
     tabs.forEach((item) => {
       item.classList.toggle("active", item === button);
+      item.setAttribute('aria-selected', String(item === button));
+      item.tabIndex = item === button ? 0 : -1;
       if (item === button) item.setAttribute("aria-current", "true");
       else item.removeAttribute("aria-current");
     });
-    document.querySelectorAll(".workflow-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+    document.querySelectorAll(".workflow-panel").forEach((panel) => {
+      panel.classList.toggle("active", panel.id === button.dataset.tab);
+      panel.hidden = panel.id !== button.dataset.tab;
+    });
   }));
   const help = $(".automation-help");
   help.addEventListener("keydown", (event) => {

@@ -31,6 +31,10 @@ This public file records boundaries, not private topology.
 
 - Approved clearance activation is live. Public RPC wrappers are invokers; private implementations check the capability token, scoped key, or authenticated admin role. Two scoped website migrations are recorded. The publisher's protected configuration is restricted to administrators/SYSTEM; its daily task uses the unattended service identity and was verified with positive receiver acknowledgement. The app/source inventory read remains SELECT-only.
 
-## Customer sync
+## Payment review
+
+`GET /api/automation/qbo-payments/review` uses the existing Innovations read adapter, app-owned confirmed customer mappings and protected QuickBooks company connection. It requires `automation.read` and belongs to the QBO edition. Receipt/allocation source tables are `FinARPayments` and `FinARPaymentLinks`; destination evidence uses QuickBooks Invoice, Payment and Deposit reads. No new credential, transaction write, schedule or CV Web connector is enabled.
+
+## Customer creation sync
 
 Customer creation uses the existing InnovaAPI client and its documented customer POST operation. Source reconciliation uses the read-only customer master. `OPTILENS_CUSTOMER_SYNC_ENABLED` gates the apply worker. `OPTILENS_INNOVATIONS_CUSTOMER_CREATE_ENABLED` gates Innovations customer writes. QuickBooks production uses the existing apply gate and protected company configuration. Follow the QBO invoice sync runbook for activation and review.

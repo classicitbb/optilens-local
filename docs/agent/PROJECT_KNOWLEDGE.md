@@ -61,6 +61,8 @@
 
 ## Knowledge maintenance
 
+- Payments sync milestone 1 is a read-only Automation workspace. Its pure reconciliation model, source/QBO orchestration and authenticated routes are separate `lib/qbo-payment-*` modules. `docs/PAYMENTS_SYNC_BUILD.md` records repository ownership, limits, validation and remaining milestones. Ready means ready for review; no payment posting, source writeback or payment schedule exists in this milestone.
+
 - Automation opens on Quickbooks Sync. The Automation capabilities tab displays the planned cards, and the help control at the end of the tab row displays the page description. The tab strip scrolls on narrow screens while help stays visible.
 
 - Status Update uses `public/job-floor-sound.js` for gesture-unlocked synthesized success/error cues and a safe Enable sound check; sound availability never blocks scans. `public/job-floor.js` suppresses only identical pending tray/status/mode requests, reports verified source `alreadyApplied` no-ops as Duplicate with the error cue, and accepts a live success only with `verified: true`. The fixed result area retains visible labels/colors when device audio is muted or blocked. `test/job-floor-ui.test.js` covers scan outcomes, pending duplicates, ordered distinct trays, retries, malformed responses and sound activation/patterns. The page keeps its breadcrumb visible below the shared 900px cutoff and wraps the brand at narrow widths.
