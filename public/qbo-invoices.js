@@ -509,7 +509,7 @@
           <label>From <input type="date" name="fromDate"></label>
           <label>To <input type="date" name="toDate"></label>
         </div>
-        <button type="submit" class="qbo-lane">Apply dates</button>
+        <button type="submit" class="qbo-lane" aria-label="Apply dates">Apply</button>
         <button type="reset" class="qbo-lane" aria-label="Clear dates">Clear</button>
       </form>
     </div>
