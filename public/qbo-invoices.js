@@ -7,6 +7,7 @@
 
   const card = root.closest(".qbo-scheduled-card") || root;
   const headerExport = card.querySelector("#qboHeaderExport");
+  const headerAutoPost = card.querySelector("#qboHeaderAutoPost");
   const duplicateHeaderMessage = (message) => Boolean(message && message.trim() === document.getElementById("qboInvoiceSyncDetail")?.textContent.trim());
 
   const API = "/api/automation/qbo-invoices";
@@ -26,6 +27,8 @@
   const EXPORT_SCOPES = [["unposted", "Not yet in QuickBooks"], ["ready", "Ready to post"], ["posted", "Already posted"], ["all", "Everything"]];
 
   const state = { view: "invoices", recon: { data: null, loading: false, error: "", filter: "todo", sort: { key: "date", dir: "asc" }, visible: PAGE_SIZE }, review: null, lane: "ready", query: "", visible: PAGE_SIZE, selected: new Set(), expanded: new Set(), job: null, confirming: null, error: "", exportScope: "unposted", sort: { key: "date", dir: "asc" }, fix: null, fixError: "", info: "", working: null, started: false, autoOpened: new Set() };
+  const dates = { fromDate: "", toDate: "" };
+  let reviewRequest = 0;
   let polling = false;
   let confirmTimer = null;
 
@@ -176,10 +179,18 @@
     renderInvoiceLanes();
   }
 
+  function dateQuery(initial = {}) {
+    const params = new URLSearchParams(initial);
+    for (const [key, value] of Object.entries(dates)) if (value) params.set(key, value);
+    return params.toString();
+  }
+
   function renderActions() {
+    if (headerAutoPost) headerAutoPost.innerHTML = autoSwitch();
+    slot("date-range").hidden = state.view !== "invoices";
     if (headerExport) headerExport.innerHTML = `
       <select data-role="export-scope" aria-label="Which invoices to include in the CSV">${EXPORT_SCOPES.map(([value, label]) => `<option value="${value}" ${value === state.exportScope ? "selected" : ""}>${label}</option>`).join("")}</select>
-      <a class="button secondary" href="${API}/export.csv?scope=${encodeURIComponent(state.exportScope)}" download>CSV for QuickBooks</a>`;
+      <a class="button secondary" href="${API}/export.csv?${escapeHtml(dateQuery({ scope: state.exportScope }))}" download>CSV for QuickBooks</a>`;
 
     if (state.view === "reconcile") {
       slot("actions").innerHTML = `<button type="button" class="button secondary" data-action="recon-refresh" ${state.recon.loading ? "disabled" : ""}>${state.recon.loading ? "Reading QuickBooks." : "Refresh from QuickBooks"}</button>`;
@@ -225,8 +236,7 @@
     const confirming = state.confirming === "batch";
     const readyOnPage = visibleRows().filter((row) => row.lane === "ready").length;
     slot("actions").innerHTML = `
-      ${autoSwitch()}
-      ${readyOnPage && canPost() ? `<button type="button" class="button secondary" data-action="select-batch">Select next ${Math.min(BATCH_LIMIT, readyOnPage)}</button>` : ""}
+        ${readyOnPage && canPost() ? `<button type="button" class="button secondary" data-action="select-batch">Select next ${Math.min(BATCH_LIMIT, readyOnPage)}</button>` : ""}
       ${selected ? `<button type="button" class="button secondary" data-action="clear-selection">Clear (${selected})</button>` : ""}
       <button type="button" class="button primary" data-action="post-selected" ${selected && canPost() ? "" : "disabled"}>${confirming ? `Confirm: post ${selected} to QuickBooks` : `Post ${selected || ""} selected`.replace("  ", " ")}</button>
       `;
@@ -361,8 +371,11 @@
 
   // ---- behaviour ---------------------------------------------------------------------------
   async function refresh() {
+    const request = ++reviewRequest;
     try {
-      state.review = await api("/review");
+      const review = await api(`/review?${dateQuery()}`);
+      if (request !== reviewRequest) return;
+      state.review = review;
       state.error = "";
       const valid = new Set(rows().filter((row) => row.lane === "ready").map((row) => row.sourceInvoiceId));
       state.selected = new Set([...state.selected].filter((id) => valid.has(id)));
@@ -370,7 +383,10 @@
       rows().filter((row) => row.lane === "exception" && !state.autoOpened.has(row.sourceInvoiceId)).forEach((row) => { state.autoOpened.add(row.sourceInvoiceId); state.expanded.add(row.sourceInvoiceId); });
       if (state.review.job && !polling) { state.job = state.review.job; void followJob(state.job.id); }
       if (laneCount("exception") > 0 && state.review.canManage) void loadFixOptions();
-    } catch (error) { state.error = error.message || "Unable to load invoices."; }
+    } catch (error) {
+      if (request !== reviewRequest) return;
+      state.error = error.message || "Unable to load invoices.";
+    }
     render();
   }
 
@@ -486,6 +502,12 @@
   };
 
   root.innerHTML = `
+    <form class="qbo-date-range" data-slot="date-range" aria-label="Invoice date range">
+      <label>From <input type="date" name="fromDate"></label>
+      <label>To <input type="date" name="toDate"></label>
+      <button type="submit" class="button secondary">Apply dates</button>
+      <button type="reset" class="button secondary">Clear dates</button>
+    </form>
     <div class="qbo-lanes" data-slot="lanes"></div>
     <div class="qbo-toolbar">
       <label class="qbo-search"><input type="search" data-page-filter data-role="search" aria-label="Find an invoice" placeholder="Invoice, customer, patient or tracking number" autocomplete="off"></label>
@@ -494,6 +516,31 @@
     <div class="qbo-notice" data-slot="notice" role="status" aria-live="polite"></div>
     <div class="qbo-table-wrap" data-slot="table"></div>
     <datalist id="qboCustomerOptions" data-slot="customers"></datalist>`;
+
+  const dateForm = slot("date-range");
+  const fromDate = dateForm.elements.fromDate;
+  const toDate = dateForm.elements.toDate;
+  function applyDates(from, to) {
+    dates.fromDate = from;
+    dates.toDate = to;
+    state.selected.clear();
+    state.expanded.clear();
+    state.autoOpened.clear();
+    state.visible = PAGE_SIZE;
+    clearConfirm();
+    if (state.review) state.review = { ...state.review, rows: [], summary: { lanes: {} } };
+    render();
+    void refresh();
+  }
+  dateForm.addEventListener("input", () => { toDate.min = fromDate.value; });
+  dateForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    applyDates(fromDate.value, toDate.value);
+  });
+  dateForm.addEventListener("reset", () => {
+    toDate.min = "";
+    applyDates("", "");
+  });
 
   card.addEventListener("click", (event) => {
     const el = event.target.closest("[data-action]");
