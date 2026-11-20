@@ -502,13 +502,17 @@
   };
 
   root.innerHTML = `
-    <form class="qbo-date-range" data-slot="date-range" aria-label="Invoice date range">
-      <label>From <input type="date" name="fromDate"></label>
-      <label>To <input type="date" name="toDate"></label>
-      <button type="submit" class="button secondary">Apply dates</button>
-      <button type="reset" class="button secondary">Clear dates</button>
-    </form>
-    <div class="qbo-lanes" data-slot="lanes"></div>
+    <div class="qbo-filter-row">
+      <div class="qbo-lanes" data-slot="lanes"></div>
+      <form class="qbo-date-range" data-slot="date-range" aria-label="Invoice date range">
+        <div class="qbo-date-fields">
+          <label>From <input type="date" name="fromDate"></label>
+          <label>To <input type="date" name="toDate"></label>
+        </div>
+        <button type="submit" class="qbo-lane">Apply dates</button>
+        <button type="reset" class="qbo-lane" aria-label="Clear dates">Clear</button>
+      </form>
+    </div>
     <div class="qbo-toolbar">
       <label class="qbo-search"><input type="search" data-page-filter data-role="search" aria-label="Find an invoice" placeholder="Invoice, customer, patient or tracking number" autocomplete="off"></label>
       <div class="qbo-actions" data-slot="actions"></div>
