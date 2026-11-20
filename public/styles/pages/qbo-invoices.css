@@ -6,14 +6,14 @@
 .qbo-filter-row .qbo-lane { padding-inline: 6px; gap: 4px; }
 .qbo-date-range[hidden], #qboHeaderAutoPost:empty { display: none; }
 .qbo-date-fields {
-  display: flex; flex-wrap: wrap; align-items: center; column-gap: 5px; padding: 3px 7px;
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 5px; padding: 0 7px;
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 999px;
 }
 .qbo-date-fields:focus-within { border-color: var(--color-interactive); }
 .qbo-date-fields label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); }
 .qbo-date-fields label + label { border-inline-start: 1px solid var(--color-border); padding-inline-start: 5px; }
 .qbo-date-fields input {
-  width: 6.6rem; min-width: 0; padding: 2px 0; font: inherit; font-weight: 400;
+  width: 6.6rem; min-width: 0; min-height: 26px; padding: 2px 0; font: inherit; font-weight: 400;
   color: var(--color-text); background: transparent; border: 0;
 }
 
