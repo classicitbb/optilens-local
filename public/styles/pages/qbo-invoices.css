@@ -1,6 +1,12 @@
 /* QuickBooks invoice review workspace. Uses the shared design tokens; no decoration beyond colour for status. */
 .qbo-review { display: grid; gap: 8px; margin-top: 8px; }
 
+.qbo-date-range { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.qbo-date-range[hidden], #qboHeaderAutoPost:empty { display: none; }
+.qbo-date-range label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.qbo-date-range input { padding: 5px 6px; font: inherit; color: var(--color-text); background: var(--color-input); border: 1px solid var(--color-border); border-radius: 6px; }
+.qbo-date-range .button { padding-block: 5px; min-height: 0; }
+
 .qbo-lanes { display: flex; flex-wrap: wrap; gap: 6px; }
 .qbo-lane {
   display: inline-flex; gap: 6px; align-items: baseline; padding: 5px 10px; cursor: pointer;
