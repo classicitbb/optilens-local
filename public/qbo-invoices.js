@@ -160,6 +160,9 @@
       </tr>`;
   }
 
+  const sumMoney = (list, value) => list.reduce((cents, row) => cents + Math.round((value(row) ?? 0) * 100), 0) / 100;
+  const totalsLabel = (count) => `Total · ${count} ${count === 1 ? "invoice" : "invoices"}`;
+
   function renderReconTable() {
     const { data, loading, error } = state.recon;
     if (!data) { slot("table").innerHTML = `<p class="qbo-empty">${loading ? "Comparing with QuickBooks." : escapeHtml(error ? "Comparison unavailable." : "Nothing to show yet.")}</p>`; return; }
@@ -169,6 +172,13 @@
       <table class="qbo-table">
         <thead><tr>${RECON_COLUMNS.map(reconHeaderCell).join("")}</tr></thead>
         <tbody>${shown.map(reconRow).join("")}</tbody>
+        <tfoot><tr class="qbo-totals">
+          <th scope="row" colspan="3">${totalsLabel(list.length)}</th>
+          <td class="qbo-num">${money(sumMoney(list, (row) => row.innovationsTotal))}</td>
+          <td class="qbo-num">${money(sumMoney(list, (row) => row.qboTotal))}</td>
+          <td class="qbo-num" title="Sum of displayed differences">${money(sumMoney(list, (row) => row.difference))}</td>
+          <td colspan="2"></td>
+        </tr></tfoot>
       </table>
       <p class="qbo-table-foot">${shown.length} of ${list.length} shown${list.length > shown.length ? ` <button type="button" class="button secondary" data-action="recon-more">Show ${Math.min(PAGE_SIZE, list.length - shown.length)} more</button>` : ""}</p>`
       : `<p class="qbo-empty">${state.query ? "Nothing matches your search." : "Nothing in this list."}</p>`;
@@ -354,6 +364,11 @@
       <table class="qbo-table">
         <thead><tr><th></th>${COLUMNS.map(headerCell).join("")}</tr></thead>
         <tbody>${shown.map(invoiceRow).join("")}</tbody>
+        <tfoot><tr class="qbo-totals">
+          <th scope="row" colspan="4">${totalsLabel(list.length)}</th>
+          <td class="qbo-num">${money(sumMoney(list, (row) => row.isCredit ? -row.total : row.total))}</td>
+          <td colspan="3"></td>
+        </tr></tfoot>
       </table>
       <p class="qbo-table-foot">${shown.length} of ${list.length} shown${list.length > shown.length ? ` <button type="button" class="button secondary" data-action="more">Show ${Math.min(PAGE_SIZE, list.length - shown.length)} more</button>` : ""}</p>`
       : `<p class="qbo-empty">${state.query ? "No invoices match your search." : "Nothing here."}</p>`;
