@@ -70,6 +70,36 @@ test('worker serves website requests before scheduled tiers, with delta on', asy
   assert.ok(worker.status().lastSuccess.hot);
 });
 
+test('worker logs a deferred tier instead of ticking silently when the cloud-sync lock is held', async () => {
+  // Reproduces the production bug: the worker-level lock (shared with manual
+  // CLI runs, keyed on the real default LOCK_FILE) is held by someone else,
+  // so runSync's own gate defers before `sync` is ever called.
+  const innovationsSync = require('../lib/innovations-sync');
+  const heldLock = innovationsSync.acquireSyncLock();
+  assert.equal(heldLock.acquired, true, 'precondition: the default lock file must be free before this test');
+
+  const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'wk-')), 'state.json');
+  const events = [];
+  const worker = createSyncWorker({
+    stateFile,
+    log: (event, data) => events.push({ event, data }),
+    loadCredentials: () => ({ apiKey: 'k' }),
+    fetchNextRequest: async () => null,
+    completeRequest: async () => {},
+    sync: async () => { throw new Error('sync must not run while the cloud-sync lock is held'); },
+  });
+  try {
+    await worker.tick();
+  } finally {
+    heldLock.release();
+  }
+
+  assert.deepEqual(events.map((e) => e.event), ['worker.tier.deferred']);
+  assert.equal(events[0].data.tier, 'hot');
+  assert.match(events[0].data.reason, /manual Innovations sync is running/);
+  assert.equal(worker.status().lastAttempt.hot, null);
+});
+
 test('worker refuses pricing-mirror-only website requests and still completes them', async () => {
   const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'wk-')), 'state.json');
   const completed = [];
