@@ -12,6 +12,7 @@ OptiLens Local is an internal Windows/Node platform and the private operational 
 - `docs/agent/HANDOFF.md`
 - `docs/REMOTE_AGENT_OPERATIONS.md` before host access, deployment, restart, or recovery
 - `docs/WINDOWS_WORKSTATION_CUTOVER.md` for desktop agent setup or moving the live service to a new Windows machine
+- on machine CV-PC01 read the repo at D:\dev\optilens-home\repos\optilens-local
 - For operations-agent work: the review brief, README, build task, then relevant code/tests under `docs/operations-agent/`
 
 ## Data rules
