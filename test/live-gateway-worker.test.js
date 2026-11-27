@@ -65,3 +65,19 @@ test('live gateway autostart persists credentials through a protected local stor
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('live gateway polls advertise every capability, including the all-customer views', async () => {
+  const worker = new (Object.getPrototypeOf(liveGatewayWorker).constructor)();
+  const bodies = [];
+  worker.post = async (body) => {
+    bodies.push(body);
+    if (body.action === 'agent.next') worker.running = false;
+    return { request: null };
+  };
+  worker.running = true;
+  await worker.runLoop();
+  const poll = bodies.find((body) => body.action === 'agent.next');
+  assert.ok(poll, 'the loop polled for work');
+  assert.ok(poll.capabilities.includes('optilens.all_deliveries'));
+  assert.ok(poll.capabilities.includes('innovations.all_orders'));
+});
